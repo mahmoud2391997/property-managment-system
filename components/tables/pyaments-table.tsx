@@ -1,19 +1,9 @@
 'use client'
 
-import * as React from 'react'
 import {
-  ColumnDef,
-  ColumnFiltersState,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  SortingState,
-  useReactTable
+  ColumnDef
 } from '@tanstack/react-table'
 import { MoreHorizontal } from 'lucide-react'
-
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -24,14 +14,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
 import Tooltip from '../costume-ui/tooltip'
 import { Payment } from '@/types'
 import { paymentsData } from '@/utils/data'
@@ -40,16 +22,15 @@ import { formatDate, formatTimestamp } from '@/utils/formatTime'
 import { Repeat } from 'lucide-react'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { Progress } from '../ui/progress'
-import Image from 'next/image'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
-import { Table as CostumTable } from '../costume-ui/table'
+import { Table } from '../costume-ui/table'
 
 type Props = {
   showPropertyColumn?: boolean
   className?: string
 }
 
-export default function PaymentsTable ({ showPropertyColumn, className = '' }: Props) {
+export default function PaymentsTable ({ showPropertyColumn = true, className = '' }: Props) {
   const columns: ColumnDef<Payment>[] = [
     //Checkbox
     {
@@ -267,110 +248,5 @@ export default function PaymentsTable ({ showPropertyColumn, className = '' }: P
     }
   ]
 
-  return <CostumTable columns={columns} className={className} />
+  return <Table columns={columns} data={paymentsData} className={className} />
 }
-
-// export default function PaymentsTable () {
-//   const [sorting, setSorting] = React.useState<SortingState>([])
-//   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-//     []
-//   )
-//   const [rowSelection, setRowSelection] = React.useState({})
-
-//   const table = useReactTable({
-//     data: paymentsData,
-//     columns,
-//     onSortingChange: setSorting,
-//     onColumnFiltersChange: setColumnFilters,
-//     getCoreRowModel: getCoreRowModel(),
-//     getPaginationRowModel: getPaginationRowModel(),
-//     getSortedRowModel: getSortedRowModel(),
-//     getFilteredRowModel: getFilteredRowModel(),
-//     onRowSelectionChange: setRowSelection,
-//     state: {
-//       sorting,
-//       columnFilters,
-//       rowSelection
-//     }
-//   })
-
-//   return (
-//     <div className='w-full'>
-//       <div className='overflow-hidden rounded-xl border'>
-//         <Table>
-//           <TableHeader className='bg-(--background-secondary)'>
-//             {table.getHeaderGroups().map(headerGroup => (
-//               <TableRow key={headerGroup.id}>
-//                 {headerGroup.headers.map(header => {
-//                   return (
-//                     <TableHead key={header.id}>
-//                       {header.isPlaceholder
-//                         ? null
-//                         : flexRender(
-//                             header.column.columnDef.header,
-//                             header.getContext()
-//                           )}
-//                     </TableHead>
-//                   )
-//                 })}
-//               </TableRow>
-//             ))}
-//           </TableHeader>
-//           <TableBody>
-//             {table.getRowModel().rows?.length ? (
-//               table.getRowModel().rows.map(row => (
-//                 <TableRow
-//                   key={row.id}
-//                   data-state={row.getIsSelected() && 'selected'}
-//                 >
-//                   {row.getVisibleCells().map(cell => (
-//                     <TableCell key={cell.id}>
-//                       {flexRender(
-//                         cell.column.columnDef.cell,
-//                         cell.getContext()
-//                       )}
-//                     </TableCell>
-//                   ))}
-//                 </TableRow>
-//               ))
-//             ) : (
-//               <TableRow>
-//                 <TableCell
-//                   colSpan={columns.length}
-//                   className='h-24 text-center'
-//                 >
-//                   No results.
-//                 </TableCell>
-//               </TableRow>
-//             )}
-//           </TableBody>
-//         </Table>
-//       </div>
-
-//       <div className='flex items-center justify-end space-x-2 py-4'>
-//         <div className='text-muted-foreground flex-1 text-sm'>
-//           {table.getFilteredSelectedRowModel().rows.length} of{' '}
-//           {table.getFilteredRowModel().rows.length} row(s) selected.
-//         </div>
-//         <div className='space-x-2'>
-//           <Button
-//             variant='outline'
-//             size='sm'
-//             onClick={() => table.previousPage()}
-//             disabled={!table.getCanPreviousPage()}
-//           >
-//             Previous
-//           </Button>
-//           <Button
-//             variant='outline'
-//             size='sm'
-//             onClick={() => table.nextPage()}
-//             disabled={!table.getCanNextPage()}
-//           >
-//             Next
-//           </Button>
-//         </div>
-//       </div>
-//     </div>
-//   )
-// }

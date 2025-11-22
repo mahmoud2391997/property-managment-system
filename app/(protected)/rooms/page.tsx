@@ -2,10 +2,62 @@ import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
 import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
-import RoomsTable from '@/components/tables/RoomsTable'
+import RoomsTable from '@/components/tables/rooms-table'
 import Link from 'next/link'
+import { prisma } from '@/lib/prisma'
+import { createClient } from '@/utils/supabase/server'
 
-const Rooms = () => {
+async function getRooms() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return []
+  }
+
+  // Get staff info to find organization
+  const staff = await prisma.staff.findUnique({
+    where: { id: user.id },
+    select: { organization_id: true }
+  })
+
+  if (!staff) {
+    return []
+  }
+
+  // Get rooms for properties in this organization
+  const rooms = await prisma.rooms.findMany({
+    where: {
+      properties: {
+        organization_id: staff.organization_id
+      }
+    },
+    select: {
+      id: true,
+      title: true,
+      is_ready: true,
+      properties: {
+        select: {
+          code: true
+        }
+      }
+    },
+    orderBy: {
+      created_at: 'desc'
+    }
+  })
+
+  return rooms.map(room => ({
+    id: room.id,
+    title: room.title,
+    property: room.properties?.code || 'No Property',
+    status: room.is_ready ? 'Vacant' : 'Under Preparation'
+  }))
+}
+
+const Rooms = async () => {
+  const rooms = await getRooms()
+
   return (
     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
       {/* Heading */}
@@ -33,7 +85,7 @@ const Rooms = () => {
       </div>
       {/* Table */}
       <div>
-        <RoomsTable />
+        <RoomsTable data={rooms} />
       </div>
     </div>
   )

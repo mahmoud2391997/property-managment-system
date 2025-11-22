@@ -5,13 +5,32 @@ import RadioGroup from './radio-group'
 import InputGroup from './input-group'
 import Input from './input'
 import { cn } from '@/lib/utils'
+import { CheckAddon } from './payment-section'
 
 type Props = {
   title: string
   sectionNumber: number
+  onLeaseExpiryChange?: (enabled: boolean, days: string) => void
+  onRentReminderChange?: (enabled: boolean, days: string) => void
+  onOverdueReminderChange?: (enabled: boolean, days: string) => void
+  defaultCollapse?: boolean
+  isOptional?: boolean
 }
 
-const ReminderSection = ({ title = 'Reminders', sectionNumber }: Props) => {
+const ReminderSection = ({
+  title = 'Reminders',
+  sectionNumber,
+  onLeaseExpiryChange,
+  onRentReminderChange,
+  onOverdueReminderChange,
+  defaultCollapse = false,
+  isOptional = false
+}: Props) => {
+  // Enable/disable states for optional mode
+  const [enableLeaseExpiry, setEnableLeaseExpiry] = useState(false)
+  const [enableRentReminder, setEnableRentReminder] = useState(false)
+  const [enableOverdueReminder, setEnableOverdueReminder] = useState(false)
+
   const [activate, setActivate] = useState<{
     expiry: boolean
     before: boolean
@@ -21,6 +40,17 @@ const ReminderSection = ({ title = 'Reminders', sectionNumber }: Props) => {
     before: false,
     after: false
   })
+
+  const [days, setDays] = useState<{
+    expiry: string
+    before: string
+    after: string
+  }>({
+    expiry: '',
+    before: '',
+    after: ''
+  })
+
   const inputGroupEffect = (activate: boolean) => {
     return cn(
       'overflow-hidden transition-all duration-150 ease-out',
@@ -29,7 +59,7 @@ const ReminderSection = ({ title = 'Reminders', sectionNumber }: Props) => {
   }
 
   return (
-    <CollapsibleSection title={title} number={sectionNumber}>
+    <CollapsibleSection title={title} number={sectionNumber} defaultCollapse={defaultCollapse}>
       <InnerSection
         title='Reminders'
         subtitle='Set up automated reminders to keep everyone on track with key rental dates'
@@ -40,9 +70,9 @@ const ReminderSection = ({ title = 'Reminders', sectionNumber }: Props) => {
               defaultOption={1}
               options={['Yes', 'No']}
               onChange={value => {
-                if (value === 0)
-                  setActivate(prev => ({ ...prev, expiry: true }))
-                else setActivate(prev => ({ ...prev, expiry: false }))
+                const enabled = value === 0
+                setActivate(prev => ({ ...prev, expiry: enabled }))
+                onLeaseExpiryChange?.(enabled, days.expiry)
               }}
             />
           </InputGroup>
@@ -51,7 +81,17 @@ const ReminderSection = ({ title = 'Reminders', sectionNumber }: Props) => {
             label='Lease expiry reminder days before'
             className={inputGroupEffect(activate.expiry)}
           >
-            <Input type='number' min={1} placeholder='E.g. 30' />
+            <Input
+              type='number'
+              min={1}
+              placeholder='E.g. 30'
+              value={days.expiry}
+              onChange={e => {
+                const value = e.target.value
+                setDays(prev => ({ ...prev, expiry: value }))
+                onLeaseExpiryChange?.(activate.expiry, value)
+              }}
+            />
           </InputGroup>
         </div>
         <div className='flex'>
@@ -60,9 +100,9 @@ const ReminderSection = ({ title = 'Reminders', sectionNumber }: Props) => {
               defaultOption={1}
               options={['Yes', 'No']}
               onChange={value => {
-                if (value === 0)
-                  setActivate(prev => ({ ...prev, before: true }))
-                else setActivate(prev => ({ ...prev, before: false }))
+                const enabled = value === 0
+                setActivate(prev => ({ ...prev, before: enabled }))
+                onRentReminderChange?.(enabled, days.before)
               }}
             />
           </InputGroup>
@@ -70,7 +110,17 @@ const ReminderSection = ({ title = 'Reminders', sectionNumber }: Props) => {
             label='Tenant rent reminder days before'
             className={inputGroupEffect(activate.before)}
           >
-            <Input type='number' min={1} placeholder='E.g. 7' />
+            <Input
+              type='number'
+              min={1}
+              placeholder='E.g. 7'
+              value={days.before}
+              onChange={e => {
+                const value = e.target.value
+                setDays(prev => ({ ...prev, before: value }))
+                onRentReminderChange?.(activate.before, value)
+              }}
+            />
           </InputGroup>
         </div>
         <div className='flex'>
@@ -79,9 +129,9 @@ const ReminderSection = ({ title = 'Reminders', sectionNumber }: Props) => {
               defaultOption={1}
               options={['Yes', 'No']}
               onChange={value => {
-                if (value === 0)
-                  setActivate(prev => ({ ...prev, after: true }))
-                else setActivate(prev => ({ ...prev, after: false }))
+                const enabled = value === 0
+                setActivate(prev => ({ ...prev, after: enabled }))
+                onOverdueReminderChange?.(enabled, days.after)
               }}
             />
           </InputGroup>
@@ -89,7 +139,17 @@ const ReminderSection = ({ title = 'Reminders', sectionNumber }: Props) => {
             label='Tenant rent reminder days after'
             className={inputGroupEffect(activate.after)}
           >
-            <Input type='number' min={1} placeholder='E.g. 3' />
+            <Input
+              type='number'
+              min={1}
+              placeholder='E.g. 3'
+              value={days.after}
+              onChange={e => {
+                const value = e.target.value
+                setDays(prev => ({ ...prev, after: value }))
+                onOverdueReminderChange?.(activate.after, value)
+              }}
+            />
           </InputGroup>
         </div>
       </InnerSection>

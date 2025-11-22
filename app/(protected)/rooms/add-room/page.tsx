@@ -90,10 +90,12 @@ const AddRoom = () => {
       <PaymentSection
         sectionNumber={2}
         title='Default Payment Details (Optional)'
+        defaultCollapse
+        defaultPayment
       />
 
       {/* Default Reminder */}
-      <ReminderSection sectionNumber={3} title='Default Reminders (Optional)' />
+      <ReminderSection sectionNumber={3} title='Default Reminders (Optional)' defaultCollapse isOptional />
     </div>
   )
 }

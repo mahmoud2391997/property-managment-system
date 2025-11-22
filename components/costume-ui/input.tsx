@@ -38,6 +38,7 @@ const Input = ({ className = '', note, currency = false, ...props }: Props) => {
         decimalScale={2}
         prefix='RM '
         className={styles}
+        {...props}
       />
     )
   }

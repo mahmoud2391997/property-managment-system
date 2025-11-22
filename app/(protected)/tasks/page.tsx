@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
 import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
-import TasksTable from '@/components/tables/TasksTable'
+import TasksTable from '@/components/tables/tasks-table'
 import Dialog from '@/components/costume-ui/dialog'
 import AddTask from '@/components/add-task'
 

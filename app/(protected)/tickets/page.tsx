@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
 import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
-import TicketsTable from '@/components/tables/TicketsTable'
+import TicketsTable from '@/components/tables/tickets-table'
 
 const Tickets = () => {
   return (

@@ -1,26 +1,34 @@
 'use client'
-import React, { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Button from '@/components/costume-ui/button'
 import CollapsibleSection from '@/components/costume-ui/collapsible-section'
 import InputGroup from '@/components/costume-ui/input-group'
 import Input from '@/components/costume-ui/input'
 import Select from '@/components/costume-ui/select'
-import { projectsData } from '@/utils/data'
-import { House, Building, Store, Plus, Check } from 'lucide-react'
+import { House, Building, Store, Check } from 'lucide-react'
 import Option from '@/components/costume-ui/option'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
-import InputCard from '@/components/costume-ui/input-card'
 import InnerSection from '@/components/costume-ui/collapsible-inner-section'
-import ReminderSection from '@/components/costume-ui/reminder-section'
-import PaymentSection from '@/components/costume-ui/payment-section'
 import { useSingleSelectOption } from '@/hooks/useSingleSelectOption'
 import AddPageHead from '@/components/costume-ui/add-page-head'
+import { useRouter } from 'next/navigation'
+import type { ChargeData } from '@/components/costume-ui/charges-section'
+import RoomCard, { RoomData } from '@/components/costume-ui/room-card'
+import PaymentSection from '@/components/costume-ui/payment-section'
+import ReminderSection from '@/components/costume-ui/reminder-section'
+import type { LateCharge } from '@/components/costume-ui/payment-section'
+import type { projects } from '@prisma/client'
+import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 
 // Main compoennt
 const AddProperty = () => {
-  const projectTitle: string[] = projectsData.map(project => project.name)
-  const { options, selectByIndex } = useSingleSelectOption([
+  const router = useRouter()
+  const formRef = useRef<HTMLFormElement>(null)
+
+  const [projects, setProjects] = useState<projects[]>([])
+  const [loadingProjects, setLoadingProjects] = useState(true)
+  const { options, selectByIndex, selectedIndex } = useSingleSelectOption([
     {
       Icon: House,
       label: 'House',
@@ -42,10 +50,186 @@ const AddProperty = () => {
       isSelected: false
     }
   ])
+
+  // Property Details State
+  const [code, setCode] = useState('')
+  const [selectedProject, setSelectedProject] = useState<projects>()
+  const [streetAddress, setStreetAddress] = useState('')
+  const [city, setCity] = useState('')
+  const [postalCode, setPostalCode] = useState('')
   const [isPropertyReady, setIsPropertyReady] = useState<boolean>(false)
+  const [rooms, setRooms] = useState<RoomData[]>([])
+
+  // Payment Details State (Optional) - managed by PaymentSection component
+  const [initialCharges, setInitialCharges] = useState<ChargeData[]>([])
+  const [lateCharges, setLateCharges] = useState<LateCharge[]>([])
+  const [monthlyRent, setMonthlyRent] = useState('')
+  const [paymentDay, setPaymentDay] = useState<number>(1)
+
+  // Reminder Details State (Optional) - managed by ReminderSection component
+  const [leaseExpiryEnabled, setLeaseExpiryEnabled] = useState(false)
+  const [leaseExpiryDays, setLeaseExpiryDays] = useState('')
+  const [rentReminderEnabled, setRentReminderEnabled] = useState(false)
+  const [rentReminderDays, setRentReminderDays] = useState('')
+  const [overdueReminderEnabled, setOverdueReminderEnabled] = useState(false)
+  const [overdueReminderDays, setOverdueReminderDays] = useState('')
+
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formKey, setFormKey] = useState(0) // Key to force reset child components
+
+  // Fetch projects from API
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const response = await fetch('/api/projects')
+        if (response.ok) {
+          const data = await response.json()
+          setProjects(data.projects || [])
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error)
+      } finally {
+        setLoadingProjects(false)
+      }
+    }
+
+    fetchProjects()
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    try {
+      // Get selected property type
+      const selectedType = options.find(opt => opt.isSelected)?.label || 'House'
+
+      // Prepare the payload
+      const payload: any = {
+        // Required property details
+        code,
+        street_address: streetAddress,
+        postal_code: postalCode,
+        type: selectedType.replace(' ', '_'),
+        project_id: selectedProject?.id || null,
+        is_ready: isPropertyReady,
+
+        // Optional rooms
+        rooms:
+          rooms.length > 0 && selectedIndex !== 0 && selectedIndex !== 1
+            ? rooms
+            : undefined
+      }
+
+      // Add optional initial charges if any have amounts
+      const validInitialCharges = initialCharges.filter(
+        charge => charge.amount && parseFloat(charge.amount) > 0
+      )
+      if (validInitialCharges.length > 0) {
+        payload.initial_charges = validInitialCharges.map(charge => ({
+          charge_type: charge.type.replace(/ /g, '_'),
+          amount: parseFloat(charge.amount),
+          is_taxed: charge.isTaxableChecked || false,
+          is_refundable: charge.refundable || false
+        }))
+      }
+
+      // Add optional late payment charges if any have amounts
+      const validLateCharges = lateCharges.filter(
+        charge => charge.amount && parseFloat(charge.amount) > 0
+      )
+      if (validLateCharges.length > 0) {
+        payload.late_payment_charges = validLateCharges.map(charge => ({
+          days_after_due: charge.days_after_due,
+          amount: parseFloat(charge.amount)
+        }))
+      }
+
+      // Add optional payment details if monthly rent is provided
+      if (monthlyRent) {
+        payload.monthly_rent = parseFloat(monthlyRent)
+        payload.payment_day = paymentDay
+      }
+
+      // Add optional reminders if any are enabled
+      if (leaseExpiryEnabled || rentReminderEnabled || overdueReminderEnabled) {
+        payload.reminders = {
+          is_expiry_reminder: leaseExpiryEnabled,
+          expiry_days_before_reminder:
+            leaseExpiryEnabled && leaseExpiryDays
+              ? parseInt(leaseExpiryDays)
+              : null,
+          is_rent_reminder: rentReminderEnabled,
+          rent_reminder_days_before:
+            rentReminderEnabled && rentReminderDays
+              ? parseInt(rentReminderDays)
+              : null,
+          is_overdue_rent_reminder: overdueReminderEnabled,
+          overdue_days_after_reminder:
+            overdueReminderEnabled && overdueReminderDays
+              ? parseInt(overdueReminderDays)
+              : null
+        }
+      }
+
+      const response = await fetch('/api/properties', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create property')
+      }
+
+      // Show success toast
+      FeedbackToasts.created(
+        'Property',
+        `${code} has been added to your properties.`
+      )
+
+      // Reset all form fields
+      setCode('')
+      setSelectedProject(undefined)
+      setStreetAddress('')
+      setCity('')
+      setPostalCode('')
+      setIsPropertyReady(false)
+      setRooms([])
+      setInitialCharges([])
+      setLateCharges([])
+      setMonthlyRent('')
+      setPaymentDay(1)
+      setLeaseExpiryEnabled(false)
+      setLeaseExpiryDays('')
+      setRentReminderEnabled(false)
+      setRentReminderDays('')
+      setOverdueReminderEnabled(false)
+      setOverdueReminderDays('')
+
+      // Reset property type to first option (House)
+      selectByIndex(0)
+
+      // Force remount of child components to reset their internal state
+      setFormKey(prev => prev + 1)
+
+      // Refresh the page to update any cached data
+      router.refresh()
+    } catch (error: any) {
+      console.error('Error creating property:', error)
+      const errorMessage = error.message || 'Failed to create property'
+      FeedbackToasts.createFailed('property', errorMessage)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
-    <div className='flex flex-col gap-5'>
+    <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
       {/* Head section */}
       <AddPageHead
         crumb_items={[
@@ -54,6 +238,7 @@ const AddProperty = () => {
         ]}
         title='Add a property'
         subtitle='Add a new property to your management dashboard'
+        isSubmitting={isSubmitting}
       />
 
       {/* Property Details Section */}
@@ -65,14 +250,28 @@ const AddProperty = () => {
         >
           <div className='inputs-container'>
             <InputGroup label='Code' isRequired>
-              <Input placeholder='E.g. B-2-1' maxLength={20} required />
+              <Input
+                placeholder='E.g. B-2-1'
+                maxLength={20}
+                required
+                value={code}
+                onChange={e => setCode(e.target.value)}
+              />
             </InputGroup>
             <InputGroup label='Project' isRequired>
               <Select
-                items={projectTitle}
+                items={projects.map(p => ({ value: p.id, label: p.title }))}
                 label='Projects'
-                placeholder='Select a project'
+                placeholder={
+                  loadingProjects ? 'Loading projects...' : 'Select a project'
+                }
                 required
+                value={selectedProject?.id}
+                onValueChange={(id: string) => {
+                  const project = projects.find(p => p.id === id)
+                  setSelectedProject(project)
+                }}
+                disabled={loadingProjects}
               />
             </InputGroup>
           </div>
@@ -85,11 +284,19 @@ const AddProperty = () => {
               placeholder='E.g. 1234 West Pinecrest Avenue'
               maxLength={150}
               required
+              value={streetAddress}
+              onChange={e => setStreetAddress(e.target.value)}
             />
           </InputGroup>
           <div className='inputs-container'>
             <InputGroup label='City' isRequired>
-              <Input placeholder='E.g. Ayer Keroh' maxLength={100} required />
+              <Input
+                placeholder='E.g. Ayer Keroh'
+                maxLength={100}
+                required
+                value={city}
+                onChange={e => setCity(e.target.value)}
+              />
             </InputGroup>
             <InputGroup label='Postal Code' isRequired>
               <Input
@@ -97,17 +304,19 @@ const AddProperty = () => {
                 maxLength={5}
                 pattern='\d{5}'
                 required
-              />{' '}
+                value={postalCode}
+                onChange={e => setPostalCode(e.target.value)}
+              />
             </InputGroup>
             <InputGroup label='State'>
               <Input
-                defaultValue='Melaka'
+                value={selectedProject?.state || ''}
                 note='Automatically set based on project'
                 disabled
               />
             </InputGroup>
             <InputGroup label='Country'>
-              <Input defaultValue='Malaysia' disabled />{' '}
+              <Input defaultValue='Malaysia' disabled />
             </InputGroup>
           </div>
         </InnerSection>
@@ -131,34 +340,9 @@ const AddProperty = () => {
         </InnerSection>
 
         {/* Rooms */}
-        <InnerSection title='Rooms' subtitle='Add individual rooms (optional)'>
-          <InputCard>
-            <InputGroup
-              className='w-40 sm:w-50 md:w-60 lg:w-80'
-              label='Room Title'
-              isRequired
-            >
-              <Input
-                className='bg-(--background-primary)'
-                placeholder='E.g. Master'
-                maxLength={20}
-                required
-              />
-            </InputGroup>
-            <div className='flex '>
-              <div className='flex items-center gap-2.5 h-10 w-full'>
-                <Checkbox className='h-5 w-5 border-(--border-strong) bg-(--background-primary)' />
-                <span className='texts-body-medium'>Room is ready</span>
-              </div>
-            </div>
-          </InputCard>
-          <Button
-            variant='secondary'
-            icon={<Plus />}
-            label='Add Room'
-            isResponsive={false}
-          />
-        </InnerSection>
+        {(selectedIndex === 0 || selectedIndex === 1) && (
+          <RoomCard onRoomsChange={setRooms} />
+        )}
 
         {/* Status */}
         <InnerSection
@@ -174,6 +358,7 @@ const AddProperty = () => {
               )}
             />
             <button
+              type='button'
               onClick={() => setIsPropertyReady(prev => !prev)}
               className={cn(
                 'flex flex-col justify-center gap-[3]',
@@ -203,15 +388,40 @@ const AddProperty = () => {
         </InnerSection>
       </CollapsibleSection>
 
-      {/* Default Payment Details */}
+      {/* Default Payment Details - Using PaymentSection Component */}
       <PaymentSection
+        key={`payment-${formKey}`}
         sectionNumber={2}
         title='Default Payment Details (Optional)'
+        onInitialChargesChange={setInitialCharges}
+        onMonthlyRentChange={setMonthlyRent}
+        onPaymentDayChange={setPaymentDay}
+        onLateChargesChange={setLateCharges}
+        defaultCollapse
+        defaultPayment
       />
 
-      {/* Default Reminder */}
-      <ReminderSection sectionNumber={3} title='Default Reminders (Optional)' />
-    </div>
+      {/* Default Reminders - Using ReminderSection Component */}
+      <ReminderSection
+        key={`reminder-${formKey}`}
+        sectionNumber={3}
+        title='Default Reminders (Optional)'
+        onLeaseExpiryChange={(enabled, days) => {
+          setLeaseExpiryEnabled(enabled)
+          setLeaseExpiryDays(days)
+        }}
+        onRentReminderChange={(enabled, days) => {
+          setRentReminderEnabled(enabled)
+          setRentReminderDays(days)
+        }}
+        onOverdueReminderChange={(enabled, days) => {
+          setOverdueReminderEnabled(enabled)
+          setOverdueReminderDays(days)
+        }}
+        defaultCollapse
+        isOptional
+      />
+    </form>
   )
 }
 

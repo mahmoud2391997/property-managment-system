@@ -654,25 +654,28 @@ model projects {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model properties {
-  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  code            String
-  street_address  String
-  postal_code     String
-  is_ready        Boolean       @default(false)
-  type            property_type
-  project_id      String?       @db.Uuid
-  organization_id String        @db.Uuid
-  created_at      DateTime      @default(now()) @db.Timestamptz(6)
-  created_by      String?       @db.Uuid
-  bookings        bookings[]
-  contracts       contracts[]
-  expenses        expenses[]
-  leases          leases[]
-  staff           staff?        @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  projects        projects?     @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  rooms           rooms[]
-  views           views[]
+  id                               String                             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code                             String
+  street_address                   String
+  postal_code                      String
+  is_ready                         Boolean                            @default(false)
+  type                             property_type
+  project_id                       String?                            @db.Uuid
+  organization_id                  String                             @db.Uuid
+  created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
+  created_by                       String?                            @db.Uuid
+  bookings                         bookings[]
+  contracts                        contracts[]
+  expenses                         expenses[]
+  late_payment_charges             late_payment_charges[]
+  leases                           leases[]
+  staff                            staff?                             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  organizations                    organizations                      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects                         projects?                          @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  property_default_initial_charges property_default_initial_charges[]
+  property_default_lease_config    property_default_lease_config?
+  rooms                            rooms[]
+  views                            views[]
 
   @@schema("public")
 }
@@ -709,54 +712,61 @@ model roles_permissions {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model rooms {
-  id          String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  title       String
-  is_ready    Boolean     @default(false)
-  property_id String?     @db.Uuid
-  created_at  DateTime    @default(now()) @db.Timestamptz(6)
-  created_by  String?     @db.Uuid
-  bookings    bookings[]
-  leases      leases[]
-  staff       staff?      @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  properties  properties? @relation(fields: [property_id], references: [id], onUpdate: NoAction)
-  views       views[]
+  id                               String                             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title                            String
+  is_ready                         Boolean                            @default(false)
+  property_id                      String?                            @db.Uuid
+  created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
+  created_by                       String?                            @db.Uuid
+  bookings                         bookings[]
+  late_payment_charges             late_payment_charges[]
+  leases                           leases[]
+  property_default_initial_charges property_default_initial_charges[]
+  property_default_lease_config    property_default_lease_config?
+  staff                            staff?                             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  properties                       properties?                        @relation(fields: [property_id], references: [id], onUpdate: NoAction)
+  views                            views[]
 
   @@schema("public")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model staff {
-  id                 String               @id @db.Uuid
-  staff_id           String
-  first_name         String
-  last_name          String?
-  role_id            String               @db.Uuid
-  profile_pic        String?
-  profile_thumb      String?
-  organization_id    String               @db.Uuid
-  created_at         DateTime             @default(now()) @db.Timestamptz(6)
-  created_by         String?              @db.Uuid
-  bookings           bookings[]
-  charges            charges[]
-  company_tenants    company_tenants[]
-  contracts          contracts[]
-  expenses           expenses[]
-  individual_tenants individual_tenants[]
-  leases             leases[]
-  owners             owners[]
-  payment_history    payment_history[]
-  payments           payments[]
-  projects           projects[]
-  properties         properties[]
-  roles_permissions  roles_permissions[]
-  rooms              rooms[]
-  staff              staff?               @relation("staffTostaff", fields: [created_by], references: [id], onUpdate: NoAction)
-  other_staff        staff[]              @relation("staffTostaff")
-  users              users                @relation(fields: [id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  organizations      organizations        @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  roles              roles                @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  tenants            tenants[]
-  views              views[]
+  id                               String                             @id @db.Uuid
+  staff_id                         String
+  first_name                       String
+  last_name                        String?
+  role_id                          String                             @db.Uuid
+  profile_pic                      String?
+  profile_thumb                    String?
+  organization_id                  String                             @db.Uuid
+  created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
+  created_by                       String?                            @db.Uuid
+  phone_number                     String
+  bookings                         bookings[]
+  charges                          charges[]
+  company_tenants                  company_tenants[]
+  contracts                        contracts[]
+  expenses                         expenses[]
+  individual_tenants               individual_tenants[]
+  late_payment_charges             late_payment_charges[]
+  leases                           leases[]
+  owners                           owners[]
+  payment_history                  payment_history[]
+  payments                         payments[]
+  projects                         projects[]
+  properties                       properties[]
+  property_default_initial_charges property_default_initial_charges[]
+  property_default_lease_config    property_default_lease_config[]
+  roles_permissions                roles_permissions[]
+  rooms                            rooms[]
+  staff                            staff?                             @relation("staffTostaff", fields: [created_by], references: [id], onUpdate: NoAction)
+  other_staff                      staff[]                            @relation("staffTostaff")
+  users                            users                              @relation(fields: [id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations                    organizations                      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roles                            roles                              @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                          tenants[]
+  views                            views[]
 
   @@unique([staff_id, organization_id])
   @@schema("public")
@@ -795,6 +805,76 @@ model views {
   properties   properties @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   rooms        rooms?     @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model late_payment_charges {
+  id             String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  property_id    String?     @db.Uuid
+  days_after_due Int
+  amount         Float
+  created_at     DateTime    @default(now()) @db.Timestamptz(6)
+  created_by     String?     @db.Uuid
+  room_id        String?     @db.Uuid
+  staff          staff?      @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  properties     properties? @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rooms          rooms?      @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([property_id, days_after_due], map: "unique_property_days")
+  @@unique([room_id, days_after_due], map: "unique_room_days")
+  @@index([property_id], map: "idx_late_payment_charges")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model property_default_initial_charges {
+  id            String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  property_id   String?             @db.Uuid
+  charge_type   initial_charge_type
+  amount        Float
+  is_taxed      Boolean             @default(false)
+  created_at    DateTime            @default(now()) @db.Timestamptz(6)
+  created_by    String?             @db.Uuid
+  room_id       String?             @db.Uuid
+  is_refundable Boolean             @default(false)
+  staff         staff?              @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  properties    properties?         @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rooms         rooms?              @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([property_id, charge_type], map: "unique_property_charge_type")
+  @@unique([room_id, charge_type], map: "unique_room_charge_type")
+  @@index([property_id], map: "idx_property_initial_charges")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model property_default_lease_config {
+  id                          String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  property_id                 String?     @unique(map: "unique_property_config") @db.Uuid
+  default_monthly_rent        Float?
+  default_payment_day         Int?
+  is_expiry_reminder          Boolean     @default(false)
+  expiry_days_before_reminder Int?
+  is_rent_reminder            Boolean     @default(false)
+  rent_reminder_days_before   Int?
+  is_overdue_rent_reminder    Boolean     @default(false)
+  overdue_days_after_reminder Int?
+  created_at                  DateTime    @default(now()) @db.Timestamptz(6)
+  created_by                  String?     @db.Uuid
+  updated_at                  DateTime    @default(now()) @db.Timestamptz(6)
+  room_id                     String?     @unique(map: "unique_room_config") @db.Uuid
+  staff                       staff?      @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  properties                  properties? @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rooms                       rooms?      @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([property_id], map: "idx_property_default_config")
   @@schema("public")
 }
 
@@ -926,6 +1006,16 @@ enum registrar_role {
 enum tenant_type {
   Individual
   Company
+
+  @@schema("public")
+}
+
+enum initial_charge_type {
+  First_Month_Rental @map("First Month Rental")
+  Earnest_Deposit    @map("Earnest Deposit")
+  Security_Deposit   @map("Security Deposit")
+  Utility_Deposit    @map("Utility Deposit")
+  Legal_Fees         @map("Legal Fees")
 
   @@schema("public")
 }

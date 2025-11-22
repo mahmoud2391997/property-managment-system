@@ -1,67 +1,70 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { CheckCircle2, XCircle } from 'lucide-react'
 
-const parseCookies = (cookieString: string): Record<string, string> => {
-  if (!cookieString) return {}
-  return cookieString.split('; ').reduce((acc, cookie) => {
-    const [key, value] = cookie.split('=')
-    if (key && value) acc[key] = decodeURIComponent(value)
-    return acc
-  }, {} as Record<string, string>)
-}
-
-export default function ConfirmedPage() {
+export default function ConfirmPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [count, setCount] = useState(3)
-  const [verified, setVerified] = useState<boolean | null>(null) // null = loading
+  const [status, setStatus] = useState<'success' | 'error' | 'loading'>('loading')
 
   useEffect(() => {
-    // check cookie
-    const cookies = parseCookies(document.cookie)
+    const urlStatus = searchParams.get('status')
 
-    if (cookies['verified'] === 'true') {
-      setVerified(true)
-
-      // remove cookie so refresh doesn't fake verification
-      document.cookie = 'verified=; max-age=0; path=/'
-
-      // start countdown
-      const timer = setInterval(() => {
-        setCount(c => c - 1)
-      }, 1000)
-
-      const redirectTimer = setTimeout(() => {
-        router.push('/login')
-      }, 3000)
-
-      return () => {
-        clearInterval(timer)
-        clearTimeout(redirectTimer)
-      }
+    if (urlStatus === 'success') {
+      setStatus('success')
+    } else if (urlStatus === 'error') {
+      setStatus('error')
     } else {
-      // manual visit or expired cookie → redirect to login
-      setVerified(false)
-      router.replace('/login')
+      // No status param, redirect to login
+      router.replace('/login/staff')
+      return
     }
-  }, [router])
 
-  // Loading state
-  if (verified === null) {
+    // Start countdown
+    const timer = setInterval(() => {
+      setCount(c => c - 1)
+    }, 1000)
+
+    const redirectTimer = setTimeout(() => {
+      router.push('/login/staff')
+    }, 3000)
+
+    return () => {
+      clearInterval(timer)
+      clearTimeout(redirectTimer)
+    }
+  }, [router, searchParams])
+
+  if (status === 'loading') {
     return (
-      <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-        <p>Verifying...</p>
+      <div className="flex min-h-svh items-center justify-center">
+        <p className="text-muted-foreground">Verifying...</p>
       </div>
     )
   }
 
-  // Not verified (shouldn't render as we redirect, but just in case)
-  if (!verified) return null
-
   return (
-    <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-      <h1>Email confirmed ✅</h1>
-      <p role="status" aria-live="polite">
+    <div className="flex min-h-svh flex-col items-center justify-center gap-4 p-6">
+      {status === 'success' ? (
+        <>
+          <CheckCircle2 className="h-20 w-20 text-green-500" />
+          <h1 className="text-2xl font-semibold">Email Confirmed!</h1>
+          <p className="text-muted-foreground">
+            Your account has been verified successfully.
+          </p>
+        </>
+      ) : (
+        <>
+          <XCircle className="h-20 w-20 text-red-500" />
+          <h1 className="text-2xl font-semibold">Verification Failed</h1>
+          <p className="text-muted-foreground">
+            The confirmation link is invalid or has expired.
+          </p>
+        </>
+      )}
+      <p className="text-muted-foreground text-sm mt-2">
         Redirecting to login in {count} seconds...
       </p>
     </div>

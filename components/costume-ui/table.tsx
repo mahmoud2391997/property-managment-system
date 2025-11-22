@@ -1,13 +1,11 @@
 import React from 'react'
+import type { ColumnDef, ColumnFiltersState, SortingState } from '@tanstack/react-table'
 import {
-  ColumnDef,
-  ColumnFiltersState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  SortingState,
   useReactTable
 } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
@@ -19,15 +17,15 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { Payment } from '@/types'
-import { paymentsData } from '@/utils/data'
 import { cn } from '@/lib/utils'
 
-type Props = {
-    columns: ColumnDef<Payment>[]
+type Props<TData extends object> = {
+    columns: ColumnDef<TData>[],
+    data: TData[]
     className?: string
 }
-function Table ({columns, className = ''} : Props) {
+
+function Table<TData extends object> ({columns, data, className = ''} : Props<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -35,7 +33,7 @@ function Table ({columns, className = ''} : Props) {
   const [rowSelection, setRowSelection] = React.useState({})
 
   const table = useReactTable({
-    data: paymentsData,
+    data,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -73,7 +71,7 @@ function Table ({columns, className = ''} : Props) {
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
+          <TableBody className='bg-(--background-primary)'>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map(row => (
                 <TableRow

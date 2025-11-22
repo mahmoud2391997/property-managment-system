@@ -21,5 +21,5 @@ export async function login(formData: FormData): Promise<string | void> {
   }
 
   revalidatePath('/', 'layout');
-  redirect('/');
+  redirect('/properties');
 }

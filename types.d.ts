@@ -162,3 +162,5 @@ export type TabType = {
   label: string
   isSelected: boolean
 }
+
+type OrganizationIdParams = { params: { organizationId: string } }

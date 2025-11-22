@@ -37,16 +37,30 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (
-    !user &&
-    !request.nextUrl.pathname.includes('/login') &&
-    !request.nextUrl.pathname.includes('/signup') &&
-    !request.nextUrl.pathname.includes('/error')
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
+  const publicPaths = ['/login', '/signup', '/confirm', '/error', '/api/auth']
+  const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path))
+
+  if (!user && !isPublicPath && request.nextUrl.pathname !== '/') {
+    // no user, redirect to login page
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    url.pathname = '/login/staff'
     return NextResponse.redirect(url)
+  }
+
+  // If user is logged in, check if they have a staff record with organization
+  if (user && !isPublicPath && !request.nextUrl.pathname.startsWith('/onboarding')) {
+    const { data: staff } = await supabase
+      .from('staff')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single()
+
+    // If no staff record OR no organization, redirect to onboarding
+    if (!staff || !staff.organization_id) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/onboarding'
+      return NextResponse.redirect(url)
+    }
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.

@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
 import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
-import OwnersTable from '@/components/tables/OwnersTable'
+import OwnersTable from '@/components/tables/owners-table'
 import Dialog from '@/components/costume-ui/dialog'
 import AddOwner from '@/components/add-owner'
 
