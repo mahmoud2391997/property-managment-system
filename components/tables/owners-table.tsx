@@ -1,19 +1,9 @@
 'use client'
 
-import * as React from 'react'
 import {
-  ColumnDef,
-  ColumnFiltersState,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  SortingState,
-  useReactTable
+  ColumnDef
 } from '@tanstack/react-table'
 import { MoreHorizontal } from 'lucide-react'
-
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -25,12 +15,28 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Table } from '../costume-ui/table'
-import { Owner } from '@/types'
-import { ownersData } from '@/utils/data'
 import { cn } from '@/lib/utils'
 import { UserAvatar } from '../costume-ui/name-avatar'
+import { Prisma } from '@prisma/client'
 
-export const columns: ColumnDef<Owner>[] = [
+// Infer the type from Prisma query
+type OwnerWithCount = Prisma.ownersGetPayload<{
+  select: {
+    id: true
+    first_name: true
+    last_name: true
+    phone_number: true
+    email: true
+    profile_pic: true
+    _count: {
+      select: {
+        contracts: true
+      }
+    }
+  }
+}>
+
+export const columns: ColumnDef<OwnerWithCount>[] = [
   //Checkbox
   {
     id: 'select',
@@ -56,26 +62,27 @@ export const columns: ColumnDef<Owner>[] = [
   },
 
   {
-    accessorKey: 'owner_name',
+    accessorKey: 'first_name',
     header: () => <div className='text-left'>Name</div>,
     cell: ({ row }) => {
-      const { owner_picture, owner_name } = row.original
+      const { first_name, last_name } = row.original
+      const fullName = `${first_name}${last_name ? ` ${last_name}` : ''}`
       return (
         <div className={cn('flex items-center gap-[5]', 'text-left')}>
-          <UserAvatar name={owner_name} size={25} className='text-[11px]!' />
-          <span className='texts-table-cell-primary'>{owner_name}</span>
+          <UserAvatar name={fullName} size={25} className='text-[11px]!' />
+          <span className='texts-table-cell-primary'>{fullName}</span>
         </div>
       )
     }
   },
 
   {
-    accessorKey: 'phone_no',
+    accessorKey: 'phone_number',
     header: () => <div className='text-left'>Phone No</div>,
     cell: ({ row }) => {
-      const { phone_no } = row.original
+      const { phone_number } = row.original
 
-      return <div className='text-left texts-table-cell-data'>{phone_no}</div>
+      return <div className='text-left texts-table-cell-data'>{phone_number}</div>
     }
   },
 
@@ -85,18 +92,18 @@ export const columns: ColumnDef<Owner>[] = [
     cell: ({ row }) => {
       const { email } = row.original
 
-      return <div className='text-left texts-table-cell-data'>{email}</div>
+      return <div className='text-left texts-table-cell-data'>{email ?? '-'}</div>
     }
   },
 
   {
-    accessorKey: 'property_count',
+    accessorKey: '_count',
     header: () => <div className='text-left'>Property Count</div>,
     cell: ({ row }) => {
-      const { property_count } = row.original
+      const { _count } = row.original
 
       return (
-        <div className='text-left texts-table-cell-data'>{property_count}</div>
+        <div className='text-left texts-table-cell-data'>{_count.contracts}</div>
       )
     }
   },
@@ -133,6 +140,10 @@ export const columns: ColumnDef<Owner>[] = [
   }
 ]
 
-export default function OwnersTable () {
-  return <Table columns={columns} data={ownersData} />
+type OwnersTableProps = {
+  data: OwnerWithCount[]
+}
+
+export default function OwnersTable({ data }: OwnersTableProps) {
+  return <Table columns={columns} data={data} />
 }

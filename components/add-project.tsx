@@ -8,12 +8,12 @@ import { malaysiaStates } from '@/utils/data'
 import { useRouter } from 'next/navigation'
 import { FeedbackToasts } from './costume-ui/feedback-toast'
 
-interface AddProjectProps {
+type Props = {
   onSuccess?: () => void
   onLoadingChange?: (loading: boolean) => void
 }
 
-const AddProject = ({ onSuccess, onLoadingChange }: AddProjectProps) => {
+const AddProject = ({ onSuccess, onLoadingChange }: Props) => {
   const router = useRouter()
   const [title, setTitle] = useState('')
   const [state, setState] = useState('')
@@ -88,8 +88,6 @@ const AddProject = ({ onSuccess, onLoadingChange }: AddProjectProps) => {
           onChange={setState}
           required
           disabled={loading}
-          minLength={2}
-          maxLength={100}
         />
       </InputGroup>
       {error && (

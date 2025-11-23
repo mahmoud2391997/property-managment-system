@@ -2,6 +2,94 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 
+export async function GET(req: Request) {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user }
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get staff info to get organization_id
+    const staff = await prisma.staff.findUnique({
+      where: { id: user.id },
+      select: { organization_id: true }
+    })
+
+    if (!staff) {
+      return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
+    }
+
+    // Parse query parameters to determine what fields to return
+    const { searchParams } = new URL(req.url)
+    const fieldsParam = searchParams.get('fields')
+    const includeProject = searchParams.get('includeProject') === 'true'
+
+    // Build query based on whether specific fields are requested
+    let properties
+    if (fieldsParam) {
+      // When selecting specific fields, use select with projects included
+      const fields = fieldsParam.split(',')
+      const selectFields: any = {}
+      fields.forEach(field => {
+        selectFields[field.trim()] = true
+      })
+
+      // If includeProject is true, add projects to select
+      if (includeProject) {
+        selectFields.projects = {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      }
+
+      properties = await prisma.properties.findMany({
+        where: {
+          organization_id: staff.organization_id
+        },
+        select: selectFields,
+        orderBy: {
+          created_at: 'desc'
+        }
+      })
+    } else {
+      // When no specific fields requested, use include
+      properties = await prisma.properties.findMany({
+        where: {
+          organization_id: staff.organization_id
+        },
+        ...(includeProject && {
+          include: {
+            projects: true
+          }
+        }),
+        orderBy: {
+          created_at: 'desc'
+        }
+      })
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        properties
+      },
+      { status: 200 }
+    )
+  } catch (error) {
+    console.error('Error fetching properties:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch properties' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
@@ -28,7 +116,6 @@ export async function POST(req: NextRequest) {
       // Property details
       code,
       street_address,
-      city,
       postal_code,
       type,
       project_id,
@@ -52,8 +139,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Create property with all related data in a transaction
-    const property = await prisma.$transaction(async tx => {
-      // 1. Create the property
+    const result = await prisma.$transaction(async tx => {
+      // 1. Create the property first
       const newProperty = await tx.properties.create({
         data: {
           code,
@@ -67,20 +154,21 @@ export async function POST(req: NextRequest) {
         }
       })
 
-      // 2. Create rooms if provided
+      // 2. Create rooms if provided (rooms depend on property existing)
+      let roomsCount = 0
       if (rooms && Array.isArray(rooms) && rooms.length > 0) {
         await tx.rooms.createMany({
           data: rooms.map((room: { title: string; is_ready: boolean }) => ({
             title: room.title,
             property_id: newProperty.id,
-            organization_id: staff.organization_id,
             is_ready: room.is_ready || false,
             created_by: user.id
           }))
         })
+        roomsCount = rooms.length
       }
 
-      // 3. Create initial charges if provided
+      // 3. Create initial charges if provided (depends on property)
       if (
         initial_charges &&
         Array.isArray(initial_charges) &&
@@ -105,7 +193,7 @@ export async function POST(req: NextRequest) {
         })
       }
 
-      // 4. Create late payment charges if provided
+      // 4. Create late payment charges if provided (depends on property)
       if (
         late_payment_charges &&
         Array.isArray(late_payment_charges) &&
@@ -123,7 +211,7 @@ export async function POST(req: NextRequest) {
         })
       }
 
-      // 5. Create default lease config if reminders or monthly rent provided
+      // 5. Create default lease config if reminders or monthly rent provided (depends on property)
       if (
         reminders ||
         monthly_rent !== undefined ||
@@ -149,13 +237,14 @@ export async function POST(req: NextRequest) {
         })
       }
 
-      return newProperty
+      return { property: newProperty, roomsCount }
     })
 
     return NextResponse.json(
       {
         success: true,
-        property
+        property: result.property,
+        roomsCount: result.roomsCount
       },
       { status: 201 }
     )

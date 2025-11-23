@@ -26,10 +26,6 @@ const ReminderSection = ({
   defaultCollapse = false,
   isOptional = false
 }: Props) => {
-  // Enable/disable states for optional mode
-  const [enableLeaseExpiry, setEnableLeaseExpiry] = useState(false)
-  const [enableRentReminder, setEnableRentReminder] = useState(false)
-  const [enableOverdueReminder, setEnableOverdueReminder] = useState(false)
 
   const [activate, setActivate] = useState<{
     expiry: boolean
@@ -80,6 +76,7 @@ const ReminderSection = ({
           <InputGroup
             label='Lease expiry reminder days before'
             className={inputGroupEffect(activate.expiry)}
+            isRequired
           >
             <Input
               type='number'
@@ -91,6 +88,7 @@ const ReminderSection = ({
                 setDays(prev => ({ ...prev, expiry: value }))
                 onLeaseExpiryChange?.(activate.expiry, value)
               }}
+              required={activate.expiry}
             />
           </InputGroup>
         </div>
@@ -109,6 +107,7 @@ const ReminderSection = ({
           <InputGroup
             label='Tenant rent reminder days before'
             className={inputGroupEffect(activate.before)}
+            isRequired
           >
             <Input
               type='number'
@@ -120,6 +119,7 @@ const ReminderSection = ({
                 setDays(prev => ({ ...prev, before: value }))
                 onRentReminderChange?.(activate.before, value)
               }}
+              required={activate.before}
             />
           </InputGroup>
         </div>
@@ -138,6 +138,7 @@ const ReminderSection = ({
           <InputGroup
             label='Tenant rent reminder days after'
             className={inputGroupEffect(activate.after)}
+            isRequired
           >
             <Input
               type='number'
@@ -149,6 +150,7 @@ const ReminderSection = ({
                 setDays(prev => ({ ...prev, after: value }))
                 onOverdueReminderChange?.(activate.after, value)
               }}
+              required={activate.after}
             />
           </InputGroup>
         </div>

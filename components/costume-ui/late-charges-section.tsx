@@ -17,7 +17,7 @@ const LateChargesSection = ({ onLateChargesChange }: Props) => {
 
   const [lateCharges, setLateCharges] = useState<LateCharge[]>([])
   const handleAddLateCharge = () => {
-    const updated = [...lateCharges, { days_after_due: 7, amount: '' }]
+    const updated = [...lateCharges, { days_after_due: 0, amount: '' }]
     setLateCharges(updated)
     onLateChargesChange?.(updated)
   }
@@ -42,6 +42,18 @@ const LateChargesSection = ({ onLateChargesChange }: Props) => {
     setLateCharges(updated)
     onLateChargesChange?.(updated)
   }
+
+  // Get available days for a specific card (excluding days selected in other cards)
+  const getAvailableDays = (currentIndex: number) => {
+    const selectedDays = lateCharges
+      .map((c, i) =>
+        i !== currentIndex && c.days_after_due > 0 ? c.days_after_due : null
+      )
+      .filter(day => day !== null)
+
+    return daysOfMonth.filter(day => !selectedDays.includes(day))
+  }
+
   return (
     <InnerSection
       title='Late Payment Charges'
@@ -73,20 +85,30 @@ const LateChargesSection = ({ onLateChargesChange }: Props) => {
             <InputGroup
               label='Days After Due Payment'
               className='w-45 sm:w-45 md:w-45 lg:w-80'
+              isRequired
             >
               <Select
                 label='Days'
                 placeholder='Select days'
                 className='bg-(--background-primary)'
-                items={daysOfMonth.map(String)}
-                value={String(charge.days_after_due)}
+                items={getAvailableDays(index).map(String)}
+                value={
+                  charge.days_after_due > 0
+                    ? String(charge.days_after_due)
+                    : undefined
+                }
                 onValueChange={val =>
                   handleLateChargeChange(index, 'days_after_due', val)
                 }
+                required
               />
             </InputGroup>
 
-            <InputGroup label='Amount' className='w-20 md:w-30 lg:w-80'>
+            <InputGroup
+              label='Amount'
+              className='w-20 md:w-30 lg:w-80'
+              isRequired
+            >
               <Input
                 className='bg-(--background-primary)'
                 maxLength={20}
@@ -95,6 +117,7 @@ const LateChargesSection = ({ onLateChargesChange }: Props) => {
                 onValueChange={value =>
                   handleLateChargeChange(index, 'amount', value || '')
                 }
+                required
               />
             </InputGroup>
           </InputCard>

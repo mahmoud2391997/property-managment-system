@@ -9,6 +9,7 @@ type Props = { Icon: any
 const Option = ({ Icon, label, isSelected, ...props }: Props) => {
   return (
     <button
+    type='button'
       className={cn(
         'group flex items-center gap-2.5',
         'w-full h-20 px-2.5 border',

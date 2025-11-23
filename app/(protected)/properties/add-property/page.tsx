@@ -114,9 +114,9 @@ const AddProperty = () => {
         project_id: selectedProject?.id || null,
         is_ready: isPropertyReady,
 
-        // Optional rooms
+        // Optional rooms (only for House and Apartment types)
         rooms:
-          rooms.length > 0 && selectedIndex !== 0 && selectedIndex !== 1
+          rooms.length > 0 && (selectedIndex === 0 || selectedIndex === 1)
             ? rooms
             : undefined
       }
@@ -186,10 +186,13 @@ const AddProperty = () => {
         throw new Error(data.error || 'Failed to create property')
       }
 
-      // Show success toast
+      // Show success toast with detailed information
+      const roomInfo = data.roomsCount > 0
+        ? ` with ${data.roomsCount} room${data.roomsCount > 1 ? 's' : ''}`
+        : ''
       FeedbackToasts.created(
         'Property',
-        `${code} has been added to your properties.`
+        `${code} has been successfully added to your properties${roomInfo}.`
       )
 
       // Reset all form fields
@@ -308,11 +311,12 @@ const AddProperty = () => {
                 onChange={e => setPostalCode(e.target.value)}
               />
             </InputGroup>
-            <InputGroup label='State'>
+            <InputGroup label='State' isRequired>
               <Input
                 value={selectedProject?.state || ''}
                 note='Automatically set based on project'
                 disabled
+                required
               />
             </InputGroup>
             <InputGroup label='Country'>
@@ -341,7 +345,7 @@ const AddProperty = () => {
 
         {/* Rooms */}
         {(selectedIndex === 0 || selectedIndex === 1) && (
-          <RoomCard onRoomsChange={setRooms} />
+          <RoomCard key={formKey} onRoomsChange={setRooms} />
         )}
 
         {/* Status */}

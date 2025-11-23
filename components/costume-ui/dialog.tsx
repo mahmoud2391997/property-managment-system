@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/dialog'
 import { SaveButtonIcon } from './icon'
 import Button from '@/components/costume-ui/button'
-import { cloneElement, ReactElement, useState, useEffect } from 'react'
 
 type props = {
   children: React.ReactNode

@@ -1,25 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
 
 export async function GET() {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { staff, error } = await getUserAndStaff()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Get staff info to get organization_id
-    const staff = await prisma.staff.findUnique({
-      where: { id: user.id },
-      select: { organization_id: true }
-    })
-
-    if (!staff) {
-      return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
-    }
+    if (error) return error
 
     // Fetch projects for this organization
     const projects = await prisma.projects.findMany({
@@ -48,28 +36,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { staff, user, error } = await getUserAndStaff()
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Get staff info to find organization
-    const staff = await prisma.staff.findUnique({
-      where: { id: user.id },
-      select: { organization_id: true }
-    })
-
-    if (!staff) {
-      return NextResponse.json(
-        { error: 'Staff record not found' },
-        { status: 404 }
-      )
-    }
+    if (error) return error
 
     const body = await request.json()
     const { title, state } = body

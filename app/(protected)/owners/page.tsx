@@ -1,12 +1,59 @@
 import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
-import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
+import { DeleteButtonIcon } from '@/components/costume-ui/icon'
 import OwnersTable from '@/components/tables/owners-table'
-import Dialog from '@/components/costume-ui/dialog'
-import AddOwner from '@/components/add-owner'
+import AddOwnerDialog from '@/components/dialogs/add-owner-dialog'
+import { prisma } from '@/lib/prisma'
+import { createClient } from '@/utils/supabase/server'
 
-const Owners = () => {
+async function getOwners() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return []
+  }
+
+  // Get staff info to find organization
+  const staff = await prisma.staff.findUnique({
+    where: { id: user.id },
+    select: { organization_id: true }
+  })
+
+  if (!staff) {
+    return []
+  }
+
+  // Get owners with property count
+  const owners = await prisma.owners.findMany({
+    where: {
+      organization_id: staff.organization_id
+    },
+    select: {
+      id: true,
+      first_name: true,
+      last_name: true,
+      phone_number: true,
+      email: true,
+      profile_pic: true,
+      _count: {
+        select: {
+          contracts: true
+        }
+      }
+    },
+    orderBy: {
+      created_at: 'desc'
+    }
+  })
+
+  return owners
+}
+
+const Owners = async () => {
+  const owners = await getOwners()
+
   return (
     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
       {/* Heading */}
@@ -23,24 +70,13 @@ const Owners = () => {
             label='Delete'
             className='bg-(--error-main)!'
           />
-
-          <Dialog
-            openDialogButton={
-              <Button
-                icon={<AddButtonIcon className='text-neutral-300' />}
-                label='Add Owner'
-              />
-            }
-            title='Add Owner'
-            saveButtonLabel='Save'
-            className='max-w-150!'
-          >
-            <AddOwner />
-          </Dialog>
+          <AddOwnerDialog />
         </div>
       </div>
       {/* Table */}
-      <OwnersTable />
+      <div>
+        <OwnersTable data={owners} />
+      </div>
     </div>
   )
 }

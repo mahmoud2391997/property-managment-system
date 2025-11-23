@@ -6,7 +6,7 @@ import {
   ImportButtonIcon
 } from '@/components/costume-ui/icon'
 import ProjectsTable from '@/components/tables/projects-table'
-import AddProjectDialog from '@/components/add-project-dialog'
+import AddProjectDialog from '@/components/dialogs/add-project-dialog'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 

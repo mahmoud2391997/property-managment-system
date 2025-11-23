@@ -140,6 +140,7 @@ export type Notice = {
 }
 
 export type ComboBoxitemsType = {
+  id?: string
   avatar?: string | React.ReactNode
   label: string
   subtitle?: string

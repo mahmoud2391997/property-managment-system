@@ -290,6 +290,7 @@ const ChargesSection = ({
 
       {canAddMore && charges.length !== 0 && (
         <Button
+        type='button'
           variant='secondary'
           icon={<Plus />}
           label='Add Charge'

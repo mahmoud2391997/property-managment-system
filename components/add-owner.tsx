@@ -1,35 +1,151 @@
 'use client'
+import { useState } from 'react'
 import Input from './costume-ui/input'
 import InputGroup from './costume-ui/input-group'
+import { FeedbackToasts } from './costume-ui/feedback-toast'
+import { useRouter } from 'next/navigation'
+import PhotoUploader from './costume-ui/photo-uploader'
 
-const AddOwner = () => {
+type Props = {
+  onSuccess?: () => void
+  onLoadingChange?: (loading: boolean) => void
+}
+
+const AddOwner = ({ onSuccess, onLoadingChange }: Props) => {
+  const router = useRouter()
+  const [loading, setLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string>('')
+  const [firstName, setFirstName] = useState<string>('')
+  const [lastName, setLastName] = useState<string | null>(null)
+  const [phoneNo, setPhoneNo] = useState<string>('')
+  const [email, setEmail] = useState<string | null>(null)
+  const [profileImage, setProfileImage] = useState<Blob | null>(null)
+
+  const handlePhotoSave = (blob: Blob) => {
+    setProfileImage(blob)
+    // TODO: Later we'll upload profileImage blob to Supabase storage
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    onLoadingChange?.(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/owners', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ firstName, lastName, phoneNo, email })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create owner')
+      }
+
+      // Show success toast
+      FeedbackToasts.created('Owner', `${data.owner.firstName} has been added.`)
+
+      // Reset form
+      setFirstName('')
+      setLastName(null)
+      setPhoneNo('')
+      setEmail(null)
+      setProfileImage(null)
+
+      // Refresh the page to show new owner
+      router.refresh()
+
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess()
+      }
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to create owner'
+      setError(errorMessage)
+      FeedbackToasts.createFailed('owner', errorMessage)
+    } finally {
+      setLoading(false)
+      onLoadingChange?.(false)
+    }
+  }
+
   const styles = {
     inputsContainer: 'grid grid-cols-2 items-start gap-5'
   }
 
   return (
-    <div className='flex flex-col gap-7.5'>
-      <div className={styles.inputsContainer}>
-        <InputGroup label='First Name' isRequired>
-          <Input placeholder='E.g. Mohammed' required />
-        </InputGroup>
-        <InputGroup label='Last Name'>
-          <Input placeholder='E.g. Ali' />
-        </InputGroup>
-      </div>
-      <div className={styles.inputsContainer}>
-        <InputGroup label='Phone Number' isRequired>
-          <Input
-            placeholder='E.g. +6011286643'
-            note='Used to redirect to Whatsapp'
-            required
-          />
-        </InputGroup>
-        <InputGroup label='Email'>
-          <Input type='email' placeholder='E.g. Ali' />
-        </InputGroup>
-      </div>
-    </div>
+    <>
+      <form
+        id='dialog-form'
+        onSubmit={handleSubmit}
+        className='flex flex-col gap-7.5'
+      >
+        {/* Profile Picture Section */}
+        <PhotoUploader
+          description='Upload owner profile picture here optionally'
+          loading={loading}
+          onSave={handlePhotoSave}
+        />
+
+        <div className='inputs-container'>
+          <InputGroup label='First Name' isRequired>
+            <Input
+              placeholder='E.g. Mohammed'
+              value={firstName}
+              onChange={e => setFirstName(e.target.value)}
+              minLength={1}
+              maxLength={100}
+              required
+              disabled={loading}
+            />
+          </InputGroup>
+          <InputGroup label='Last Name'>
+            <Input
+              placeholder='E.g. Ali'
+              value={lastName ?? ''}
+              onChange={e => setLastName(e.target.value)}
+              minLength={1}
+              maxLength={100}
+              disabled={loading}
+            />
+          </InputGroup>
+        </div>
+
+        <div className='inputs-container'>
+          <InputGroup
+            label='Phone Number'
+            className='overflow-visible'
+            isRequired
+          >
+            <Input
+              phoneNumber
+              note='Used to redirect to Whatsapp'
+              value={phoneNo}
+              onChange={phone => setPhoneNo(phone)}
+              disabled={loading}
+              required
+            />
+          </InputGroup>
+          <InputGroup label='Email'>
+            <Input
+              type='email'
+              placeholder='E.g. example@email.com'
+              value={email ?? ''}
+              onChange={e => setEmail(e.target.value)}
+              minLength={5}
+              maxLength={255}
+              disabled={loading}
+            />
+          </InputGroup>
+        </div>
+        {error && <p className='text-red-600 text-sm'>{error}</p>}
+      </form>
+    </>
   )
 }
 
