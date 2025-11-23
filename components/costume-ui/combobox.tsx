@@ -33,6 +33,10 @@ type Props = {
   NotFoundMessage?: string
   showAvatar?: boolean
   className?: string
+  value?: string
+  onValueChange?: (value: string) => void
+  disabled?: boolean
+  required?: boolean
 }
 
 export default function Combobox ({
@@ -42,23 +46,36 @@ export default function Combobox ({
   variant = 'single',
   NotFoundMessage = 'No items found.',
   showAvatar = false,
-  className
+  className,
+  value,
+  onValueChange,
+  disabled = false,
+  required = false
 }: Props) {
   const [open, setOpen] = React.useState(false)
-  const [singleValue, setSingleValue] = React.useState('')
+  const [singleValue, setSingleValue] = React.useState(value || '')
   const [multipleValues, setMultipleValues] = React.useState<string[]>([])
 
   const isMultiple = variant === 'multiple'
 
-  const handleSelect = (currentValue: string) => {
+  // Sync internal state with controlled value prop
+  React.useEffect(() => {
+    if (value !== undefined) {
+      setSingleValue(value)
+    }
+  }, [value])
+
+  const handleSelect = (itemId: string) => {
     if (isMultiple) {
       setMultipleValues(prev =>
-        prev.includes(currentValue)
-          ? prev.filter(item => item !== currentValue)
-          : [...prev, currentValue]
+        prev.includes(itemId)
+          ? prev.filter(item => item !== itemId)
+          : [...prev, itemId]
       )
     } else {
-      setSingleValue(currentValue === singleValue ? '' : currentValue)
+      const newValue = itemId === singleValue ? '' : itemId
+      setSingleValue(newValue)
+      onValueChange?.(newValue)
       setOpen(false)
     }
   }
@@ -73,13 +90,15 @@ export default function Combobox ({
         ? `${multipleValues.length} selected`
         : placeholder
     }
-    return singleValue
-      ? items.find(item => item.label === singleValue)?.label
-      : placeholder
+    const selectedItem = items.find(item =>
+      item.id ? item.id === singleValue : item.label === singleValue
+    )
+    return selectedItem ? selectedItem.label : placeholder
   }
 
-  const isSelected = (label: string) => {
-    return isMultiple ? multipleValues.includes(label) : singleValue === label
+  const isSelected = (item: ComboBoxitemsType) => {
+    const itemValue = item.id || item.label
+    return isMultiple ? multipleValues.includes(itemValue) : singleValue === itemValue
   }
 
   const renderAvatar = (item: ComboBoxitemsType) => {
@@ -111,6 +130,7 @@ export default function Combobox ({
             variant='outline'
             role='combobox'
             aria-expanded={open}
+            disabled={disabled}
             className={cn(
               'flex justify-between',
               'w-full h-10!',
@@ -124,7 +144,7 @@ export default function Combobox ({
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className='w-(--radix-popover-trigger-width) p-0'
+          className='w-(--radix-popover-trigger-width) p-0 z-1000!'
           align='start'
         >
           <Command>
@@ -133,12 +153,17 @@ export default function Combobox ({
               <CommandEmpty>{NotFoundMessage}</CommandEmpty>
               <CommandGroup>
                 {items.map((item, index) => {
-                  const selected = isSelected(item.label)
+                  const itemValue = item.id || item.label
+                  const selected = isSelected(item)
+                  // Use unique value for Command component (includes ID for uniqueness but searchable by label and subtitle)
+                  const commandValue = item.id
+                    ? `${item.id}|||${item.label} ${item.subtitle || ''}`
+                    : `${item.label} ${item.subtitle || ''}`
                   return (
                     <CommandItem
-                      key={index}
-                      value={item.label}
-                      onSelect={() => handleSelect(item.label)}
+                      key={item.id || `${item.label}-${index}`}
+                      value={commandValue}
+                      onSelect={() => handleSelect(itemValue)}
                       className='flex items-center gap-2'
                     >
                       {showAvatar && renderAvatar(item)}

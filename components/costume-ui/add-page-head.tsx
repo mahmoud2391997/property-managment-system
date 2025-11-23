@@ -4,12 +4,19 @@ import Breadcrumb from './breadcrumb'
 import { Crumb } from '@/types'
 
 type Props = {
-    crumb_items: Crumb[]
-    title: string
-    subtitle: string
-    className?: string
+  crumb_items: Crumb[]
+  title: string
+  subtitle: string
+  isSubmitting?: boolean
+  className?: string
 }
-const AddPageHead = ({ crumb_items, title, subtitle, className }: Props) => {
+const AddPageHead = ({
+  crumb_items,
+  title,
+  subtitle,
+  isSubmitting = false,
+  className
+}: Props) => {
   return (
     <section className={`flex flex-col gap-2.5 ${className}`}>
       <Breadcrumb items={crumb_items} />
@@ -20,7 +27,12 @@ const AddPageHead = ({ crumb_items, title, subtitle, className }: Props) => {
             {subtitle}
           </span>
         </div>
-        <Button icon={<SaveButtonIcon />} label='Save' />
+        <Button
+          type='submit'
+          icon={<SaveButtonIcon />}
+          label={isSubmitting ? 'Saving...' : 'Save'}
+          disabled={isSubmitting}
+        />
       </div>
     </section>
   )

@@ -26,7 +26,7 @@ import { useSingleSelectOption } from '@/hooks/useSingleSelectOption'
 import SearchInput from '../../costume-ui/search-input'
 import { AddButtonIcon, DeleteButtonIcon } from '../../costume-ui/icon'
 import Link from 'next/link'
-import PaymentsTable from '../../tables/PaymentsTable'
+import PaymentsTable from '../../tables/pyaments-table'
 
 // Sub component
 type CardProps = {

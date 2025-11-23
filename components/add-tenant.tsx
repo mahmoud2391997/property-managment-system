@@ -9,9 +9,7 @@ import { useState } from 'react'
 
 const AddTenant = () => {
   const identityTypes: string[] = ['MyKad', 'Passport']
-  const styles = {
-    inputsContainer: 'grid grid-cols-2 items-start gap-5'
-  }
+
   const { options, selectByIndex } = useSingleSelectOption([
     {
       Icon: User,
@@ -29,7 +27,7 @@ const AddTenant = () => {
   const individual = () => {
     return (
       <>
-        <div className={styles.inputsContainer}>
+        <div className='inputs-container'>
           <InputGroup label='Identity' isRequired>
             <Select
               label='Identity Types'
@@ -47,7 +45,7 @@ const AddTenant = () => {
             />
           </InputGroup>
         </div>
-        <div className={styles.inputsContainer}>
+        <div className='inputs-container'>
           <InputGroup label='First Name' isRequired>
             <Input placeholder='E.g. Mohammed' required />
           </InputGroup>
@@ -55,7 +53,7 @@ const AddTenant = () => {
             <Input placeholder='E.g. Ali' />
           </InputGroup>
         </div>
-        <div className={styles.inputsContainer}>
+        <div className='inputs-container'>
           <InputGroup label='Phone Number' isRequired>
             <Input placeholder='E.g. +6011286643' note='Used to redirect to Whatsapp' required />
           </InputGroup>
@@ -70,7 +68,7 @@ const AddTenant = () => {
   const company = () => {
     return (
       <>
-        <div className={styles.inputsContainer}>
+        <div className='inputs-container'>
           <InputGroup label='Company Registration No' isRequired>
             <Input placeholder='E.g. 1234567-X' required />
           </InputGroup>
@@ -78,7 +76,7 @@ const AddTenant = () => {
             <Input placeholder='E.g. Example Sdn Bhd' required />
           </InputGroup>
         </div>
-        <div className={styles.inputsContainer}>
+        <div className='inputs-container'>
           <InputGroup label='Contact Person Name' isRequired>
             <Input placeholder='E.g. Mohammed Ali' required />
           </InputGroup>
@@ -86,7 +84,7 @@ const AddTenant = () => {
             <Input placeholder='E.g. ahmedali@example.com' required />
           </InputGroup>
         </div>
-        <div className={styles.inputsContainer}>
+        <div className='inputs-container'>
           <InputGroup label='Phone Number' isRequired>
             <Input placeholder='E.g. +6011286643' note='Used to redirect to Whatsapp' required />
           </InputGroup>

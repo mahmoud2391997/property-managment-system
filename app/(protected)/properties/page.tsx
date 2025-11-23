@@ -6,10 +6,65 @@ import {
   DeleteButtonIcon,
   ImportButtonIcon
 } from '@/components/costume-ui/icon'
-import PropertiesTable from '@/components/tables/PropertiesTable'
+import PropertiesTable from '@/components/tables/properties-table'
 import Link from 'next/link'
+import { prisma } from '@/lib/prisma'
+import { createClient } from '@/utils/supabase/server'
 
-const Properties = () => {
+async function getProperties() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return []
+  }
+
+  // Get staff info to find organization
+  const staff = await prisma.staff.findUnique({
+    where: { id: user.id },
+    select: { organization_id: true }
+  })
+
+  if (!staff) {
+    return []
+  }
+
+  // Get properties for this organization
+  const properties = await prisma.properties.findMany({
+    where: {
+      organization_id: staff.organization_id
+    },
+    select: {
+      id: true,
+      code: true,
+      street_address: true,
+      postal_code: true,
+      type: true,
+      is_ready: true,
+      projects: {
+        select: {
+          title: true
+        }
+      }
+    },
+    orderBy: {
+      created_at: 'desc'
+    }
+  })
+
+  return properties.map(property => ({
+    id: property.id,
+    code: property.code,
+    address: `${property.street_address}, ${property.postal_code}`,
+    project: property.projects?.title || 'No Project',
+    type: property.type,
+    status: property.is_ready ? 'Vacant' : 'Under Preparation'
+  }))
+}
+
+const Properties = async () => {
+  const properties = await getProperties()
+
   return (
     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
       {/* Heading */}
@@ -43,7 +98,7 @@ const Properties = () => {
       </div>
       {/* Table */}
       <div>
-        <PropertiesTable />
+        <PropertiesTable data={properties} />
       </div>
     </div>
   )

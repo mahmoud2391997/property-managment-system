@@ -33,6 +33,7 @@ const InputCard = ({
       )}
       {isRemoveable && (
         <button
+        type='button'
           onClick={onRemove}
           className={cn(
             'absolute right-3 top-4',

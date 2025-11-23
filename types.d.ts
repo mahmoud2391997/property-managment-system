@@ -140,6 +140,7 @@ export type Notice = {
 }
 
 export type ComboBoxitemsType = {
+  id?: string
   avatar?: string | React.ReactNode
   label: string
   subtitle?: string
@@ -162,3 +163,5 @@ export type TabType = {
   label: string
   isSelected: boolean
 }
+
+type OrganizationIdParams = { params: { organizationId: string } }

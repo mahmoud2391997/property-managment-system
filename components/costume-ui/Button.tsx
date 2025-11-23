@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import { cva } from 'class-variance-authority'
+import { Loader2 } from 'lucide-react'
 
 type Props = {
   variant?: 'primary' | 'secondary'
@@ -10,6 +11,7 @@ type Props = {
   icon?: React.ReactNode
   label?: string
   isResponsive?: boolean
+  loading?: boolean
 } & Omit<React.ComponentProps<'button'>, 'is'>
 
 const buttonStyles = cva(
@@ -52,14 +54,29 @@ const Button = ({
   label,
   variant = 'primary',
   isResponsive = true,
+  loading = false,
   ...props
 }: Props) => {
   return (
-    <button className={cn(buttonStyles({ variant }), className)} {...props}>
-      {icon && (
+    <button
+      className={cn(
+        buttonStyles({ variant }),
+        loading && 'opacity-70 cursor-not-allowed',
+        className
+      )}
+      disabled={loading || props.disabled}
+      {...props}
+    >
+      {loading ? (
         <div className='w-5 h-auto p-0.5 flex items-center justify-center'>
-          {icon}
+          <Loader2 className='animate-spin' />
         </div>
+      ) : (
+        icon && (
+          <div className='w-5 h-auto p-0.5 flex items-center justify-center'>
+            {icon}
+          </div>
+        )
       )}
 
       {label && (

@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
 import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
-import ExpensesTable from '@/components/tables/ExpensesTable'
+import ExpensesTable from '@/components/tables/expenses-table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
 

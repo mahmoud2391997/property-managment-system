@@ -6,13 +6,20 @@ type Props = {
   children: React.ReactNode
   number: number
   title: string
+  defaultCollapse?: boolean
 }
 
-const CollapsibleSection = ({ children, number, title }: Props) => {
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(false)
+const CollapsibleSection = ({
+  children,
+  number,
+  title,
+  defaultCollapse = false
+}: Props) => {
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(defaultCollapse)
   return (
     <section className='border border-(--border-default) rounded-[10px] overflow-hidden'>
       <button
+        type='button'
         onClick={() => setIsCollapsed(prev => !prev)}
         className={cn(
           'flex items-center justify-between',
@@ -36,12 +43,15 @@ const CollapsibleSection = ({ children, number, title }: Props) => {
           <div className='flex flex-col items-start'>
             <span className='texts-body-large-medium'>{title}</span>
 
-              <span className={cn(isCollapsed ? 'h-0 opacity-0' : 'h-5',
-              'transition-all duration-300',
-                'texts-body-medium text-(--text-secondary)')}>
-                Click to expand the section
-              </span>
-
+            <span
+              className={cn(
+                isCollapsed ? 'h-0 opacity-0' : 'h-5',
+                'transition-all duration-300',
+                'texts-body-medium text-(--text-secondary)'
+              )}
+            >
+              Click to expand the section
+            </span>
           </div>
         </div>
 
@@ -57,7 +67,7 @@ const CollapsibleSection = ({ children, number, title }: Props) => {
         className={cn(
           'flex flex-col gap-5 overflow-hidden px-5',
           'transition-all duration-300',
-          isCollapsed ? 'max-h-0' : 'max-h-500 py-5'
+          isCollapsed ? 'max-h-0' : 'max-h-[2000px] py-5'
         )}
       >
         {children}

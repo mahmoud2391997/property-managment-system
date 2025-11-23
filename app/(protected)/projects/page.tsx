@@ -1,17 +1,64 @@
 import { cn } from '@/lib/utils'
-import React from 'react'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
 import {
-  AddButtonIcon,
   DeleteButtonIcon,
   ImportButtonIcon
 } from '@/components/costume-ui/icon'
-import ProjectsTable from '@/components/tables/ProjectsTable'
-import Dialog from '@/components/costume-ui/dialog'
-import AddProject from '@/components/add-project'
+import ProjectsTable from '@/components/tables/projects-table'
+import AddProjectDialog from '@/components/dialogs/add-project-dialog'
+import { prisma } from '@/lib/prisma'
+import { createClient } from '@/utils/supabase/server'
 
-const Projects = () => {
+async function getProjects() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return []
+  }
+
+  // Get staff info to find organization
+  const staff = await prisma.staff.findUnique({
+    where: { id: user.id },
+    select: { organization_id: true }
+  })
+
+  if (!staff) {
+    return []
+  }
+
+  // Get projects with property count
+  const projects = await prisma.projects.findMany({
+    where: {
+      organization_id: staff.organization_id
+    },
+    select: {
+      id: true,
+      title: true,
+      state: true,
+      _count: {
+        select: {
+          properties: true
+        }
+      }
+    },
+    orderBy: {
+      created_at: 'desc'
+    }
+  })
+
+  return projects.map(project => ({
+    id: project.id,
+    name: project.title,
+    state: project.state,
+    property_count: project._count.properties
+  }))
+}
+
+const Projects = async () => {
+  const projects = await getProjects()
+
   return (
     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
       {/* Heading */}
@@ -35,24 +82,12 @@ const Projects = () => {
             className='bg-(--error-main)!'
           />
 
-          <Dialog
-            openDialogButton={
-              <Button
-                icon={<AddButtonIcon className='text-neutral-300' />}
-                label='Add Project'
-                type='button'
-              />
-            }
-            title='Add Project'
-            saveButtonLabel='Save'
-          >
-            <AddProject />
-          </Dialog>
+          <AddProjectDialog />
         </div>
       </div>
       {/* Table */}
       <div>
-        <ProjectsTable />
+        <ProjectsTable data={projects} />
       </div>
     </div>
   )
