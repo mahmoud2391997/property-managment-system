@@ -47,19 +47,24 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If user is logged in, check if they have a staff record with organization
+  // If user is logged in, check if they are staff and need onboarding
   if (user && !isPublicPath && !request.nextUrl.pathname.startsWith('/onboarding')) {
-    const { data: staff } = await supabase
-      .from('staff')
-      .select('organization_id')
-      .eq('id', user.id)
-      .single()
+    const userType = user.user_metadata?.user_type
 
-    // If no staff record OR no organization, redirect to onboarding
-    if (!staff || !staff.organization_id) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/onboarding'
-      return NextResponse.redirect(url)
+    // Only check for staff users
+    if (userType === 'staff') {
+      const { data: staff } = await supabase
+        .from('staff')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single()
+
+      // If no staff record OR no organization, redirect to onboarding
+      if (!staff || !staff.organization_id) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/onboarding'
+        return NextResponse.redirect(url)
+      }
     }
   }
 

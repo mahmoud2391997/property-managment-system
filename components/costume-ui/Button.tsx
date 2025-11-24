@@ -24,11 +24,17 @@ const buttonStyles = cva(
   {
     variants: {
       variant: {
-        primary: cn('bg-(--primary-color)', 'shadows-sm', 'hover:opacity-90 active:opacity-80'),
+        primary: cn(
+          'bg-(--primary-color)',
+          'shadows-sm',
+          'hover:opacity-90 active:opacity-80',
+          'disabled:hover:opacity-70! disabled:active:opacity-70!'
+        ),
         secondary: cn(
           'bg-(--background-primary)! border border-(--border-strong)!',
           'shadows-xs',
-          'hover:bg-neutral-50! active:bg-neutral-100!'
+          'hover:bg-neutral-50! active:bg-neutral-100!',
+          'disabled:hover:bg-(--background-primary)! disabled:active:bg-(--background-primary)!'
         )
       }
     },
@@ -61,24 +67,17 @@ const Button = ({
     <button
       className={cn(
         buttonStyles({ variant }),
-        loading && 'opacity-70 cursor-not-allowed',
+        'disabled:opacity-70 disabled:cursor-not-allowed',
         className
       )}
       disabled={loading || props.disabled}
       {...props}
     >
-      {loading ? (
+      {icon && (
         <div className='w-5 h-auto p-0.5 flex items-center justify-center'>
-          <Loader2 className='animate-spin' />
+          {icon}
         </div>
-      ) : (
-        icon && (
-          <div className='w-5 h-auto p-0.5 flex items-center justify-center'>
-            {icon}
-          </div>
-        )
       )}
-
       {label && (
         <span className={cn(labelStylesCVA({ variant }), labelStyles)}>
           {isResponsive ? (

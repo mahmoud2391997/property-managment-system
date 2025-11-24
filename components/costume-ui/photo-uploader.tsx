@@ -7,7 +7,7 @@ import { Upload } from 'lucide-react'
 type Props = {
 description: string
   loading?: boolean
-  onSave: (blob: Blob) => void
+  onSave: (mainBlob: Blob, thumbBlob: Blob) => void
   size?: number
 }
 
@@ -21,12 +21,59 @@ export default function PhotoUploader({
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null)
   const [isPhotoEditorOpen, setIsPhotoEditorOpen] = useState(false)
 
-  const handlePhotoSave = (blob: Blob) => {
-    setProfileImage(blob)
-    const url = URL.createObjectURL(blob)
-    setProfileImageUrl(url)
-    onSave(blob)
-    setIsPhotoEditorOpen(false)
+  const generateThumbnail = async (mainBlob: Blob): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'))
+          return
+        }
+
+        const THUMB_SIZE = 100
+        canvas.width = THUMB_SIZE
+        canvas.height = THUMB_SIZE
+
+        ctx.save()
+        const radius = THUMB_SIZE / 2
+        ctx.beginPath()
+        ctx.arc(radius, radius, radius, 0, 2 * Math.PI)
+        ctx.clip()
+
+        ctx.drawImage(img, 0, 0, THUMB_SIZE, THUMB_SIZE)
+        ctx.restore()
+
+        canvas.toBlob(
+          blob => {
+            if (blob) {
+              resolve(blob)
+            } else {
+              reject(new Error('Failed to create thumbnail blob'))
+            }
+          },
+          'image/jpeg',
+          0.8
+        )
+      }
+      img.onerror = () => reject(new Error('Failed to load image'))
+      img.src = URL.createObjectURL(mainBlob)
+    })
+  }
+
+  const handlePhotoSave = async (blob: Blob) => {
+    try {
+      setProfileImage(blob)
+      const url = URL.createObjectURL(blob)
+      setProfileImageUrl(url)
+
+      const thumbBlob = await generateThumbnail(blob)
+      onSave(blob, thumbBlob)
+      setIsPhotoEditorOpen(false)
+    } catch (error) {
+      console.error('Error generating thumbnail:', error)
+    }
   }
 
   // Cleanup URL object when component unmounts or image changes

@@ -20,7 +20,7 @@ export default function AddProjectDialog() {
         />
       }
       title='Add Project'
-      saveButtonLabel='Save'
+      saveButtonLabel={loading ? 'Saving...' : 'Save'}
       loading={loading}
     >
       <AddProject

@@ -20,10 +20,12 @@ const AddOwner = ({ onSuccess, onLoadingChange }: Props) => {
   const [phoneNo, setPhoneNo] = useState<string>('')
   const [email, setEmail] = useState<string | null>(null)
   const [profileImage, setProfileImage] = useState<Blob | null>(null)
+  const [profileThumb, setProfileThumb] = useState<Blob | null>(null)
+  const [photoUploaderKey, setPhotoUploaderKey] = useState<number>(0)
 
-  const handlePhotoSave = (blob: Blob) => {
-    setProfileImage(blob)
-    // TODO: Later we'll upload profileImage blob to Supabase storage
+  const handlePhotoSave = (mainBlob: Blob, thumbBlob: Blob) => {
+    setProfileImage(mainBlob)
+    setProfileThumb(thumbBlob)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,12 +35,20 @@ const AddOwner = ({ onSuccess, onLoadingChange }: Props) => {
     setError('')
 
     try {
+      const formData = new FormData()
+      formData.append('firstName', firstName)
+      if (lastName) formData.append('lastName', lastName)
+      formData.append('phoneNo', phoneNo)
+      if (email) formData.append('email', email)
+
+      if (profileImage && profileThumb) {
+        formData.append('profileImage', profileImage, 'profile.jpg')
+        formData.append('profileThumb', profileThumb, 'thumb.jpg')
+      }
+
       const response = await fetch('/api/owners', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ firstName, lastName, phoneNo, email })
+        body: formData
       })
 
       const data = await response.json()
@@ -56,6 +66,8 @@ const AddOwner = ({ onSuccess, onLoadingChange }: Props) => {
       setPhoneNo('')
       setEmail(null)
       setProfileImage(null)
+      setProfileThumb(null)
+      setPhotoUploaderKey(prev => prev + 1)
 
       // Refresh the page to show new owner
       router.refresh()
@@ -87,6 +99,7 @@ const AddOwner = ({ onSuccess, onLoadingChange }: Props) => {
       >
         {/* Profile Picture Section */}
         <PhotoUploader
+          key={photoUploaderKey}
           description='Upload owner profile picture here optionally'
           loading={loading}
           onSave={handlePhotoSave}
