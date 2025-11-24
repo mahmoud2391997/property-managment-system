@@ -1,13 +1,73 @@
 import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
-import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
+import { DeleteButtonIcon } from '@/components/costume-ui/icon'
 import TenantsTable from '@/components/tables/tenants-table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import AddTenant from '@/components/add-tenant'
-import Dialog from '@/components/costume-ui/dialog'
+import AddTenantDialog from '@/components/dialogs/add-tenant-dialog'
+import { prisma } from '@/lib/prisma'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { createAdminClient } from '@/utils/supabase/admin'
+import { redirect } from 'next/navigation'
 
-const Tenants = () => {
+const Tenants = async () => {
+  const { staff: currentStaff, error } = await getUserAndStaff()
+
+  if (error) {
+    redirect('/login')
+  }
+
+  // Fetch tenants for this organization via organizations_tenants junction table
+  const organizationTenants = await prisma.organizations_tenants.findMany({
+    where: {
+      organization_id: currentStaff.organization_id
+    },
+    select: {
+      tenants: {
+        select: {
+          id: true,
+          type: true,
+          profile_pic: true,
+          profile_thumb: true,
+          individual_tenants: {
+            select: {
+              identity_type: true,
+              identity_number: true,
+              first_name: true,
+              last_name: true,
+              phone_number: true
+            }
+          }
+        }
+      }
+    },
+    orderBy: {
+      created_at: 'desc'
+    }
+  })
+
+  // Extract tenants from the junction table results and filter for Individual type
+  const tenants = organizationTenants
+    .map(ot => ot.tenants)
+    .filter(tenant => tenant.type === 'Individual')
+
+  // Get account activation status and email from Supabase Auth
+  const supabaseAdmin = createAdminClient()
+  const tenantsWithStatus = await Promise.all(
+    tenants.map(async (tenant) => {
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(tenant.id)
+
+      const wasInvited = !!authUser?.user?.invited_at
+      const passwordSet = authUser?.user?.app_metadata?.password_set === true
+      const isActivated = wasInvited ? passwordSet : true
+
+      return {
+        ...tenant,
+        email: authUser?.user?.email || '',
+        accountStatus: isActivated ? 'Activated' as const : 'Pending' as const
+      }
+    })
+  )
+
   return (
     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
       {/* Heading */}
@@ -24,36 +84,11 @@ const Tenants = () => {
             label='Delete'
             className='bg-(--error-main)!'
           />
-          <Dialog 
-            openDialogButton={
-              <Button
-                icon={<AddButtonIcon className='text-neutral-300' />}
-                label='Add Tenant'
-              />
-            }
-            title='Add Tenant'
-            saveButtonLabel='Save'
-            className='max-w-150!'
-          >
-            <AddTenant />
-          </Dialog>
+          <AddTenantDialog />
         </div>
       </div>
       {/* Table */}
-      <Tabs defaultValue='individual' className='w-full'>
-        <div className='flex justify-center w-full'>
-          <TabsList>
-            <TabsTrigger value='individual'>Individual</TabsTrigger>
-            <TabsTrigger value='company'>Company</TabsTrigger>
-          </TabsList>
-        </div>
-        <TabsContent value='individual'>
-          <TenantsTable />
-        </TabsContent>
-        <TabsContent value='company'>
-          <TenantsTable />
-        </TabsContent>
-      </Tabs>
+      <TenantsTable data={tenantsWithStatus} />
     </div>
   )
 }

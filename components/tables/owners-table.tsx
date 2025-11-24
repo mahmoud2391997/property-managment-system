@@ -28,6 +28,7 @@ type OwnerWithCount = Prisma.ownersGetPayload<{
     phone_number: true
     email: true
     profile_pic: true
+    profile_thumb: true
     _count: {
       select: {
         contracts: true
@@ -65,11 +66,19 @@ export const columns: ColumnDef<OwnerWithCount>[] = [
     accessorKey: 'first_name',
     header: () => <div className='text-left'>Name</div>,
     cell: ({ row }) => {
-      const { first_name, last_name } = row.original
+      const { first_name, last_name, profile_thumb } = row.original
       const fullName = `${first_name}${last_name ? ` ${last_name}` : ''}`
       return (
         <div className={cn('flex items-center gap-[5]', 'text-left')}>
-          <UserAvatar name={fullName} size={25} className='text-[11px]!' />
+          {profile_thumb ? (
+            <img
+              src={profile_thumb}
+              alt={fullName}
+              className='w-[25px] h-[25px] rounded-full object-cover'
+            />
+          ) : (
+            <UserAvatar name={fullName} size={25} className='text-[11px]!' />
+          )}
           <span className='texts-table-cell-primary'>{fullName}</span>
         </div>
       )

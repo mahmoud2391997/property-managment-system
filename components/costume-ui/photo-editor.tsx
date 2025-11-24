@@ -36,17 +36,28 @@ function PhotoEditorModal ({ isOpen, onClose, onSave }: PhotoEditorModalProps) {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [minScale, setMinScale] = useState(1)
   const [maxScale] = useState(3)
+  const [errorMessage, setErrorMessage] = useState<string>('')
+  const [isDragOver, setIsDragOver] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  const MAX_FILE_SIZE = 1 * 1024 * 1024
+
   const CANVAS_SIZE = 400
   const CROP_SIZE = 380
 
-  const handleFileUpload = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0]
-      if (!file) return
+  const processFile = useCallback(
+    (file: File) => {
+      setErrorMessage('')
+
+      if (file.size > MAX_FILE_SIZE) {
+        setErrorMessage('File size must not exceed 1 MB. Please choose a smaller image.')
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+        return
+      }
 
       const img = new Image()
       img.onload = () => {
@@ -60,7 +71,47 @@ function PhotoEditorModal ({ isOpen, onClose, onSave }: PhotoEditorModalProps) {
       }
       img.src = URL.createObjectURL(file)
     },
-    []
+    [MAX_FILE_SIZE]
+  )
+
+  const handleFileUpload = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (!file) return
+      processFile(file)
+    },
+    [processFile]
+  )
+
+  const handleDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((event: React.DragEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setIsDragOver(false)
+  }, [])
+
+  const handleDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault()
+      event.stopPropagation()
+      setIsDragOver(false)
+
+      const file = event.dataTransfer.files?.[0]
+      if (!file) return
+
+      if (!file.type.startsWith('image/')) {
+        setErrorMessage('Please drop an image file.')
+        return
+      }
+
+      processFile(file)
+    },
+    [processFile]
   )
 
   const constrainPosition = useCallback(
@@ -257,6 +308,7 @@ function PhotoEditorModal ({ isOpen, onClose, onSave }: PhotoEditorModalProps) {
     if (isOpen) {
       setImage(null)
       setImagePosition({ x: 0, y: 0, scale: 1 })
+      setErrorMessage('')
 
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
@@ -278,6 +330,9 @@ function PhotoEditorModal ({ isOpen, onClose, onSave }: PhotoEditorModalProps) {
             ref={containerRef}
             className='relative mx-auto'
             style={{ width: CANVAS_SIZE, height: CANVAS_SIZE }}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
           >
             <canvas
               ref={canvasRef}
@@ -293,16 +348,26 @@ function PhotoEditorModal ({ isOpen, onClose, onSave }: PhotoEditorModalProps) {
             />
 
             {!image && (
-              <div className='absolute inset-0 flex items-center justify-center bg-card rounded-lg border-2 border-dashed border-border'>
-                <div className='text-center'>
+              <div className={`absolute inset-0 flex items-center justify-center bg-card rounded-lg border-2 border-dashed ${
+                isDragOver ? 'border-primary bg-primary/5' : 'border-border'
+              } transition-colors`}>
+                <div className='text-center pointer-events-none'>
                   <Upload className='h-12 w-12 text-muted-foreground mx-auto mb-2' />
                   <p className='text-sm text-muted-foreground'>
-                    Upload a photo
+                    {isDragOver ? 'Drop image here' : 'Upload or drop a photo'}
                   </p>
                 </div>
               </div>
             )}
           </div>
+
+          {errorMessage && (
+            <div className='mt-4 p-3 bg-destructive/10 border border-destructive rounded-md'>
+              <p className='text-sm text-destructive text-center'>
+                {errorMessage}
+              </p>
+            </div>
+          )}
 
           {image && (
             <p className='text-center text-sm text-muted-foreground mt-4'>

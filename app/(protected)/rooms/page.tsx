@@ -51,7 +51,7 @@ async function getRooms() {
     id: room.id,
     title: room.title,
     property: room.properties?.code || 'No Property',
-    status: room.is_ready ? 'Vacant' : 'Under Preparation'
+    status: (room.is_ready ? 'Vacant' : 'Under Preparation') as 'Vacant' | 'Under Preparation'
   }))
 }
 

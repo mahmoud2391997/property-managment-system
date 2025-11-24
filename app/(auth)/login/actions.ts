@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 
 import { createClient } from '@/utils/supabase/server'
 
-export async function login(formData: FormData): Promise<string | void> {
+export async function tenantLogin(formData: FormData): Promise<string | void> {
   const supabase = await createClient()
 
   const data = {
@@ -19,16 +19,16 @@ export async function login(formData: FormData): Promise<string | void> {
     return 'Invalid email or password'
   }
 
-  // Check if user_type is staff
+  // Check if user_type is tenant
   const userType = authData.user?.user_metadata?.user_type
 
-  if (userType === 'tenant') {
+  if (userType === 'staff') {
     // Sign out the user since they're on the wrong login page
     await supabase.auth.signOut()
-    return 'This email is registered as a tenant account. Please use the tenant login page.'
+    return 'This email is registered as a staff account. Please use the staff login page.'
   }
 
-  if (userType !== 'staff') {
+  if (userType !== 'tenant') {
     // Sign out the user if user_type is not set or invalid
     await supabase.auth.signOut()
     return 'Invalid email or password'

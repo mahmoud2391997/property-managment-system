@@ -525,4 +525,106 @@ USING (
   )
 );
 
+-- Add room_id column
+ALTER TABLE property_default_initial_charges 
+ADD COLUMN room_id UUID REFERENCES rooms(id) ON DELETE CASCADE;
 
+-- Add is_refundable column
+ALTER TABLE property_default_initial_charges 
+ADD COLUMN is_refundable BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Drop the old NOT NULL constraint on property_id
+ALTER TABLE property_default_initial_charges 
+ALTER COLUMN property_id DROP NOT NULL;
+
+-- Add CHECK constraint: either property_id OR room_id, not both
+ALTER TABLE property_default_initial_charges 
+ADD CONSTRAINT property_or_room_check CHECK (
+    (property_id IS NOT NULL AND room_id IS NULL) OR
+    (property_id IS NULL AND room_id IS NOT NULL)
+);
+
+-- Drop old unique constraint
+ALTER TABLE property_default_initial_charges 
+DROP CONSTRAINT property_default_initial_charges_property_id_charge_type_key;
+
+-- Add new unique constraints
+ALTER TABLE property_default_initial_charges 
+ADD CONSTRAINT unique_property_charge_type UNIQUE(property_id, charge_type);
+
+ALTER TABLE property_default_initial_charges 
+ADD CONSTRAINT unique_room_charge_type UNIQUE(room_id, charge_type);
+
+-- ============================================
+-- ALTER late_payment_charges
+-- ============================================
+
+-- Add room_id column
+ALTER TABLE late_payment_charges 
+ADD COLUMN room_id UUID REFERENCES rooms(id) ON DELETE CASCADE;
+
+-- Drop the old NOT NULL constraint on property_id
+ALTER TABLE late_payment_charges 
+ALTER COLUMN property_id DROP NOT NULL;
+
+-- Add CHECK constraint: either property_id OR room_id, not both
+ALTER TABLE late_payment_charges 
+ADD CONSTRAINT late_payment_property_or_room_check CHECK (
+    (property_id IS NOT NULL AND room_id IS NULL) OR
+    (property_id IS NULL AND room_id IS NOT NULL)
+);
+
+-- Drop old unique constraint
+ALTER TABLE late_payment_charges 
+DROP CONSTRAINT late_payment_charges_property_id_days_after_due_key;
+
+-- Add new unique constraints
+ALTER TABLE late_payment_charges 
+ADD CONSTRAINT unique_property_days UNIQUE(property_id, days_after_due);
+
+ALTER TABLE late_payment_charges 
+ADD CONSTRAINT unique_room_days UNIQUE(room_id, days_after_due);
+
+
+-- ============================================
+-- ALTER property_default_lease_config
+-- ============================================
+
+-- Add room_id column
+ALTER TABLE property_default_lease_config 
+ADD COLUMN room_id UUID REFERENCES rooms(id) ON DELETE CASCADE;
+
+-- Drop the old NOT NULL constraint on property_id
+ALTER TABLE property_default_lease_config 
+ALTER COLUMN property_id DROP NOT NULL;
+
+-- Add CHECK constraint: either property_id OR room_id, not both
+ALTER TABLE property_default_lease_config 
+ADD CONSTRAINT lease_config_property_or_room_check CHECK (
+    (property_id IS NOT NULL AND room_id IS NULL) OR
+    (property_id IS NULL AND room_id IS NOT NULL)
+);
+
+-- Drop old unique constraint
+ALTER TABLE property_default_lease_config 
+DROP CONSTRAINT property_default_lease_config_property_id_key;
+
+-- Add new unique constraints
+ALTER TABLE property_default_lease_config 
+ADD CONSTRAINT unique_property_config UNIQUE(property_id);
+
+ALTER TABLE property_default_lease_config 
+ADD CONSTRAINT unique_room_config UNIQUE(room_id);
+
+ALTER TABLE individual_tenants
+DROP COLUMN IF EXISTS created_at,
+DROP COLUMN IF EXISTS created_by;
+
+// organiztions_tenants
+CREATE TABLE organizations_tenants (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES staff(id) ON DELETE SET NULL
+);

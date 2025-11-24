@@ -15,7 +15,6 @@ async function getOwners() {
     return []
   }
 
-  // Get staff info to find organization
   const staff = await prisma.staff.findUnique({
     where: { id: user.id },
     select: { organization_id: true }
@@ -25,7 +24,6 @@ async function getOwners() {
     return []
   }
 
-  // Get owners with property count
   const owners = await prisma.owners.findMany({
     where: {
       organization_id: staff.organization_id
@@ -37,6 +35,7 @@ async function getOwners() {
       phone_number: true,
       email: true,
       profile_pic: true,
+      profile_thumb: true,
       _count: {
         select: {
           contracts: true

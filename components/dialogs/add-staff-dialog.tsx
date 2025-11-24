@@ -2,11 +2,11 @@
 
 import { useState } from 'react'
 import Dialog from '../costume-ui/dialog'
-import AddOwner from '../add-owner'
+import AddStaff from '../add-staff'
 import Button from '../costume-ui/button'
 import { AddButtonIcon } from '../costume-ui/icon'
 
-export default function AddOwnerDialog() {
+export default function AddStaffDialog() {
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
 
@@ -15,16 +15,16 @@ export default function AddOwnerDialog() {
       openDialogButton={
         <Button
           icon={<AddButtonIcon className='text-neutral-300' />}
-          label='Add Owner'
+          label='Add Staff'
           type='button'
         />
       }
-      title='Add Owner'
+      title='Add Staff'
       saveButtonLabel={loading ? 'Saving...' : 'Save'}
       loading={loading}
       className='max-w-150!'
     >
-      <AddOwner
+      <AddStaff
         onLoadingChange={setLoading}
         onSuccess={() => setOpen(false)}
       />

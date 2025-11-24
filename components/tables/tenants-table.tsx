@@ -1,9 +1,7 @@
 'use client'
 
-import {
-  ColumnDef
-} from '@tanstack/react-table'
-import { MoreHorizontal } from 'lucide-react'
+import { ColumnDef } from '@tanstack/react-table'
+import { MoreHorizontal, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -15,12 +13,36 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Table } from '../costume-ui/table'
-import { Tenant } from '@/types'
-import { tenantsData } from '@/utils/data'
 import { cn } from '@/lib/utils'
 import { UserAvatar } from '../costume-ui/name-avatar'
+import { Prisma } from '@prisma/client'
+import { useState } from 'react'
+import ConfirmationDialog from '../costume-ui/confirmation-dialog'
+import { useRouter } from 'next/navigation'
+import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
 
-export const columns: ColumnDef<Tenant>[] = [
+
+type TenantWithDetails = Prisma.tenantsGetPayload<{
+  select: {
+    id: true
+    profile_pic: true
+    profile_thumb: true
+    individual_tenants: {
+      select: {
+        identity_type: true
+        identity_number: true
+        first_name: true
+        last_name: true
+        phone_number: true
+      }
+    }
+  }
+}> & {
+  email?: string
+  accountStatus?: 'Activated' | 'Pending'
+}
+
+export const columns: ColumnDef<TenantWithDetails>[] = [
   //Checkbox
   {
     id: 'select',
@@ -46,97 +68,66 @@ export const columns: ColumnDef<Tenant>[] = [
   },
 
   {
-    accessorKey: 'tenant_name',
+    accessorKey: 'first_name',
     header: () => <div className='text-left'>Name</div>,
     cell: ({ row }) => {
-      const { tenant_picture, tenant_name } = row.original
+      const { individual_tenants, profile_thumb } = row.original
+      const fullName = `${individual_tenants?.first_name}${individual_tenants?.last_name ? ` ${individual_tenants.last_name}` : ''}`
+
       return (
         <div className={cn('flex items-center gap-[5]', 'text-left')}>
-          <UserAvatar name={tenant_name} size={25} className='text-[11px]!' />
-          <span className='texts-table-cell-primary'>{tenant_name}</span>
+          {profile_thumb ? (
+            <img
+              src={profile_thumb}
+              alt={fullName}
+              className='w-[25px] h-[25px] rounded-full object-cover'
+            />
+          ) : (
+            <UserAvatar name={fullName} size={25} className='text-[11px]!' />
+          )}
+          <span className='texts-table-cell-primary'>{fullName}</span>
         </div>
       )
     }
   },
 
   {
-    accessorKey: 'identity_no',
+    accessorKey: 'identity_number',
     header: () => <div className='text-left'>Identity No</div>,
     cell: ({ row }) => {
-      const { identity_no } = row.original
+      const { individual_tenants } = row.original
 
       return (
-        <div className='text-left texts-table-cell-data'>{identity_no}</div>
+        <div className='flex flex-col'>
+          <span className='text-left texts-table-cell-primary'>
+            {individual_tenants?.identity_number || '-'}
+          </span>
+          <span className='text-left texts-table-cell-secondary text-(--text-secondary)'>
+            {individual_tenants?.identity_type}
+          </span>
+        </div>
       )
     }
   },
 
   {
-    accessorKey: 'phone_no',
-    header: () => <div className='text-left'>Phone No</div>,
+    accessorKey: 'accountStatus',
+    header: () => <div className='text-left'>Account</div>,
     cell: ({ row }) => {
-      const { phone_no } = row.original
-
-      return <div className='text-left texts-table-cell-data'>{phone_no}</div>
-    }
-  },
-
-  {
-    accessorKey: 'email',
-    header: () => <div className='text-left'>Email</div>,
-    cell: ({ row }) => {
-      const { email } = row.original
-
-      return <div className='text-left texts-table-cell-data'>{email}</div>
-    }
-  },
-
-  {
-    accessorKey: 'account_status',
-    header: () => <div className='text-left'>Acount</div>,
-    cell: ({ row }) => {
-      const { account_status } = row.original
-      const rawStatus: Tenant['account_status'] = account_status // e.g., "Under Preparation"
-      const statusKey = rawStatus.toLowerCase().replace(/\s/g, '-') // "under-preparation"
+      const status = row.original.accountStatus || 'Pending'
+      const statusKey = status.toLowerCase()
 
       return (
-        <div className='text-left'>
+        <div className='texts-table-cell-primary text-left'>
           <div
             data-status={statusKey}
             className={cn(
               'status-styles',
               'data-[status=activated]:bg-green-100 data-[status=activated]:text-green-800',
-              'data-[status=pending-activation]:bg-yellow-100 data-[status=pending-activation]:text-yellow-800'
+              'data-[status=pending]:bg-yellow-100 data-[status=pending]:text-yellow-800'
             )}
           >
-            {account_status}
-          </div>
-        </div>
-      )
-    }
-  },
-
-  {
-    accessorKey: 'rental_status',
-    header: () => <div className='text-left'>Rental</div>,
-    cell: ({ row }) => {
-      const { rental_status } = row.original
-      const rawStatus: Tenant['rental_status'] = rental_status // e.g., "Under Preparation"
-      const statusKey = rawStatus.toLowerCase().replace(/\s/g, '-') // "under-preparation"
-
-      return (
-        <div className='text-left'>
-          <div
-            data-status={statusKey}
-            className={cn(
-              'status-styles',
-              'data-[status=renting]:bg-green-100 data-[status=renting]:text-green-800',
-              'data-[status=booking]:bg-blue-100 data-[status=booking]:text-blue-800',
-              'data-[status=pending-refund]:bg-yellow-100 data-[status=pending-refund]:text-yellow-800',
-              'data-[status=not-renting]:bg-gray-100 data-[status=not-renting]:text-gray-800'
-            )}
-          >
-            {rental_status}
+            {status}
           </div>
         </div>
       )
@@ -148,7 +139,52 @@ export const columns: ColumnDef<Tenant>[] = [
     header: 'Actions',
     enableHiding: false,
     cell: ({ row }) => {
-      const property = row.original
+      const tenant = row.original
+      const router = useRouter()
+      const [isResending, setIsResending] = useState(false)
+      const [isDeleting, setIsDeleting] = useState(false)
+
+      const handleResendInvite = async () => {
+        setIsResending(true)
+        try {
+          const response = await fetch('/api/tenants/resend-invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tenantId: tenant.id })
+          })
+
+          if (!response.ok) {
+            const data = await response.json()
+            throw new Error(data.error || 'Failed to resend invitation')
+          }
+
+          alert('Invitation email sent successfully!')
+        } catch (error: any) {
+          alert(error.message || 'Failed to resend invitation')
+        } finally {
+          setIsResending(false)
+        }
+      }
+
+      const handleDelete = async () => {
+        setIsDeleting(true)
+        try {
+          const response = await fetch(`/api/tenants?id=${tenant.id}`, {
+            method: 'DELETE'
+          })
+
+          if (!response.ok) {
+            const data = await response.json()
+            throw new Error(data.error || 'Failed to delete tenant')
+          }
+
+          alert('Tenant deleted successfully!')
+          router.refresh()
+        } catch (error: any) {
+          alert(error.message || 'Failed to delete tenant')
+          setIsDeleting(false)
+        }
+      }
 
       return (
         <DropdownMenu>
@@ -161,13 +197,63 @@ export const columns: ColumnDef<Tenant>[] = [
           <DropdownMenuContent align='end'>
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(property.id)}
+              onClick={() => {
+                const phoneNumber = tenant.individual_tenants?.phone_number || ''
+                if (phoneNumber) {
+                  const whatsappUrl = buildWhatsAppLink(phoneNumber)
+                  window.open(whatsappUrl, '_blank')
+                }
+              }}
+              className='gap-1'
             >
-              Copy payment ID
+              WhatsApp <span className='font-semibold'>{tenant.individual_tenants?.first_name.trim().split(' ')[0]}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                const email = tenant.email || ''
+                if (email) {
+                  const emailUrl = buildEmailLink(email)
+                  window.location.href = emailUrl
+                }
+              }}
+              className='gap-1'
+            >
+              Email <span className='font-semibold'>{tenant.individual_tenants?.first_name.trim().split(' ')[0]}</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>View customer</DropdownMenuItem>
-            <DropdownMenuItem>View payment details</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => navigator.clipboard.writeText(tenant.individual_tenants?.phone_number || '')}
+            >
+              Copy phone number
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => navigator.clipboard.writeText(tenant.email || '')}
+            >
+              Copy email
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {tenant.accountStatus === 'Pending' && (
+              <DropdownMenuItem
+                onClick={handleResendInvite}
+                disabled={isResending}
+              >
+                {isResending ? 'Sending...' : 'Resend Invitation'}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem>View details</DropdownMenuItem>
+            <ConfirmationDialog
+              openDialogButton={
+                <button type='button' className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'>
+                  Delete tenant
+                </button>
+              }
+              title='Delete Tenant'
+              description={`Are you sure you want to delete ${tenant.individual_tenants?.first_name}${tenant.individual_tenants?.last_name ? ` ${tenant.individual_tenants.last_name}` : ''}? This will permanently remove their account and all associated data.`}
+              confirmationText='DELETE'
+              onConfirm={handleDelete}
+              loading={isDeleting}
+              confirmButtonLabel='Delete Tenant'
+            />
           </DropdownMenuContent>
         </DropdownMenu>
       )
@@ -175,6 +261,10 @@ export const columns: ColumnDef<Tenant>[] = [
   }
 ]
 
-export default function TenantsTable () {
-  return <Table columns={columns} data={tenantsData} />
+type TenantsTableProps = {
+  data: TenantWithDetails[]
+}
+
+export default function TenantsTable({ data }: TenantsTableProps) {
+  return <Table columns={columns} data={data} />
 }
