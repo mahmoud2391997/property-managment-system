@@ -110,6 +110,7 @@ const AddProperty = () => {
         code,
         street_address: streetAddress,
         postal_code: postalCode,
+        city: city,
         type: selectedType.replace(' ', '_'),
         project_id: selectedProject?.id || null,
         is_ready: isPropertyReady,

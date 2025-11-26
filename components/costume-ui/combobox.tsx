@@ -36,6 +36,7 @@ type Props = {
   value?: string
   onValueChange?: (value: string) => void
   disabled?: boolean
+  disabledReason?: string
   required?: boolean
 }
 
@@ -50,6 +51,7 @@ export default function Combobox ({
   value,
   onValueChange,
   disabled = false,
+  disabledReason,
   required = false
 }: Props) {
   const [open, setOpen] = React.useState(false)
@@ -93,7 +95,7 @@ export default function Combobox ({
     const selectedItem = items.find(item =>
       item.id ? item.id === singleValue : item.label === singleValue
     )
-    return selectedItem ? selectedItem.label : placeholder
+    return (disabled && disabledReason) ? disabledReason : selectedItem ? selectedItem.label : placeholder
   }
 
   const isSelected = (item: ComboBoxitemsType) => {
@@ -168,7 +170,7 @@ export default function Combobox ({
                     >
                       {showAvatar && renderAvatar(item)}
                       <div className='flex-1 flex flex-col'>
-                        <span>{item.label}</span>
+                        <span>{item.label}<span className='ml-1 texts-caption-large text-(--text-secondary)'>{item.extraReference ? `(${item.extraReference})` : ''}</span></span>
                         {item.subtitle && (
                           <span className='text-xs text-(--text-secondary)'>
                             {item.subtitle}

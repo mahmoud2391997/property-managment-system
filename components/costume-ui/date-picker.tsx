@@ -13,11 +13,19 @@ import { cn } from '@/lib/utils'
 
 type Props = {
   className?: string
-} & React.ComponentProps<'button'>
+  onValueChange?: (date: Date | undefined) => void
+  value?: Date
+} & Omit<React.ComponentProps<'button'>, 'value'>
 
-export default function DatePicker ({ className, ...props }: Props) {
+export default function DatePicker ({ className, onValueChange, value, ...props }: Props) {
   const [open, setOpen] = React.useState(false)
-  const [date, setDate] = React.useState<Date | undefined>(undefined)
+  const [date, setDate] = React.useState<Date | undefined>(value)
+
+  React.useEffect(() => {
+    if (value !== undefined) {
+      setDate(value)
+    }
+  }, [value])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -48,6 +56,7 @@ export default function DatePicker ({ className, ...props }: Props) {
           captionLayout='dropdown'
           onSelect={date => {
             setDate(date)
+            onValueChange?.(date)
             setOpen(false)
           }}
         />

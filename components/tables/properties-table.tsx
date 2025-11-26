@@ -10,11 +10,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Table } from '../costume-ui/table'
 import Tooltip from '../costume-ui/tooltip'
-import { Property } from '@/types'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import { PropertyWithDetails } from '@/types'
 
-export const columns: ColumnDef<Property>[] = [
+export const columns: ColumnDef<PropertyWithDetails>[] = [
   //Checkbox
   {
     id: 'select',
@@ -89,7 +89,7 @@ export const columns: ColumnDef<Property>[] = [
     accessorKey: 'status',
     header: () => <div className='text-left'>Status</div>,
     cell: ({ row }) => {
-      const rawStatus: Property['status'] = row.getValue('status') // e.g., "Under Preparation"
+      const rawStatus: PropertyWithDetails['status'] = row.getValue('status') // e.g., "Under Preparation"
       const statusKey = rawStatus.toLowerCase().replace(/\s/g, '-') // "under-preparation"
 
       return (
@@ -136,7 +136,7 @@ export const columns: ColumnDef<Property>[] = [
 ]
 
 interface PropertiesTableProps {
-  data: Property[]
+  data: PropertyWithDetails[]
 }
 
 export default function PropertiesTable ({ data }: PropertiesTableProps) {

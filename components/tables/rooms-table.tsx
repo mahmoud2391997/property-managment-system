@@ -16,10 +16,10 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Table } from '../costume-ui/table'
-import { Room } from '@/types'
 import { cn } from '@/lib/utils'
+import { RoomWithProperty } from '@/types'
 
-export const columns: ColumnDef<Room>[] = [
+export const columns: ColumnDef<RoomWithProperty>[] = [
   //Checkbox
   {
     id: 'select',
@@ -64,7 +64,7 @@ export const columns: ColumnDef<Room>[] = [
     accessorKey: 'status',
     header: () => <div className='text-left'>Status</div>,
     cell: ({ row }) => {
-      const rawStatus: Room['status'] = row.getValue('status') // e.g., "Under Preparation"
+      const rawStatus: RoomWithProperty['status'] = row.getValue('status') // e.g., "Under Preparation"
       const statusKey = rawStatus.toLowerCase().replace(/\s/g, '-') // "under-preparation"
 
       return (
@@ -120,7 +120,7 @@ export const columns: ColumnDef<Room>[] = [
 ]
 
 interface RoomsTableProps {
-  data: Room[]
+  data: RoomWithProperty[]
 }
 
 export default function RoomsTable ({ data }: RoomsTableProps) {

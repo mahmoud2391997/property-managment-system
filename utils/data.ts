@@ -1100,12 +1100,12 @@ export const noticeTypes: string[] = [
 ]
 
 export const paymentTypes: PaymentType[] = [
-  { type: 'Lease Initial Charges' },
-  { type: 'Fines or Penalties' },
+  { type: 'Lease_Initial_Charges' },
+  { type: 'Fines_or_Penalties' },
   { type: 'Utilities', isRecurrable: true },
-  { type: 'Cleaning Service', isRecurrable: true },
+  { type: 'Cleaning_Service', isRecurrable: true },
   { type: 'Parking', isRecurrable: true },
-  { type: 'Miscellaneous/Other', isRecurrable: true }
+  { type: 'Miscellaneous_Others', isRecurrable: true }
 ]
 
 export const chargeTypes: ChargeTypeType[] = [

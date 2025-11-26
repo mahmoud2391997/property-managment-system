@@ -3,7 +3,7 @@
 import {
   ColumnDef
 } from '@tanstack/react-table'
-import { MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal, ChevronRight, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -16,21 +16,23 @@ import {
 } from '@/components/ui/dropdown-menu'
 import Tooltip from '../costume-ui/tooltip'
 import { Payment } from '@/types'
-import { paymentsData } from '@/utils/data'
 import { cn } from '@/lib/utils'
-import { formatDate, formatTimestamp } from '@/utils/formatTime'
+import { formatDate } from '@/utils/formatTime'
 import { Repeat } from 'lucide-react'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { Progress } from '../ui/progress'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import { Table } from '../costume-ui/table'
+import PaymentHistoryRow from './payment-history-row'
+import TimestampWithTooltip from '../costume-ui/timestamp-with-tooltip'
 
 type Props = {
+  data: Payment[]
   showPropertyColumn?: boolean
   className?: string
 }
 
-export default function PaymentsTable ({ showPropertyColumn = true, className = '' }: Props) {
+export default function PaymentsTable ({ data, showPropertyColumn = true, className = '' }: Props) {
   const columns: ColumnDef<Payment>[] = [
     //Checkbox
     {
@@ -52,6 +54,36 @@ export default function PaymentsTable ({ showPropertyColumn = true, className = 
           aria-label='Select row'
         />
       ),
+      enableSorting: false,
+      enableHiding: false
+    },
+
+    //Expand
+    {
+      id: 'expand',
+      header: () => null,
+      cell: ({ row }) => {
+        const hasHistory = row.original.payment_percentage > 0
+
+        if (!hasHistory) {
+          return null
+        }
+
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => row.toggleExpanded()}
+            className="h-6 w-6 p-0"
+          >
+            {row.getIsExpanded() ? (
+              <ChevronDown strokeWidth={1.5} className='h-6! w-6!' />
+            ) : (
+              <ChevronRight strokeWidth={1.5} className='h-6! w-6!' />
+            )}
+          </Button>
+        )
+      },
       enableSorting: false,
       enableHiding: false
     },
@@ -148,7 +180,7 @@ export default function PaymentsTable ({ showPropertyColumn = true, className = 
         return (
           <>
             <div className='texts-body-large-medium text-left mb-1'>
-              {amount}
+              {formatCurrency(amount)}
             </div>
             <div className='texts-table-cell-primary text-left'>
               <div
@@ -205,9 +237,10 @@ export default function PaymentsTable ({ showPropertyColumn = true, className = 
                   <span className='texts-table-cell-primary'>
                     {tenant_name}
                   </span>
-                  <span className='texts-caption-large text-(--text-secondary)'>
-                    {formatTimestamp(latest_payment_timestamp)}
-                  </span>
+                  <TimestampWithTooltip
+                    timestamp={latest_payment_timestamp}
+                    className='texts-caption-large text-(--text-secondary)'
+                  />
                 </div>
               </div>
             </div>
@@ -228,7 +261,7 @@ export default function PaymentsTable ({ showPropertyColumn = true, className = 
             <DropdownMenuTrigger asChild>
               <Button variant='ghost' className='h-8 w-8 p-0'>
                 <span className='sr-only'>Open menu</span>
-                <MoreHorizontal />
+                <MoreHorizontal strokeWidth={1.5} className='w-6! h-6!' />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
@@ -248,5 +281,19 @@ export default function PaymentsTable ({ showPropertyColumn = true, className = 
     }
   ]
 
-  return <Table columns={columns} data={paymentsData} className={className} />
+  return (
+    <Table
+      columns={columns}
+      data={data}
+      className={className}
+      getRowCanExpand={(row) => row.original.payment_percentage > 0}
+      renderSubComponent={(row) => (
+        <PaymentHistoryRow
+          key={`history-${row.original.id}`}
+          referenceId={row.original.id}
+          isExpanded={row.getIsExpanded()}
+        />
+      )}
+    />
+  )
 }

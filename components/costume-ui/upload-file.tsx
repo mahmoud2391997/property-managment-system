@@ -1,5 +1,6 @@
-import React, { useState, useRef, ChangeEvent, DragEvent } from 'react';
+import { useState, useRef, ChangeEvent, DragEvent } from 'react';
 import { Upload, X, FileText, Image, CheckCircle } from 'lucide-react';
+import { toast } from 'sonner'
 
 interface FileData {
   file: File;
@@ -8,7 +9,11 @@ interface FileData {
   preview: string | null;
 }
 
-export default function UploadFile() {
+interface UploadFileProps {
+  onFileChange?: (file: File | null) => void;
+}
+
+export default function UploadFile({ onFileChange }: UploadFileProps) {
   const [file, setFile] = useState<FileData | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -34,12 +39,33 @@ export default function UploadFile() {
   };
 
   const addFile = (newFile: File) => {
-    setFile({
+    // Validate file type (images and PDF only)
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
+    if (!validTypes.includes(newFile.type)) {
+      toast.error('Invalid file type. Only JPG, PNG, GIF, and PDF files are allowed.');
+      return;
+    }
+
+    // Validate file size (max 1MB = 1048576 bytes)
+    const maxSize = 1 * 1024 * 1024; // 1MB in bytes
+    if (newFile.size > maxSize) {
+      toast.error('File size exceeds 1MB. Please choose a smaller file.');
+      return;
+    }
+
+    const fileData = {
       file: newFile,
       name: newFile.name,
       size: (newFile.size / 1024).toFixed(2),
       preview: newFile.type.startsWith('image/') ? URL.createObjectURL(newFile) : null
-    });
+    };
+    setFile(fileData);
+    onFileChange?.(newFile);
+  };
+
+  const removeFile = () => {
+    setFile(null);
+    onFileChange?.(null);
   };
 
   return (
@@ -72,7 +98,7 @@ export default function UploadFile() {
                 <p className="text-base font-medium text-gray-700">
                   {isDragging ? 'Drop file here' : 'Drop receipt here or click to browse'}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">Supports JPG, PNG, PDF (Max 10MB)</p>
+                <p className="text-sm text-gray-500 mt-1">Supports JPG, PNG, GIF, PDF (Max 1MB)</p>
               </div>
             </div>
           </div>
@@ -98,7 +124,7 @@ export default function UploadFile() {
               <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
             </div>
             <button
-              onClick={() => setFile(null)}
+              onClick={removeFile}
               className="ml-3 p-1 hover:bg-gray-100 rounded transition-all duration-200 flex-shrink-0 group"
               aria-label="Remove file"
             >

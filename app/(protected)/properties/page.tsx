@@ -39,11 +39,13 @@ async function getProperties() {
       code: true,
       street_address: true,
       postal_code: true,
+      city: true,
       type: true,
-      is_ready: true,
+      status: true,
       projects: {
         select: {
-          title: true
+          title: true,
+          state: true
         }
       }
     },
@@ -55,10 +57,10 @@ async function getProperties() {
   return properties.map(property => ({
     id: property.id,
     code: property.code,
-    address: `${property.street_address}, ${property.postal_code}`,
-    project: property.projects?.title || 'No Project',
+    address: `${property.street_address}, ${property.postal_code}, ${property.city}, ${property.projects?.state}`,
+    project: property.projects?.title || null,
     type: property.type,
-    status: property.is_ready ? 'Vacant' : 'Under Preparation'
+    status: property.status
   }))
 }
 

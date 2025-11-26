@@ -16,6 +16,15 @@ export type Property = {
   status: 'Occupied' | 'Under Preparation' | 'Pending Inspection' | 'Vacant'
 }
 
+export type PropertyWithDetails = {
+  id: string
+  code: string
+  address: string
+  project: string | null
+  type: property_type
+  status: property_status
+}
+
 export type Room = {
   id: string
   title: string
@@ -26,6 +35,24 @@ export type Room = {
     | 'Pending Inspection'
     | 'Vacant'
     | 'Property Rented'
+}
+
+export type RoomWithProperty = {
+  id: string
+  title: string
+  property: string
+  status: property_status
+}
+
+export type PaymentHistory = {
+  id: string
+  payment_number: number
+  payment_method: 'Cash' | 'Bank_Transfer'
+  amount_paid: number
+  remaining_amount: number
+  status: 'Paid' | 'Failed'
+  paid_at: string // ISO timestamp
+  receipt_image: string | null
 }
 
 export type Payment = {
@@ -43,6 +70,7 @@ export type Payment = {
   tenant_picture: string
   tenant_color: string
   latest_payment_timestamp: string // ISO timestamp
+  payment_history?: PaymentHistory[] // Loaded on demand
 }
 
 export type Expense = {
@@ -143,7 +171,9 @@ export type ComboBoxitemsType = {
   id?: string
   avatar?: string | React.ReactNode
   label: string
+  extraReference?: string
   subtitle?: string
+  metadata?: any // Additional metadata for special use cases
 }
 
 export type Crumb = {

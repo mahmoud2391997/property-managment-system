@@ -284,7 +284,7 @@ const OverViewSection = () => {
             />
           ))}
         </TabGroup>
-        <PaymentsTable showPropertyColumn={false} className='-mx-5! rounded-none! border-x-0' />
+        <PaymentsTable data={[]} showPropertyColumn={false} className='-mx-5! rounded-none! border-x-0' />
       </div>
     </>
   )

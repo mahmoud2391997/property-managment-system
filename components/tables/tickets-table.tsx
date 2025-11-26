@@ -29,7 +29,7 @@ import { ticketsData } from '@/utils/data'
 import { cn } from '@/lib/utils'
 import { UserAvatar } from '../costume-ui/name-avatar'
 import Tooltip from '../costume-ui/tooltip'
-import { formatTimestamp } from '@/utils/formatTime'
+import TimestampWithTooltip from '../costume-ui/timestamp-with-tooltip'
 
 export const columns: ColumnDef<Ticket>[] = [
   //Checkbox
@@ -123,9 +123,10 @@ export const columns: ColumnDef<Ticket>[] = [
 
             <div className='flex flex-col'>
               <span className='texts-table-cell-primary'>{tenant_name}</span>
-              <span className='texts-caption-large text-(--text-secondary)'>
-                {formatTimestamp(issue_timestamp)}
-              </span>
+              <TimestampWithTooltip
+                timestamp={issue_timestamp}
+                className='texts-caption-large text-(--text-secondary)'
+              />
             </div>
           </div>
         </div>
@@ -149,9 +150,10 @@ export const columns: ColumnDef<Ticket>[] = [
 
             <div className='flex flex-col'>
               <span className='texts-table-cell-primary'>{staff_name}</span>
-              <span className='texts-caption-large text-(--text-secondary)'>
-                {formatTimestamp(assignment_timestamp)}
-              </span>
+              <TimestampWithTooltip
+                timestamp={assignment_timestamp}
+                className='texts-caption-large text-(--text-secondary)'
+              />
             </div>
           </div>
         </div>

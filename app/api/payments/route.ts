@@ -1,31 +1,29 @@
-import { cn } from '@/lib/utils'
-import SearchInput from '@/components/costume-ui/search-input'
-import Button from '@/components/costume-ui/button'
-import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
-import PaymentsTable from '@/components/tables/pyaments-table'
-import Link from 'next/link'
-import { Payment } from '@/types'
+'use server'
+
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 
-async function fetchPayments(): Promise<Payment[]> {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return []
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get current staff organization
     const staff = await prisma.staff.findUnique({
       where: { id: user.id },
       select: { organization_id: true }
     })
 
     if (!staff) {
-      return []
+      return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
     }
 
+    // Fetch payments with related data
     const payments = await prisma.payments.findMany({
       where: {
         organization_id: staff.organization_id
@@ -51,7 +49,6 @@ async function fetchPayments(): Promise<Payment[]> {
             tenants: {
               select: {
                 id: true,
-                type: true,
                 profile_pic: true,
                 individual_tenants: {
                   select: {
@@ -75,14 +72,14 @@ async function fetchPayments(): Promise<Payment[]> {
           }
         },
         payment_history: {
-          select: {
-            amount: true,
-            paid_at: true
-          },
           orderBy: {
             paid_at: 'desc'
           },
-          take: 1
+          take: 1,
+          select: {
+            paid_at: true,
+            amount: true
+          }
         },
         recurring_configs: {
           select: {
@@ -97,18 +94,23 @@ async function fetchPayments(): Promise<Payment[]> {
       }
     })
 
-    const transformedPayments: Payment[] = payments.map(payment => {
-      const totalAmount = payment.charges.reduce((sum: number, charge: any) => {
+    // Transform data to match Payment type
+    const transformedPayments = payments.map(payment => {
+      // Calculate total amount from charges
+      const totalAmount = payment.charges.reduce((sum, charge) => {
         const amount = charge.amount
         const tax = charge.is_taxed ? amount * 0.08 : 0
         return sum + amount + tax
       }, 0)
 
-      const totalPaid = payment.payment_history.reduce((sum: number, history: any) => sum + history.amount, 0)
+      // Calculate payment percentage
+      const totalPaid = payment.payment_history.reduce((sum, history) => sum + history.amount, 0)
       const paymentPercentage = totalAmount > 0 ? Math.round((totalPaid / totalAmount) * 100) : 0
 
+      // Determine status based on payment_history and due date
       let status: 'Paid' | 'Paid Late' | 'Pending' | 'Overdue' = payment.status as any
 
+      // Get recurring pattern info
       const recurringConfig = payment.recurring_configs[0]
       const isRecurring = recurringConfig ? true : false
       let recurringDescription = ''
@@ -126,79 +128,29 @@ async function fetchPayments(): Promise<Payment[]> {
         }
       }
 
-      // Get tenant name based on type
-      const tenant = payment.leases?.tenants
-      let tenantName = 'N/A'
-      if (tenant) {
-        if (tenant.type === 'Individual' && tenant.individual_tenants) {
-          tenantName = `${tenant.individual_tenants.first_name} ${tenant.individual_tenants.last_name || ''}`.trim()
-        } else if (tenant.type === 'Company' && tenant.company_tenants) {
-          tenantName = tenant.company_tenants.company_name
-        }
-      }
-
-      // Get latest payment timestamp
-      const latestPaymentTimestamp = payment.payment_history[0]?.paid_at?.toISOString() || payment.created_at.toISOString()
-
       return {
-        id: payment.reference_id,
+        id: payment.id,
         type: payment.type,
         property: payment.leases?.properties?.code || 'N/A',
         room: payment.leases?.rooms?.title || 'Whole unit',
         due_date: payment.due_payment_timestamp,
-        recurring_pattern: (isRecurring ? 'Recurring' : 'One-time') as 'Recurring' | 'One-time',
+        recurring_pattern: isRecurring ? 'Recurring' : 'One-time',
         recurring_pattern_description: recurringDescription,
         amount: totalAmount,
         status: status,
         payment_percentage: paymentPercentage,
-        tenant_name: tenantName,
-        tenant_picture: tenant?.profile_pic || '',
-        tenant_color: '',
-        latest_payment_timestamp: latestPaymentTimestamp
+        tenant_name: payment.leases?.tenants?.individual_tenants
+          ? `${payment.leases.tenants.individual_tenants.first_name} ${payment.leases.tenants.individual_tenants.last_name || ''}`.trim()
+          : payment.leases?.tenants?.company_tenants?.company_name || 'N/A',
+        tenant_picture: payment.leases?.tenants?.profile_pic || '',
+        tenant_color: '', // Not in database, can be generated from name
+        latest_payment_timestamp: payment.payment_history[0]?.paid_at?.toISOString() || payment.created_at.toISOString()
       }
     })
 
-    return transformedPayments
-  } catch (error) {
+    return NextResponse.json(transformedPayments)
+  } catch (error: any) {
     console.error('Error fetching payments:', error)
-    return []
+    return NextResponse.json({ error: 'Failed to fetch payments' }, { status: 500 })
   }
 }
-
-const Payments = async () => {
-  const payments = await fetchPayments()
-
-  return (
-    <div className={cn('flex flex-col gap-2.5', 'h-full')}>
-      {/* Heading */}
-      <div>
-        <h1>Payments</h1>
-      </div>
-      {/* Actions */}
-      <div className={cn('flex justify-between items-center', 'w-full')}>
-        <SearchInput placeholder='Search payments' />
-        {/* Buttons */}
-        <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <Button
-            icon={<DeleteButtonIcon />}
-            label='Delete'
-            className='bg-(--error-main)!'
-          />
-
-          <Link href='/payments/add-payment'>
-            <Button
-              icon={<AddButtonIcon className='text-neutral-300' />}
-              label='Add Payment'
-            />
-          </Link>
-        </div>
-      </div>
-      {/* Table */}
-      <div>
-        <PaymentsTable data={payments} />
-      </div>
-    </div>
-  )
-}
-
-export default Payments

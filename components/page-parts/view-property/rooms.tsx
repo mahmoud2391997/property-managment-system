@@ -131,11 +131,10 @@ export const columns: ColumnDef<Room>[] = [
 ]
 
 export default function Rooms () {
-
-
   return (
     <>
-    <Table />
+    {/* TODO: Implement rooms table */}
+    <div>Rooms section - To be implemented</div>
     </>
   )
 }

@@ -5,15 +5,18 @@ import { cn } from '@/lib/utils'
 
 type Props = {
   className?: string
-} & React.ComponentProps<'input'>
+  onValueChange?: (time: string) => void
+  value?: string
+} & Omit<React.ComponentProps<'input'>, 'onChange' | 'value'>
 
-export default function TimePicker ({ className, ...props }: Props) {
+export default function TimePicker ({ className, onValueChange, value, ...props }: Props) {
   return (
     <Input
       type='time'
       id='time-picker'
       step='1'
-      defaultValue='10:30:00'
+      value={value || '10:30:00'}
+      onChange={(e) => onValueChange?.(e.target.value)}
       className={cn(
         'w-full h-10!',
         'hover:bg-neutral-100',

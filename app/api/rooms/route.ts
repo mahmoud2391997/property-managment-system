@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
         data: {
           title,
           property_id,
-          is_ready: is_ready || false,
+          status: is_ready ? 'Vacant' : 'Pending_Inspection',
           created_by: user.id
         }
       })
