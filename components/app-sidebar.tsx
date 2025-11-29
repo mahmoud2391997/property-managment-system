@@ -13,6 +13,7 @@ import {
   SidebarGroupLabel,
   useSidebar
 } from '@/components/ui/sidebar'
+import { Menu, X } from 'lucide-react'
 // import { IoIosArrowForward } from "react-icons/io";
 import {
   Collapsible,
@@ -43,8 +44,11 @@ export default function AppSidebar () {
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
   const [sidebarHovered, setSidebarHovered] = useState<boolean>(false)
   const [userType, setUserType] = useState<'staff' | 'tenant' | null>(null)
-  const { open: isSidebarOpen, setOpen: setIsSidebarOpen } = useSidebar()
+  const { open: isSidebarOpen, setOpen: setIsSidebarOpen, isMobile, setOpenMobile } = useSidebar()
   const pathname = usePathname()
+
+  // On mobile, sidebar is always "open" (expanded) since it's in a sheet
+  const effectiveSidebarOpen = isMobile ? true : isSidebarOpen
 
   // Fetch user type on mount
   useEffect(() => {
@@ -172,12 +176,12 @@ export default function AppSidebar () {
   ]
 
   useEffect(() => {
-    if (isSidebarOpen) {
+    if (effectiveSidebarOpen) {
       setSidebarHovered(false)
     } else {
       setOpenMenus({})
     }
-  }, [isSidebarOpen])
+  }, [effectiveSidebarOpen])
 
   return (
     <Sidebar
@@ -189,7 +193,7 @@ export default function AppSidebar () {
       )}
       variant='sidebar'
       onMouseEnter={() => {
-        !isSidebarOpen && setSidebarHovered(true)
+        !effectiveSidebarOpen && setSidebarHovered(true)
       }}
       onMouseLeave={() => setSidebarHovered(false)}
     >
@@ -197,7 +201,7 @@ export default function AppSidebar () {
       <SidebarHeader
         className={cn(
           'relative flex flex-row items-center justify-between overflow-hidden',
-          !isSidebarOpen && 'justify-between!',
+          !effectiveSidebarOpen && 'justify-between!',
           'px-2 py-4 pb-5 h-[85px] mb-7.5',
           'border-b border-(--border-strong)'
         )}
@@ -205,14 +209,14 @@ export default function AppSidebar () {
         <div
           className={cn(
             'flex items-center  w-full pl-2.5 transition-opacity duration-0 opacity-100 gap-2',
-            !isSidebarOpen && sidebarHovered && 'opacity-0'
+            !effectiveSidebarOpen && sidebarHovered && 'opacity-0'
           )}
         >
           <Image src='/icons/logo.png' width={20} height={20} alt='logo' />
           {/* <img src={logo} className='w-10 h-10' alt='logo' /> */}
           <div
             className='overflow-hidden transition-all duration-200'
-            style={{ maxWidth: isSidebarOpen ? '200px' : '0px' }}
+            style={{ maxWidth: effectiveSidebarOpen ? '200px' : '0px' }}
           >
             <h2 className='texts-heading-h2 opacity-100 transition-opacity duration-200'>
               EzyRoom
@@ -220,7 +224,7 @@ export default function AppSidebar () {
           </div>
         </div>
 
-        {!isSidebarOpen && (
+        {!effectiveSidebarOpen && (
           <SidebarTrigger
             className={cn(
               'absolute! top-1/2 left-1/2 -translate-1/2 transition-opacity duration-0',
@@ -237,7 +241,9 @@ export default function AppSidebar () {
             'absolute left-0',
             'flex items-center justify-end',
             'w-60 h-fit pr-1',
-            !isSidebarOpen && '-z-50'
+            !effectiveSidebarOpen && '-z-50',
+            // Hide collapse trigger on mobile since we use the sheet close button
+            isMobile && 'hidden'
           )}
         >
           <SidebarTrigger
@@ -252,7 +258,7 @@ export default function AppSidebar () {
       <SidebarContent className='gap-4!'>
         {userType === null ? (
           // Show skeleton while loading
-          <AppSidebarSkeleton isSidebarOpen={isSidebarOpen} />
+          <AppSidebarSkeleton isSidebarOpen={effectiveSidebarOpen} />
         ) : (
           <>
             {/* Menu */}
@@ -278,7 +284,7 @@ export default function AppSidebar () {
                       open={!!openMenus[item.label]}
                       onOpenChange={open => {
                         setOpenMenus(prev => ({ ...prev, [item.label]: open }))
-                        if (!isSidebarOpen) {
+                        if (!effectiveSidebarOpen && !isMobile) {
                           setIsSidebarOpen(true)
                         }
                       }}
@@ -291,7 +297,7 @@ export default function AppSidebar () {
                                 ? 'border border-(--border-strong) bg-(--background-primary) shadows-sm duration-0'
                                 : 'hover:bg-neutral-200/50 active:bg-neutral-200/90 cursor-pointer duration-100'
                             }`,
-                            !isSidebarOpen && index === 0 && 'mt-1',
+                            !effectiveSidebarOpen && index === 0 && 'mt-1',
                             'text-neutral-600!',
                             'transition-colors',
                             'texts-body-medium-medium leading-none',
@@ -306,7 +312,7 @@ export default function AppSidebar () {
                             />
                             <span
                               className={`${
-                                !isSidebarOpen &&
+                                !effectiveSidebarOpen &&
                                 'transition-opacity delay-100 opacity-0'
                               }`}
                             >
@@ -348,6 +354,8 @@ export default function AppSidebar () {
                                 href={subItem.href || '/under-development'}
                                 onClick={e => {
                                   e.stopPropagation()
+                                  // Close mobile sidebar when navigating
+                                  if (isMobile) setOpenMobile(false)
                                 }}
                                 className={cn(
                                   `${
@@ -385,7 +393,7 @@ export default function AppSidebar () {
                             ? 'border border-(--border-strong) bg-(--background-primary) hover:bg-(--background-primary) shadows-sm duration-0 cursor-default'
                             : 'hover:bg-neutral-200/50 active:bg-neutral-200/90 duration-100'
                         }`,
-                        !isSidebarOpen && index === 0 && 'mt-1',
+                        !effectiveSidebarOpen && index === 0 && 'mt-1',
                         'text-neutral-600!',
                         'transition-colors ',
                         'texts-body-medium-medium leading-none',
@@ -400,6 +408,10 @@ export default function AppSidebar () {
                           'w-[30px] h-[30px]'
                         )}
                         href={item.href || '/under-development'}
+                        onClick={() => {
+                          // Close mobile sidebar when navigating
+                          if (isMobile) setOpenMobile(false)
+                        }}
                       >
                         <div
                           className={cn(
@@ -489,5 +501,56 @@ export default function AppSidebar () {
           <span>Logout</span>
         </SidebarFooter> */}
     </Sidebar>
+  )
+}
+
+// Mobile header component with hamburger menu
+export function MobileHeader() {
+  const { openMobile, setOpenMobile } = useSidebar()
+
+  return (
+    <div className={cn(
+      'md:hidden flex items-center justify-between',
+      'h-[60px] px-4',
+      'bg-(--background-primary) border-b border-(--border-default)',
+      'sticky top-0 z-40'
+    )}>
+      <div className='flex items-center gap-2'>
+        <Image src='/icons/logo.png' width={24} height={24} alt='logo' />
+        <h2 className='texts-heading-h2'>EzyRoom</h2>
+      </div>
+      <button
+        onClick={() => setOpenMobile(!openMobile)}
+        className={cn(
+          'relative flex items-center justify-center',
+          'w-10 h-10',
+          'rounded-lg',
+          'hover:bg-neutral-200/50 active:bg-neutral-200',
+          'transition-colors'
+        )}
+        aria-label={openMobile ? 'Close menu' : 'Open menu'}
+      >
+        {/* Menu icon - fades out and rotates when open */}
+        <Menu
+          className={cn(
+            'absolute w-6 h-6 text-neutral-600',
+            'transition-all duration-300 ease-in-out',
+            openMobile
+              ? 'opacity-0 rotate-90 scale-0'
+              : 'opacity-100 rotate-0 scale-100'
+          )}
+        />
+        {/* X icon - fades in and rotates when open */}
+        <X
+          className={cn(
+            'absolute w-6 h-6 text-neutral-600',
+            'transition-all duration-300 ease-in-out',
+            openMobile
+              ? 'opacity-100 rotate-0 scale-100'
+              : 'opacity-0 -rotate-90 scale-0'
+          )}
+        />
+      </button>
+    </div>
   )
 }
