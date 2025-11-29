@@ -14,7 +14,6 @@ type Props = {
   onRentReminderChange?: (enabled: boolean, days: string) => void
   onOverdueReminderChange?: (enabled: boolean, days: string) => void
   defaultCollapse?: boolean
-  isOptional?: boolean
 }
 
 const ReminderSection = ({
@@ -24,7 +23,6 @@ const ReminderSection = ({
   onRentReminderChange,
   onOverdueReminderChange,
   defaultCollapse = false,
-  isOptional = false
 }: Props) => {
 
   const [activate, setActivate] = useState<{

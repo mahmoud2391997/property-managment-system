@@ -1,9 +1,9 @@
-import TablePageSkeleton from '@/components/costume-ui/table-page-skeleton'
+import React from 'react'
 
-const Loading = () => {
+const TestingPage = () => {
   return (
-    <TablePageSkeleton />
+    <div>TestingPage</div>
   )
 }
 
-export default Loading
+export default TestingPage

@@ -14,18 +14,22 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Button from '@/components/costume-ui/button'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, AlertCircle } from 'lucide-react'
 import InputGroup from './input-group'
 
 type props = {
   openDialogButton: React.ReactElement
   title: string
-  description: string
+  description: string | React.ReactNode
   confirmationText?: string
   onConfirm: () => void | Promise<void>
   loading?: boolean
   confirmButtonLabel?: string
+  confirmButtonLoadingLabel?: string
+  confirmButtonClassName?: string
   cancelButtonLabel?: string
+  inputLabel?: string
+  variant?: 'danger' | 'warning'
 }
 
 export default function ConfirmationDialog ({
@@ -34,24 +38,38 @@ export default function ConfirmationDialog ({
   description,
   confirmationText = 'DELETE',
   onConfirm,
-  loading = false,
+  loading: externalLoading = false,
   confirmButtonLabel = 'Delete',
-  cancelButtonLabel = 'Cancel'
+  confirmButtonLoadingLabel = 'Deleting..',
+  confirmButtonClassName = 'bg-error-main! hover:bg-error-main/90!',
+  cancelButtonLabel = 'Cancel',
+  inputLabel = 'Type Delete to Confirm',
+  variant = 'danger'
 }: props) {
   const [inputValue, setInputValue] = useState('')
   const [open, setOpen] = useState(false)
+  const [internalLoading, setInternalLoading] = useState(false)
 
+  const loading = externalLoading || internalLoading
   const isConfirmEnabled = inputValue === confirmationText && !loading
 
   const handleConfirm = async () => {
-    if (isConfirmEnabled) {
-      await onConfirm()
-      setInputValue('')
-      setOpen(false)
+    if (inputValue === confirmationText && !loading) {
+      setInternalLoading(true)
+      try {
+        await onConfirm()
+        setInputValue('')
+        setOpen(false)
+      } catch (error) {
+        // Keep dialog open on error - parent handles error display
+      } finally {
+        setInternalLoading(false)
+      }
     }
   }
 
   const handleOpenChange = (newOpen: boolean) => {
+    if (loading) return // Prevent closing while loading
     setOpen(newOpen)
     if (!newOpen) {
       setInputValue('')
@@ -65,18 +83,22 @@ export default function ConfirmationDialog ({
         <DialogHeader className='px-7 py-2.5! border-b border-(--border-strong)'>
           <DialogTitle asChild>
             <div className='py-[15] text-left flex items-center gap-2'>
-              <AlertTriangle className='text-error-main w-5 h-5' />
+              {variant === 'danger' ? (
+                <AlertTriangle className='text-error-main w-5 h-5' />
+              ) : (
+                <AlertCircle className='text-amber-500 w-5 h-5' />
+              )}
               <h3>{title}</h3>
             </div>
           </DialogTitle>
           <DialogDescription className='text-left'></DialogDescription>
         </DialogHeader>
         <div className='transition-all duration-300 p-7 py-4 space-y-4'>
-          <p className='texts-body-medium text-(--text-secondary)'>
+          <div className='texts-body-medium text-(--text-secondary)'>
             {description}
-          </p>
+          </div>
           <div className='space-y-2'>
-            <InputGroup label='Type Delete to Confirm'>
+            <InputGroup label={inputLabel}>
               <Input
                 id='confirmation-input'
                 value={inputValue}
@@ -97,11 +119,11 @@ export default function ConfirmationDialog ({
               />
             </DialogClose>
             <Button
-              label={loading ? 'Deleting..' : 'Delete'}
+              label={loading ? confirmButtonLoadingLabel : confirmButtonLabel}
               onClick={handleConfirm}
               disabled={!isConfirmEnabled}
               loading={loading}
-              className='bg-error-main! hover:bg-error-main/90!'
+              className={confirmButtonClassName}
             />
           </div>
         </DialogFooter>

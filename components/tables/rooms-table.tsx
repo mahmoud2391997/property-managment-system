@@ -119,10 +119,12 @@ export const columns: ColumnDef<RoomWithProperty>[] = [
   }
 ]
 
-interface RoomsTableProps {
+type Props = {
   data: RoomWithProperty[]
+  className?: string
+  noPagnitation?: boolean
 }
 
-export default function RoomsTable ({ data }: RoomsTableProps) {
-  return <Table columns={columns} data={data} />
+export default function RoomsTable ({ data, className = '', noPagnitation = false }: Props) {
+  return <Table columns={columns} className={className} data={data} noPagnitation={noPagnitation} />
 }

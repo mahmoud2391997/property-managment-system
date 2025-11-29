@@ -29,7 +29,9 @@ CREATE TABLE public.charges (
   CONSTRAINT charges_pkey PRIMARY KEY (id),
   CONSTRAINT charges_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payments(id),
   CONSTRAINT charges_expense_id_fkey FOREIGN KEY (expense_id) REFERENCES public.expenses(id),
-  CONSTRAINT charges_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
+  CONSTRAINT charges_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id),
+  CONSTRAINT fk_payment FOREIGN KEY (payment_id) REFERENCES public.payments(id),
+  CONSTRAINT fk_expense FOREIGN KEY (expense_id) REFERENCES public.expenses(id)
 );
 CREATE TABLE public.company_tenants (
   tenant_id uuid NOT NULL,
@@ -102,10 +104,15 @@ CREATE TABLE public.late_payment_charges (
   created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
   created_by uuid,
   room_id uuid,
+  lease_id uuid,
   CONSTRAINT late_payment_charges_pkey PRIMARY KEY (id),
   CONSTRAINT late_payment_charges_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id),
   CONSTRAINT late_payment_charges_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
-  CONSTRAINT late_payment_charges_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id)
+  CONSTRAINT late_payment_charges_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id),
+  CONSTRAINT late_payment_charges_lease_id_fkey FOREIGN KEY (lease_id) REFERENCES public.leases(id),
+  CONSTRAINT fk_lease FOREIGN KEY (lease_id) REFERENCES public.leases(id),
+  CONSTRAINT fk_property FOREIGN KEY (property_id) REFERENCES public.properties(id),
+  CONSTRAINT fk_room FOREIGN KEY (room_id) REFERENCES public.rooms(id)
 );
 CREATE TABLE public.leases (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -127,13 +134,30 @@ CREATE TABLE public.leases (
   created_by uuid,
   leave_day integer,
   status USER-DEFINED NOT NULL,
-  lease_id text NOT NULL CHECK (lease_id ~ '^LS-[0-9]{4}-[0-9]{4}$'::text),
+  reference_id text NOT NULL CHECK (reference_id ~ '^LS-[0-9]{4}-[0-9]{4}$'::text),
   CONSTRAINT leases_pkey PRIMARY KEY (id),
   CONSTRAINT leases_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
   CONSTRAINT leases_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id),
   CONSTRAINT leases_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
   CONSTRAINT leases_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
   CONSTRAINT leases_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  organization_id uuid,
+  user_id uuid,
+  title text NOT NULL,
+  message text NOT NULL,
+  type text,
+  reference_id uuid,
+  reference_type text,
+  performer_id uuid,
+  performer_type USER-DEFINED,
+  read boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.organizations (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -180,6 +204,9 @@ CREATE TABLE public.payment_history (
   expense_id uuid,
   payment_id uuid,
   receipt_image text CHECK (char_length(receipt_image) <= 1000),
+  billplz_bill_id text UNIQUE,
+  billplz_transaction_id text UNIQUE,
+  status USER-DEFINED NOT NULL,
   CONSTRAINT payment_history_pkey PRIMARY KEY (id),
   CONSTRAINT payment_history_registrar_fkey FOREIGN KEY (registrar) REFERENCES public.staff(id),
   CONSTRAINT payment_history_expense_id_fkey FOREIGN KEY (expense_id) REFERENCES public.expenses(id),
@@ -195,6 +222,7 @@ CREATE TABLE public.payments (
   created_by uuid,
   status USER-DEFINED NOT NULL,
   type USER-DEFINED NOT NULL,
+  reference_id text NOT NULL DEFAULT 'PY-202500000001'::text CHECK (reference_id ~ '^PY-[0-9]{12}$'::text),
   CONSTRAINT payments_pkey PRIMARY KEY (id),
   CONSTRAINT payments_lease_id_fkey FOREIGN KEY (lease_id) REFERENCES public.leases(id),
   CONSTRAINT payments_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
@@ -281,6 +309,28 @@ CREATE TABLE public.recurring_configs (
   CONSTRAINT recurring_configs_pkey PRIMARY KEY (id),
   CONSTRAINT recurring_configs_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payments(id)
 );
+CREATE TABLE public.reminder_recipients (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  reminder_id uuid,
+  recipient_type USER-DEFINED NOT NULL,
+  recipient_id uuid,
+  role text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT reminder_recipients_pkey PRIMARY KEY (id),
+  CONSTRAINT reminder_recipients_reminder_id_fkey FOREIGN KEY (reminder_id) REFERENCES public.reminders(id)
+);
+CREATE TABLE public.reminders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  organization_id uuid,
+  type text NOT NULL,
+  reference_id uuid,
+  reference_type text,
+  remind_at timestamp with time zone NOT NULL,
+  sent boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT reminders_pkey PRIMARY KEY (id),
+  CONSTRAINT reminders_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id)
+);
 CREATE TABLE public.roles (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   title text NOT NULL CHECK (char_length(title) >= 2 AND char_length(title) <= 100),
@@ -352,7 +402,7 @@ CREATE TABLE public.views (
   room_id uuid,
   created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
   created_by uuid,
-  view_id text NOT NULL CHECK (view_id ~ '^VW-[0-9]{4}-[0-9]{4}$'::text),
+  reference_id text NOT NULL CHECK (reference_id ~ '^VW-[0-9]{4}-[0-9]{4}$'::text),
   CONSTRAINT views_pkey PRIMARY KEY (id),
   CONSTRAINT views_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
   CONSTRAINT views_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id),

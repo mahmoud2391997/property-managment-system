@@ -57,7 +57,7 @@ const LateChargesSection = ({ onLateChargesChange }: Props) => {
   return (
     <InnerSection
       title='Late Payment Charges'
-      subtitle='Set up charges for late payments by tenants'
+      subtitle='Set up charges for late payments by tenants after payment'
     >
       {lateCharges.length === 0 ? (
         <div className='flex items-center justify-center py-8 px-4 border border-dashed border-(--border-subtle) rounded-lg bg-(--background-secondary)'>

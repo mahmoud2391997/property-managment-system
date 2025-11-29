@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Storage upload error:', error)
       return NextResponse.json(
-        { error: 'Failed to upload file', details: error.message },
+        { error: 'Failed to upload file' },
         { status: 500 }
       )
     }
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Upload error:', error)
     return NextResponse.json(
-      { error: 'Failed to upload file', details: error.message },
+      { error: 'Failed to upload file' },
       { status: 500 }
     )
   }

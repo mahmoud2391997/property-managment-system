@@ -24,7 +24,6 @@ import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 // Main compoennt
 const AddProperty = () => {
   const router = useRouter()
-  const formRef = useRef<HTMLFormElement>(null)
 
   const [projects, setProjects] = useState<projects[]>([])
   const [loadingProjects, setLoadingProjects] = useState(true)
@@ -188,9 +187,10 @@ const AddProperty = () => {
       }
 
       // Show success toast with detailed information
-      const roomInfo = data.roomsCount > 0
-        ? ` with ${data.roomsCount} room${data.roomsCount > 1 ? 's' : ''}`
-        : ''
+      const roomInfo =
+        data.roomsCount > 0
+          ? ` with ${data.roomsCount} room${data.roomsCount > 1 ? 's' : ''}`
+          : ''
       FeedbackToasts.created(
         'Property',
         `${code} has been successfully added to your properties${roomInfo}.`
@@ -394,17 +394,20 @@ const AddProperty = () => {
       </CollapsibleSection>
 
       {/* Default Payment Details - Using PaymentSection Component */}
-      <PaymentSection
-        key={`payment-${formKey}`}
-        sectionNumber={2}
-        title='Default Payment Details (Optional)'
-        onInitialChargesChange={setInitialCharges}
-        onMonthlyRentChange={setMonthlyRent}
-        onPaymentDayChange={setPaymentDay}
-        onLateChargesChange={setLateCharges}
+      <CollapsibleSection
+        number={2}
+        title={'Default Payment Details (Optional)'}
         defaultCollapse
-        defaultPayment
-      />
+      >
+        <PaymentSection
+          key={`payment-${formKey}`}
+          onInitialChargesChange={setInitialCharges}
+          onMonthlyRentChange={setMonthlyRent}
+          onPaymentDayChange={setPaymentDay}
+          onLateChargesChange={setLateCharges}
+          defaultPayment
+        />
+      </CollapsibleSection>
 
       {/* Default Reminders - Using ReminderSection Component */}
       <ReminderSection
@@ -424,7 +427,6 @@ const AddProperty = () => {
           setOverdueReminderDays(days)
         }}
         defaultCollapse
-        isOptional
       />
     </form>
   )

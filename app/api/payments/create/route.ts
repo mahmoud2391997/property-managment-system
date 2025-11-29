@@ -142,7 +142,7 @@ export async function POST (request: NextRequest) {
             registrar_role: 'staff',
             registrar: staff.id,
             receipt_image: receipt_image || null,
-            status: 'Paid'
+            status: 'Success'
           }
         })
       }
@@ -170,7 +170,7 @@ export async function POST (request: NextRequest) {
   } catch (error: any) {
     console.error('Error creating payment:', error)
     return NextResponse.json(
-      { error: 'Failed to create payment', details: error.message },
+      { error: 'Failed to create payment' },
       { status: 500 }
     )
   }

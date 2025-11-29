@@ -3,15 +3,15 @@ import CollapsibleSection from './collapsible-section'
 import InnerSection from './collapsible-inner-section'
 import InputGroup from './input-group'
 import Input from './input'
-import { cn } from '@/lib/utils'
-import InputCard from './input-card'
 import Select from './select'
-import Button from './button'
-import { Plus } from 'lucide-react'
 import { Checkbox } from '../ui/checkbox'
-import { chargeTypes } from '@/utils/data'
 import ChargesSection from './charges-section'
 import LateChargesSection from './late-charges-section'
+import RadioGroup from './radio-group'
+import { cn } from '@/lib/utils'
+import DatePicker from './date-picker'
+import TimePicker from './time-picker'
+import UploadFile from './upload-file'
 
 // Sub component: CheckAddon
 export const CheckAddon = ({
@@ -42,29 +42,41 @@ export type LateCharge = {
   amount: string
 }
 
+export type PaymentStatusData = {
+  isPaid: boolean
+  paymentMethod: string
+  paymentDate: Date | undefined
+  paymentTime: string
+  receiptFile: File | null
+}
+
 type Props = {
-  sectionNumber: number
-  title?: string
   onInitialChargesChange?: (charges: any[]) => void
   onMonthlyRentChange?: (rent: string) => void
   onPaymentDayChange?: (day: number) => void
   onLateChargesChange?: (charges: LateCharge[]) => void
-  defaultCollapse?: boolean
+  onPaymentStatusChange?: (data: PaymentStatusData) => void
   defaultPayment?: boolean
 }
 
 const PaymentSection = ({
-  sectionNumber,
-  title = 'Payment Details',
   onInitialChargesChange,
   onMonthlyRentChange,
   onPaymentDayChange,
   onLateChargesChange,
-  defaultCollapse = false,
+  onPaymentStatusChange,
   defaultPayment = false
 }: Props) => {
   const [monthlyRent, setMonthlyRent] = useState<string>('')
   const [selectedDay, setSelectedDay] = useState<number>(1)
+
+  const [isPaid, setIsPaid] = useState<boolean>(false)
+  const [paymentMethod, setPaymentMethod] = useState<
+    string | 'Cash' | 'Bank Transfer'
+  >('Cash')
+  const [paymentDate, setPaymentDate] = useState<Date | undefined>(undefined)
+  const [paymentTime, setPaymentTime] = useState<string>('10:30:00')
+  const [receiptFile, setReceiptFile] = useState<File | null>(null)
 
   const daysOfMonth: number[] = Array.from({ length: 28 }, (_, i) => i + 1)
 
@@ -78,12 +90,21 @@ const PaymentSection = ({
     onPaymentDayChange?.(day)
   }
 
+  // Notify parent when payment status changes
+  const notifyPaymentStatusChange = (updates: Partial<PaymentStatusData>) => {
+    const currentData: PaymentStatusData = {
+      isPaid,
+      paymentMethod,
+      paymentDate,
+      paymentTime,
+      receiptFile,
+      ...updates
+    }
+    onPaymentStatusChange?.(currentData)
+  }
+
   return (
-    <CollapsibleSection
-      number={sectionNumber}
-      title={title}
-      defaultCollapse={defaultCollapse}
-    >
+    <>
       <ChargesSection
         title='Initial Charges'
         subtitle='Set up one-time charges at lease signing'
@@ -92,6 +113,88 @@ const PaymentSection = ({
         onChargesChange={onInitialChargesChange}
         defaultPayment={defaultPayment}
       />
+
+      {/* Initial charges payment status and details */}
+      {!defaultPayment && (
+        <div className='flex flex-col gap-5'>
+          <InputGroup label='Initial Charges Payment Status'>
+            <RadioGroup
+              defaultOption={1}
+              options={['Paid', 'Not Paid']}
+              onChange={(value: number) => {
+                const newIsPaid = value === 0
+                setIsPaid(newIsPaid)
+                notifyPaymentStatusChange({ isPaid: newIsPaid })
+              }}
+            />
+          </InputGroup>
+
+          <div className={cn('flex')}>
+            <InputGroup
+              label='Payment Method'
+              className={cn(isPaid ? 'max-w-full mr-3' : 'max-w-0! opacity-0')}
+              isRequired
+            >
+              <Select
+                items={['Cash', 'Bank Transfer']}
+                value={paymentMethod}
+                onChange={val => {
+                  setPaymentMethod(val)
+                  notifyPaymentStatusChange({ paymentMethod: val })
+                }}
+                label='Methods'
+                placeholder='Select method'
+                required
+              />
+            </InputGroup>
+            <InputGroup
+              label={`${isPaid ? '' : 'Due'} Payment Date`}
+              className='mr-3'
+              isRequired
+            >
+              <DatePicker
+                value={paymentDate}
+                onValueChange={val => {
+                  setPaymentDate(val)
+                  notifyPaymentStatusChange({ paymentDate: val })
+                }}
+              />
+            </InputGroup>
+            <InputGroup
+              label={`${isPaid ? '' : 'Due'} Payment Time`}
+              isRequired
+            >
+              <TimePicker
+                value={paymentTime}
+                onValueChange={val => {
+                  setPaymentTime(val)
+                  notifyPaymentStatusChange({ paymentTime: val })
+                }}
+                required
+              />
+            </InputGroup>
+          </div>
+
+          <div
+            className={cn(
+              'trnasition-all duration-200 ease-out overflow-hidden',
+              isPaid && paymentMethod === 'Bank Transfer'
+                ? receiptFile
+                  ? 'h-19'
+                  : 'h-49'
+                : 'h-0 opacity-0'
+            )}
+          >
+            <UploadFile
+              onFileChange={file => {
+                setReceiptFile(file)
+                notifyPaymentStatusChange({ receiptFile: file })
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       <InnerSection>
         <InputGroup
           label='Subsequent Monthly Rental Payment'
@@ -117,7 +220,7 @@ const PaymentSection = ({
       </InnerSection>
 
       <LateChargesSection onLateChargesChange={onLateChargesChange} />
-    </CollapsibleSection>
+    </>
   )
 }
 

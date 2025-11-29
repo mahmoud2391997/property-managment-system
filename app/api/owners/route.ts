@@ -43,7 +43,7 @@ export async function GET () {
   } catch (error: any) {
     console.error('Error fetching owners:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch owners' },
+      { error: 'Failed to fetch owners' },
       { status: 500 }
     )
   }
@@ -167,7 +167,7 @@ export async function POST (request: Request) {
   } catch (error: any) {
     console.error('Error creating owner:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to create owner' },
+      { error: 'Failed to create owner' },
       { status: 500 }
     )
   }

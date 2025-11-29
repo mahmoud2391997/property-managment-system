@@ -1,9 +1,5 @@
 'use client'
-
-import Breadcrumb from '@/components/costume-ui/breadcrumb'
-import { useParams } from 'next/navigation'
-import { Property } from '@/types'
-import { propertiesData } from '@/utils/data'
+import React from 'react'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
@@ -16,10 +12,24 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Tab, TabGroup } from '@/components/costume-ui/tab'
+import Breadcrumb from '@/components/costume-ui/breadcrumb'
+import { useParams } from 'next/navigation'
+import { Property } from '@/types'
+import { propertiesData } from '@/utils/data'
 import { useSingleSelectOption } from '@/hooks/useSingleSelectOption'
-import OverViewSection from '@/components/page-parts/view-property/overview-section'
+import { useRouter, usePathname } from 'next/navigation'
 
-const ViewProperty = () => {
+type Props = {
+  children: React.ReactNode
+}
+const WithHeadSectionLayout = ({ children }: Props) => {
+  const router = useRouter()
+
+  const pathname = usePathname()
+  const segments = pathname.split('/')
+  const lastSegment = segments[segments.length - 1]
+  const routes = ['overview', 'rooms', 'views', 'leases', 'contracts']
+
   const params = useParams()
   const id = params.id as string
   const propertyData: Property | undefined = propertiesData.find(
@@ -32,25 +42,34 @@ const ViewProperty = () => {
   } = useSingleSelectOption([
     {
       label: 'Overview',
-      isSelected: true
+      isSelected: lastSegment === routes[0]
     },
     {
       label: 'Rooms',
-      isSelected: false
+      isSelected: lastSegment === routes[1]
     },
     {
       label: 'Views',
-      isSelected: false
+      isSelected: lastSegment === routes[2]
     },
     {
       label: 'Leases',
-      isSelected: false
+      isSelected: lastSegment === routes[3]
     },
     {
       label: 'Contracts',
-      isSelected: false
+      isSelected: lastSegment === routes[4]
     }
   ])
+
+ 
+
+  const handleTabClick = (index: number) => {
+    const route = routes[index]
+    if (route) {
+      router.replace(`/properties/${id}/${route}`)
+    }
+  }
 
   return (
     <>
@@ -93,16 +112,19 @@ const ViewProperty = () => {
               key={index}
               label={tab.label}
               isSelected={tab.isSelected}
-              onClick={() => selectByIndex(index)}
+              onClick={() => {
+                selectByIndex(index)
+                handleTabClick(index)
+              }}
             />
           ))}
         </TabGroup>
       </section>
-      <section className='flex flex-col gap-5 -mx-7.5 -mb-7.5 p-7.5 py-5 bg-(--background-tertiary) h-fit'>
-        <OverViewSection />
+      <section className='flex flex-col gap-5 -mx-7.5 -mb-7.5 p-7.5 py-5 bg-(--background-tertiary) min-h-full h-fit'>
+        {children}
       </section>
     </>
   )
 }
 
-export default ViewProperty
+export default WithHeadSectionLayout

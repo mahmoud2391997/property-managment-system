@@ -403,7 +403,8 @@ export const paymentsData: Payment[] = [
     tenant_name: 'John Doe',
     tenant_picture: '/avatars/john_doe.png',
     tenant_color: '#3B82F6',
-    latest_payment_timestamp: '2025-11-10T14:30:00Z'
+    latest_payment_timestamp: '2025-11-10T14:30:00Z',
+    has_pending_payments: false
   },
   {
     id: '2',
@@ -418,7 +419,8 @@ export const paymentsData: Payment[] = [
     tenant_name: 'Jane Smith',
     tenant_picture: '/avatars/jane_smith.png',
     tenant_color: '#3B82F6',
-    latest_payment_timestamp: '2025-11-01T09:00:00Z'
+    latest_payment_timestamp: '2025-11-01T09:00:00Z',
+    has_pending_payments: true
   },
   {
     id: '3',
@@ -434,7 +436,8 @@ export const paymentsData: Payment[] = [
     tenant_name: 'Alice Johnson',
     tenant_picture: '/avatars/alice_johnson.png',
     tenant_color: '#FACC15',
-    latest_payment_timestamp: '2025-11-03T11:45:00Z'
+    latest_payment_timestamp: '2025-11-03T11:45:00Z',
+    has_pending_payments: false
   },
   {
     id: '4',
@@ -450,7 +453,8 @@ export const paymentsData: Payment[] = [
     tenant_name: 'Bob Lee',
     tenant_picture: '/avatars/bob_lee.png',
     tenant_color: '#A855F7',
-    latest_payment_timestamp: '2025-10-15T08:20:00Z'
+    latest_payment_timestamp: '2025-10-15T08:20:00Z',
+    has_pending_payments: false
   },
   {
     id: '5',
@@ -466,7 +470,8 @@ export const paymentsData: Payment[] = [
     tenant_name: 'Charlie Brown',
     tenant_picture: '/avatars/charlie_brown.png',
     tenant_color: '#EC4899',
-    latest_payment_timestamp: '2025-11-05T10:15:00Z'
+    latest_payment_timestamp: '2025-11-05T10:15:00Z',
+    has_pending_payments: true
   }
 ]
 

@@ -1,7 +1,9 @@
 // Date -> DD/MM/YYYY
-export const formatDate = (date?: Date | null): string => {
+export const formatDate = (date?: Date | string | null): string => {
   if (!date) return '—'
-  return new Intl.DateTimeFormat('en-GB').format(date)
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  if (isNaN(dateObj.getTime())) return '—'
+  return new Intl.DateTimeFormat('en-GB').format(dateObj)
 }
 
 // Timestamp -> mins ago / hrs ago / DD/MM/YYYY

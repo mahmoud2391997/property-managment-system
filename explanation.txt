@@ -1,0 +1,68 @@
+//Reminders flow explanation and related tables
+## Reminders System Flow
+
+> **Note:** This flow is an example to explain the purpose of these tables. The actual implementation may have changes in the flow and details based on specific requirements.
+
+### Tables Overview
+
+1. **reminders** — scheduled future notifications (what + when)
+2. **reminder_recipients** — who should receive each reminder (the rules)
+3. **notifications** — delivered notifications users see in-app (the result)
+
+### Flow Using Lease Example
+
+**Step 1: Lease Created → Trigger Creates Reminders**
+
+Lease is created with `is_expiry_reminder = true`, `expiry_days_before_reminder = 14`, expires Dec 31, 2025.
+
+Trigger inserts into `reminders`:
+```sql
+{ type: 'lease_expiry', reference_id: lease.id, reference_type: 'lease', remind_at: 'Dec 17, 2025' }
+```
+
+Trigger also inserts into `reminder_recipients`:
+```sql
+{ reminder_id: above.id, recipient_type: 'tenant', recipient_id: lease.tenant_id }
+{ reminder_id: above.id, recipient_type: 'role', role: 'manager' }
+```
+
+**Step 2: Cron Runs Every Minute**
+
+Queries: `select * from reminders where remind_at <= now() and sent = false`
+
+If nothing due, does nothing.
+
+**Step 3: Reminder Due → Edge Function Processes**
+
+1. Fetches due reminder
+2. Reads `reminder_recipients` for that reminder
+3. Resolves recipients to actual user ids (e.g., `role: 'manager'` → finds all managers in org)
+4. Fetches lease details using `reference_id` + `reference_type`
+5. Builds message: "Lease for Unit 5A expires in 14 days"
+
+**Step 4: Create Notifications**
+
+For each resolved user, inserts into `notifications`:
+```sql
+{ user_id: user.id, title: 'Lease Expiring', message: '...', type: 'lease_expiry', reference_id: lease.id, reference_type: 'lease', performer_type: 'system' }
+```
+
+**Step 5: Mark Complete**
+
+Updates `reminders` set `sent = true`.
+
+### Immediate Notifications (No Reminders)
+
+For instant events (payment received, ticket created), skip reminders entirely:
+
+```
+Event happens → Insert directly into notifications → User sees it
+```
+
+### Summary
+
+```
+Scheduled:  reminders → reminder_recipients → cron → notifications
+Immediate:  event → notifications
+```
+//Reminders flow explanation and related tables (Ends here)

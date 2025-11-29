@@ -37,12 +37,35 @@ import {
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { AppSidebarSkeleton } from './app-sidebar-skeleton'
 
 export default function AppSidebar () {
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
   const [sidebarHovered, setSidebarHovered] = useState<boolean>(false)
+  const [userType, setUserType] = useState<'staff' | 'tenant' | null>(null)
   const { open: isSidebarOpen, setOpen: setIsSidebarOpen } = useSidebar()
   const pathname = usePathname()
+
+  // Fetch user type on mount
+  useEffect(() => {
+    const fetchUserType = async () => {
+      try {
+        const response = await fetch('/api/user/type')
+        const data = await response.json()
+
+        if (response.ok && data.userType) {
+          setUserType(data.userType)
+        } else {
+          console.error('Failed to fetch user type:', data)
+          setUserType('staff') // Fallback to staff on error
+        }
+      } catch (error) {
+        console.error('Error fetching user type:', error)
+        setUserType('staff') // Fallback to staff on error
+      }
+    }
+    fetchUserType()
+  }, [])
 
   type menuItemContentType = {
     icon: any
@@ -55,7 +78,8 @@ export default function AppSidebar () {
     }[]
   }
 
-  const menuItemContent: menuItemContentType[] = [
+  // Menu items based on user type
+  const staffMenuItems: menuItemContentType[] = [
     {
       icon: GaugeIcon,
       label: 'Dashboard',
@@ -121,6 +145,18 @@ export default function AppSidebar () {
       width: 'w-5!'
     }
   ]
+
+  const tenantMenuItems: menuItemContentType[] = [
+    {
+      icon: TransactionsIcon,
+      label: 'Payments',
+      width: 'w-5!',
+      href: '/payments'
+    }
+  ]
+
+  // Don't render menu items until userType is loaded
+  const menuItemContent = userType === null ? [] : (userType === 'tenant' ? tenantMenuItems : staffMenuItems)
 
   const helpItemContent: menuItemContentType[] = [
     {
@@ -214,16 +250,21 @@ export default function AppSidebar () {
         </div>
       </SidebarHeader>
       <SidebarContent className='gap-4!'>
-        {/* Menu */}
-        <SidebarGroup className='p-0 gap-2.5!'>
-          <SidebarGroupLabel
-            className={cn('texts-label-small text-neutral-500', 'p-0 h-auto')}
-          >
-            MENU
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className='gap-2.5'>
-              {menuItemContent.map((item, index) => {
+        {userType === null ? (
+          // Show skeleton while loading
+          <AppSidebarSkeleton isSidebarOpen={isSidebarOpen} />
+        ) : (
+          <>
+            {/* Menu */}
+            <SidebarGroup className='p-0 gap-2.5!'>
+              <SidebarGroupLabel
+                className={cn('texts-label-small text-neutral-500', 'p-0 h-auto')}
+              >
+                MENU
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className='gap-2.5'>
+                  {menuItemContent.map((item, index) => {
                 const hasSubMenu = item.subMenu && item.subMenu.length > 0
                 const hasActiveSubItem =
                   hasSubMenu &&
@@ -432,6 +473,8 @@ export default function AppSidebar () {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+          </>
+        )}
       </SidebarContent>
       {/* <SidebarFooter
           className={cn(

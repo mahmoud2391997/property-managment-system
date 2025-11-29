@@ -23,11 +23,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
     }
 
+    // Get optional propertyId filter
+    const { searchParams } = new URL(request.url)
+    const propertyId = searchParams.get('propertyId')
+
+    // Build where clause - filter by property through leases relation
+    const whereClause: any = {
+      organization_id: staff.organization_id
+    }
+
+    // If propertyId provided, filter payments through leases -> property_id
+    if (propertyId) {
+      whereClause.leases = {
+        property_id: propertyId
+      }
+    }
+
     // Fetch payments with related data
     const payments = await prisma.payments.findMany({
-      where: {
-        organization_id: staff.organization_id
-      },
+      where: whereClause,
       include: {
         leases: {
           include: {
@@ -72,13 +86,16 @@ export async function GET(request: NextRequest) {
           }
         },
         payment_history: {
+          where: {
+            status: 'Success'
+          },
           orderBy: {
             paid_at: 'desc'
           },
-          take: 1,
           select: {
             paid_at: true,
-            amount: true
+            amount: true,
+            status: true
           }
         },
         recurring_configs: {
@@ -103,7 +120,7 @@ export async function GET(request: NextRequest) {
         return sum + amount + tax
       }, 0)
 
-      // Calculate payment percentage
+      // Calculate payment percentage (already filtered to SUCCESS only in query)
       const totalPaid = payment.payment_history.reduce((sum, history) => sum + history.amount, 0)
       const paymentPercentage = totalAmount > 0 ? Math.round((totalPaid / totalAmount) * 100) : 0
 

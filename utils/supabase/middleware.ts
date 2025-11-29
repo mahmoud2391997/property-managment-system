@@ -37,8 +37,9 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const publicPaths = ['/login', '/signup', '/confirm', '/error', '/api/auth']
+  const publicPaths = ['/login', '/signup', '/confirm', '/error', '/api/auth', '/api/webhooks']
   const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path))
+  const isUnauthorizedPage = request.nextUrl.pathname === '/unauthorized'
 
   if (!user && !isPublicPath && request.nextUrl.pathname !== '/') {
     // no user, redirect to login page
@@ -47,11 +48,11 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If user is logged in, check if they are staff and need onboarding
-  if (user && !isPublicPath && !request.nextUrl.pathname.startsWith('/onboarding')) {
+  // If user is logged in, check permissions
+  if (user && !isPublicPath && !isUnauthorizedPage && !request.nextUrl.pathname.startsWith('/onboarding')) {
     const userType = user.user_metadata?.user_type
 
-    // Only check for staff users
+    // Check if user is staff
     if (userType === 'staff') {
       const { data: staff } = await supabase
         .from('staff')
@@ -63,6 +64,21 @@ export async function updateSession(request: NextRequest) {
       if (!staff || !staff.organization_id) {
         const url = request.nextUrl.clone()
         url.pathname = '/onboarding'
+        return NextResponse.redirect(url)
+      }
+    }
+
+    // Check if user is tenant trying to access restricted pages
+    if (userType === 'tenant') {
+      const tenantAllowedPaths = ['/payments', '/api', '/unauthorized']
+      const isRootPath = request.nextUrl.pathname === '/'
+      const isAllowedForTenant = isRootPath || tenantAllowedPaths.some(path =>
+        request.nextUrl.pathname.startsWith(path)
+      )
+
+      if (!isAllowedForTenant) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/unauthorized'
         return NextResponse.redirect(url)
       }
     }

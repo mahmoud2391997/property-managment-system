@@ -394,6 +394,7 @@ model users {
   oauth_consents              oauth_consents[]
   one_time_tokens             one_time_tokens[]
   sessions                    sessions[]
+  notifications               notifications[]
   organizations               organizations[]
   roles                       roles[]
   staff                       staff?
@@ -522,31 +523,32 @@ model individual_tenants {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model leases {
-  id                          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  start_date                  DateTime      @db.Timestamptz(6)
+  id                          String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  start_date                  DateTime               @db.Timestamptz(6)
   number_of_months            Int?
   payment_day                 Int
   monthly_rent                Float
-  is_expiry_reminder          Boolean       @default(false)
+  is_expiry_reminder          Boolean                @default(false)
   expiry_days_before_reminder Int?
-  is_rent_reminder            Boolean       @default(false)
+  is_rent_reminder            Boolean                @default(false)
   rent_reminder_days_before   Int?
-  is_overdue_rent_reminder    Boolean       @default(false)
+  is_overdue_rent_reminder    Boolean                @default(false)
   overdue_days_after_reminder Int?
-  property_id                 String        @db.Uuid
-  room_id                     String?       @db.Uuid
-  tenant_id                   String        @db.Uuid
-  organization_id             String        @db.Uuid
-  created_at                  DateTime      @default(now()) @db.Timestamptz(6)
-  created_by                  String?       @db.Uuid
+  property_id                 String                 @db.Uuid
+  room_id                     String?                @db.Uuid
+  tenant_id                   String                 @db.Uuid
+  organization_id             String                 @db.Uuid
+  created_at                  DateTime               @default(now()) @db.Timestamptz(6)
+  created_by                  String?                @db.Uuid
   leave_day                   Int?
   status                      lease_status
   reference_id                String
-  staff                       staff?        @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations               organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  properties                  properties    @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  rooms                       rooms?        @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  tenants                     tenants       @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  late_payment_charges        late_payment_charges[]
+  staff                       staff?                 @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  organizations               organizations          @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties                  properties             @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rooms                       rooms?                 @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                     tenants                @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   payments                    payments[]
 
   @@unique([organization_id, reference_id], map: "unique_reference_id_per_organization")
@@ -563,12 +565,14 @@ model organizations {
   contracts             contracts[]
   expenses              expenses[]
   leases                leases[]
+  notifications         notifications[]
   users                 users?                  @relation(fields: [created_by], references: [id], onUpdate: NoAction)
   organizations_tenants organizations_tenants[]
   owners                owners[]
   payments              payments[]
   projects              projects[]
   properties            properties[]
+  reminders             reminders[]
   roles                 roles[]
   staff                 staff[]
 
@@ -596,20 +600,21 @@ model owners {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model payment_history {
-  id                 String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  amount             Float
-  payment_method     payment_method
-  paid_at            DateTime              @db.Timestamptz(6)
-  registrar_role     registrar_role
-  registrar          String?               @db.Uuid
-  expense_id         String?               @db.Uuid
-  payment_id         String?               @db.Uuid
-  receipt_image      String?
-  billplz_payment_id String?
-  status             payment_record_status
-  expenses           expenses?             @relation(fields: [expense_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  payments           payments?             @relation(fields: [payment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  staff              staff?                @relation(fields: [registrar], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                     String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  amount                 Float
+  payment_method         payment_method
+  paid_at                DateTime              @db.Timestamptz(6)
+  registrar_role         registrar_role
+  registrar              String?               @db.Uuid
+  expense_id             String?               @db.Uuid
+  payment_id             String?               @db.Uuid
+  receipt_image          String?
+  billplz_bill_id        String?               @unique
+  billplz_transaction_id String?               @unique
+  status                 payment_record_status
+  expenses               expenses?             @relation(fields: [expense_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payments               payments?             @relation(fields: [payment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  staff                  staff?                @relation(fields: [registrar], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("public")
 }
@@ -816,12 +821,12 @@ model views {
   room_id      String?    @db.Uuid
   created_at   DateTime   @default(now()) @db.Timestamptz(6)
   created_by   String?    @db.Uuid
-  view_id      String
+  reference_id String
   staff        staff?     @relation(fields: [created_by], references: [id], onUpdate: NoAction)
   properties   properties @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   rooms        rooms?     @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@unique([view_id, property_id], map: "unique_view_id_per_organization")
+  @@unique([reference_id, property_id], map: "unique_reference_id_per_property")
   @@schema("public")
 }
 
@@ -836,9 +841,11 @@ model late_payment_charges {
   created_at     DateTime    @default(now()) @db.Timestamptz(6)
   created_by     String?     @db.Uuid
   room_id        String?     @db.Uuid
+  lease_id       String?     @db.Uuid
+  leases         leases?     @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_lease")
+  properties     properties? @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_property")
+  rooms          rooms?      @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_room")
   staff          staff?      @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  properties     properties? @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  rooms          rooms?      @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([property_id, days_after_due], map: "unique_property_days")
   @@unique([room_id, days_after_due], map: "unique_room_days")
@@ -917,6 +924,54 @@ model recurring_configs {
   event_on   String?
   payment_id String    @db.Uuid
   payments   payments  @relation(fields: [payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+model notifications {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String?         @db.Uuid
+  user_id         String?         @db.Uuid
+  title           String
+  message         String
+  type            String?
+  reference_id    String?         @db.Uuid
+  reference_type  String?
+  performer_id    String?         @db.Uuid
+  performer_type  performer_type?
+  read            Boolean?        @default(false)
+  created_at      DateTime?       @default(now()) @db.Timestamptz(6)
+  organizations   organizations?  @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users           users?          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, read, created_at(sort: Desc)], map: "idx_notifications_user")
+  @@schema("public")
+}
+
+model reminder_recipients {
+  id             String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reminder_id    String?                 @db.Uuid
+  recipient_type reminder_recipient_type
+  recipient_id   String?                 @db.Uuid
+  role           String?
+  created_at     DateTime?               @default(now()) @db.Timestamptz(6)
+  reminders      reminders?              @relation(fields: [reminder_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([reminder_id], map: "idx_reminder_recipients_reminder")
+  @@schema("public")
+}
+
+model reminders {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id     String?               @db.Uuid
+  type                String
+  reference_id        String?               @db.Uuid
+  reference_type      String?
+  remind_at           DateTime              @db.Timestamptz(6)
+  sent                Boolean?              @default(false)
+  created_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  reminder_recipients reminder_recipients[]
+  organizations       organizations?        @relation(fields: [organization_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("public")
 }
@@ -1018,6 +1073,15 @@ enum payment_method {
   Cash
   Bank_Transfer  @map("Bank Transfer")
   Online_Payment @map("Online Payment")
+  FPX
+
+  @@schema("public")
+}
+
+enum payment_record_status {
+  Success
+  Failed
+  Pending
 
   @@schema("public")
 }
@@ -1028,6 +1092,7 @@ enum payment_status {
   Partially_Paid @map("Partially Paid")
   Paid_Late      @map("Paid Late")
   Overdue
+  Cancelled
 
   @@schema("public")
 }
@@ -1099,13 +1164,25 @@ enum payment_type {
   Cleaning_Service      @map("Cleaning Service")
   Parking
   Miscellaneous_Others  @map("Miscellaneous/Others")
+  Rental
 
   @@schema("public")
 }
 
-enum payment_record_status {
-  Paid
-  Failed
+enum performer_type {
+  staff
+  tenant
+  system
+
+  @@schema("public")
+}
+
+enum reminder_recipient_type {
+  staff
+  tenant
+  role
+  all_staff
+  all_tenants
 
   @@schema("public")
 }

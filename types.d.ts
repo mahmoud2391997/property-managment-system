@@ -44,13 +44,39 @@ export type RoomWithProperty = {
   status: property_status
 }
 
+export type ViewWithProperty = {
+  id: string
+  reference_id: string
+  first_name: string
+  last_name: string | null
+  phone_number: string | null
+  email: string | null
+  created_at: string
+}
+
+export type LeaseWithDetails = {
+  id: string
+  reference_id: string
+  start_date: string
+  number_of_months: number | null
+  leave_day: number | null
+  monthly_rent: number
+  status: 'Scheduled' | 'Current' | 'Ended' | 'Expired'
+  tenant: {
+    id: string
+    first_name: string
+    last_name: string | null
+    profile_thumb: string | null
+  }
+}
+
 export type PaymentHistory = {
   id: string
   payment_number: number
-  payment_method: 'Cash' | 'Bank_Transfer'
+  payment_method: 'Cash' | 'Bank_Transfer' | 'FPX' | 'Online_Payment'
   amount_paid: number
   remaining_amount: number
-  status: 'Paid' | 'Failed'
+  status: 'Success' | 'Failed' | 'Pending'
   paid_at: string // ISO timestamp
   receipt_image: string | null
 }
@@ -66,6 +92,7 @@ export type Payment = {
   amount: number
   status: 'Paid' | 'Paid Late' | 'Pending' | 'Overdue'
   payment_percentage: number
+  has_pending_payments: boolean
   tenant_name: string
   tenant_picture: string
   tenant_color: string
@@ -194,4 +221,5 @@ export type TabType = {
   isSelected: boolean
 }
 
-type OrganizationIdParams = { params: { organizationId: string } }
+export type OrganizationIdParams = { params: { organizationId: string } }
+

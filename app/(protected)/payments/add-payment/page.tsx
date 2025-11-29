@@ -24,8 +24,11 @@ const AddPayment = () => {
   const [propertyItems, setPropertyItems] = useState<ComboBoxitemsType[]>([])
   const [roomItems, setRoomItems] = useState<ComboBoxitemsType[]>([])
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
-  const [selectedLeaseReferenceId, setSelectedLeaseReferenceId] = useState<string | null>(null)
-  const [selectedPropertyIdForRoomFilter, setSelectedPropertyIdForRoomFilter] = useState<string | null>(null)
+  const [selectedLeaseReferenceId, setSelectedLeaseReferenceId] = useState<
+    string | null
+  >(null)
+  const [selectedPropertyIdForRoomFilter, setSelectedPropertyIdForRoomFilter] =
+    useState<string | null>(null)
   const [isRoomRented, setIsRoomRented] = useState<boolean>(false)
   const [loadingTenants, setLoadingTenants] = useState(true)
   const [loadingProperties, setLoadingProperties] = useState(false)
@@ -293,6 +296,8 @@ const AddPayment = () => {
                 // value is the tenant id (itemValue from handleSelect)
                 setSelectedTenantId(value || null)
               }}
+              isLoading={loadingTenants}
+              loadingMessage='Fetching tenants...'
               required
             />
           </InputGroup>
@@ -315,7 +320,9 @@ const AddPayment = () => {
                 if (property?.extraReference === 'Room rented') {
                   // Property has rooms - extract property_id from metadata for filtering rooms
                   setIsRoomRented(true)
-                  setSelectedPropertyIdForRoomFilter(property.metadata?.propertyId || null)
+                  setSelectedPropertyIdForRoomFilter(
+                    property.metadata?.propertyId || null
+                  )
                   setSelectedLeaseReferenceId(null) // Clear until room is selected
                 } else {
                   // Property is directly rented - extraReference is the lease reference_id
@@ -324,6 +331,8 @@ const AddPayment = () => {
                   setSelectedLeaseReferenceId(value || null) // Store reference_id
                 }
               }}
+              isLoading={loadingProperties}
+              loadingMessage='Fetching properties...'
               required
             />
           </InputGroup>
@@ -343,6 +352,8 @@ const AddPayment = () => {
                   // value is the room's lease reference_id
                   setSelectedLeaseReferenceId(value || null)
                 }}
+                isLoading={loadingRooms}
+                loadingMessage='Fetching rooms...'
                 required
               />
             </InputGroup>

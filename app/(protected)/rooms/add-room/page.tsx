@@ -25,7 +25,8 @@ const AddRoom = () => {
   const router = useRouter()
   const [properties, setProperties] = useState<PropertyWithProject[]>([])
   const [loadingProperties, setLoadingProperties] = useState(true)
-  const [selectedProperty, setSelectedProperty] = useState<PropertyWithProject>()
+  const [selectedProperty, setSelectedProperty] =
+    useState<PropertyWithProject>()
   const [title, setTitle] = useState('')
   const [isRoomReady, setIsRoomReady] = useState<boolean>(false)
 
@@ -75,7 +76,10 @@ const AddRoom = () => {
     try {
       // Validate required fields
       if (!title || !selectedProperty?.id) {
-        FeedbackToasts.createFailed('room', 'Please fill in all required fields')
+        FeedbackToasts.createFailed(
+          'room',
+          'Please fill in all required fields'
+        )
         setIsSubmitting(false)
         return
       }
@@ -245,6 +249,8 @@ const AddRoom = () => {
                   setSelectedProperty(property)
                 }}
                 disabled={loadingProperties}
+                isLoading={loadingProperties}
+                loadingMessage='Fetching properties...'
                 required
               />
             </InputGroup>
@@ -291,17 +297,20 @@ const AddRoom = () => {
       </CollapsibleSection>
 
       {/* Default Payment Details */}
-      <PaymentSection
-        key={`payment-${formKey}`}
-        sectionNumber={2}
-        title='Default Payment Details (Optional)'
-        onInitialChargesChange={setInitialCharges}
-        onMonthlyRentChange={setMonthlyRent}
-        onPaymentDayChange={setPaymentDay}
-        onLateChargesChange={setLateCharges}
+      <CollapsibleSection
+        number={2}
+        title={'Default Payment Details (Optional)'}
         defaultCollapse
-        defaultPayment
-      />
+      >
+        <PaymentSection
+          key={`payment-${formKey}`}
+          onInitialChargesChange={setInitialCharges}
+          onMonthlyRentChange={setMonthlyRent}
+          onPaymentDayChange={setPaymentDay}
+          onLateChargesChange={setLateCharges}
+          defaultPayment
+        />
+      </CollapsibleSection>
 
       {/* Default Reminder */}
       <ReminderSection
@@ -321,7 +330,6 @@ const AddRoom = () => {
           setOverdueReminderDays(days)
         }}
         defaultCollapse
-        isOptional
       />
     </form>
   )

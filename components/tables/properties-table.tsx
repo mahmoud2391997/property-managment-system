@@ -121,7 +121,7 @@ export const columns: ColumnDef<PropertyWithDetails>[] = [
 
       return (
         <DropdownMenu label='Actions'>
-          <Link href={`/properties/${property.id}`}>
+          <Link href={`/properties/${property.id}/overview`}>
             <DropdownMenuItem>View Property</DropdownMenuItem>
           </Link>
           <DropdownMenuItem

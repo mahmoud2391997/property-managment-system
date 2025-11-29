@@ -239,7 +239,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Error creating tenant:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to create tenant' },
+      { error: 'Failed to create tenant' },
       { status: 500 }
     )
   }
@@ -309,7 +309,7 @@ export async function DELETE(request: Request) {
   } catch (error: any) {
     console.error('Error deleting tenant:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to delete tenant' },
+      { error: 'Failed to delete tenant' },
       { status: 500 }
     )
   }

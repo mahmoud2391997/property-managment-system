@@ -22,6 +22,7 @@ code {
 
 @custom-variant dark (&:is(.dark *));
 @theme inline {
+  --animate-shimmer: shimmer 1.5s ease-in-out infinite;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -428,3 +429,70 @@ h3 {
   }
 }
 
+/* ========== L5 (Checking Payment Status) ========== */
+.loader-l5 {
+  width: 12px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  animation: l5 1s infinite linear alternate;
+}
+@keyframes l5 {
+  0%  { box-shadow: 20px 0 #000, -20px 0 #0002; background: #000; }
+  33% { box-shadow: 20px 0 #000, -20px 0 #0002; background: #0002; }
+  66% { box-shadow: 20px 0 #0002,-20px 0 #000; background: #0002; }
+  100%{ box-shadow: 20px 0 #0002,-20px 0 #000; background: #000; }
+}
+
+/* ========== L3 (Processing Payment) ========== */
+.loader-l3 {
+  width: 40px;
+  aspect-ratio: 2;
+  --_g: no-repeat radial-gradient(circle closest-side,#000 90%,#0000);
+  background: 
+    var(--_g) 0%   50%,
+    var(--_g) 50%  50%,
+    var(--_g) 100% 50%;
+  background-size: calc(100%/3) 50%;
+  animation: l3 1s infinite linear;
+}
+@keyframes l3 {
+  20%{background-position:0%   0%, 50%  50%,100%  50%}
+  40%{background-position:0% 100%, 50%   0%,100%  50%}
+  60%{background-position:0%  50%, 50% 100%,100%   0%}
+  80%{background-position:0%  50%, 50%  50%,100% 100%}
+}
+
+/* ========== L20 (Redirecting to Payment Gateway) ========== */
+.loader-l20 {
+  width: 50px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 6px solid #0d0d0dee;
+  animation:
+    l20-1 0.8s infinite linear alternate,
+    l20-2 1.6s infinite linear;
+}
+@keyframes l20-1{
+  0%    {clip-path: polygon(50% 50%,0       0,  50%   0%,  50%    0%, 50%    0%, 50%    0%, 50%    0% )}
+  12.5% {clip-path: polygon(50% 50%,0       0,  50%   0%,  100%   0%, 100%   0%, 100%   0%, 100%   0% )}
+  25%   {clip-path: polygon(50% 50%,0       0,  50%   0%,  100%   0%, 100% 100%, 100% 100%, 100% 100% )}
+  50%   {clip-path: polygon(50% 50%,0       0,  50%   0%,  100%   0%, 100% 100%, 50%  100%, 0%   100% )}
+  62.5% {clip-path: polygon(50% 50%,100%    0, 100%   0%,  100%   0%, 100% 100%, 50%  100%, 0%   100% )}
+  75%   {clip-path: polygon(50% 50%,100% 100%, 100% 100%,  100% 100%, 100% 100%, 50%  100%, 0%   100% )}
+  100%  {clip-path: polygon(50% 50%,50%  100%,  50% 100%,   50% 100%,  50% 100%, 50%  100%, 0%   100% )}
+}
+@keyframes l20-2{
+  0%    {transform:scaleY(1)  rotate(0deg)}
+  49.99%{transform:scaleY(1)  rotate(135deg)}
+  50%   {transform:scaleY(-1) rotate(0deg)}
+  100%  {transform:scaleY(-1) rotate(-135deg)}
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(50%);
+  }
+}

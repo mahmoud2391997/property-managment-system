@@ -2,34 +2,48 @@ import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
 import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
-import PaymentsTable from '@/components/tables/pyaments-table'
+import { PaymentsTableWithRefresh } from '@/components/payments-table-with-refresh'
 import Link from 'next/link'
 import { Payment } from '@/types'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { PaymentsPageWrapper } from '@/components/payments-page-wrapper'
 
-async function fetchPayments(): Promise<Payment[]> {
+async function fetchPayments(): Promise<{ payments: Payment[], userType: 'staff' | 'tenant' }> {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return []
+      return { payments: [], userType: 'staff' }
     }
 
+    // Check if user is staff
     const staff = await prisma.staff.findUnique({
       where: { id: user.id },
       select: { organization_id: true }
     })
 
-    if (!staff) {
-      return []
+    // Check if user is tenant
+    const tenant = await prisma.tenants.findUnique({
+      where: { id: user.id },
+      select: { id: true }
+    })
+
+    if (!staff && !tenant) {
+      return { payments: [], userType: 'staff' }
     }
 
+    const userType = staff ? 'staff' : 'tenant'
+
     const payments = await prisma.payments.findMany({
-      where: {
-        organization_id: staff.organization_id
-      },
+      where: staff
+        ? { organization_id: staff.organization_id }
+        : {
+            leases: {
+              tenant_id: tenant!.id
+            }
+          },
       include: {
         leases: {
           include: {
@@ -77,12 +91,12 @@ async function fetchPayments(): Promise<Payment[]> {
         payment_history: {
           select: {
             amount: true,
-            paid_at: true
+            paid_at: true,
+            status: true
           },
           orderBy: {
             paid_at: 'desc'
-          },
-          take: 1
+          }
         },
         recurring_configs: {
           select: {
@@ -104,8 +118,14 @@ async function fetchPayments(): Promise<Payment[]> {
         return sum + amount + tax
       }, 0)
 
-      const totalPaid = payment.payment_history.reduce((sum: number, history: any) => sum + history.amount, 0)
+      // Only count SUCCESS payments in total paid
+      const totalPaid = payment.payment_history
+        .filter((history: any) => history.status === 'Success')
+        .reduce((sum: number, history: any) => sum + history.amount, 0)
       const paymentPercentage = totalAmount > 0 ? Math.round((totalPaid / totalAmount) * 100) : 0
+
+      // Check if there are any Pending payment_history records
+      const hasPendingPayments = payment.payment_history.some((history: any) => history.status === 'Pending')
 
       let status: 'Paid' | 'Paid Late' | 'Pending' | 'Overdue' = payment.status as any
 
@@ -151,6 +171,7 @@ async function fetchPayments(): Promise<Payment[]> {
         amount: totalAmount,
         status: status,
         payment_percentage: paymentPercentage,
+        has_pending_payments: hasPendingPayments,
         tenant_name: tenantName,
         tenant_picture: tenant?.profile_pic || '',
         tenant_color: '',
@@ -158,46 +179,50 @@ async function fetchPayments(): Promise<Payment[]> {
       }
     })
 
-    return transformedPayments
+    return { payments: transformedPayments, userType }
   } catch (error) {
     console.error('Error fetching payments:', error)
-    return []
+    return { payments: [], userType: 'staff' }
   }
 }
 
 const Payments = async () => {
-  const payments = await fetchPayments()
+  const { payments, userType } = await fetchPayments()
 
   return (
-    <div className={cn('flex flex-col gap-2.5', 'h-full')}>
-      {/* Heading */}
-      <div>
-        <h1>Payments</h1>
-      </div>
-      {/* Actions */}
-      <div className={cn('flex justify-between items-center', 'w-full')}>
-        <SearchInput placeholder='Search payments' />
-        {/* Buttons */}
-        <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <Button
-            icon={<DeleteButtonIcon />}
-            label='Delete'
-            className='bg-(--error-main)!'
-          />
+    <PaymentsPageWrapper>
+      <div className={cn('flex flex-col gap-2.5', 'h-full')}>
+        {/* Heading */}
+        <div>
+          <h1>Payments</h1>
+        </div>
+        {/* Actions */}
+        <div className={cn('flex justify-between items-center', 'w-full')}>
+          <SearchInput placeholder='Search payments' />
+          {/* Buttons */}
+          {userType === 'staff' && (
+            <div className={cn('flex items-center gap-2.5', 'py-5')}>
+              <Button
+                icon={<DeleteButtonIcon />}
+                label='Delete'
+                className='bg-(--error-main)!'
+              />
 
-          <Link href='/payments/add-payment'>
-            <Button
-              icon={<AddButtonIcon className='text-neutral-300' />}
-              label='Add Payment'
-            />
-          </Link>
+              <Link href='/payments/add-payment'>
+                <Button
+                  icon={<AddButtonIcon className='text-neutral-300' />}
+                  label='Add Payment'
+                />
+              </Link>
+            </div>
+          )}
+        </div>
+        {/* Table */}
+        <div>
+          <PaymentsTableWithRefresh data={payments} userType={userType} />
         </div>
       </div>
-      {/* Table */}
-      <div>
-        <PaymentsTable data={payments} />
-      </div>
-    </div>
+    </PaymentsPageWrapper>
   )
 }
 

@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { MoreHorizontal, Banknote, Wallet } from 'lucide-react'
+import { MoreHorizontal, Banknote, Wallet, CreditCard, Globe } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import TimestampWithTooltip from '../costume-ui/timestamp-with-tooltip'
 
@@ -22,12 +22,19 @@ type Props = {
 
 export default function PaymentHistoryRow({ referenceId, isExpanded }: Props) {
   const [history, setHistory] = useState<PaymentHistory[]>([])
+  const [dueDate, setDueDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastFetch, setLastFetch] = useState<number>(0)
   const thStyles = 'border-b border-(--border-light) p-[15] px-5'
   const trStyles = 'p-[15] px-5'
   const CACHE_DURATION = 60 * 1000 // 60 seconds in milliseconds
+
+  // Helper to determine if payment was on-time or late
+  const getTimingStatus = (paidAt: string): 'On-Time' | 'Late' => {
+    if (!dueDate) return 'On-Time'
+    return new Date(paidAt) <= new Date(dueDate) ? 'On-Time' : 'Late'
+  }
 
   useEffect(() => {
     // Only fetch if expanded
@@ -54,6 +61,7 @@ export default function PaymentHistoryRow({ referenceId, isExpanded }: Props) {
 
         const data = await response.json()
         setHistory(data.payment_history || [])
+        setDueDate(data.due_date || null)
         setLastFetch(now)
       } catch (err: any) {
         setError(err.message)
@@ -164,7 +172,8 @@ export default function PaymentHistoryRow({ referenceId, isExpanded }: Props) {
         </thead>
         <tbody>
           {history.map((record) => {
-            const statusKey = record.status.toLowerCase()
+            const timingStatus = getTimingStatus(record.paid_at)
+            const statusKey = timingStatus.toLowerCase()
 
             return (
               <tr key={record.id} className="border-b last:border-b-0 hover:bg-(--background-secondary)">
@@ -177,6 +186,16 @@ export default function PaymentHistoryRow({ referenceId, isExpanded }: Props) {
                       <>
                         <Banknote size={16} className="text-(--text-secondary)" />
                         <span className="texts-table-cell-primary">Bank Transfer</span>
+                      </>
+                    ) : record.payment_method === 'FPX' ? (
+                      <>
+                        <CreditCard size={16} className="text-(--text-secondary)" />
+                        <span className="texts-table-cell-primary">FPX</span>
+                      </>
+                    ) : record.payment_method === 'Online_Payment' ? (
+                      <>
+                        <Globe size={16} className="text-(--text-secondary)" />
+                        <span className="texts-table-cell-primary">Online Payment</span>
                       </>
                     ) : (
                       <>
@@ -194,14 +213,12 @@ export default function PaymentHistoryRow({ referenceId, isExpanded }: Props) {
                 </td>
                 <td className={trStyles}>
                   <div
-                    data-status={statusKey}
                     className={cn(
-                      'status-styles inline-block',
-                      'data-[status=paid]:bg-green-100 data-[status=paid]:text-green-800',
-                      'data-[status=failed]:bg-red-100 data-[status=failed]:text-red-800'
+                      'status-styles rounded-sm! p-0.5! w-18! inline-block',
+                      'border border-(--border-default)'
                     )}
                   >
-                    {record.status}
+                    {timingStatus}
                   </div>
                 </td>
                 <td className={cn(trStyles)}>

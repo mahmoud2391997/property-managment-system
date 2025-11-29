@@ -1,6 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+
+export async function GET(request: Request) {
+  try {
+    const { staff, error } = await getUserAndStaff()
+
+    if (error) return error
+
+    const { searchParams } = new URL(request.url)
+    const propertyId = searchParams.get('propertyId')
+
+    if (!propertyId) {
+      return NextResponse.json(
+        { error: 'Property ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Verify property belongs to the organization
+    const property = await prisma.properties.findFirst({
+      where: {
+        id: propertyId,
+        organization_id: staff.organization_id
+      },
+      select: { id: true, code: true }
+    })
+
+    if (!property) {
+      return NextResponse.json(
+        { error: 'Property not found' },
+        { status: 404 }
+      )
+    }
+
+    // Fetch rooms for this property
+    const rooms = await prisma.rooms.findMany({
+      where: {
+        property_id: propertyId
+      },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        created_at: true
+      },
+      orderBy: {
+        created_at: 'desc'
+      }
+    })
+
+    return NextResponse.json({
+      rooms: rooms.map(room => ({
+        id: room.id,
+        title: room.title,
+        property: property.code,
+        status: room.status
+      }))
+    })
+  } catch (error: any) {
+    console.error('Error fetching rooms:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch rooms' },
+      { status: 500 }
+    )
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
