@@ -59,7 +59,6 @@ export type LeaseWithDetails = {
   reference_id: string
   start_date: string
   number_of_months: number | null
-  leave_day: number | null
   monthly_rent: number
   status: 'Scheduled' | 'Current' | 'Ended' | 'Expired'
   tenant: {
@@ -90,7 +89,7 @@ export type Payment = {
   recurring_pattern: 'Recurring' | 'One-time'
   recurring_pattern_description: string
   amount: number
-  status: 'Paid' | 'Paid Late' | 'Pending' | 'Overdue'
+  status: 'Paid' | 'Paid Late' | 'Pending' | 'Overdue' | 'Cancelled'
   payment_percentage: number
   has_pending_payments: boolean
   tenant_name: string
@@ -142,7 +141,8 @@ export type Staff = {
 }
 
 export type Ticket = {
-  id: string
+  id: string // reference_id (e.g., TK-20250001)
+  ticket_id: string // actual UUID for linking
   type: 'Maintenance' | 'Billing' | 'Complaint' | 'Others'
   title: string
   description: string
@@ -222,4 +222,17 @@ export type TabType = {
 }
 
 export type OrganizationIdParams = { params: { organizationId: string } }
+
+export type Notification = {
+  id: string
+  title: string
+  message: string
+  reference_id: string | null // UUID of the related entity
+  reference_type: string | null // 'tickets', 'payments', 'leases', etc.
+  is_read: boolean
+  created_at: string // ISO Timestamp
+  page: string | null // Page to navigate to
+  performer_name: string | null
+  performer_picture: string | null
+}
 

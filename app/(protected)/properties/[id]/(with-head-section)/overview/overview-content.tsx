@@ -29,10 +29,13 @@ import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/formatTime'
 import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
+import Alert from '@/components/costume-ui/alert'
+import { useRouter } from 'next/navigation'
 
 // Types for overview data
 type LeaseOverview = {
   id: string
+  reference_id: string
   monthly_rent: number
   due_date: string
   tenant: {
@@ -198,7 +201,8 @@ type EmptyCardProps = {
   title: string
   subtitle: string
   buttonLabel: string
-  href: string
+  href?: string
+  onClick?: () => void
 }
 
 const EmptyCard = ({
@@ -207,8 +211,38 @@ const EmptyCard = ({
   title,
   subtitle,
   buttonLabel,
-  href
+  href,
+  onClick
 }: EmptyCardProps) => {
+  const content = (
+    <>
+      <div
+        className={cn(
+          'flex items-center justify-center w-10 h-10 rounded-full',
+          'bg-neutral-100 group-hover:bg-neutral-200/70',
+          'transition-colors duration-200'
+        )}
+      >
+        <Plus
+          className='text-neutral-400 group-hover:text-neutral-500 transition-colors duration-200'
+          size={20}
+          strokeWidth={2}
+        />
+      </div>
+      <span className='texts-body-small-medium text-neutral-400 group-hover:text-neutral-500 transition-colors duration-200'>
+        {buttonLabel}
+      </span>
+    </>
+  )
+
+  const containerClasses = cn(
+    'flex flex-1 flex-col items-center justify-center gap-2',
+    'mt-4 mx-1 mb-1 rounded-lg',
+    'border-2 border-dashed border-neutral-200',
+    'hover:border-neutral-300 hover:bg-neutral-50/50',
+    'transition-all duration-200 cursor-pointer group'
+  )
+
   return (
     <div
       className={cn(
@@ -241,33 +275,17 @@ const EmptyCard = ({
         </div>
       </div>
       {/* Body - Empty State */}
-      <Link
-        href={href}
-        className={cn(
-          'flex flex-1 flex-col items-center justify-center gap-2',
-          'mt-4 mx-1 mb-1 rounded-lg',
-          'border-2 border-dashed border-neutral-200',
-          'hover:border-neutral-300 hover:bg-neutral-50/50',
-          'transition-all duration-200 cursor-pointer group'
-        )}
-      >
-        <div
-          className={cn(
-            'flex items-center justify-center w-10 h-10 rounded-full',
-            'bg-neutral-100 group-hover:bg-neutral-200/70',
-            'transition-colors duration-200'
-          )}
-        >
-          <Plus
-            className='text-neutral-400 group-hover:text-neutral-500 transition-colors duration-200'
-            size={20}
-            strokeWidth={2}
-          />
-        </div>
-        <span className='texts-body-small-medium text-neutral-400 group-hover:text-neutral-500 transition-colors duration-200'>
-          {buttonLabel}
-        </span>
-      </Link>
+      {onClick ? (
+        <button type='button' onClick={onClick} className={containerClasses}>
+          {content}
+        </button>
+      ) : href ? (
+        <Link href={href} className={containerClasses}>
+          {content}
+        </Link>
+      ) : (
+        <div className={containerClasses}>{content}</div>
+      )}
     </div>
   )
 }
@@ -313,13 +331,28 @@ const CardSkeleton = () => {
   )
 }
 
+type LeaseEligibility = {
+  canAddLease: boolean
+  blockedBy: 'property' | 'room' | null
+  blockedStatus: 'Current' | 'Expired' | null
+  blockedLeaseId: string | null
+  blockedRoomTitle?: string
+  message: string | null
+}
+
 type Props = {
   propertyId: string
 }
 
 export default function OverviewContent({ propertyId }: Props) {
+  const router = useRouter()
   const [overviewData, setOverviewData] = useState<OverviewData | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Alert state for lease eligibility
+  const [alertOpen, setAlertOpen] = useState(false)
+  const [alertMessage, setAlertMessage] = useState('')
+  const [alertType, setAlertType] = useState<'info' | 'error' | 'success' | 'warning'>('info')
 
   const fetchOverviewData = useCallback(async () => {
     try {
@@ -338,6 +371,30 @@ export default function OverviewContent({ propertyId }: Props) {
   useEffect(() => {
     fetchOverviewData()
   }, [fetchOverviewData])
+
+  // Handle add lease with eligibility check
+  const handleAddLease = async () => {
+    try {
+      const response = await fetch(`/api/properties/${propertyId}/lease-eligibility`)
+      if (response.ok) {
+        const eligibility: LeaseEligibility = await response.json()
+
+        if (!eligibility.canAddLease) {
+          // Show appropriate alert based on blocked status
+          const alertTypeToUse = eligibility.blockedStatus === 'Expired' ? 'warning' : 'error'
+          setAlertMessage(eligibility.message || 'Cannot add lease for this property.')
+          setAlertType(alertTypeToUse)
+          setAlertOpen(true)
+          return
+        }
+      }
+    } catch (error) {
+      console.error('Error checking lease eligibility:', error)
+    }
+
+    // Navigate to add lease page for property
+    router.push(`/properties/${propertyId}/leases/add-lease`)
+  }
 
   return (
     <>
@@ -360,6 +417,17 @@ export default function OverviewContent({ propertyId }: Props) {
             user_avatar={overviewData.lease.tenant.profile_thumb}
             menuItems={
               <>
+                <DropdownMenuItem
+                  onClick={() =>
+                    navigator.clipboard.writeText(
+                      overviewData.lease!.reference_id
+                    )
+                  }
+                >
+                  Copy lease ID
+                </DropdownMenuItem>
+                <DropdownMenuItem>Edit lease</DropdownMenuItem>
+                <DropdownMenuItem>Schedule rental change</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <ConfirmationDialog
                   openDialogButton={
@@ -374,15 +442,20 @@ export default function OverviewContent({ propertyId }: Props) {
                   description={
                     <div className='space-y-3'>
                       <p>
-                        You are about to <strong>permanently end this lease</strong>. This action is <strong>irreversible</strong> and will:
+                        You are about to{' '}
+                        <strong>permanently end this lease</strong>. This action
+                        is <strong>irreversible</strong> and will:
                       </p>
                       <ul className='list-disc list-inside space-y-1 text-sm'>
-                        <li>Change the lease status to <strong>Ended</strong></li>
+                        <li>
+                          Change the lease status to <strong>Ended</strong>
+                        </li>
                         <li>Cancel all pending payments linked to this lease</li>
                         <li>Stop any recurring payment schedules</li>
                       </ul>
                       <p className='text-sm text-neutral-500'>
-                        This cannot be undone. Please make sure all outstanding payments have been collected before proceeding.
+                        This cannot be undone. Please make sure all outstanding
+                        payments have been collected before proceeding.
                       </p>
                     </div>
                   }
@@ -424,7 +497,7 @@ export default function OverviewContent({ propertyId }: Props) {
             title='Lease Overview'
             subtitle='Income from tenant'
             buttonLabel='Add Lease'
-            href={`/properties/${propertyId}/leases/add-lease`}
+            onClick={handleAddLease}
           />
         )}
 
@@ -484,6 +557,14 @@ export default function OverviewContent({ propertyId }: Props) {
       </div>
       {/* Payments */}
       <PaymentsSection propertyId={propertyId} />
+
+      {/* Alert Dialog for lease eligibility */}
+      <Alert
+        open={alertOpen}
+        onClose={() => setAlertOpen(false)}
+        message={alertMessage}
+        type={alertType}
+      />
     </>
   )
 }

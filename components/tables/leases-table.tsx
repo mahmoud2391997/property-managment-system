@@ -10,27 +10,28 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Table } from '../costume-ui/table'
 import { LeaseWithDetails } from '@/types'
 import { UserAvatar } from '../costume-ui/name-avatar'
 import { cn } from '@/lib/utils'
+import ConfirmationDialog from '../costume-ui/confirmation-dialog'
+import { showFeedbackToast } from '../costume-ui/feedback-toast'
 
-// Calculate end date from start_date + number_of_months, considering leave_day
+// Calculate end date from start_date + number_of_months (end date has same day as start date)
 function calculateEndDate(
   startDate: string,
-  numberOfMonths: number | null,
-  leaveDay: number | null
+  numberOfMonths: number | null
 ): string | null {
-  if (numberOfMonths === null || leaveDay === null) {
+  if (numberOfMonths === null) {
     return null // Ongoing
   }
 
   const start = new Date(startDate)
   const endDate = new Date(start)
   endDate.setMonth(endDate.getMonth() + numberOfMonths)
-  endDate.setDate(leaveDay)
 
   return endDate.toISOString()
 }
@@ -50,7 +51,9 @@ function formatCurrency(amount: number): string {
   return `RM ${amount.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-export const columns: ColumnDef<LeaseWithDetails>[] = [
+const createColumns = (
+  onDataRefresh?: () => void
+): ColumnDef<LeaseWithDetails>[] => [
   // Checkbox
   {
     id: 'select',
@@ -102,8 +105,7 @@ export const columns: ColumnDef<LeaseWithDetails>[] = [
       const lease = row.original
       const endDate = calculateEndDate(
         lease.start_date,
-        lease.number_of_months,
-        lease.leave_day
+        lease.number_of_months
       )
 
       return (
@@ -181,6 +183,8 @@ export const columns: ColumnDef<LeaseWithDetails>[] = [
     enableHiding: false,
     cell: ({ row }) => {
       const lease = row.original
+      const canEndLease = lease.status === 'Current'
+      const isEnded = lease.status === 'Ended'
 
       return (
         <DropdownMenu>
@@ -197,7 +201,75 @@ export const columns: ColumnDef<LeaseWithDetails>[] = [
             >
               Copy lease ID
             </DropdownMenuItem>
-            <DropdownMenuItem>View details</DropdownMenuItem>
+            {!isEnded && (
+              <>
+                <DropdownMenuItem>View details</DropdownMenuItem>
+                <DropdownMenuItem>Edit lease</DropdownMenuItem>
+                <DropdownMenuItem>Schedule rental change</DropdownMenuItem>
+              </>
+            )}
+            {canEndLease && (
+              <>
+                <DropdownMenuSeparator />
+                <ConfirmationDialog
+                  openDialogButton={
+                    <DropdownMenuItem
+                      onSelect={e => e.preventDefault()}
+                      className='text-error-main focus:text-error-main'
+                    >
+                      End Lease
+                    </DropdownMenuItem>
+                  }
+                  title='End Lease'
+                  description={
+                    <div className='space-y-3'>
+                      <p>
+                        You are about to{' '}
+                        <strong>permanently end this lease</strong>. This action
+                        is <strong>irreversible</strong> and will:
+                      </p>
+                      <ul className='list-disc list-inside space-y-1 text-sm'>
+                        <li>
+                          Change the lease status to <strong>Ended</strong>
+                        </li>
+                        <li>Cancel all pending payments linked to this lease</li>
+                        <li>Stop any recurring payment schedules</li>
+                      </ul>
+                      <p className='text-sm text-neutral-500'>
+                        This cannot be undone. Please make sure all outstanding
+                        payments have been collected before proceeding.
+                      </p>
+                    </div>
+                  }
+                  confirmationText='END'
+                  confirmButtonLabel='End Lease'
+                  confirmButtonLoadingLabel='Ending...'
+                  confirmButtonClassName='bg-amber-600! hover:bg-amber-700!'
+                  inputLabel='Type END to confirm'
+                  variant='warning'
+                  onConfirm={async () => {
+                    const response = await fetch(`/api/leases/end/${lease.id}`, {
+                      method: 'POST'
+                    })
+                    if (!response.ok) {
+                      const data = await response.json()
+                      showFeedbackToast({
+                        title: 'Failed to end lease',
+                        description: data.error || 'Please try again.',
+                        type: 'error'
+                      })
+                      throw new Error(data.error)
+                    }
+                    showFeedbackToast({
+                      title: 'Lease ended successfully',
+                      description: 'All pending payments have been cancelled.',
+                      type: 'success'
+                    })
+                    onDataRefresh?.()
+                  }}
+                />
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )
@@ -209,13 +281,17 @@ type Props = {
   data: LeaseWithDetails[]
   className?: string
   noPagnitation?: boolean
+  onDataRefresh?: () => void
 }
 
 export default function LeasesTable({
   data,
   className = '',
-  noPagnitation = false
+  noPagnitation = false,
+  onDataRefresh
 }: Props) {
+  const columns = createColumns(onDataRefresh)
+
   return (
     <Table
       columns={columns}

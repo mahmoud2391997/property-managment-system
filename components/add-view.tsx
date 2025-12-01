@@ -5,14 +5,16 @@ import InputGroup from './costume-ui/input-group'
 import DatePicker from './costume-ui/date-picker'
 import TimePicker from './costume-ui/time-picker'
 import { FeedbackToasts } from './costume-ui/feedback-toast'
+import Alert from './costume-ui/alert'
 
 type Props = {
-  propertyId: string
+  propertyId?: string
+  roomId?: string
   onSuccess?: () => void
   onLoadingChange?: (loading: boolean) => void
 }
 
-const AddView = ({ propertyId, onSuccess, onLoadingChange }: Props) => {
+const AddView = ({ propertyId, roomId, onSuccess, onLoadingChange }: Props) => {
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
   const [date, setDate] = useState<Date | undefined>(undefined)
@@ -22,15 +24,44 @@ const AddView = ({ propertyId, onSuccess, onLoadingChange }: Props) => {
   const [phoneNumber, setPhoneNumber] = useState<string>('')
   const [email, setEmail] = useState<string>('')
 
+  // Alert state
+  const [alertOpen, setAlertOpen] = useState(false)
+  const [alertMessage, setAlertMessage] = useState('')
+  const [alertType, setAlertType] = useState<
+    'info' | 'error' | 'success' | 'warning'
+  >('info')
+
+  const showAlert = (
+    message: string,
+    type: 'info' | 'error' | 'success' | 'warning' = 'info'
+  ) => {
+    setAlertMessage(message)
+    setAlertType(type)
+    setAlertOpen(true)
+  }
+
   const styles = {
     inputsContainer: 'grid grid-cols-2 items-start gap-5'
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
+
+    // Validate date and time are not in the future
+    if (date) {
+      const viewDateTime = new Date(
+        `${date.toISOString().split('T')[0]}T${time}`
+      )
+      const now = new Date()
+      if (viewDateTime > now) {
+        showAlert('View date and time cannot be in the future', 'error')
+        return
+      }
+    }
+
     setLoading(true)
     onLoadingChange?.(true)
-    setError('')
 
     try {
       // Format date for API
@@ -42,7 +73,8 @@ const AddView = ({ propertyId, onSuccess, onLoadingChange }: Props) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          propertyId,
+          propertyId: propertyId || null,
+          roomId: roomId || null,
           date: formattedDate,
           time,
           firstName,
@@ -58,10 +90,7 @@ const AddView = ({ propertyId, onSuccess, onLoadingChange }: Props) => {
         throw new Error(data.error || 'Failed to add view')
       }
 
-      FeedbackToasts.created(
-        'View',
-        `View by ${firstName} has been recorded.`
-      )
+      FeedbackToasts.created('View', `View by ${firstName} has been recorded.`)
 
       // Reset form
       setDate(undefined)
@@ -133,7 +162,7 @@ const AddView = ({ propertyId, onSuccess, onLoadingChange }: Props) => {
         </div>
 
         <div className={styles.inputsContainer}>
-          <InputGroup label='Phone Number'>
+          <InputGroup label='Phone Number' className='overflow-visible!'>
             <Input
               phoneNumber
               value={phoneNumber}
@@ -156,6 +185,14 @@ const AddView = ({ propertyId, onSuccess, onLoadingChange }: Props) => {
 
         {error && <p className='text-red-600 text-sm'>{error}</p>}
       </form>
+
+      {/* Alert Dialog */}
+      <Alert
+        open={alertOpen}
+        onClose={() => setAlertOpen(false)}
+        message={alertMessage}
+        type={alertType}
+      />
     </>
   )
 }

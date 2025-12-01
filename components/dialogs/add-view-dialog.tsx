@@ -7,11 +7,12 @@ import Button from '../costume-ui/button'
 import { AddButtonIcon } from '../costume-ui/icon'
 
 type Props = {
-  propertyId: string
+  propertyId?: string
+  roomId?: string
   onSuccess?: () => void
 }
 
-export default function AddViewDialog({ propertyId, onSuccess }: Props) {
+export default function AddViewDialog({ propertyId, roomId, onSuccess }: Props) {
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
 
@@ -36,6 +37,7 @@ export default function AddViewDialog({ propertyId, onSuccess }: Props) {
     >
       <AddView
         propertyId={propertyId}
+        roomId={roomId}
         onLoadingChange={setLoading}
         onSuccess={handleSuccess}
       />

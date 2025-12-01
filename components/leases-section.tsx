@@ -8,19 +8,38 @@ import LeasesTable from './tables/leases-table'
 import { LeaseWithDetails } from '@/types'
 import TableSectionSkeleton from './loading-ui/table-section-skeleton'
 import { useRouter } from 'next/navigation'
+import Alert from './costume-ui/alert'
 
 type Props = {
-  propertyId: string
+  propertyId?: string
+  roomId?: string
 }
 
-export default function LeasesSection({ propertyId }: Props) {
+type LeaseEligibility = {
+  canAddLease: boolean
+  blockedBy: 'property' | 'room' | null
+  blockedStatus: 'Current' | 'Expired' | null
+  blockedLeaseId: string | null
+  message: string | null
+}
+
+export default function LeasesSection({ propertyId, roomId }: Props) {
   const [leases, setLeases] = useState<LeaseWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
+  // Alert state for lease eligibility
+  const [alertOpen, setAlertOpen] = useState(false)
+  const [alertMessage, setAlertMessage] = useState('')
+  const [alertType, setAlertType] = useState<'info' | 'error' | 'success' | 'warning'>('info')
+
   const fetchLeases = useCallback(async () => {
     try {
-      const response = await fetch(`/api/leases?propertyId=${propertyId}`)
+      const params = new URLSearchParams()
+      if (propertyId) params.append('propertyId', propertyId)
+      if (roomId) params.append('roomId', roomId)
+
+      const response = await fetch(`/api/leases?${params.toString()}`)
       if (response.ok) {
         const data = await response.json()
         setLeases(data.leases)
@@ -30,14 +49,58 @@ export default function LeasesSection({ propertyId }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [propertyId])
+  }, [propertyId, roomId])
 
   useEffect(() => {
     fetchLeases()
   }, [fetchLeases])
 
-  const handleAddLease = () => {
-    router.push('./leases/add-lease')
+  const handleAddLease = async () => {
+    // For room leases, check eligibility first
+    if (roomId) {
+      try {
+        const response = await fetch(`/api/rooms/${roomId}/lease-eligibility`)
+        if (response.ok) {
+          const eligibility: LeaseEligibility = await response.json()
+
+          if (!eligibility.canAddLease) {
+            // Show appropriate alert based on blocked status
+            const alertTypeToUse = eligibility.blockedStatus === 'Expired' ? 'warning' : 'error'
+            setAlertMessage(eligibility.message || 'Cannot add lease for this room.')
+            setAlertType(alertTypeToUse)
+            setAlertOpen(true)
+            return
+          }
+        }
+      } catch (error) {
+        console.error('Error checking lease eligibility:', error)
+      }
+
+      // Navigate to add lease page for room
+      router.push(`/rooms/${roomId}/leases/add-lease`)
+    } else if (propertyId) {
+      // For property leases, check eligibility first
+      try {
+        const response = await fetch(`/api/properties/${propertyId}/lease-eligibility`)
+        if (response.ok) {
+          const eligibility: LeaseEligibility = await response.json()
+
+          if (!eligibility.canAddLease) {
+            // Show appropriate alert based on blocked status
+            const alertTypeToUse = eligibility.blockedStatus === 'Expired' ? 'warning' : 'error'
+            setAlertMessage(eligibility.message || 'Cannot add lease for this property.')
+            setAlertType(alertTypeToUse)
+            setAlertOpen(true)
+            return
+          }
+        }
+      } catch (error) {
+        console.error('Error checking lease eligibility:', error)
+      }
+
+      // Navigate to add lease page for property
+      router.push(`/properties/${propertyId}/leases/add-lease`)
+    }
   }
 
   if (loading) {
@@ -63,7 +126,6 @@ export default function LeasesSection({ propertyId }: Props) {
             className='bg-(--error-main)!'
           />
 
-          {/* Add Lease button will be added later */}
           <Button label='Add Lease' onClick={handleAddLease} />
         </div>
       </div>
@@ -72,6 +134,15 @@ export default function LeasesSection({ propertyId }: Props) {
         data={leases}
         className='-mx-5! rounded-none! border-x-0 mb-5'
         noPagnitation={true}
+        onDataRefresh={fetchLeases}
+      />
+
+      {/* Alert Dialog for lease eligibility */}
+      <Alert
+        open={alertOpen}
+        onClose={() => setAlertOpen(false)}
+        message={alertMessage}
+        type={alertType}
       />
     </div>
   )

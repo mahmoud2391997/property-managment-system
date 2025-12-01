@@ -10,41 +10,69 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const propertyId = searchParams.get('propertyId')
+    const roomId = searchParams.get('roomId')
 
-    if (!propertyId) {
+    if (!propertyId && !roomId) {
       return NextResponse.json(
-        { error: 'Property ID is required' },
+        { error: 'Property ID or Room ID is required' },
         { status: 400 }
       )
     }
 
-    // Verify property belongs to the organization
-    const property = await prisma.properties.findFirst({
-      where: {
-        id: propertyId,
-        organization_id: staff.organization_id
-      },
-      select: { id: true }
-    })
+    // Build where clause based on propertyId or roomId
+    let whereClause: any = {}
 
-    if (!property) {
-      return NextResponse.json(
-        { error: 'Property not found' },
-        { status: 404 }
-      )
+    if (propertyId) {
+      // Verify property belongs to the organization
+      const property = await prisma.properties.findFirst({
+        where: {
+          id: propertyId,
+          organization_id: staff.organization_id
+        },
+        select: { id: true }
+      })
+
+      if (!property) {
+        return NextResponse.json(
+          { error: 'Property not found' },
+          { status: 404 }
+        )
+      }
+      // For property leases, get leases where property_id matches AND room_id is null
+      whereClause.property_id = propertyId
+      whereClause.room_id = null
     }
 
-    // Fetch leases for this property with tenant details
+    if (roomId) {
+      // Verify room belongs to the organization through its property
+      const room = await prisma.rooms.findFirst({
+        where: {
+          id: roomId,
+          properties: {
+            organization_id: staff.organization_id
+          }
+        },
+        select: { id: true }
+      })
+
+      if (!room) {
+        return NextResponse.json(
+          { error: 'Room not found' },
+          { status: 404 }
+        )
+      }
+      // For room leases, get leases where room_id matches
+      whereClause.room_id = roomId
+    }
+
+    // Fetch leases with tenant details
     const leases = await prisma.leases.findMany({
-      where: {
-        property_id: propertyId
-      },
+      where: whereClause,
       select: {
         id: true,
         reference_id: true,
         start_date: true,
         number_of_months: true,
-        leave_day: true,
         monthly_rent: true,
         status: true,
         tenants: {
@@ -92,7 +120,6 @@ export async function GET(request: Request) {
           reference_id: lease.reference_id,
           start_date: lease.start_date.toISOString(),
           number_of_months: lease.number_of_months,
-          leave_day: lease.leave_day,
           monthly_rent: lease.monthly_rent,
           status: lease.status,
           tenant: {

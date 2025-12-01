@@ -11,10 +11,10 @@ export async function POST(request: Request) {
     const body = await request.json()
     const {
       property_id,
+      room_id, // Optional - if provided, this is a room lease
       tenant_id,
       start_date,
       number_of_months,
-      leave_day,
       payment_day,
       monthly_rent,
       // Reminders
@@ -94,6 +94,120 @@ export async function POST(request: Request) {
       )
     }
 
+    // If room_id is provided, this is a room lease - verify room and check for conflicts
+    if (room_id) {
+      const room = await prisma.rooms.findFirst({
+        where: {
+          id: room_id,
+          property_id: property_id
+        },
+        select: { id: true }
+      })
+
+      if (!room) {
+        return NextResponse.json(
+          { error: 'Room not found or does not belong to this property' },
+          { status: 404 }
+        )
+      }
+
+      // Check if property has an active lease (Current or Expired) - rooms cannot have leases if property does
+      const propertyLease = await prisma.leases.findFirst({
+        where: {
+          property_id: property_id,
+          room_id: null,
+          status: {
+            in: ['Current', 'Expired']
+          }
+        },
+        select: { id: true, status: true, reference_id: true }
+      })
+
+      if (propertyLease) {
+        const message = propertyLease.status === 'Current'
+          ? `Cannot create room lease: Property has an active lease (${propertyLease.reference_id})`
+          : `Cannot create room lease: Property has an expired lease (${propertyLease.reference_id}) that needs to be ended first`
+        return NextResponse.json(
+          { error: message },
+          { status: 400 }
+        )
+      }
+
+      // Check if room already has an active lease (Current or Expired)
+      const roomLease = await prisma.leases.findFirst({
+        where: {
+          room_id: room_id,
+          status: {
+            in: ['Current', 'Expired']
+          }
+        },
+        select: { id: true, status: true, reference_id: true }
+      })
+
+      if (roomLease) {
+        const message = roomLease.status === 'Current'
+          ? `Room already has an active lease (${roomLease.reference_id})`
+          : `Room has an expired lease (${roomLease.reference_id}) that needs to be ended first`
+        return NextResponse.json(
+          { error: message },
+          { status: 400 }
+        )
+      }
+    } else {
+      // This is a property lease (no room_id) - check for conflicts
+
+      // Check if property already has an active lease (Current or Expired)
+      const existingPropertyLease = await prisma.leases.findFirst({
+        where: {
+          property_id: property_id,
+          room_id: null,
+          status: {
+            in: ['Current', 'Expired']
+          }
+        },
+        select: { id: true, status: true, reference_id: true }
+      })
+
+      if (existingPropertyLease) {
+        const message = existingPropertyLease.status === 'Current'
+          ? `Property already has an active lease (${existingPropertyLease.reference_id})`
+          : `Property has an expired lease (${existingPropertyLease.reference_id}) that needs to be ended first`
+        return NextResponse.json(
+          { error: message },
+          { status: 400 }
+        )
+      }
+
+      // Check if any rooms under this property have active leases (Current or Expired)
+      const roomLeases = await prisma.leases.findMany({
+        where: {
+          property_id: property_id,
+          room_id: { not: null },
+          status: {
+            in: ['Current', 'Expired']
+          }
+        },
+        select: {
+          id: true,
+          status: true
+        }
+      })
+
+      if (roomLeases.length > 0) {
+        const hasExpired = roomLeases.some(lease => lease.status === 'Expired')
+        const roomCount = roomLeases.length
+        const roomText = roomCount === 1 ? 'a room' : `${roomCount} rooms`
+
+        const message = hasExpired
+          ? `Cannot add property lease: ${roomText} under this property has a lease that needs to be ended first`
+          : `Cannot add property lease: ${roomText} under this property has an active lease`
+        return NextResponse.json(
+          { error: message },
+          { status: 400 }
+        )
+      }
+    }
+
     // Verify tenant belongs to the organization
     const organizationTenant = await prisma.organizations_tenants.findFirst({
       where: {
@@ -112,17 +226,33 @@ export async function POST(request: Request) {
     // Combine payment date and time
     const paymentDateTime = new Date(`${payment_date}T${payment_time}`)
 
-    // Calculate total amount from initial charges
-    const totalAmount = initial_charges.reduce((sum: number, charge: any) => {
-      const amount = parseFloat(charge.amount) || 0
-      const tax = charge.isTaxableChecked ? amount * 0.08 : 0
-      return sum + amount + tax
-    }, 0)
+    // Separate First Month Rental from other initial charges
+    const firstMonthRentalCharge = initial_charges.find(
+      (charge: any) => charge.type === 'First Month Rental'
+    )
+    const otherInitialCharges = initial_charges.filter(
+      (charge: any) => charge.type !== 'First Month Rental'
+    )
+
+    // Calculate total amount from other initial charges (excluding First Month Rental)
+    const initialChargesTotalAmount = otherInitialCharges.reduce(
+      (sum: number, charge: any) => {
+        const amount = parseFloat(charge.amount) || 0
+        const tax = charge.isTaxableChecked ? amount * 0.08 : 0
+        return sum + amount + tax
+      },
+      0
+    )
+
+    // Calculate First Month Rental amount
+    const firstMonthRentalAmount = firstMonthRentalCharge
+      ? parseFloat(firstMonthRentalCharge.amount) || 0
+      : 0
 
     // Determine payment status
     const paymentStatus = is_paid ? 'Paid' : 'Pending'
 
-    // Execute 3-step transaction
+    // Execute transaction
     const result = await prisma.$transaction(async tx => {
       // ============================================
       // STEP 1: Create Lease
@@ -161,7 +291,6 @@ export async function POST(request: Request) {
           reference_id: leaseReferenceId,
           start_date: new Date(start_date),
           number_of_months: number_of_months || null,
-          leave_day: leave_day || null,
           payment_day: payment_day,
           monthly_rent: monthly_rent || 0,
           status: 'Current',
@@ -174,6 +303,7 @@ export async function POST(request: Request) {
           overdue_days_after_reminder: overdue_days_after_reminder || null,
           // Relations
           property_id: property_id,
+          room_id: room_id || null, // null for property leases, set for room leases
           tenant_id: tenant_id,
           organization_id: staff.organization_id,
           created_by: staff.id
@@ -181,8 +311,15 @@ export async function POST(request: Request) {
       })
 
       // ============================================
-      // STEP 2: Create Payment with Charges
+      // STEP 2: Create Initial Charges Payment (excluding First Month Rental)
       // ============================================
+
+      // Helper function to generate next payment reference_id
+      const generatePaymentReferenceId = async (
+        currentSequence: number
+      ): Promise<string> => {
+        return `${paymentYearPrefix}${currentSequence.toString().padStart(8, '0')}`
+      }
 
       // Generate payment reference_id (unique per organization)
       // Format: PY-YYYY######## (e.g., PY-202500000001)
@@ -209,45 +346,141 @@ export async function POST(request: Request) {
         paymentNextSequence = lastSequence + 1
       }
 
-      const paymentReferenceId = `${paymentYearPrefix}${paymentNextSequence.toString().padStart(8, '0')}`
+      let initialChargesPayment = null
 
-      // Create payment with charges
-      const payment = await tx.payments.create({
-        data: {
-          reference_id: paymentReferenceId,
-          lease_id: lease.id,
-          type: 'Lease_Initial_Charges',
-          status: paymentStatus,
-          due_payment_timestamp: is_paid ? null : paymentDateTime,
-          organization_id: staff.organization_id,
-          created_by: staff.id,
-          charges: {
-            create: initial_charges.map((charge: any) => ({
-              title: charge.type,
-              amount: parseFloat(charge.amount) || 0,
-              is_taxed: charge.isTaxableChecked || false,
-              is_refunded: false,
-              created_by: staff.id
-            }))
-          }
-        }
-      })
+      // Only create initial charges payment if there are other charges besides First Month Rental
+      if (otherInitialCharges.length > 0) {
+        const initialChargesReferenceId = await generatePaymentReferenceId(
+          paymentNextSequence
+        )
+        paymentNextSequence++
 
-      // If paid, create payment_history entry
-      if (is_paid) {
-        await tx.payment_history.create({
+        initialChargesPayment = await tx.payments.create({
           data: {
-            payment_id: payment.id,
-            amount: totalAmount,
-            payment_method:
-              payment_method === 'Bank Transfer' ? 'Bank_Transfer' : 'Cash',
-            paid_at: paymentDateTime,
-            registrar_role: 'staff',
-            registrar: staff.id,
-            receipt_image: receipt_image || null,
-            status: 'Success'
+            reference_id: initialChargesReferenceId,
+            lease_id: lease.id,
+            type: 'Lease_Initial_Charges',
+            status: paymentStatus,
+            due_payment_timestamp: is_paid ? null : paymentDateTime,
+            organization_id: staff.organization_id,
+            created_by: staff.id,
+            charges: {
+              create: otherInitialCharges.map((charge: any) => ({
+                title: charge.type,
+                amount: parseFloat(charge.amount) || 0,
+                is_taxed: charge.isTaxableChecked || false,
+                is_refunded: false,
+                created_by: staff.id
+              }))
+            }
           }
         })
+
+        // If paid, create payment_history entry for initial charges
+        if (is_paid) {
+          await tx.payment_history.create({
+            data: {
+              payment_id: initialChargesPayment.id,
+              amount: initialChargesTotalAmount,
+              payment_method:
+                payment_method === 'Bank Transfer' ? 'Bank_Transfer' : 'Cash',
+              paid_at: paymentDateTime,
+              registrar_role: 'staff',
+              registrar: staff.id,
+              receipt_image: receipt_image || null,
+              status: 'Success'
+            }
+          })
+        }
+      }
+
+      // ============================================
+      // STEP 3: Create First Month Rental Payment (type: Rental)
+      // ============================================
+
+      let firstMonthRentalPayment = null
+
+      if (firstMonthRentalCharge) {
+        const firstMonthRentalReferenceId = await generatePaymentReferenceId(
+          paymentNextSequence
+        )
+        paymentNextSequence++
+
+        firstMonthRentalPayment = await tx.payments.create({
+          data: {
+            reference_id: firstMonthRentalReferenceId,
+            lease_id: lease.id,
+            type: 'Rental',
+            status: paymentStatus,
+            due_payment_timestamp: is_paid ? null : paymentDateTime,
+            organization_id: staff.organization_id,
+            created_by: staff.id,
+            charges: {
+              create: {
+                title: 'Monthly Rental',
+                amount: firstMonthRentalAmount,
+                is_taxed: false,
+                is_refunded: false,
+                created_by: staff.id
+              }
+            }
+          }
+        })
+
+        // If paid, create payment_history entry for first month rental
+        if (is_paid) {
+          await tx.payment_history.create({
+            data: {
+              payment_id: firstMonthRentalPayment.id,
+              amount: firstMonthRentalAmount,
+              payment_method:
+                payment_method === 'Bank Transfer' ? 'Bank_Transfer' : 'Cash',
+              paid_at: paymentDateTime,
+              registrar_role: 'staff',
+              registrar: staff.id,
+              receipt_image: receipt_image || null,
+              status: 'Success'
+            }
+          })
+
+          // ============================================
+          // STEP 4: Create Next Month Rental Payment (if First Month is Paid)
+          // ============================================
+
+          // Calculate next month due date based on payment_day
+          // Similar logic to the trigger: month after current payment, using lease's payment_day
+          const firstMonthDueDate = paymentDateTime
+          const nextMonthDueDate = new Date(firstMonthDueDate)
+          nextMonthDueDate.setMonth(nextMonthDueDate.getMonth() + 1)
+          nextMonthDueDate.setDate(payment_day)
+          // Set time to start of day
+          nextMonthDueDate.setHours(0, 0, 0, 0)
+
+          const nextMonthRentalReferenceId = await generatePaymentReferenceId(
+            paymentNextSequence
+          )
+
+          await tx.payments.create({
+            data: {
+              reference_id: nextMonthRentalReferenceId,
+              lease_id: lease.id,
+              type: 'Rental',
+              status: 'Pending',
+              due_payment_timestamp: nextMonthDueDate,
+              organization_id: staff.organization_id,
+              created_by: staff.id,
+              charges: {
+                create: {
+                  title: 'Monthly Rental',
+                  amount: monthly_rent || 0,
+                  is_taxed: false,
+                  is_refunded: false,
+                  created_by: staff.id
+                }
+              }
+            }
+          })
+        }
       }
 
       // ============================================
@@ -267,7 +500,8 @@ export async function POST(request: Request) {
 
       return {
         lease,
-        payment
+        initialChargesPayment,
+        firstMonthRentalPayment
       }
     })
 
@@ -276,8 +510,13 @@ export async function POST(request: Request) {
         success: true,
         lease_id: result.lease.id,
         lease_reference_id: result.lease.reference_id,
-        payment_id: result.payment.id,
-        payment_reference_id: result.payment.reference_id,
+        initial_charges_payment_id: result.initialChargesPayment?.id || null,
+        initial_charges_payment_reference_id:
+          result.initialChargesPayment?.reference_id || null,
+        first_month_rental_payment_id:
+          result.firstMonthRentalPayment?.id || null,
+        first_month_rental_payment_reference_id:
+          result.firstMonthRentalPayment?.reference_id || null,
         message: 'Lease created successfully'
       },
       { status: 201 }

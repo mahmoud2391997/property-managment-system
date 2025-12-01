@@ -178,7 +178,11 @@ const AddTenant = ({ onSuccess, onLoadingChange }: Props) => {
         </div>
 
         <div className={styles.inputsContainer}>
-          <InputGroup label='Phone Number' isRequired>
+          <InputGroup
+            label='Phone Number'
+            className='overflow-visible!'
+            isRequired
+          >
             <Input
               phoneNumber
               value={phoneNumber}

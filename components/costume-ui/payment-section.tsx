@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import CollapsibleSection from './collapsible-section'
 import InnerSection from './collapsible-inner-section'
 import InputGroup from './input-group'
@@ -50,6 +50,21 @@ export type PaymentStatusData = {
   receiptFile: File | null
 }
 
+export type DefaultPaymentConfig = {
+  monthlyRent?: string
+  paymentDay?: number
+  initialCharges?: Array<{
+    type: string
+    amount: number
+    is_taxed: boolean
+    is_refundable: boolean
+  }>
+  lateCharges?: Array<{
+    days_after_due: number
+    amount: number
+  }>
+}
+
 type Props = {
   onInitialChargesChange?: (charges: any[]) => void
   onMonthlyRentChange?: (rent: string) => void
@@ -57,6 +72,7 @@ type Props = {
   onLateChargesChange?: (charges: LateCharge[]) => void
   onPaymentStatusChange?: (data: PaymentStatusData) => void
   defaultPayment?: boolean
+  defaultConfig?: DefaultPaymentConfig
 }
 
 const PaymentSection = ({
@@ -65,10 +81,27 @@ const PaymentSection = ({
   onPaymentDayChange,
   onLateChargesChange,
   onPaymentStatusChange,
-  defaultPayment = false
+  defaultPayment = false,
+  defaultConfig
 }: Props) => {
-  const [monthlyRent, setMonthlyRent] = useState<string>('')
-  const [selectedDay, setSelectedDay] = useState<number>(1)
+  const [monthlyRent, setMonthlyRent] = useState<string>(defaultConfig?.monthlyRent || '')
+  const [selectedDay, setSelectedDay] = useState<number>(defaultConfig?.paymentDay || 1)
+  const [configApplied, setConfigApplied] = useState(false)
+
+  // Apply default config when it changes (after async load)
+  React.useEffect(() => {
+    if (defaultConfig && !configApplied) {
+      if (defaultConfig.monthlyRent) {
+        setMonthlyRent(defaultConfig.monthlyRent)
+        onMonthlyRentChange?.(defaultConfig.monthlyRent)
+      }
+      if (defaultConfig.paymentDay) {
+        setSelectedDay(defaultConfig.paymentDay)
+        onPaymentDayChange?.(defaultConfig.paymentDay)
+      }
+      setConfigApplied(true)
+    }
+  }, [defaultConfig, configApplied, onMonthlyRentChange, onPaymentDayChange])
 
   const [isPaid, setIsPaid] = useState<boolean>(false)
   const [paymentMethod, setPaymentMethod] = useState<
@@ -112,6 +145,7 @@ const PaymentSection = ({
         selectable={true}
         onChargesChange={onInitialChargesChange}
         defaultPayment={defaultPayment}
+        defaultCharges={defaultConfig?.initialCharges}
       />
 
       {/* Initial charges payment status and details */}
@@ -177,12 +211,12 @@ const PaymentSection = ({
 
           <div
             className={cn(
-              'trnasition-all duration-200 ease-out overflow-hidden',
+              'transition-all duration-200 ease-out overflow-hidden',
               isPaid && paymentMethod === 'Bank Transfer'
                 ? receiptFile
                   ? 'h-19'
                   : 'h-49'
-                : 'h-0 opacity-0'
+                : 'h-0 -mb-5 opacity-0'
             )}
           >
             <UploadFile
@@ -219,7 +253,10 @@ const PaymentSection = ({
         </InputGroup>
       </InnerSection>
 
-      <LateChargesSection onLateChargesChange={onLateChargesChange} />
+      <LateChargesSection
+        onLateChargesChange={onLateChargesChange}
+        defaultLateCharges={defaultConfig?.lateCharges}
+      />
     </>
   )
 }

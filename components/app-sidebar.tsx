@@ -33,7 +33,8 @@ import {
   NoticesIcon,
   ReportsIcon,
   SupportIcon,
-  SettingsIcon
+  SettingsIcon,
+  NotificationIcon
 } from './costume-ui/icon'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -144,6 +145,12 @@ export default function AppSidebar () {
       href: '/notices'
     },
     {
+      icon: NotificationIcon,
+      label: 'Notifications',
+      width: 'w-5!',
+      href: '/notifications'
+    },
+    {
       icon: ReportsIcon,
       label: 'Reports',
       width: 'w-5!'
@@ -156,6 +163,18 @@ export default function AppSidebar () {
       label: 'Payments',
       width: 'w-5!',
       href: '/payments'
+    },
+    {
+      icon: ClipboardIcon,
+      label: 'Tickets',
+      width: 'w-5!',
+      href: '/tickets'
+    },
+    {
+      icon: NotificationIcon,
+      label: 'Notifications',
+      width: 'w-5!',
+      href: '/notifications'
     }
   ]
 

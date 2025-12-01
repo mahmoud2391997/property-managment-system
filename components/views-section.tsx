@@ -10,18 +10,21 @@ import { ViewWithProperty } from '@/types'
 import TableSectionSkeleton from './loading-ui/table-section-skeleton'
 
 type Props = {
-  propertyId: string
+  propertyId?: string
+  roomId?: string
 }
 
-
-
-export default function ViewsSection({ propertyId }: Props) {
+export default function ViewsSection({ propertyId, roomId }: Props) {
   const [views, setViews] = useState<ViewWithProperty[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchViews = useCallback(async () => {
     try {
-      const response = await fetch(`/api/views?propertyId=${propertyId}`)
+      const params = new URLSearchParams()
+      if (propertyId) params.append('propertyId', propertyId)
+      if (roomId) params.append('roomId', roomId)
+
+      const response = await fetch(`/api/views?${params.toString()}`)
       if (response.ok) {
         const data = await response.json()
         setViews(data.views)
@@ -31,7 +34,7 @@ export default function ViewsSection({ propertyId }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [propertyId])
+  }, [propertyId, roomId])
 
   useEffect(() => {
     fetchViews()
@@ -64,7 +67,7 @@ export default function ViewsSection({ propertyId }: Props) {
             className='bg-(--error-main)!'
           />
 
-          <AddViewDialog propertyId={propertyId} onSuccess={handleRefresh} />
+          <AddViewDialog propertyId={propertyId} roomId={roomId} onSuccess={handleRefresh} />
         </div>
       </div>
 

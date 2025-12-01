@@ -13,10 +13,11 @@ import { Payment } from '@/types'
 import TableSectionSkeleton from './loading-ui/table-section-skeleton'
 
 type Props = {
-  propertyId: string
+  propertyId?: string
+  roomId?: string
 }
 
-export default function PaymentsSection({ propertyId }: Props) {
+export default function PaymentsSection({ propertyId, roomId }: Props) {
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -64,7 +65,10 @@ export default function PaymentsSection({ propertyId }: Props) {
 
   const fetchPayments = useCallback(async () => {
     try {
-      const response = await fetch(`/api/payments?propertyId=${propertyId}`)
+      const params = new URLSearchParams()
+      if (propertyId) params.append('propertyId', propertyId)
+      if (roomId) params.append('roomId', roomId)
+      const response = await fetch(`/api/payments?${params.toString()}`)
       if (response.ok) {
         const data = await response.json()
         setPayments(data)
@@ -74,7 +78,7 @@ export default function PaymentsSection({ propertyId }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [propertyId])
+  }, [propertyId, roomId])
 
   useEffect(() => {
     fetchPayments()
@@ -118,7 +122,7 @@ export default function PaymentsSection({ propertyId }: Props) {
             className='bg-(--error-main)!'
           />
 
-          <Link href='#'>
+          <Link href='/payments/add-payment'>
             <CustomButton
               icon={<AddButtonIcon className='text-neutral-300' />}
               label='Add Payment'

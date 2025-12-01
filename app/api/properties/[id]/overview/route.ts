@@ -30,15 +30,18 @@ export async function GET(
     }
 
     // Fetch active lease for this property (Current or Scheduled)
+    // Only get property-level leases (room_id is null), not room leases
     const lease = await prisma.leases.findFirst({
       where: {
         property_id: propertyId,
+        room_id: null, // Property-level lease only
         status: {
           in: ['Current', 'Scheduled']
         }
       },
       select: {
         id: true,
+        reference_id: true,
         monthly_rent: true,
         payment_day: true,
         start_date: true,
@@ -177,6 +180,7 @@ export async function GET(
 
       leaseData = {
         id: lease.id,
+        reference_id: lease.reference_id,
         monthly_rent: lease.monthly_rent,
         due_date: calculateNextDueDate(lease.payment_day),
         tenant: {

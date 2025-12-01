@@ -1,5 +1,5 @@
 'use client'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tab, TabGroup } from '@/components/costume-ui/tab'
 import Breadcrumb from '@/components/costume-ui/breadcrumb'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useParams } from 'next/navigation'
 import { Property } from '@/types'
 import { propertiesData } from '@/utils/data'
@@ -24,6 +25,11 @@ type Props = {
 }
 const WithHeadSectionLayout = ({ children }: Props) => {
   const router = useRouter()
+
+  const { id: propertyId } = useParams<{ id: string }>()
+  const [propertyCode, setPropertyCode] = useState<string | null>(null)
+  const [isPropertyCodeLoading, setIsPropertyCodeLoading] =
+    useState<boolean>(true)
 
   const pathname = usePathname()
   const segments = pathname.split('/')
@@ -62,7 +68,20 @@ const WithHeadSectionLayout = ({ children }: Props) => {
     }
   ])
 
- 
+  // Fetch property code
+  useEffect(() => {
+    const fetchPropertyCode = async () => {
+      setIsPropertyCodeLoading(true)
+      const response = await fetch(`/api/leases/${propertyId}/property-code`)
+      if (response.ok) {
+        setIsPropertyCodeLoading(false)
+        const data = await response.json()
+        setPropertyCode(data.property)
+      }
+    }
+
+    fetchPropertyCode()
+  }, [propertyId])
 
   const handleTabClick = (index: number) => {
     const route = routes[index]
@@ -77,20 +96,31 @@ const WithHeadSectionLayout = ({ children }: Props) => {
         <Breadcrumb
           items={[
             { label: 'Properties', href: '/properties' },
-            { label: propertyData?.code }
+            { label: propertyCode }
           ]}
+          isLoading={isPropertyCodeLoading}
+          crumbSkeletonWidth='w-33'
         />
+
         <div className={cn('flex justify-between items-center', 'w-full')}>
           <div className='flex items-center gap-2.5'>
-            <span className='w-12 h-12 rounded-full overflow-hidden'>
-              <Image
-                src={'/images/property-image-placeholder.png'}
-                height={48}
-                width={48}
-                alt='Property Placeholder'
-              />
-            </span>
-            <h1>{propertyData?.code}</h1>
+            {isPropertyCodeLoading ? (
+              <Skeleton className='w-12 h-12 rounded-full bg-neutral-300' />
+            ) : (
+              <span className='w-12 h-12 rounded-full overflow-hidden'>
+                <Image
+                  src={'/images/property-image-placeholder.png'}
+                  height={48}
+                  width={48}
+                  alt='Property Placeholder'
+                />
+              </span>
+            )}
+            {isPropertyCodeLoading ? (
+              <Skeleton className='h-7 w-40 bg-neutral-300' />
+            ) : (
+              <h1>{propertyCode}</h1>
+            )}
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -106,19 +136,27 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <TabGroup>
-          {tabs.map((tab, index) => (
-            <Tab
-              key={index}
-              label={tab.label}
-              isSelected={tab.isSelected}
-              onClick={() => {
-                selectByIndex(index)
-                handleTabClick(index)
-              }}
-            />
-          ))}
-        </TabGroup>
+        {isPropertyCodeLoading ? (
+          <div className='flex gap-6'>
+            {tabs.map((_, index) => (
+              <Skeleton key={index} className='h-5 w-16 bg-neutral-300' />
+            ))}
+          </div>
+        ) : (
+          <TabGroup>
+            {tabs.map((tab, index) => (
+              <Tab
+                key={index}
+                label={tab.label}
+                isSelected={tab.isSelected}
+                onClick={() => {
+                  selectByIndex(index)
+                  handleTabClick(index)
+                }}
+              />
+            ))}
+          </TabGroup>
+        )}
       </section>
       <section className='flex flex-col gap-5 -mx-7.5 -mb-7.5 p-7.5 py-5 bg-(--background-tertiary) min-h-full h-fit'>
         {children}

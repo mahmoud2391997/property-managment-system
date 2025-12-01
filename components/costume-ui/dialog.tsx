@@ -23,6 +23,8 @@ type props = {
   cancelButtonLabel?: string
   className?: string
   loading?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 export default function Dialog ({
   children,
@@ -32,10 +34,12 @@ export default function Dialog ({
   saveButtonLabel,
   cancelButtonLabel,
   className = '',
-  loading = false
+  loading = false,
+  open,
+  onOpenChange
 }: props) {
   return (
-    <ShadcnDialog>
+    <ShadcnDialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{openDialogButton}</DialogTrigger>
       <DialogContent className={`py-0! px-0! overflow-auto! sm:max-w-[425px] max-h-[calc(100vh-5rem)] flex flex-col ${className}`}>
         <DialogHeader className='gap-0 px-7 py-2.5!  border-b border-(--border-strong)'>

@@ -70,7 +70,7 @@ export async function updateSession(request: NextRequest) {
 
     // Check if user is tenant trying to access restricted pages
     if (userType === 'tenant') {
-      const tenantAllowedPaths = ['/payments', '/api', '/unauthorized']
+      const tenantAllowedPaths = ['/payments', '/tickets', '/api', '/unauthorized']
       const isRootPath = request.nextUrl.pathname === '/'
       const isAllowedForTenant = isRootPath || tenantAllowedPaths.some(path =>
         request.nextUrl.pathname.startsWith(path)

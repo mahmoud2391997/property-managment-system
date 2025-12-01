@@ -46,6 +46,8 @@ const AddPayment = () => {
   const [charges, setCharges] = useState<any[]>([])
   const [recurringConfig, setRecurringConfig] = useState<any>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [excludedChargeTypes, setExcludedChargeTypes] = useState<string[]>([])
+  const [loadingUsedCharges, setLoadingUsedCharges] = useState(false)
 
   // Alert state
   const [alertOpen, setAlertOpen] = useState(false)
@@ -266,6 +268,53 @@ const AddPayment = () => {
     fetchActiveRooms()
   }, [selectedPropertyIdForRoomFilter, selectedTenantId, isRoomRented])
 
+  // Fetch used charge types for lease_initial_charges payment type
+  // This prevents duplicate charge types from being added
+  useEffect(() => {
+    const isLeaseInitialCharges = paymentType.type === 'Lease_Initial_Charges'
+
+    if (!isLeaseInitialCharges) {
+      // For non-lease_initial_charges types, no exclusions needed
+      setExcludedChargeTypes([])
+      return
+    }
+
+    // For lease_initial_charges, always exclude 'First Month Rental' (handled in lease creation)
+    const baseExclusions = ['First Month Rental']
+
+    if (!selectedLeaseReferenceId) {
+      // No lease selected yet, only exclude First Month Rental
+      setExcludedChargeTypes(baseExclusions)
+      return
+    }
+
+    // Fetch used charge types for this lease
+    const fetchUsedChargeTypes = async () => {
+      setLoadingUsedCharges(true)
+      try {
+        const response = await fetch(
+          `/api/payments/lease-initial-charges?lease_reference_id=${selectedLeaseReferenceId}`
+        )
+        if (!response.ok) throw new Error('Failed to fetch used charges')
+        const data = await response.json()
+
+        // Combine base exclusions with already used charge types
+        const allExclusions = [
+          ...new Set([...baseExclusions, ...data.usedChargeTitles])
+        ]
+        setExcludedChargeTypes(allExclusions)
+      } catch (error) {
+        console.error('Error fetching used charge types:', error)
+        // On error, at least exclude First Month Rental
+        setExcludedChargeTypes(baseExclusions)
+      } finally {
+        setLoadingUsedCharges(false)
+      }
+    }
+
+    fetchUsedChargeTypes()
+  }, [selectedLeaseReferenceId, paymentType.type])
+
   return (
     <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
       {/* Head section */}
@@ -418,6 +467,8 @@ const AddPayment = () => {
         flowType='income'
         selectable={selectable}
         onChargesChange={setCharges}
+        excludedChargeTypes={selectable ? excludedChargeTypes : []}
+        allChargesSelectable={selectable}
       />
 
       {/* Payment Details */}

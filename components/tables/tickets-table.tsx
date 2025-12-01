@@ -13,6 +13,7 @@ import {
   useReactTable
 } from '@tanstack/react-table'
 import { MoreHorizontal } from 'lucide-react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -25,7 +26,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Table } from '../costume-ui/table'
 import { Ticket } from '@/types'
-import { ticketsData } from '@/utils/data'
 import { cn } from '@/lib/utils'
 import { UserAvatar } from '../costume-ui/name-avatar'
 import Tooltip from '../costume-ui/tooltip'
@@ -60,11 +60,16 @@ export const columns: ColumnDef<Ticket>[] = [
     accessorKey: 'type',
     header: () => <div className='text-left'>Ticket</div>,
     cell: ({ row }) => {
-      const { id, type } = row.original
+      const { id, ticket_id, type } = row.original
 
       return (
         <div>
-          <div className='text-left texts-table-cell-primary'>{'#' + id}</div>
+          <Link
+            href={`/tickets/${ticket_id}`}
+            className='text-left texts-table-cell-primary text-blue-600 hover:text-blue-800 hover:underline'
+          >
+            {'#' + id}
+          </Link>
           <div className='text-left texts-table-cell-secondary text-(--text-secondary)'>
             {type}
           </div>
@@ -194,7 +199,7 @@ export const columns: ColumnDef<Ticket>[] = [
     header: 'Actions',
     enableHiding: false,
     cell: ({ row }) => {
-      const property = row.original
+      const ticket = row.original
 
       return (
         <DropdownMenu>
@@ -207,13 +212,14 @@ export const columns: ColumnDef<Ticket>[] = [
           <DropdownMenuContent align='end'>
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(property.id)}
+              onClick={() => navigator.clipboard.writeText(ticket.id)}
             >
-              Copy payment ID
+              Copy ticket ID
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>View customer</DropdownMenuItem>
-            <DropdownMenuItem>View payment details</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/tickets/${ticket.ticket_id}`}>View ticket details</Link>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )
@@ -221,6 +227,11 @@ export const columns: ColumnDef<Ticket>[] = [
   }
 ]
 
-export default function OwnersTable () {
-  return <Table columns={columns} data={ticketsData} />
+type Props = {
+  data: Ticket[]
+  onDataRefresh?: () => void
+}
+
+export default function TicketsTable({ data, onDataRefresh }: Props) {
+  return <Table columns={columns} data={data} />
 }

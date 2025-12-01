@@ -18,6 +18,7 @@ import {
 import { Table } from '../costume-ui/table'
 import { cn } from '@/lib/utils'
 import { RoomWithProperty } from '@/types'
+import Link from 'next/link'
 
 export const columns: ColumnDef<RoomWithProperty>[] = [
   //Checkbox
@@ -48,7 +49,15 @@ export const columns: ColumnDef<RoomWithProperty>[] = [
     accessorKey: 'title',
     header: () => <div className='text-left'>Title</div>,
     cell: ({ row }) => {
-      return <div className='text-left'>{row.getValue('title')}</div>
+      const room = row.original
+      return (
+        <Link
+          href={`/rooms/${room.id}/overview`}
+          className='text-left hover:underline hover:text-primary-main transition-colors'
+        >
+          {row.getValue('title')}
+        </Link>
+      )
     }
   },
 
@@ -92,7 +101,7 @@ export const columns: ColumnDef<RoomWithProperty>[] = [
     header: 'Actions',
     enableHiding: false,
     cell: ({ row }) => {
-      const property = row.original
+      const room = row.original
 
       return (
         <DropdownMenu>
@@ -105,13 +114,15 @@ export const columns: ColumnDef<RoomWithProperty>[] = [
           <DropdownMenuContent align='end'>
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(property.id)}
+              onClick={() => navigator.clipboard.writeText(room.id)}
             >
-              Copy payment ID
+              Copy room ID
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>View customer</DropdownMenuItem>
-            <DropdownMenuItem>View payment details</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/rooms/${room.id}/overview`}>View room details</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem>Edit room</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )

@@ -11,9 +11,10 @@ interface FileData {
 
 interface UploadFileProps {
   onFileChange?: (file: File | null) => void;
+  maxSizeMB?: number;
 }
 
-export default function UploadFile({ onFileChange }: UploadFileProps) {
+export default function UploadFile({ onFileChange, maxSizeMB = 1 }: UploadFileProps) {
   const [file, setFile] = useState<FileData | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,10 +47,10 @@ export default function UploadFile({ onFileChange }: UploadFileProps) {
       return;
     }
 
-    // Validate file size (max 1MB = 1048576 bytes)
-    const maxSize = 1 * 1024 * 1024; // 1MB in bytes
+    // Validate file size
+    const maxSize = maxSizeMB * 1024 * 1024; // Convert MB to bytes
     if (newFile.size > maxSize) {
-      toast.error('File size exceeds 1MB. Please choose a smaller file.');
+      toast.error(`File size exceeds ${maxSizeMB}MB. Please choose a smaller file.`);
       return;
     }
 
@@ -98,7 +99,7 @@ export default function UploadFile({ onFileChange }: UploadFileProps) {
                 <p className="text-base font-medium text-gray-700">
                   {isDragging ? 'Drop file here' : 'Drop receipt here or click to browse'}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">Supports JPG, PNG, GIF, PDF (Max 1MB)</p>
+                <p className="text-sm text-gray-500 mt-1">Supports JPG, PNG, GIF, PDF (Max {maxSizeMB}MB)</p>
               </div>
             </div>
           </div>

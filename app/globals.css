@@ -6,6 +6,12 @@
 
 @import 'react-international-phone/style.css';
 
+/* Fix phone input dropdown to not take space in layout */
+.react-international-phone-country-selector-dropdown {
+  position: absolute !important;
+  z-index: 50 !important;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',

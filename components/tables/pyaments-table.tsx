@@ -3,7 +3,7 @@
 import {
   ColumnDef
 } from '@tanstack/react-table'
-import { MoreHorizontal, ChevronRight, ChevronDown } from 'lucide-react'
+import { MoreHorizontal, ChevronRight, ChevronDown, Calendar, Building2, Repeat, CreditCard, History, Banknote, Wallet, Globe, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -18,7 +18,6 @@ import Tooltip from '../costume-ui/tooltip'
 import { Payment } from '@/types'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/utils/formatTime'
-import { Repeat } from 'lucide-react'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { Progress } from '../ui/progress'
 import { Table } from '../costume-ui/table'
@@ -29,6 +28,15 @@ import Swal from 'sweetalert2'
 import LogPaymentDialog from '../dialogs/log-payment-dialog'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 import { FeedbackToasts } from '../costume-ui/feedback-toast'
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer'
+import { PaymentHistory } from '@/types'
+import { Skeleton } from '@/components/ui/skeleton'
+import TimestampWithTooltip from '../costume-ui/timestamp-with-tooltip'
 
 type Props = {
   data: Payment[]
@@ -79,6 +87,42 @@ export default function PaymentsTable ({ data, showPropertyColumn = true, classN
   const [refreshingPaymentId, setRefreshingPaymentId] = useState<string | null>(null)
   const [isDeletingPayment, setIsDeletingPayment] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+
+  // Mobile payment history bottom sheet state
+  const [historySheetOpen, setHistorySheetOpen] = useState(false)
+  const [historySheetPaymentId, setHistorySheetPaymentId] = useState<string | null>(null)
+  const [historyData, setHistoryData] = useState<PaymentHistory[]>([])
+  const [historyDueDate, setHistoryDueDate] = useState<string | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState<string | null>(null)
+
+  // Function to open payment history bottom sheet
+  const openPaymentHistory = async (paymentId: string) => {
+    setHistorySheetPaymentId(paymentId)
+    setHistorySheetOpen(true)
+    setHistoryLoading(true)
+    setHistoryError(null)
+
+    try {
+      const response = await fetch(`/api/payments/${paymentId}/history`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch payment history')
+      }
+      const data = await response.json()
+      setHistoryData(data.payment_history || [])
+      setHistoryDueDate(data.due_date || null)
+    } catch (err: any) {
+      setHistoryError(err.message)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  // Helper to determine if payment was on-time or late
+  const getTimingStatus = (paidAt: string): 'On-Time' | 'Late' => {
+    if (!historyDueDate) return 'On-Time'
+    return new Date(paidAt) <= new Date(historyDueDate) ? 'On-Time' : 'Late'
+  }
 
   const handleLogPayment = async (paymentId: string) => {
     try {
@@ -444,7 +488,29 @@ export default function PaymentsTable ({ data, showPropertyColumn = true, classN
       accessorKey: 'amount',
       header: () => <div className='text-left'>Amount</div>,
       cell: ({ row }) => {
-        const { amount, due_date, payment_percentage, latest_payment_timestamp } = row.original
+        const { amount, due_date, payment_percentage, latest_payment_timestamp, status } = row.original
+
+        // Check if cancelled first
+        if (status === 'Cancelled') {
+          return (
+            <>
+              <div className='texts-body-large-medium text-left mb-1'>
+                {formatCurrency(amount)}
+              </div>
+              <div className='texts-table-cell-primary text-left'>
+                <div
+                  data-status='cancelled'
+                  className={cn(
+                    'status-styles',
+                    'bg-neutral-200 text-neutral-600'
+                  )}
+                >
+                  Cancelled
+                </div>
+              </div>
+            </>
+          )
+        }
 
         // Calculate display status based on due date and payment
         const now = new Date()
@@ -526,6 +592,7 @@ export default function PaymentsTable ({ data, showPropertyColumn = true, classN
         const payment = row.original
         // Enable button if: payment not 100% OR has pending payments to check
         const hasRemainingAmount = payment.payment_percentage < 100 || payment.has_pending_payments
+        const isCancelled = payment.status === 'Cancelled'
 
         return (
           <DropdownMenu>
@@ -542,67 +609,69 @@ export default function PaymentsTable ({ data, showPropertyColumn = true, classN
               >
                 Copy payment ID
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {userType === 'staff' ? (
+              {!isCancelled && (
                 <>
-                  <DropdownMenuItem>View customer</DropdownMenuItem>
-                  <DropdownMenuItem>View payment details</DropdownMenuItem>
-                  <LogPaymentDialog
-                    paymentId={payment.id}
-                    paymentReferenceId={payment.id}
-                    maxAmount={payment.amount * (1 - payment.payment_percentage / 100)}
-                    trigger={
-                      <DropdownMenuItem
-                        disabled={!hasRemainingAmount}
-                        onSelect={(e) => e.preventDefault()}
-                      >
-                        Log payment
-                      </DropdownMenuItem>
-                    }
-                    onSuccess={() => {
-                      setRefreshingPaymentId(payment.id)
-                      onDataRefresh?.()
-                      // Clear refreshing state after a short delay to allow data to update
-                      setTimeout(() => setRefreshingPaymentId(null), 1500)
-                    }}
-                  />
-                  <DropdownMenuItem
-                    disabled={!hasRemainingAmount || isCheckingStatus === payment.id}
-                    onClick={() => handleCheckStatus(payment.id)}
-                  >
-                    {isCheckingStatus === payment.id ? 'Checking...' : 'Check payment status'}
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <ConfirmationDialog
-                    openDialogButton={
+                  {userType === 'staff' ? (
+                    <>
+                      <LogPaymentDialog
+                        paymentId={payment.id}
+                        paymentReferenceId={payment.id}
+                        maxAmount={payment.amount * (1 - payment.payment_percentage / 100)}
+                        trigger={
+                          <DropdownMenuItem
+                            disabled={!hasRemainingAmount}
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            Log payment
+                          </DropdownMenuItem>
+                        }
+                        onSuccess={() => {
+                          setRefreshingPaymentId(payment.id)
+                          onDataRefresh?.()
+                          // Clear refreshing state after a short delay to allow data to update
+                          setTimeout(() => setRefreshingPaymentId(null), 1500)
+                        }}
+                      />
                       <DropdownMenuItem
-                        className='text-red-600 focus:text-red-600'
-                        disabled={payment.payment_percentage > 0 || isDeletingPayment === payment.id}
-                        onSelect={(e) => e.preventDefault()}
+                        disabled={!hasRemainingAmount || isCheckingStatus === payment.id}
+                        onClick={() => handleCheckStatus(payment.id)}
                       >
-                        Delete payment
+                        {isCheckingStatus === payment.id ? 'Checking...' : 'Check payment status'}
                       </DropdownMenuItem>
-                    }
-                    title='Delete Payment'
-                    description={`Are you sure you want to delete payment ${payment.id}? This action cannot be undone.`}
-                    onConfirm={() => handleDeletePayment(payment.id)}
-                    loading={deleteLoading}
-                  />
-                </>
-              ) : (
-                <>
-                  <DropdownMenuItem
-                    disabled={!hasRemainingAmount || isProcessingPayment === payment.id}
-                    onClick={() => handleLogPayment(payment.id)}
-                  >
-                    {isProcessingPayment === payment.id ? 'Processing...' : 'Pay now'}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={!payment.has_pending_payments || isCheckingStatus === payment.id}
-                    onClick={() => handleCheckStatus(payment.id)}
-                  >
-                    {isCheckingStatus === payment.id ? 'Checking...' : 'Check payment status'}
-                  </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <ConfirmationDialog
+                        openDialogButton={
+                          <DropdownMenuItem
+                            className='text-red-600 focus:text-red-600'
+                            disabled={payment.payment_percentage > 0 || isDeletingPayment === payment.id}
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            Delete payment
+                          </DropdownMenuItem>
+                        }
+                        title='Delete Payment'
+                        description={`Are you sure you want to delete payment ${payment.id}? This action cannot be undone.`}
+                        onConfirm={() => handleDeletePayment(payment.id)}
+                        loading={deleteLoading}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem
+                        disabled={!hasRemainingAmount || isProcessingPayment === payment.id}
+                        onClick={() => handleLogPayment(payment.id)}
+                      >
+                        {isProcessingPayment === payment.id ? 'Processing...' : 'Pay now'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!payment.has_pending_payments || isCheckingStatus === payment.id}
+                        onClick={() => handleCheckStatus(payment.id)}
+                      >
+                        {isCheckingStatus === payment.id ? 'Checking...' : 'Check payment status'}
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </>
               )}
             </DropdownMenuContent>
@@ -612,24 +681,456 @@ export default function PaymentsTable ({ data, showPropertyColumn = true, classN
     }
   ]
 
+  // Helper function to get display status
+  const getDisplayStatus = (payment: Payment) => {
+    // Check if cancelled first
+    if (payment.status === 'Cancelled') {
+      return 'Cancelled'
+    }
+
+    const now = new Date()
+    const dueDate = payment.due_date ? new Date(payment.due_date) : null
+    const isFullyPaid = payment.payment_percentage >= 100
+    const isOverdue = dueDate ? now > dueDate : false
+    const latestPaymentDate = payment.latest_payment_timestamp ? new Date(payment.latest_payment_timestamp) : null
+
+    if (isFullyPaid) {
+      return (dueDate && latestPaymentDate && latestPaymentDate > dueDate) ? 'Paid Late' : 'Paid'
+    }
+    return isOverdue ? 'Overdue' : 'Pending'
+  }
+
+  // Mobile Card Component
+  const PaymentCard = ({ payment }: { payment: Payment }) => {
+    const displayStatus = getDisplayStatus(payment)
+    const statusKey = displayStatus.toLowerCase().replace(/\s/g, '-')
+    const remainingAmount = payment.amount * ((100 - payment.payment_percentage) / 100)
+    const hasRemainingAmount = payment.payment_percentage < 100 || payment.has_pending_payments
+    const patternKey = payment.recurring_pattern.toLowerCase().replace(/\s/g, '-')
+
+    return (
+      <div className={cn(
+        'bg-(--background-primary) rounded-xl border border-(--border-default)',
+        'p-4 space-y-3',
+        refreshingPaymentId === payment.id && 'opacity-50'
+      )}>
+        {/* Header: ID, Status, Actions */}
+        <div className='flex items-start justify-between'>
+          <div className='flex-1'>
+            <div className='flex items-center gap-2 mb-1'>
+              <span className='texts-body-medium-semibold text-(--text-primary)'>
+                #{payment.id}
+              </span>
+              <div
+                data-status={statusKey}
+                className={cn(
+                  'px-2 py-0.5 rounded-full text-xs font-medium',
+                  'data-[status=paid]:bg-green-100 data-[status=paid]:text-green-800',
+                  'data-[status=paid-late]:bg-yellow-100 data-[status=paid-late]:text-yellow-800',
+                  'data-[status=pending]:bg-gray-100 data-[status=pending]:text-gray-800',
+                  'data-[status=overdue]:bg-red-100 data-[status=overdue]:text-red-800',
+                  'data-[status=cancelled]:bg-neutral-200 data-[status=cancelled]:text-neutral-600'
+                )}
+              >
+                {displayStatus}
+              </div>
+            </div>
+            <span className='texts-caption-large text-(--text-secondary)'>{payment.type}</span>
+          </div>
+
+          {/* Actions Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant='ghost' className='h-8 w-8 p-0'>
+                <MoreHorizontal strokeWidth={1.5} className='w-5 h-5' />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align='end'>
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(payment.id)}>
+                Copy payment ID
+              </DropdownMenuItem>
+              {payment.status !== 'Cancelled' && (
+                <>
+                  <DropdownMenuSeparator />
+                  {userType === 'staff' ? (
+                    <>
+                      <LogPaymentDialog
+                        paymentId={payment.id}
+                        paymentReferenceId={payment.id}
+                        maxAmount={payment.amount * (1 - payment.payment_percentage / 100)}
+                        trigger={
+                          <DropdownMenuItem
+                            disabled={!hasRemainingAmount}
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            Log payment
+                          </DropdownMenuItem>
+                        }
+                        onSuccess={() => {
+                          setRefreshingPaymentId(payment.id)
+                          onDataRefresh?.()
+                          setTimeout(() => setRefreshingPaymentId(null), 1500)
+                        }}
+                      />
+                      <DropdownMenuItem
+                        disabled={!hasRemainingAmount || isCheckingStatus === payment.id}
+                        onClick={() => handleCheckStatus(payment.id)}
+                      >
+                        {isCheckingStatus === payment.id ? 'Checking...' : 'Check payment status'}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <ConfirmationDialog
+                        openDialogButton={
+                          <DropdownMenuItem
+                            className='text-red-600 focus:text-red-600'
+                            disabled={payment.payment_percentage > 0 || isDeletingPayment === payment.id}
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            Delete payment
+                          </DropdownMenuItem>
+                        }
+                        title='Delete Payment'
+                        description={`Are you sure you want to delete payment ${payment.id}? This action cannot be undone.`}
+                        onConfirm={() => handleDeletePayment(payment.id)}
+                        loading={deleteLoading}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem
+                        disabled={!hasRemainingAmount || isProcessingPayment === payment.id}
+                        onClick={() => handleLogPayment(payment.id)}
+                      >
+                        {isProcessingPayment === payment.id ? 'Processing...' : 'Pay now'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!payment.has_pending_payments || isCheckingStatus === payment.id}
+                        onClick={() => handleCheckStatus(payment.id)}
+                      >
+                        {isCheckingStatus === payment.id ? 'Checking...' : 'Check payment status'}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Amount - Prominent display */}
+        <div className='flex items-baseline gap-2'>
+          <span className='text-2xl font-semibold text-(--text-primary)'>
+            {formatCurrency(payment.amount)}
+          </span>
+          <div
+            data-pattern={patternKey}
+            className={cn(
+              'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs',
+              'data-[pattern=one-time]:bg-neutral-100 data-[pattern=one-time]:text-(--text-secondary)',
+              'data-[pattern=recurring]:bg-(--info-light) data-[pattern=recurring]:text-(--info-main)'
+            )}
+          >
+            {patternKey === 'recurring' && <Repeat strokeWidth={2} size={10} />}
+            {payment.recurring_pattern}
+          </div>
+        </div>
+
+        {/* Info Grid */}
+        <div className='grid grid-cols-2 gap-3'>
+          {/* Property */}
+          {showPropertyColumn && (
+            <div className='flex items-start gap-2'>
+              <Building2 className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
+              <div className='min-w-0'>
+                <div className='texts-caption-small text-(--text-secondary)'>Property</div>
+                <div className='texts-body-small-medium text-(--text-primary) truncate'>{payment.property}</div>
+                <div className='texts-caption-small text-(--text-secondary) truncate'>{payment.room}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Due Date */}
+          <div className='flex items-start gap-2'>
+            <Calendar className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
+            <div className='min-w-0'>
+              <div className='texts-caption-small text-(--text-secondary)'>Due Date</div>
+              <div className='texts-body-small-medium text-(--text-primary)'>{formatDate(payment.due_date)}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Progress */}
+        <div className='pt-2 border-t border-(--border-default)'>
+          <div className='flex items-center justify-between mb-2'>
+            <div className='flex items-center gap-1.5'>
+              <CreditCard className='w-4 h-4 text-(--text-secondary)' />
+              <span className='texts-caption-large text-(--text-primary) font-medium'>
+                {payment.payment_percentage}% Paid
+              </span>
+            </div>
+            <span className='texts-caption-small text-(--text-secondary)'>
+              {formatCurrency(remainingAmount)} remaining
+            </span>
+          </div>
+          <Progress value={payment.payment_percentage} className='h-2' />
+        </div>
+
+        {/* Quick Action Button for Mobile */}
+        {userType === 'tenant' && hasRemainingAmount && payment.status !== 'Cancelled' && (
+          <Button
+            className='w-full mt-2'
+            disabled={isProcessingPayment === payment.id}
+            onClick={() => handleLogPayment(payment.id)}
+          >
+            {isProcessingPayment === payment.id ? 'Processing...' : 'Pay Now'}
+          </Button>
+        )}
+
+        {/* View History Button - only show if there's payment history */}
+        {payment.payment_percentage > 0 && (
+          <button
+            onClick={() => openPaymentHistory(payment.id)}
+            className={cn(
+              'w-full flex items-center justify-center gap-2 py-2.5 mt-2',
+              'text-sm font-medium text-(--text-secondary)',
+              'bg-(--background-secondary) hover:bg-neutral-200/70',
+              'rounded-lg transition-colors'
+            )}
+          >
+            <History className='w-4 h-4' />
+            View Payment History
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  // Mobile Payment History Bottom Sheet Content
+  const MobilePaymentHistorySheet = () => {
+    const currentPayment = data.find(p => p.id === historySheetPaymentId)
+
+    return (
+      <Drawer open={historySheetOpen} onOpenChange={setHistorySheetOpen}>
+        <DrawerContent
+          className={cn(
+            'px-0 pb-8',
+            'h-[85vh] max-h-[85vh]',
+            'flex flex-col'
+          )}
+        >
+          <DrawerHeader className='px-4 pb-4 border-b border-(--border-default) shrink-0'>
+            <div className='flex items-center justify-between'>
+              <div>
+                <DrawerTitle className='text-left'>Payment History</DrawerTitle>
+                {currentPayment && (
+                  <p className='text-sm text-(--text-secondary) mt-1'>
+                    #{currentPayment.id} · {currentPayment.type}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setHistorySheetOpen(false)}
+                className='p-2 hover:bg-neutral-100 rounded-full transition-colors'
+              >
+                <X className='w-5 h-5 text-(--text-secondary)' />
+              </button>
+            </div>
+          </DrawerHeader>
+
+          <div className='flex-1 overflow-auto px-4 pt-4 min-h-0'>
+            {historyLoading ? (
+              // Loading skeleton
+              <div className='space-y-3'>
+                {[1, 2].map((i) => (
+                  <div key={i} className='bg-(--background-secondary) rounded-lg p-4'>
+                    <div className='flex justify-between items-start mb-3'>
+                      <Skeleton className='h-5 w-24 bg-neutral-200/70' />
+                      <Skeleton className='h-5 w-16 bg-neutral-200/70 rounded-full' />
+                    </div>
+                    <Skeleton className='h-4 w-32 bg-neutral-200/50 mb-2' />
+                    <Skeleton className='h-4 w-40 bg-neutral-200/50' />
+                  </div>
+                ))}
+              </div>
+            ) : historyError ? (
+              // Error state
+              <div className='text-center py-8'>
+                <p className='text-red-600 mb-2'>Error loading history</p>
+                <p className='text-sm text-(--text-secondary)'>{historyError}</p>
+              </div>
+            ) : historyData.length === 0 ? (
+              // Empty state
+              <div className='text-center py-8'>
+                <History className='w-12 h-12 text-neutral-300 mx-auto mb-3' />
+                <p className='text-(--text-secondary)'>No payment history found</p>
+              </div>
+            ) : (
+              // Payment history list
+              <div className='space-y-3'>
+                {historyData.map((record) => {
+                  const timingStatus = getTimingStatus(record.paid_at)
+                  const statusKey = record.status.toLowerCase()
+
+                  return (
+                    <div
+                      key={record.id}
+                      className='bg-(--background-secondary) rounded-lg p-4'
+                    >
+                      {/* Header: Payment number & Status */}
+                      <div className='flex items-center justify-between mb-3'>
+                        <span className='font-medium text-(--text-primary)'>
+                          Payment #{record.payment_number}
+                        </span>
+                        <div className='flex items-center gap-2'>
+                          {record.status === 'Success' && (
+                            <span
+                              data-timing={timingStatus.toLowerCase()}
+                              className={cn(
+                                'px-2 py-0.5 rounded-full text-xs font-medium',
+                                'data-[timing=on-time]:bg-green-100 data-[timing=on-time]:text-green-800',
+                                'data-[timing=late]:bg-yellow-100 data-[timing=late]:text-yellow-800'
+                              )}
+                            >
+                              {timingStatus}
+                            </span>
+                          )}
+                          <span
+                            data-status={statusKey}
+                            className={cn(
+                              'px-2 py-0.5 rounded-full text-xs font-medium',
+                              'data-[status=success]:bg-green-100 data-[status=success]:text-green-800',
+                              'data-[status=pending]:bg-yellow-100 data-[status=pending]:text-yellow-800',
+                              'data-[status=failed]:bg-red-100 data-[status=failed]:text-red-800'
+                            )}
+                          >
+                            {record.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Amount */}
+                      <div className='flex items-center justify-between mb-2'>
+                        <span className='text-sm text-(--text-secondary)'>Amount Paid</span>
+                        <span className='font-semibold text-(--text-primary)'>
+                          {formatCurrency(record.amount_paid)}
+                        </span>
+                      </div>
+
+                      {/* Remaining */}
+                      <div className='flex items-center justify-between mb-2'>
+                        <span className='text-sm text-(--text-secondary)'>Remaining</span>
+                        <span className='text-(--text-primary)'>
+                          {formatCurrency(record.remaining_amount)}
+                        </span>
+                      </div>
+
+                      {/* Payment Method */}
+                      <div className='flex items-center justify-between mb-2'>
+                        <span className='text-sm text-(--text-secondary)'>Method</span>
+                        <div className='flex items-center gap-1.5'>
+                          {record.payment_method === 'Bank_Transfer' ? (
+                            <>
+                              <Banknote size={14} className='text-(--text-secondary)' />
+                              <span className='text-sm'>Bank Transfer</span>
+                            </>
+                          ) : record.payment_method === 'FPX' ? (
+                            <>
+                              <CreditCard size={14} className='text-(--text-secondary)' />
+                              <span className='text-sm'>FPX</span>
+                            </>
+                          ) : record.payment_method === 'Online_Payment' ? (
+                            <>
+                              <Globe size={14} className='text-(--text-secondary)' />
+                              <span className='text-sm'>Online Payment</span>
+                            </>
+                          ) : (
+                            <>
+                              <Wallet size={14} className='text-(--text-secondary)' />
+                              <span className='text-sm'>Cash</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Timestamp */}
+                      <div className='flex items-center justify-between pt-2 border-t border-(--border-default) mt-2'>
+                        <span className='text-sm text-(--text-secondary)'>Paid at</span>
+                        <TimestampWithTooltip
+                          timestamp={record.paid_at}
+                          className='text-sm text-(--text-secondary)'
+                        />
+                      </div>
+
+                      {/* View Receipt Button */}
+                      {record.payment_method === 'Bank_Transfer' && record.receipt_image && (
+                        <button
+                          onClick={() => window.open(record.receipt_image || '', '_blank')}
+                          className={cn(
+                            'w-full mt-3 py-2 text-sm font-medium',
+                            'text-(--info-main) bg-(--info-light)',
+                            'rounded-lg hover:opacity-80 transition-opacity'
+                          )}
+                        >
+                          View Receipt
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
+    )
+  }
+
   return (
     <>
       {loadingState && <LoadingOverlay state={loadingState} />}
-      <Table
-        columns={columns}
-        data={data}
-        className={className}
-        getRowCanExpand={(row) => row.original.payment_percentage > 0}
-        loadingRowId={refreshingPaymentId}
-        getRowId={(row) => row.id}
-        renderSubComponent={(row) => (
-          <PaymentHistoryRow
-            key={`history-${row.original.id}`}
-            referenceId={row.original.id}
-            isExpanded={row.getIsExpanded()}
-          />
+
+      {/* Mobile Payment History Bottom Sheet */}
+      <MobilePaymentHistorySheet />
+
+      {/* Desktop Table View */}
+      <div className='hidden md:block'>
+        <Table
+          columns={columns}
+          data={data}
+          className={className}
+          getRowCanExpand={(row) => row.original.payment_percentage > 0}
+          loadingRowId={refreshingPaymentId}
+          getRowId={(row) => row.id}
+          renderSubComponent={(row) => (
+            <PaymentHistoryRow
+              key={`history-${row.original.id}`}
+              referenceId={row.original.id}
+              isExpanded={row.getIsExpanded()}
+            />
+          )}
+        />
+      </div>
+
+      {/* Mobile Card View */}
+      <div className='md:hidden space-y-3'>
+        {data.length > 0 ? (
+          data.map((payment) => (
+            <PaymentCard key={payment.id} payment={payment} />
+          ))
+        ) : (
+          <div className='text-center py-12 text-(--text-secondary)'>
+            No payments found.
+          </div>
         )}
-      />
+
+        {/* Pagination info for mobile */}
+        {data.length > 0 && (
+          <div className='text-center py-4 texts-caption-large text-(--text-secondary)'>
+            Showing {data.length} payment{data.length !== 1 ? 's' : ''}
+          </div>
+        )}
+      </div>
     </>
   )
 }

@@ -50,7 +50,10 @@ const AddStaff = ({ onSuccess, onLoadingChange }: Props) => {
         setRoles(data.roles)
       } catch (err: any) {
         console.error('Error fetching roles:', err)
-        FeedbackToasts.operationFailed('Loading roles', 'Could not load roles from server')
+        FeedbackToasts.operationFailed(
+          'Loading roles',
+          'Could not load roles from server'
+        )
       } finally {
         setLoadingRoles(false)
       }
@@ -171,7 +174,11 @@ const AddStaff = ({ onSuccess, onLoadingChange }: Props) => {
               disabled={loading}
             />
           </InputGroup>
-          <InputGroup label='Phone Number' isRequired>
+          <InputGroup
+            label='Phone Number'
+            className='overflow-visible!'
+            isRequired
+          >
             <Input
               phoneNumber
               value={phoneNumber}

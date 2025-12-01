@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import CollapsibleSection from './collapsible-section'
 import InnerSection from './collapsible-inner-section'
 import RadioGroup from './radio-group'
@@ -7,6 +7,15 @@ import Input from './input'
 import { cn } from '@/lib/utils'
 import { CheckAddon } from './payment-section'
 
+export type DefaultReminderConfig = {
+  is_expiry_reminder?: boolean
+  expiry_days_before_reminder?: number | null
+  is_rent_reminder?: boolean
+  rent_reminder_days_before?: number | null
+  is_overdue_rent_reminder?: boolean
+  overdue_days_after_reminder?: number | null
+}
+
 type Props = {
   title: string
   sectionNumber: number
@@ -14,6 +23,7 @@ type Props = {
   onRentReminderChange?: (enabled: boolean, days: string) => void
   onOverdueReminderChange?: (enabled: boolean, days: string) => void
   defaultCollapse?: boolean
+  defaultReminders?: DefaultReminderConfig
 }
 
 const ReminderSection = ({
@@ -23,7 +33,9 @@ const ReminderSection = ({
   onRentReminderChange,
   onOverdueReminderChange,
   defaultCollapse = false,
+  defaultReminders
 }: Props) => {
+  const [remindersApplied, setRemindersApplied] = useState(false)
 
   const [activate, setActivate] = useState<{
     expiry: boolean
@@ -45,6 +57,38 @@ const ReminderSection = ({
     after: ''
   })
 
+  // Apply default reminders when they arrive (after async load)
+  useEffect(() => {
+    if (defaultReminders && !remindersApplied) {
+      const newActivate = {
+        expiry: defaultReminders.is_expiry_reminder ?? false,
+        before: defaultReminders.is_rent_reminder ?? false,
+        after: defaultReminders.is_overdue_rent_reminder ?? false
+      }
+      const newDays = {
+        expiry: defaultReminders.expiry_days_before_reminder?.toString() ?? '',
+        before: defaultReminders.rent_reminder_days_before?.toString() ?? '',
+        after: defaultReminders.overdue_days_after_reminder?.toString() ?? ''
+      }
+
+      setActivate(newActivate)
+      setDays(newDays)
+
+      // Notify parent of the defaults
+      if (newActivate.expiry || newDays.expiry) {
+        onLeaseExpiryChange?.(newActivate.expiry, newDays.expiry)
+      }
+      if (newActivate.before || newDays.before) {
+        onRentReminderChange?.(newActivate.before, newDays.before)
+      }
+      if (newActivate.after || newDays.after) {
+        onOverdueReminderChange?.(newActivate.after, newDays.after)
+      }
+
+      setRemindersApplied(true)
+    }
+  }, [defaultReminders, remindersApplied, onLeaseExpiryChange, onRentReminderChange, onOverdueReminderChange])
+
   const inputGroupEffect = (activate: boolean) => {
     return cn(
       'overflow-hidden transition-all duration-150 ease-out',
@@ -63,6 +107,7 @@ const ReminderSection = ({
             <RadioGroup
               defaultOption={1}
               options={['Yes', 'No']}
+              value={activate.expiry ? 0 : 1}
               onChange={value => {
                 const enabled = value === 0
                 setActivate(prev => ({ ...prev, expiry: enabled }))
@@ -95,6 +140,7 @@ const ReminderSection = ({
             <RadioGroup
               defaultOption={1}
               options={['Yes', 'No']}
+              value={activate.before ? 0 : 1}
               onChange={value => {
                 const enabled = value === 0
                 setActivate(prev => ({ ...prev, before: enabled }))
@@ -126,6 +172,7 @@ const ReminderSection = ({
             <RadioGroup
               defaultOption={1}
               options={['Yes', 'No']}
+              value={activate.after ? 0 : 1}
               onChange={value => {
                 const enabled = value === 0
                 setActivate(prev => ({ ...prev, after: enabled }))

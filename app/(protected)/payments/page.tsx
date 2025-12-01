@@ -197,21 +197,22 @@ const Payments = async () => {
           <h1>Payments</h1>
         </div>
         {/* Actions */}
-        <div className={cn('flex justify-between items-center', 'w-full')}>
+        <div className={cn('flex flex-col sm:flex-row justify-between sm:items-center gap-3', 'w-full')}>
           <SearchInput placeholder='Search payments' />
           {/* Buttons */}
           {userType === 'staff' && (
-            <div className={cn('flex items-center gap-2.5', 'py-5')}>
+            <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
               <Button
                 icon={<DeleteButtonIcon />}
                 label='Delete'
-                className='bg-(--error-main)!'
+                className='bg-(--error-main)! flex-1 sm:flex-none'
               />
 
-              <Link href='/payments/add-payment'>
+              <Link href='/payments/add-payment' className='flex-1 sm:flex-none'>
                 <Button
                   icon={<AddButtonIcon className='text-neutral-300' />}
                   label='Add Payment'
+                  className='w-full'
                 />
               </Link>
             </div>

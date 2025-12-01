@@ -8,50 +8,33 @@ import InputGroup from '@/components/costume-ui/input-group'
 import DatePicker from '@/components/costume-ui/date-picker'
 import Input from '@/components/costume-ui/input'
 import Combobox from '@/components/costume-ui/combobox'
-import PaymentSection, { LateCharge, PaymentStatusData } from '@/components/costume-ui/payment-section'
-import ReminderSection from '@/components/costume-ui/reminder-section'
+import PaymentSection, { DefaultPaymentConfig, LateCharge, PaymentStatusData } from '@/components/costume-ui/payment-section'
+import ReminderSection, { DefaultReminderConfig } from '@/components/costume-ui/reminder-section'
 import CollapsibleSection from '@/components/costume-ui/collapsible-section'
-import Select from '@/components/costume-ui/select'
-import { cn } from '@/lib/utils'
 import { ComboBoxitemsType } from '@/types'
 import { ChargeData } from '@/components/costume-ui/charges-section'
 import Alert from '@/components/costume-ui/alert'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Info } from 'lucide-react'
+import { Info, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { formatDate } from '@/utils/formatTime'
 
-// Helper to calculate end date
-const calculateEndDate = (
-  startDate: Date,
-  numberOfMonths: number,
-  leaveDay: number
-): Date => {
+// Helper to calculate end date (end date is start_date + number_of_months, same day of month)
+const calculateEndDate = (startDate: Date, numberOfMonths: number): Date => {
   const endDate = new Date(startDate)
   endDate.setMonth(endDate.getMonth() + numberOfMonths)
-  endDate.setDate(leaveDay)
   return endDate
-}
-
-// Helper to get ordinal suffix
-const getOrdinalSuffix = (day: number): string => {
-  if (day > 3 && day < 21) return 'th'
-  switch (day % 10) {
-    case 1:
-      return 'st'
-    case 2:
-      return 'nd'
-    case 3:
-      return 'rd'
-    default:
-      return 'th'
-  }
 }
 
 const AddLease = () => {
   const { id: propertyId } = useParams<{ id: string }>()
   const [propertyCode, setPropertyCode] = useState<string | null>(null)
   const [isPropertyCodeLoading, setIsPropertyCodeLoading] = useState<boolean>(true)
+
+  // Default config state
+  const [defaultConfigStatus, setDefaultConfigStatus] = useState<'loading' | 'loaded' | 'empty' | 'error'>('loading')
+  const [defaultPaymentConfig, setDefaultPaymentConfig] = useState<DefaultPaymentConfig | undefined>(undefined)
+  const [defaultReminderConfig, setDefaultReminderConfig] = useState<DefaultReminderConfig | undefined>(undefined)
 
   // Tenant state
   const [tenantItems, setTenantItems] = useState<ComboBoxitemsType[]>([])
@@ -62,8 +45,6 @@ const AddLease = () => {
   const [startDate, setStartDate] = useState<Date | undefined>(undefined)
   const [leaseDuration, setLeaseDuration] = useState<number | null>(null)
   const leaseHasDuration = leaseDuration !== null && leaseDuration > 0
-  const [leaveDay, setLeaveDay] = useState<number | null>(1)
-  const daysOfMonth: number[] = Array.from({ length: 28 }, (_, i) => i + 1)
 
   // Payment details state
   const [monthlyRent, setMonthlyRent] = useState<string>('')
@@ -128,6 +109,39 @@ const AddLease = () => {
     fetchPropertyCode()
   }, [propertyId])
 
+  // Fetch default configurations for this property
+  useEffect(() => {
+    const fetchDefaultConfig = async () => {
+      try {
+        const response = await fetch(`/api/properties/${propertyId}/default-config`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.hasDefaults) {
+            // Set payment config
+            setDefaultPaymentConfig({
+              monthlyRent: data.leaseConfig?.default_monthly_rent?.toString() || undefined,
+              paymentDay: data.leaseConfig?.default_payment_day || undefined,
+              initialCharges: data.initialCharges,
+              lateCharges: data.latePaymentCharges
+            })
+            // Set reminder config
+            setDefaultReminderConfig(data.leaseConfig || undefined)
+            setDefaultConfigStatus('loaded')
+          } else {
+            setDefaultConfigStatus('empty')
+          }
+        } else {
+          setDefaultConfigStatus('error')
+        }
+      } catch (error) {
+        console.error('Error fetching default config:', error)
+        setDefaultConfigStatus('error')
+      }
+    }
+
+    fetchDefaultConfig()
+  }, [propertyId])
+
   // Fetch tenants for organization
   useEffect(() => {
     const fetchTenants = async () => {
@@ -164,10 +178,6 @@ const AddLease = () => {
       return
     }
 
-    if (leaseHasDuration && !leaveDay) {
-      showAlert('Please select a leave day', 'warning')
-      return
-    }
 
     if (initialCharges.length === 0) {
       showAlert('Please add at least one initial charge', 'warning')
@@ -253,7 +263,6 @@ const AddLease = () => {
           tenant_id: selectedTenantId,
           start_date: formattedStartDate,
           number_of_months: leaseDuration,
-          leave_day: leaseHasDuration ? leaveDay : null,
           payment_day: paymentDay,
           monthly_rent: parseFloat(monthlyRent) || 0,
           // Reminders
@@ -314,6 +323,40 @@ const AddLease = () => {
         className='mb-7.5'
         isSubmitting={isSubmitting}
       />
+      {/* Default config loading feedback - non-blocking */}
+      <div className={`
+        flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-300
+        ${defaultConfigStatus === 'loading' ? 'bg-blue-50 text-blue-700' : ''}
+        ${defaultConfigStatus === 'loaded' ? 'bg-green-50 text-green-700' : ''}
+        ${defaultConfigStatus === 'empty' ? 'bg-neutral-100 text-neutral-600' : ''}
+        ${defaultConfigStatus === 'error' ? 'bg-red-50 text-red-700' : ''}
+      `}>
+        {defaultConfigStatus === 'loading' && (
+          <>
+            <Loader2 className='w-4 h-4 animate-spin' />
+            <span>Loading default configurations...</span>
+          </>
+        )}
+        {defaultConfigStatus === 'loaded' && (
+          <>
+            <CheckCircle2 className='w-4 h-4' />
+            <span>Default configurations applied</span>
+          </>
+        )}
+        {defaultConfigStatus === 'empty' && (
+          <>
+            <Info className='w-4 h-4' />
+            <span>No default configurations set for this property</span>
+          </>
+        )}
+        {defaultConfigStatus === 'error' && (
+          <>
+            <AlertCircle className='w-4 h-4' />
+            <span>Could not load default configurations</span>
+          </>
+        )}
+      </div>
+
       <CollapsibleSection number={1} title={'Lease & Payment Details'}>
         {/* Basic Details */}
         <InnerSection title='Lease Details' subtitle='Enter the lease details'>
@@ -338,56 +381,33 @@ const AddLease = () => {
                 />
               </InputGroup>
             </div>
-            <div
-              className={cn(
-                ' transition-all duration-200 overflow-hidden',
-                leaseHasDuration ? 'h-18 mt-5' : 'h-0 opacity-0'
-              )}
-            >
-              <InputGroup
-                label='Leave Day'
-                className='w-fit'
-                isRequired={leaseHasDuration}
-              >
-                <Select
-                  label='Day'
-                  placeholder='Select leave day'
-                  items={daysOfMonth.map(String)}
-                  value={leaveDay ? String(leaveDay) : undefined}
-                  onValueChange={val => setLeaveDay(Number(val))}
-                  required={leaseHasDuration}
-                />
-              </InputGroup>
-            </div>
-
             {/* Lease Duration Info Note */}
             {startDate && (
               <div className='mt-4 p-3 rounded-md bg-blue-50 border border-blue-200'>
                 <div className='flex items-start gap-2 text-sm text-blue-800'>
                   <Info strokeWidth={1.5} size={18} className='mt-0.5 shrink-0' />
                   <div className='flex flex-col gap-1'>
-                    {leaseHasDuration && leaveDay ? (
+                    {leaseHasDuration ? (
                       <>
                         <p>
                           <span className='font-medium'>Lease period:</span>{' '}
                           {formatDate(startDate)} to{' '}
-                          {formatDate(calculateEndDate(startDate, leaseDuration!, leaveDay))}
+                          {formatDate(calculateEndDate(startDate, leaseDuration!))}
                         </p>
                         <p>
                           <span className='font-medium'>Rental invoices:</span>{' '}
-                          Will be issued monthly after the payment day set below of each month for {leaseDuration} month
-                          {leaseDuration! > 1 ? 's' : ''}.
+                          First month rental is generated immediately. Next month's invoice is generated once the current rental is paid, due on the payment day set below.
                         </p>
                       </>
                     ) : (
                       <>
                         <p>
                           <span className='font-medium'>Lease period:</span>{' '}
-                          Starts {formatDate(startDate)} with no end date (ongoing lease).
+                          Starts {formatDate(startDate)} with no expiry date (ongoing lease).
                         </p>
                         <p>
                           <span className='font-medium'>Rental invoices:</span>{' '}
-                          Will be issued Will be issued monthly after the payment day set below of each month for the following months until ended.
+                          First month rental is generated immediately. Next month's invoice is generated once the current rental is paid, due on the payment day set below.
                         </p>
                       </>
                     )}
@@ -421,6 +441,7 @@ const AddLease = () => {
           onPaymentDayChange={setPaymentDay}
           onLateChargesChange={setLateCharges}
           onPaymentStatusChange={setPaymentStatus}
+          defaultConfig={defaultPaymentConfig}
         />
       </CollapsibleSection>
 
@@ -438,6 +459,7 @@ const AddLease = () => {
         onOverdueReminderChange={(enabled, days) =>
           setOverdueReminder({ enabled, days })
         }
+        defaultReminders={defaultReminderConfig}
       />
 
       {/* Alert Dialog */}

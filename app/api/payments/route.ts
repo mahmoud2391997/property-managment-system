@@ -23,11 +23,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
     }
 
-    // Get optional propertyId filter
+    // Get optional propertyId and roomId filters
     const { searchParams } = new URL(request.url)
     const propertyId = searchParams.get('propertyId')
+    const roomId = searchParams.get('roomId')
 
-    // Build where clause - filter by property through leases relation
+    // Build where clause - filter by property/room through leases relation
     const whereClause: any = {
       organization_id: staff.organization_id
     }
@@ -36,6 +37,14 @@ export async function GET(request: NextRequest) {
     if (propertyId) {
       whereClause.leases = {
         property_id: propertyId
+      }
+    }
+
+    // If roomId provided, filter payments through leases -> room_id
+    if (roomId) {
+      whereClause.leases = {
+        ...whereClause.leases,
+        room_id: roomId
       }
     }
 
@@ -86,9 +95,6 @@ export async function GET(request: NextRequest) {
           }
         },
         payment_history: {
-          where: {
-            status: 'Success'
-          },
           orderBy: {
             paid_at: 'desc'
           },
@@ -120,9 +126,21 @@ export async function GET(request: NextRequest) {
         return sum + amount + tax
       }, 0)
 
-      // Calculate payment percentage (already filtered to SUCCESS only in query)
-      const totalPaid = payment.payment_history.reduce((sum, history) => sum + history.amount, 0)
-      const paymentPercentage = totalAmount > 0 ? Math.round((totalPaid / totalAmount) * 100) : 0
+      // Only count SUCCESS payments in total paid
+      const successfulPayments = payment.payment_history.filter(
+        (h: any) => h.status === 'Success'
+      )
+      const totalPaid = successfulPayments.reduce(
+        (sum: number, history: any) => sum + history.amount,
+        0
+      )
+      const paymentPercentage =
+        totalAmount > 0 ? Math.round((totalPaid / totalAmount) * 100) : 0
+
+      // Check if there are any Pending payment_history records
+      const hasPendingPayments = payment.payment_history.some(
+        (h: any) => h.status === 'Pending'
+      )
 
       // Determine status based on payment_history and due date
       let status: 'Paid' | 'Paid Late' | 'Pending' | 'Overdue' = payment.status as any
@@ -146,7 +164,7 @@ export async function GET(request: NextRequest) {
       }
 
       return {
-        id: payment.id,
+        id: payment.reference_id,
         type: payment.type,
         property: payment.leases?.properties?.code || 'N/A',
         room: payment.leases?.rooms?.title || 'Whole unit',
@@ -156,12 +174,15 @@ export async function GET(request: NextRequest) {
         amount: totalAmount,
         status: status,
         payment_percentage: paymentPercentage,
+        has_pending_payments: hasPendingPayments,
         tenant_name: payment.leases?.tenants?.individual_tenants
           ? `${payment.leases.tenants.individual_tenants.first_name} ${payment.leases.tenants.individual_tenants.last_name || ''}`.trim()
           : payment.leases?.tenants?.company_tenants?.company_name || 'N/A',
         tenant_picture: payment.leases?.tenants?.profile_pic || '',
         tenant_color: '', // Not in database, can be generated from name
-        latest_payment_timestamp: payment.payment_history[0]?.paid_at?.toISOString() || payment.created_at.toISOString()
+        latest_payment_timestamp:
+          successfulPayments[0]?.paid_at?.toISOString() ||
+          payment.created_at.toISOString()
       }
     })
 

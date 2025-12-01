@@ -731,7 +731,8 @@ export const staffData: Staff[] = [
 
 export const ticketsData: Ticket[] = [
   {
-    id: 't1',
+    id: 'TK-20250001',
+    ticket_id: 't1-uuid-0001-0001-000000000001',
     type: 'Maintenance',
     title: 'Leaky faucet in kitchen',
     description: 'The kitchen faucet is leaking constantly.',
@@ -746,7 +747,8 @@ export const ticketsData: Ticket[] = [
     status: 'In Progress'
   },
   {
-    id: 't2',
+    id: 'TK-20250002',
+    ticket_id: 't2-uuid-0002-0002-000000000002',
     type: 'Maintenance',
     title: 'Air conditioner not cooling',
     description: 'AC in living room is not producing cold air.',
@@ -761,7 +763,8 @@ export const ticketsData: Ticket[] = [
     status: 'Open'
   },
   {
-    id: 't3',
+    id: 'TK-20250003',
+    ticket_id: 't3-uuid-0003-0003-000000000003',
     type: 'Maintenance',
     title: 'Broken window lock',
     description: 'Bedroom window lock is broken, cannot secure window.',
@@ -776,7 +779,8 @@ export const ticketsData: Ticket[] = [
     status: 'Resolved'
   },
   {
-    id: 't4',
+    id: 'TK-20250004',
+    ticket_id: 't4-uuid-0004-0004-000000000004',
     type: 'Maintenance',
     title: 'Internet not working',
     description: 'WiFi in apartment keeps disconnecting.',
@@ -791,7 +795,8 @@ export const ticketsData: Ticket[] = [
     status: 'In Progress'
   },
   {
-    id: 't5',
+    id: 'TK-20250005',
+    ticket_id: 't5-uuid-0005-0005-000000000005',
     type: 'Maintenance',
     title: 'Water heater not working',
     description: 'No hot water in the bathroom.',
@@ -806,7 +811,8 @@ export const ticketsData: Ticket[] = [
     status: 'Pending Tenant Confirmation'
   },
   {
-    id: 't6',
+    id: 'TK-20250006',
+    ticket_id: 't6-uuid-0006-0006-000000000006',
     type: 'Complaint',
     title: 'Stained carpet',
     description: 'Living room carpet has large stain from previous spill.',
@@ -821,7 +827,8 @@ export const ticketsData: Ticket[] = [
     status: 'Closed'
   },
   {
-    id: 't7',
+    id: 'TK-20250007',
+    ticket_id: 't7-uuid-0007-0007-000000000007',
     type: 'Maintenance',
     title: 'Door handle broken',
     description: 'Front door handle is loose and comes off.',
@@ -836,7 +843,8 @@ export const ticketsData: Ticket[] = [
     status: 'Resolved'
   },
   {
-    id: 't8',
+    id: 'TK-20250008',
+    ticket_id: 't8-uuid-0008-0008-000000000008',
     type: 'Maintenance',
     title: 'Leaking ceiling',
     description: 'Water dripping from ceiling in bedroom.',
@@ -851,7 +859,8 @@ export const ticketsData: Ticket[] = [
     status: 'In Progress'
   },
   {
-    id: 't9',
+    id: 'TK-20250009',
+    ticket_id: 't9-uuid-0009-0009-000000000009',
     type: 'Maintenance',
     title: 'Malfunctioning oven',
     description: 'Oven temperature fluctuates unexpectedly.',
@@ -866,7 +875,8 @@ export const ticketsData: Ticket[] = [
     status: 'Open'
   },
   {
-    id: 't10',
+    id: 'TK-20250010',
+    ticket_id: 't10-uuid-0010-0010-000000000010',
     type: 'Complaint',
     title: 'Noisy neighbors',
     description: 'Neighbors making loud noises late at night.',
@@ -1095,6 +1105,8 @@ export const malaysiaStates: string[] = [
 
 export const taskTypes: string[] = ['Maintenance', 'Cleaning', 'Others']
 
+export const ticketTypes: string[] = ['Maintenance', 'Complaint', 'Billing', 'Other']
+
 export const noticeTypes: string[] = [
   'General Announcement',
   'Maintenance',
@@ -1114,7 +1126,7 @@ export const paymentTypes: PaymentType[] = [
 ]
 
 export const chargeTypes: ChargeTypeType[] = [
-  { type: 'First Month Rental', taxable: true, refundable: false },
+  { type: 'First Month Rental', taxable: false, refundable: false },
   { type: 'Earnest Deposit', taxable: false, refundable: true },
   { type: 'Security Deposit', taxable: false, refundable: true },
   { type: 'Utility Deposit', taxable: false, refundable: true },
