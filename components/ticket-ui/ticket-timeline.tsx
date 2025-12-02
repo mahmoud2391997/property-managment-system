@@ -94,12 +94,22 @@ export type TimelineEvent =
       date: string
     }
 
+type CommentResult = {
+  id: string
+  message: string
+  attachment: string | null
+  createdAt: string
+  senderName: string
+  senderAvatar?: string
+}
+
 type Props = {
   events: TimelineEvent[]
   ticketId: string
   currentUserName: string
   currentUserAvatar?: string
-  onCommentAdded?: () => void
+  disabled?: boolean
+  onCommentAdded?: (comment: CommentResult) => void
 }
 
 export default function TicketTimeline({
@@ -107,6 +117,7 @@ export default function TicketTimeline({
   ticketId,
   currentUserName,
   currentUserAvatar,
+  disabled = false,
   onCommentAdded
 }: Props) {
   const totalEvents = events.length
@@ -227,9 +238,11 @@ export default function TicketTimeline({
       <div>
         {events.map((event, index) => {
           const isLast = index === totalEvents - 1
+          // Card-style events (opened, comment) don't have left icons on mobile
+          const hasLeftElement = event.type !== 'opened' && event.type !== 'comment'
 
           return (
-            <TimelineEventWrapper key={index} isLast={isLast}>
+            <TimelineEventWrapper key={index} isLast={isLast} hasLeftElement={hasLeftElement}>
               {renderEvent(event)}
             </TimelineEventWrapper>
           )
@@ -241,6 +254,7 @@ export default function TicketTimeline({
           currentUserName={currentUserName}
           currentUserAvatar={currentUserAvatar}
           ticketId={ticketId}
+          disabled={disabled}
           onCommentAdded={onCommentAdded}
         />
       </div>

@@ -1,8 +1,6 @@
 'use client'
 
-import {
-  ColumnDef
-} from '@tanstack/react-table'
+import { ColumnDef } from '@tanstack/react-table'
 import { MoreHorizontal } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -74,22 +72,20 @@ export const columns: ColumnDef<RoomWithProperty>[] = [
     header: () => <div className='text-left'>Status</div>,
     cell: ({ row }) => {
       const rawStatus: RoomWithProperty['status'] = row.getValue('status') // e.g., "Under Preparation"
-      const statusKey = rawStatus.toLowerCase().replace(/\s/g, '-') // "under-preparation"
 
+      const displayStatus = rawStatus.replace(/_/g, ' ')
+
+      const statusStyles: Record<string, string> = {
+        Occupied: 'bg-green-100 text-green-800',
+        Under_Preparation: 'bg-yellow-100 text-yellow-800',
+        Pending_Inspection: 'bg-orange-100 text-orange-800',
+        Vacant: 'bg-gray-100 text-gray-800',
+        Property_Rented: 'bg-blue-100 text-blue-800'
+      }
       return (
         <div className='texts-table-cell-primary text-left'>
-          <div
-            data-status={statusKey}
-            className={cn(
-              'status-styles',
-              'data-[status=occupied]:bg-green-100 data-[status=occupied]:text-green-800',
-              'data-[status=under-preparation]:bg-yellow-100 data-[status=under-preparation]:text-yellow-800',
-              'data-[status=pending-inspection]:bg-orange-100 data-[status=pending-inspection]:text-orange-800',
-              'data-[status=vacant]:bg-gray-100 data-[status=vacant]:text-gray-800',
-              'data-[status=property-rented]:bg-blue-100 data-[status=property-rented]:text-blue-800'
-            )}
-          >
-            {row.getValue('status')}
+          <div className={cn('status-styles', statusStyles[rawStatus])}>
+            {displayStatus}
           </div>
         </div>
       )
@@ -136,6 +132,17 @@ type Props = {
   noPagnitation?: boolean
 }
 
-export default function RoomsTable ({ data, className = '', noPagnitation = false }: Props) {
-  return <Table columns={columns} className={className} data={data} noPagnitation={noPagnitation} />
+export default function RoomsTable ({
+  data,
+  className = '',
+  noPagnitation = false
+}: Props) {
+  return (
+    <Table
+      columns={columns}
+      className={className}
+      data={data}
+      noPagnitation={noPagnitation}
+    />
+  )
 }

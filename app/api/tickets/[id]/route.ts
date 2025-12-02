@@ -25,10 +25,20 @@ export async function GET(
     const ticket = await prisma.tickets.findUnique({
       where: { id: ticketId },
       include: {
-        tenants: {
+        leases: {
           include: {
-            individual_tenants: true,
-            company_tenants: true
+            tenants: {
+              include: {
+                individual_tenants: true,
+                company_tenants: true
+              }
+            },
+            properties: {
+              select: { id: true, code: true, street_address: true }
+            },
+            rooms: {
+              select: { id: true, title: true }
+            }
           }
         },
         ticket_statuses: {
@@ -59,8 +69,8 @@ export async function GET(
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
     }
 
-    // Access check for tenants - can only see tickets they created
-    if (userType === 'tenant' && ticket.created_by !== user.id) {
+    // Access check for tenants - can only see tickets from their own leases
+    if (userType === 'tenant' && ticket.leases?.tenants?.id !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -76,10 +86,11 @@ export async function GET(
       }
     }
 
-    // Get tenant name
-    const tenantName = ticket.tenants?.individual_tenants
-      ? `${ticket.tenants.individual_tenants.first_name} ${ticket.tenants.individual_tenants.last_name || ''}`.trim()
-      : ticket.tenants?.company_tenants?.company_name || 'Unknown'
+    // Get tenant name from lease
+    const tenant = ticket.leases?.tenants
+    const tenantName = tenant?.individual_tenants
+      ? `${tenant.individual_tenants.first_name} ${tenant.individual_tenants.last_name || ''}`.trim()
+      : tenant?.company_tenants?.company_name || 'Unknown'
 
     // Get current status
     const currentStatus =
@@ -103,7 +114,7 @@ export async function GET(
     timeline.push({
       type: 'opened',
       performerName: tenantName,
-      performerAvatar: ticket.tenants?.profile_pic || undefined,
+      performerAvatar: tenant?.profile_pic || undefined,
       date: formatDate(ticket.created_at),
       description: ticket.description,
       attachment: ticket.attachment
@@ -238,7 +249,7 @@ export async function GET(
         timeline.push({
           type: 'type_set',
           performerName: tenantName,
-          performerAvatar: ticket.tenants?.profile_pic || undefined,
+          performerAvatar: tenant?.profile_pic || undefined,
           typeName: typeEntry.type,
           date: formatDate(typeEntry.created_at),
           timestamp: typeEntry.created_at.getTime()
@@ -320,7 +331,7 @@ export async function GET(
       attachment: ticket.attachment,
       createdAt: formatDate(ticket.created_at),
       creatorName: tenantName,
-      creatorAvatar: ticket.tenants?.profile_pic || undefined,
+      creatorAvatar: tenant?.profile_pic || undefined,
       currentStatus: formatStatus(currentStatus),
       currentType,
       assignedStaff: acceptedAssignment?.staff_ticket_assignments_assigned_idTostaff

@@ -11,11 +11,22 @@ import {
   DialogTitle,
   DialogTrigger
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import Button from '@/components/costume-ui/button'
 import { AlertTriangle, AlertCircle } from 'lucide-react'
 import InputGroup from './input-group'
+import { cn } from '@/lib/utils'
 
 type props = {
   openDialogButton: React.ReactElement
@@ -29,7 +40,7 @@ type props = {
   confirmButtonClassName?: string
   cancelButtonLabel?: string
   inputLabel?: string
-  variant?: 'danger' | 'warning'
+  variant?: 'danger' | 'warning' | 'confirm'
 }
 
 export default function ConfirmationDialog ({
@@ -51,20 +62,23 @@ export default function ConfirmationDialog ({
   const [internalLoading, setInternalLoading] = useState(false)
 
   const loading = externalLoading || internalLoading
-  const isConfirmEnabled = inputValue === confirmationText && !loading
+  // For 'confirm' variant, no text input required
+  const isConfirmEnabled = variant === 'confirm'
+    ? !loading
+    : inputValue === confirmationText && !loading
 
   const handleConfirm = async () => {
-    if (inputValue === confirmationText && !loading) {
-      setInternalLoading(true)
-      try {
-        await onConfirm()
-        setInputValue('')
-        setOpen(false)
-      } catch (error) {
-        // Keep dialog open on error - parent handles error display
-      } finally {
-        setInternalLoading(false)
-      }
+    if (!isConfirmEnabled) return
+
+    setInternalLoading(true)
+    try {
+      await onConfirm()
+      setInputValue('')
+      setOpen(false)
+    } catch (error) {
+      // Keep dialog open on error - parent handles error display
+    } finally {
+      setInternalLoading(false)
     }
   }
 
@@ -76,6 +90,39 @@ export default function ConfirmationDialog ({
     }
   }
 
+  // Use AlertDialog for 'confirm' variant - cleaner, simpler design
+  if (variant === 'confirm') {
+    return (
+      <AlertDialog open={open} onOpenChange={handleOpenChange}>
+        <AlertDialogTrigger asChild>{openDialogButton}</AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{title}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className='text-(--text-secondary)'>{description}</div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>
+              {cancelButtonLabel}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleConfirm()
+              }}
+              disabled={loading}
+              className={cn(confirmButtonClassName)}
+            >
+              {loading ? confirmButtonLoadingLabel : confirmButtonLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    )
+  }
+
+  // Use full Dialog for 'danger' and 'warning' variants (with text input confirmation)
   return (
     <ShadcnDialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{openDialogButton}</DialogTrigger>

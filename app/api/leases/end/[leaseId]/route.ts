@@ -40,7 +40,7 @@ export async function POST(
       )
     }
 
-    // Update lease status to Ended and cancel all pending payments
+    // Update lease status to Ended, cancel pending payments, and close tickets
     await prisma.$transaction(async (tx) => {
       // Update lease status
       await tx.leases.update({
@@ -58,6 +58,31 @@ export async function POST(
           status: 'Cancelled'
         }
       })
+
+      // Get all open tickets for this lease (not already closed)
+      const openTickets = await tx.tickets.findMany({
+        where: {
+          lease_id: leaseId,
+          ticket_statuses: {
+            none: {
+              state: 'Closed'
+            }
+          }
+        },
+        select: { id: true }
+      })
+
+      // Close all open tickets by adding a Closed status
+      if (openTickets.length > 0) {
+        await tx.ticket_statuses.createMany({
+          data: openTickets.map(ticket => ({
+            ticket_id: ticket.id,
+            state: 'Closed',
+            performer_type: 'system',
+            performer_id: null
+          }))
+        })
+      }
     })
 
     return NextResponse.json({

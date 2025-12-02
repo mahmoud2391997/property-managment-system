@@ -452,6 +452,7 @@ export default function OverviewContent({ propertyId }: Props) {
                         </li>
                         <li>Cancel all pending payments linked to this lease</li>
                         <li>Stop any recurring payment schedules</li>
+                        <li>Close all tickets linked to this lease</li>
                       </ul>
                       <p className='text-sm text-neutral-500'>
                         This cannot be undone. Please make sure all outstanding

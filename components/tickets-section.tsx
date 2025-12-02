@@ -5,8 +5,9 @@ import { cn } from '@/lib/utils'
 import SearchInput from './costume-ui/search-input'
 import TicketsTable from './tables/tickets-table'
 import { Ticket } from '@/types'
-import TableSectionSkeleton from './loading-ui/table-section-skeleton'
 import AddTicketDialog from './dialogs/add-ticket-dialog'
+import AddTicketDrawer from './dialogs/add-ticket-drawer'
+import TablePageSkeleton from './loading-ui/table-page-skeleton'
 
 type Props = {
   userType: 'staff' | 'tenant'
@@ -39,7 +40,7 @@ export default function TicketsSection({ userType }: Props) {
   }
 
   if (loading) {
-    return <TableSectionSkeleton />
+    return <TablePageSkeleton />
   }
 
   return (
@@ -59,7 +60,14 @@ export default function TicketsSection({ userType }: Props) {
         {/* Add Ticket Button - Only visible for tenants */}
         {userType === 'tenant' && (
           <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
-            <AddTicketDialog onSuccess={handleRefresh} />
+            {/* Desktop: Dialog */}
+            <div className='hidden sm:block'>
+              <AddTicketDialog onSuccess={handleRefresh} />
+            </div>
+            {/* Mobile: Full-screen bottom drawer */}
+            <div className='sm:hidden'>
+              <AddTicketDrawer onSuccess={handleRefresh} />
+            </div>
           </div>
         )}
       </div>

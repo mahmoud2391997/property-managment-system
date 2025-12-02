@@ -64,29 +64,30 @@ export async function GET() {
       organization_id: organizationId
     }
 
-    // If tenant, only show their own tickets
+    // If tenant, only show tickets from their leases
     if (userType === 'tenant' && tenantId) {
-      whereClause.created_by = tenantId
+      whereClause.leases = {
+        tenant_id: tenantId
+      }
     }
 
     // Fetch tickets with related data
     const tickets = await prisma.tickets.findMany({
       where: whereClause,
       include: {
-        tenants: {
+        leases: {
           include: {
-            individual_tenants: true,
-            company_tenants: true,
-            leases: {
-              where: {
-                status: 'Current'
-              },
-              orderBy: { start_date: 'desc' },
-              take: 1,
+            tenants: {
               include: {
-                properties: true,
-                rooms: true
+                individual_tenants: true,
+                company_tenants: true
               }
+            },
+            properties: {
+              select: { id: true, code: true, street_address: true }
+            },
+            rooms: {
+              select: { id: true, title: true }
             }
           }
         },
@@ -116,15 +117,15 @@ export async function GET() {
 
     // Transform data to match Ticket type
     const transformedTickets = tickets.map(ticket => {
-      // Get tenant name
-      const tenantName = ticket.tenants?.individual_tenants
-        ? `${ticket.tenants.individual_tenants.first_name} ${ticket.tenants.individual_tenants.last_name || ''}`.trim()
-        : ticket.tenants?.company_tenants?.company_name || 'Unknown'
+      // Get tenant from lease
+      const tenant = ticket.leases?.tenants
+      const tenantName = tenant?.individual_tenants
+        ? `${tenant.individual_tenants.first_name} ${tenant.individual_tenants.last_name || ''}`.trim()
+        : tenant?.company_tenants?.company_name || 'Unknown'
 
-      // Get property and room from tenant's active lease
-      const activeLease = ticket.tenants?.leases?.[0]
-      const property = activeLease?.properties?.code || 'N/A'
-      const room = activeLease?.rooms?.title || 'Whole unit'
+      // Get property and room from lease
+      const property = ticket.leases?.properties?.code || 'N/A'
+      const room = ticket.leases?.rooms?.title || 'Whole unit'
 
       // Get latest type
       const type = ticket.ticket_types[0]?.type || 'Other'
@@ -156,7 +157,7 @@ export async function GET() {
         property,
         room,
         tenant_name: tenantName,
-        tenant_picture: ticket.tenants?.profile_pic || '',
+        tenant_picture: tenant?.profile_pic || '',
         issue_timestamp: ticket.created_at.toISOString(),
         staff_name: staffName,
         staff_picture: assignedStaff?.profile_pic || '',

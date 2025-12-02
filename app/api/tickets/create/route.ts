@@ -15,36 +15,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get tenant and their organization through the junction table
+    // Get tenant
     const tenant = await prisma.tenants.findUnique({
       where: { id: user.id },
-      select: {
-        id: true,
-        organizations_tenants: {
-          select: {
-            organization_id: true
-          },
-          take: 1
-        }
-      }
+      select: { id: true }
     })
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
 
-    const organizationId = tenant.organizations_tenants[0]?.organization_id
-    if (!organizationId) {
+    const body = await request.json()
+    const { title, type, description, attachment, lease_id } = body
+
+    // Validation
+    if (!lease_id) {
       return NextResponse.json(
-        { error: 'Tenant is not associated with any organization' },
+        { error: 'Please select a property' },
         { status: 400 }
       )
     }
 
-    const body = await request.json()
-    const { title, type, description, attachment } = body
-
-    // Validation
     if (!title || !title.trim()) {
       return NextResponse.json(
         { error: 'Title is required' },
@@ -65,6 +56,27 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Verify the lease belongs to this tenant and has valid status (Current or Expired)
+    const lease = await prisma.leases.findFirst({
+      where: {
+        id: lease_id,
+        tenant_id: tenant.id,
+        status: {
+          in: ['Current', 'Expired']
+        }
+      },
+      select: { id: true, organization_id: true }
+    })
+
+    if (!lease) {
+      return NextResponse.json(
+        { error: 'Invalid lease or lease status does not allow ticket creation' },
+        { status: 400 }
+      )
+    }
+
+    const organizationId = lease.organization_id
 
     // Generate reference_id: TK-YYYYNNNNNNN (11 digits after TK-)
     const currentYear = new Date().getFullYear()
@@ -106,7 +118,7 @@ export async function POST(request: NextRequest) {
           description: description.trim(),
           attachment: attachment || null,
           organization_id: organizationId,
-          created_by: tenant.id
+          lease_id: lease.id
         }
       })
 

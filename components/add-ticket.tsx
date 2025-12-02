@@ -1,14 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Input from './costume-ui/input'
 import InputGroup from './costume-ui/input-group'
 import Select from './costume-ui/select'
+import Combobox from './costume-ui/combobox'
 import { Textarea } from './ui/textarea'
 import UploadFile from './costume-ui/upload-file'
 import { FeedbackToasts } from './costume-ui/feedback-toast'
 import { cn } from '@/lib/utils'
 import { ticketTypes } from '@/utils/data'
+
+type ComboBoxItem = {
+  id: string
+  label: string
+  subtitle?: string
+}
 
 type Props = {
   onSuccess?: () => void
@@ -23,11 +30,43 @@ const AddTicket = ({ onSuccess, onLoadingChange }: Props) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Lease selection state
+  const [leaseItems, setLeaseItems] = useState<ComboBoxItem[]>([])
+  const [selectedLeaseId, setSelectedLeaseId] = useState<string | null>(null)
+  const [loadingLeases, setLoadingLeases] = useState(true)
+
+  // Fetch tenant's leases on mount
+  useEffect(() => {
+    const fetchLeases = async () => {
+      try {
+        const response = await fetch('/api/tickets/active-leases')
+        if (response.ok) {
+          const data = await response.json()
+          setLeaseItems(data)
+        }
+      } catch (error) {
+        console.error('Error fetching leases:', error)
+      } finally {
+        setLoadingLeases(false)
+      }
+    }
+
+    fetchLeases()
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     onLoadingChange?.(true)
     setError('')
+
+    // Validate lease selection
+    if (!selectedLeaseId) {
+      setError('Please select a rental')
+      setLoading(false)
+      onLoadingChange?.(false)
+      return
+    }
 
     try {
       // First, upload the attachment if present
@@ -61,7 +100,8 @@ const AddTicket = ({ onSuccess, onLoadingChange }: Props) => {
           title,
           type,
           description,
-          attachment: attachmentUrl
+          attachment: attachmentUrl,
+          lease_id: selectedLeaseId
         })
       })
 
@@ -81,6 +121,7 @@ const AddTicket = ({ onSuccess, onLoadingChange }: Props) => {
       setType('')
       setDescription('')
       setAttachmentFile(null)
+      setSelectedLeaseId(null)
 
       if (onSuccess) {
         onSuccess()
@@ -97,14 +138,20 @@ const AddTicket = ({ onSuccess, onLoadingChange }: Props) => {
 
   return (
     <form id='dialog-form' onSubmit={handleSubmit} className='flex flex-col gap-7.5'>
-      <InputGroup label='Title' isRequired>
-        <Input
-          placeholder='E.g. Kitchen Sink Leaking'
-          className='w-full'
-          minLength={5}
-          maxLength={200}
-          value={title}
-          onChange={e => setTitle(e.target.value)}
+      {/* Rental (Lease) Selection */}
+      <InputGroup label='Rental' isRequired>
+        <Combobox
+          items={leaseItems}
+          variant='single'
+          searchPlaceholder='Search rentals'
+          placeholder={
+            loadingLeases ? 'Loading rentals...' : 'Select a rental'
+          }
+          onValueChange={value => {
+            setSelectedLeaseId(value || null)
+          }}
+          isLoading={loadingLeases}
+          loadingMessage='Fetching rentals...'
           required
           disabled={loading}
         />
@@ -117,6 +164,19 @@ const AddTicket = ({ onSuccess, onLoadingChange }: Props) => {
           placeholder='Select ticket type'
           value={type}
           onChange={setType}
+          required
+          disabled={loading}
+        />
+      </InputGroup>
+
+      <InputGroup label='Title' isRequired>
+        <Input
+          placeholder='E.g. Kitchen Sink Leaking'
+          className='w-full'
+          minLength={5}
+          maxLength={200}
+          value={title}
+          onChange={e => setTitle(e.target.value)}
           required
           disabled={loading}
         />

@@ -540,8 +540,9 @@ model leases {
   organization_id             String                 @db.Uuid
   created_at                  DateTime               @default(now()) @db.Timestamptz(6)
   created_by                  String?                @db.Uuid
-  status                      lease_status
+  status                      lease_status_new
   reference_id                String
+  ended_at                    DateTime?              @db.Timestamptz(6)
   late_payment_charges        late_payment_charges[]
   staff                       staff?                 @relation(fields: [created_by], references: [id], onUpdate: NoAction)
   organizations               organizations          @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -947,6 +948,8 @@ model notifications {
   read            Boolean?        @default(false)
   created_at      DateTime?       @default(now()) @db.Timestamptz(6)
   page            String?
+  affected_type   affected_type?
+  affected_id     String?         @db.Uuid
   organizations   organizations?  @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users           users?          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -1228,15 +1231,6 @@ enum property_status {
   @@schema("public")
 }
 
-enum lease_status {
-  Scheduled
-  Current
-  Ended
-  Expired
-
-  @@schema("public")
-}
-
 enum time_unit {
   Day
   Week
@@ -1300,6 +1294,20 @@ enum ticket_state {
   Pending_Tenant @map("Pending Tenant")
   Resolved
   Closed
+
+  @@schema("public")
+}
+
+enum affected_type {
+  tenant
+  staff
+
+  @@schema("public")
+}
+
+enum lease_status_new {
+  Current
+  Ended
 
   @@schema("public")
 }

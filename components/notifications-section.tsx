@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import SearchInput from './costume-ui/search-input'
 import { Notification } from '@/types'
-import TableSectionSkeleton from './loading-ui/table-section-skeleton'
 import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import { UserAvatar } from './costume-ui/name-avatar'
+import NotificationsSkeleton from './loading-ui/notifications-skeleton'
 
 type FilterType = 'all' | 'unread' | 'read'
 
@@ -70,7 +70,7 @@ export default function NotificationsSection () {
   const unreadCount = notifications.filter(n => !n.is_read).length
 
   if (loading) {
-    return <TableSectionSkeleton />
+    return <NotificationsSkeleton />
   }
 
   return (

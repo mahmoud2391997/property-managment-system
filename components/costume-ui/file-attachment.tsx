@@ -44,6 +44,27 @@ function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
+// Helper to truncate filename while preserving extension
+function truncateFilename(filename: string, maxLength: number): string {
+  if (filename.length <= maxLength) return filename
+
+  const lastDotIndex = filename.lastIndexOf('.')
+  if (lastDotIndex === -1) {
+    // No extension
+    return filename.slice(0, maxLength - 3) + '...'
+  }
+
+  const extension = filename.slice(lastDotIndex)
+  const nameWithoutExt = filename.slice(0, lastDotIndex)
+  const maxNameLength = maxLength - extension.length - 3 // 3 for '...'
+
+  if (maxNameLength <= 0) {
+    return filename.slice(0, maxLength - 3) + '...'
+  }
+
+  return nameWithoutExt.slice(0, maxNameLength) + '...' + extension
+}
+
 // Helper to generate storage key
 function getStorageKey(url: string): string {
   return `file_cache_${btoa(url).slice(0, 50)}`
@@ -80,6 +101,7 @@ export default function FileAttachment({ url, fileName, className = '' }: Props)
   const extension = getFileExtension(url)
   const fileType = getFileType(extension)
   const displayName = fileName || url.split('/').pop() || 'attachment'
+  const truncatedName = truncateFilename(displayName, 20) // For mobile
 
   // Check cache on mount
   useEffect(() => {
@@ -189,14 +211,15 @@ export default function FileAttachment({ url, fileName, className = '' }: Props)
   // Render cached/open button for images
   if (cachedDataUrl && fileType === 'image') {
     return (
-      <div className={`flex items-center justify-between bg-(--background-secondary) border border-(--border-default) rounded-lg px-4 py-3 ${className}`}>
-        <div className='flex items-center gap-3'>
-          <div className='w-8 h-8 rounded-md bg-white border border-(--border-default) flex items-center justify-center'>
+      <div className={`flex items-center justify-between gap-2 bg-(--background-secondary) border border-(--border-default) rounded-lg px-3 sm:px-4 py-3 ${className}`}>
+        <div className='flex items-center gap-2 sm:gap-3 min-w-0 flex-1'>
+          <div className='w-8 h-8 rounded-md bg-white border border-(--border-default) flex items-center justify-center shrink-0'>
             <ImageIcon size={16} className='text-blue-500' />
           </div>
-          <div>
+          <div className='min-w-0'>
             <span className='texts-body-small-medium text-(--text-primary) block'>
-              {displayName}
+              <span className='sm:hidden'>{truncatedName}</span>
+              <span className='hidden sm:inline'>{displayName}</span>
             </span>
             {fileSize && (
               <span className='texts-caption-large text-(--text-secondary)'>
@@ -220,14 +243,15 @@ export default function FileAttachment({ url, fileName, className = '' }: Props)
   // Render open button for PDFs (no download needed, opens directly in new tab)
   if (fileType === 'pdf') {
     return (
-      <div className={`flex items-center justify-between bg-(--background-secondary) border border-(--border-default) rounded-lg px-4 py-3 ${className}`}>
-        <div className='flex items-center gap-3'>
-          <div className='w-8 h-8 rounded-md bg-white border border-(--border-default) flex items-center justify-center'>
+      <div className={`flex items-center justify-between gap-2 bg-(--background-secondary) border border-(--border-default) rounded-lg px-3 sm:px-4 py-3 ${className}`}>
+        <div className='flex items-center gap-2 sm:gap-3 min-w-0 flex-1'>
+          <div className='w-8 h-8 rounded-md bg-white border border-(--border-default) flex items-center justify-center shrink-0'>
             <FileText size={16} className='text-red-500' />
           </div>
-          <div>
+          <div className='min-w-0'>
             <span className='texts-body-small-medium text-(--text-primary) block'>
-              {displayName}
+              <span className='sm:hidden'>{truncatedName}</span>
+              <span className='hidden sm:inline'>{displayName}</span>
             </span>
             {fileSize && (
               <span className='texts-caption-large text-(--text-secondary)'>
@@ -238,7 +262,7 @@ export default function FileAttachment({ url, fileName, className = '' }: Props)
         </div>
         <button
           onClick={handleOpenPdf}
-          className='flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white texts-body-small-medium rounded-md hover:bg-blue-700 transition-colors'
+          className='flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white texts-body-small-medium rounded-md hover:bg-blue-700 transition-colors shrink-0'
         >
           <ExternalLink size={14} />
           Open
@@ -250,14 +274,15 @@ export default function FileAttachment({ url, fileName, className = '' }: Props)
   // Render cached/open button for other files
   if (cachedDataUrl && fileType === 'other') {
     return (
-      <div className={`flex items-center justify-between bg-(--background-secondary) border border-(--border-default) rounded-lg px-4 py-3 ${className}`}>
-        <div className='flex items-center gap-3'>
-          <div className='w-8 h-8 rounded-md bg-white border border-(--border-default) flex items-center justify-center'>
+      <div className={`flex items-center justify-between gap-2 bg-(--background-secondary) border border-(--border-default) rounded-lg px-3 sm:px-4 py-3 ${className}`}>
+        <div className='flex items-center gap-2 sm:gap-3 min-w-0 flex-1'>
+          <div className='w-8 h-8 rounded-md bg-white border border-(--border-default) flex items-center justify-center shrink-0'>
             <File size={16} className='text-(--text-secondary)' />
           </div>
-          <div>
+          <div className='min-w-0'>
             <span className='texts-body-small-medium text-(--text-primary) block'>
-              {displayName}
+              <span className='sm:hidden'>{truncatedName}</span>
+              <span className='hidden sm:inline'>{displayName}</span>
             </span>
             {fileSize && (
               <span className='texts-caption-large text-(--text-secondary)'>
@@ -268,7 +293,7 @@ export default function FileAttachment({ url, fileName, className = '' }: Props)
         </div>
         <button
           onClick={handleSaveToDevice}
-          className='flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white texts-body-small-medium rounded-md hover:bg-blue-700 transition-colors'
+          className='flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white texts-body-small-medium rounded-md hover:bg-blue-700 transition-colors shrink-0'
         >
           <Download size={14} />
           Save
@@ -280,21 +305,22 @@ export default function FileAttachment({ url, fileName, className = '' }: Props)
   // Render loading state with progress
   if (isLoading) {
     return (
-      <div className={`flex items-center justify-between bg-(--background-secondary) border border-(--border-default) rounded-lg px-4 py-3 ${className}`}>
-        <div className='flex items-center gap-3'>
-          <div className='w-8 h-8 rounded-md bg-white border border-(--border-default) flex items-center justify-center'>
+      <div className={`flex items-center justify-between gap-2 bg-(--background-secondary) border border-(--border-default) rounded-lg px-3 sm:px-4 py-3 ${className}`}>
+        <div className='flex items-center gap-2 sm:gap-3 min-w-0 flex-1'>
+          <div className='w-8 h-8 rounded-md bg-white border border-(--border-default) flex items-center justify-center shrink-0'>
             <FileIcon size={16} className='text-(--text-secondary)' />
           </div>
-          <div>
+          <div className='min-w-0'>
             <span className='texts-body-small-medium text-(--text-primary) block'>
-              {displayName}
+              <span className='sm:hidden'>{truncatedName}</span>
+              <span className='hidden sm:inline'>{displayName}</span>
             </span>
             <span className='texts-caption-large text-(--text-secondary)'>
               Downloading...
             </span>
           </div>
         </div>
-        <div className='relative w-10 h-10'>
+        <div className='relative w-10 h-10 shrink-0'>
           <svg className='w-10 h-10 transform -rotate-90'>
             <circle
               cx='20'
@@ -327,30 +353,31 @@ export default function FileAttachment({ url, fileName, className = '' }: Props)
 
   // Render download button (default state)
   return (
-    <div className={`flex items-center justify-between bg-(--background-secondary) border border-(--border-default) rounded-lg px-4 py-3 hover:bg-neutral-100 transition-colors ${className}`}>
-      <div className='flex items-center gap-3'>
-        <div className='w-8 h-8 rounded-md bg-white border border-(--border-default) flex items-center justify-center'>
+    <div className={`flex items-center justify-between gap-2 bg-(--background-secondary) border border-(--border-default) rounded-lg px-3 sm:px-4 py-3 hover:bg-neutral-100 transition-colors ${className}`}>
+      <div className='flex items-center gap-2 sm:gap-3 min-w-0 flex-1'>
+        <div className='w-8 h-8 rounded-md bg-white border border-(--border-default) flex items-center justify-center shrink-0'>
           <FileIcon size={16} className='text-(--text-secondary)' />
         </div>
-        <div>
+        <div className='min-w-0'>
           <span className='texts-body-small-medium text-(--text-primary) block'>
-            {displayName}
+            <span className='sm:hidden'>{truncatedName}</span>
+            <span className='hidden sm:inline'>{displayName}</span>
           </span>
           <span className='texts-caption-large text-(--text-secondary)'>
             {fileSize ? formatFileSize(fileSize) : 'Loading size...'}
           </span>
         </div>
       </div>
-      <div className='flex items-center gap-3'>
+      <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
         {error && (
-          <span className='texts-caption-large text-red-500'>{error}</span>
+          <span className='texts-caption-large text-red-500 hidden sm:inline'>{error}</span>
         )}
         <button
           onClick={handleDownload}
-          className='flex items-center gap-1.5 px-3 py-1.5 border border-(--border-default) text-(--text-primary) texts-body-small-medium rounded-md hover:bg-neutral-200 transition-colors'
+          className='flex items-center gap-1.5 px-2 sm:px-3 py-1.5 border border-(--border-default) text-(--text-primary) texts-body-small-medium rounded-md hover:bg-neutral-200 transition-colors'
         >
           <Download size={14} />
-          Download
+          <span className='hidden sm:inline'>Download</span>
         </button>
       </div>
     </div>

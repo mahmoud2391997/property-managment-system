@@ -89,23 +89,20 @@ export const columns: ColumnDef<PropertyWithDetails>[] = [
     accessorKey: 'status',
     header: () => <div className='text-left'>Status</div>,
     cell: ({ row }) => {
-      const rawStatus: PropertyWithDetails['status'] = row.getValue('status') // e.g., "Under Preparation"
-      const statusKey = rawStatus.toLowerCase().replace(/\s/g, '-') // "under-preparation"
+      const rawStatus: PropertyWithDetails['status'] = row.getValue('status')
+      const displayStatus = rawStatus.replace(/_/g, ' ')
+
+      const statusStyles: Record<string, string> = {
+        Occupied: 'bg-green-100 text-green-800',
+        Under_Preparation: 'bg-yellow-100 text-yellow-800',
+        Pending_Inspection: 'bg-orange-100 text-orange-800',
+        Vacant: 'bg-gray-100 text-gray-800'
+      }
 
       return (
         <div className='texts-table-cell-primary text-left'>
-          <div
-            data-status={statusKey}
-            className={cn(
-              'status-styles',
-              'data-[status=occupied]:bg-green-100 data-[status=occupied]:text-green-800',
-              'data-[status=under-preparation]:bg-yellow-100 data-[status=under-preparation]:text-yellow-800',
-              'data-[status=pending-inspection]:bg-orange-100 data-[status=pending-inspection]:text-orange-800',
-              'data-[status=vacant]:bg-gray-100 data-[status=vacant]:text-gray-800',
-              'data-[status=property-rented]:bg-blue-100 data-[status=property-rented]:text-blue-800'
-            )}
-          >
-            {row.getValue('status')}
+          <div className={cn('status-styles', statusStyles[rawStatus])}>
+            {displayStatus}
           </div>
         </div>
       )

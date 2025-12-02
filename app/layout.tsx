@@ -1,10 +1,14 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Property Management",
   description: "Property Management System",
+};
+
+export const viewport: Viewport = {
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

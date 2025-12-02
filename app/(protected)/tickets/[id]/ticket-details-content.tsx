@@ -1,9 +1,8 @@
 'use client'
 
 import { useCallback, useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import Breadcrumb from '@/components/costume-ui/breadcrumb'
-import { TicketHeader, TicketTimeline, TicketSidebar, PendingAssignmentBanner } from '@/components/ticket-ui'
+import { TicketHeader, TicketTimeline, TicketSidebar, PendingAssignmentBanner, TenantStatusActions } from '@/components/ticket-ui'
 import type { TimelineEvent } from '@/components/ticket-ui'
 import type { TicketAttachment } from '@/components/ticket-ui/timeline-events'
 
@@ -14,15 +13,28 @@ type TicketData = {
   description: string
   attachment: string | null
   created_at: Date
-  tenants: {
+  leases: {
     id: string
-    profile_pic: string | null
-    individual_tenants: {
-      first_name: string
-      last_name: string | null
-    } | null
-    company_tenants: {
-      company_name: string
+    reference_id: string
+    tenants: {
+      id: string
+      profile_pic: string | null
+      individual_tenants: {
+        first_name: string
+        last_name: string | null
+      } | null
+      company_tenants: {
+        company_name: string
+      } | null
+    }
+    properties: {
+      id: string
+      code: string
+      street_address: string
+    }
+    rooms: {
+      id: string
+      title: string
     } | null
   } | null
   ticket_statuses: {
@@ -107,6 +119,8 @@ type Props = {
   currentUserName: string
   currentUserAvatar?: string
   currentUserId: string
+  statusPerformers: Record<string, { name: string; avatar?: string }>
+  commentSenders: Record<string, { name: string; avatar?: string }>
 }
 
 function formatDate(date: Date | string): string {
@@ -152,16 +166,18 @@ export default function TicketDetailsContent({
   staffList,
   currentUserName,
   currentUserAvatar,
-  currentUserId
+  currentUserId,
+  statusPerformers,
+  commentSenders
 }: Props) {
-  const router = useRouter()
   const [currentType, setCurrentType] = useState(
     ticket.ticket_types[ticket.ticket_types.length - 1]?.type || 'Other'
   )
+  const [rawStatus, setRawStatus] = useState(
+    ticket.ticket_statuses[ticket.ticket_statuses.length - 1]?.state || 'Open'
+  )
   const [currentStatus, setCurrentStatus] = useState(
-    formatStatus(
-      ticket.ticket_statuses[ticket.ticket_statuses.length - 1]?.state || 'Open'
-    )
+    formatStatus(rawStatus)
   )
 
   // Get initial assignment data
@@ -180,6 +196,7 @@ export default function TicketDetailsContent({
   // Sync status when ticket data changes (e.g., after router.refresh())
   useEffect(() => {
     const latestStatus = ticket.ticket_statuses[ticket.ticket_statuses.length - 1]?.state || 'Open'
+    setRawStatus(latestStatus)
     setCurrentStatus(formatStatus(latestStatus))
   }, [ticket.ticket_statuses])
 
@@ -188,10 +205,11 @@ export default function TicketDetailsContent({
     setCurrentType(ticket.ticket_types[ticket.ticket_types.length - 1]?.type || 'Other')
   }, [ticket.ticket_types])
 
-  // Get tenant name
-  const tenantName = ticket.tenants?.individual_tenants
-    ? `${ticket.tenants.individual_tenants.first_name} ${ticket.tenants.individual_tenants.last_name || ''}`.trim()
-    : ticket.tenants?.company_tenants?.company_name || 'Unknown'
+  // Get tenant name from lease
+  const tenant = ticket.leases?.tenants
+  const tenantName = tenant?.individual_tenants
+    ? `${tenant.individual_tenants.first_name} ${tenant.individual_tenants.last_name || ''}`.trim()
+    : tenant?.company_tenants?.company_name || 'Unknown'
 
   // Check if current user has a pending assignment request
   const hasPendingRequestForMe =
@@ -212,7 +230,7 @@ export default function TicketDetailsContent({
     events.push({
       type: 'opened',
       performerName: tenantName,
-      performerAvatar: ticket.tenants?.profile_pic || undefined,
+      performerAvatar: tenant?.profile_pic || undefined,
       date: formatDate(ticket.created_at),
       description: ticket.description,
       attachment
@@ -336,10 +354,12 @@ export default function TicketDetailsContent({
           timestamp: new Date(status.created_at).getTime()
         })
       } else {
+        // Get performer name from statusPerformers lookup
+        const performer = status.performer_id ? statusPerformers[status.performer_id] : null
         events.push({
           type: 'status_changed',
           performerType: 'user',
-          performerName: 'Staff', // Would need to fetch actual name
+          performerName: performer?.name || 'Unknown',
           newStatus: statusLabel,
           date: formatDate(status.created_at),
           timestamp: new Date(status.created_at).getTime()
@@ -357,7 +377,7 @@ export default function TicketDetailsContent({
         events.push({
           type: 'type_set',
           performerName: tenantName,
-          performerAvatar: ticket.tenants?.profile_pic || undefined,
+          performerAvatar: tenant?.profile_pic || undefined,
           typeName: typeEntry.type,
           date: formatDate(typeEntry.created_at),
           timestamp: new Date(typeEntry.created_at).getTime()
@@ -380,11 +400,13 @@ export default function TicketDetailsContent({
       }
     }
 
-    // 5. Comment events (would need to fetch sender names)
+    // 5. Comment events
     for (const comment of ticket.ticket_comments) {
+      const sender = commentSenders[comment.sender_id]
       events.push({
         type: 'comment',
-        performerName: comment.sender_type === 'tenant' ? tenantName : 'Staff',
+        performerName: sender?.name || 'Unknown',
+        performerAvatar: sender?.avatar,
         date: formatDate(comment.created_at),
         message: comment.message,
         attachment: comment.attachment
@@ -404,7 +426,7 @@ export default function TicketDetailsContent({
       .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
 
     return [openedEvent, ...restEvents].map(({ timestamp, ...event }) => event) as TimelineEvent[]
-  }, [ticket, tenantName])
+  }, [ticket, tenantName, statusPerformers, commentSenders])
 
   const [timeline, setTimeline] = useState<TimelineEvent[]>(() => buildTimeline())
 
@@ -432,13 +454,67 @@ export default function TicketDetailsContent({
     }
   }
 
-  const handleStatusChange = async (newStatus: string) => {
-    setCurrentStatus(newStatus)
-    // TODO: API call to update status
+  type StatusChangeEvent = {
+    type: 'status_changed'
+    performerType: 'user' | 'system'
+    performerName?: string
+    newStatus: string
+    createdAt: string
   }
 
-  const handleCommentAdded = () => {
-    router.refresh()
+  const handleStatusChange = (newStatus: string, event?: StatusChangeEvent) => {
+    // Update raw status based on new status
+    const rawStatusMap: Record<string, string> = {
+      'Open': 'Open',
+      'In Progress': 'In_Progress',
+      'Pending Tenant Confirmation': 'Pending_Tenant',
+      'Resolved': 'Resolved',
+      'Closed': 'Closed'
+    }
+    setRawStatus(rawStatusMap[newStatus] || newStatus)
+    setCurrentStatus(newStatus)
+
+    // Add the new event to the timeline if provided
+    if (event) {
+      const newTimelineEvent: TimelineEvent = {
+        type: 'status_changed',
+        performerType: event.performerType,
+        performerName: event.performerName,
+        newStatus: event.newStatus,
+        date: formatDate(event.createdAt)
+      }
+      setTimeline(prev => [...prev, newTimelineEvent])
+    }
+  }
+
+  type CommentResult = {
+    id: string
+    message: string
+    attachment: string | null
+    createdAt: string
+    senderName: string
+    senderAvatar?: string
+  }
+
+  const handleCommentAdded = (comment: CommentResult) => {
+    // Build attachment object if present
+    const attachment: TicketAttachment | undefined = comment.attachment
+      ? {
+          name: getFileNameFromUrl(comment.attachment),
+          url: comment.attachment
+        }
+      : undefined
+
+    // Add new comment to timeline
+    const newEvent: TimelineEvent = {
+      type: 'comment',
+      performerName: comment.senderName,
+      performerAvatar: comment.senderAvatar,
+      date: formatDate(comment.createdAt),
+      message: comment.message,
+      attachment
+    }
+    setTimeline(prev => [...prev, newEvent])
   }
 
   const handleAssignmentChange = (events?: AssignmentEvent[], statusChange?: string) => {
@@ -555,6 +631,16 @@ export default function TicketDetailsContent({
         createdAt={formatDate(ticket.created_at)}
       />
 
+      {/* Tenant Status Actions - shown to tenants only */}
+      {userType === 'tenant' && (
+        <TenantStatusActions
+          ticketId={ticket.id}
+          rawStatus={rawStatus}
+          currentUserName={currentUserName}
+          onStatusChange={handleStatusChange}
+        />
+      )}
+
       {/* Pending Assignment Banner - shown to assigned staff */}
       {hasPendingRequestForMe && pendingAssignment && (
         <PendingAssignmentBanner
@@ -572,19 +658,23 @@ export default function TicketDetailsContent({
       )}
 
       {/* Main Content */}
-      <div className='flex gap-10'>
+      <div className='flex flex-col lg:flex-row gap-6 lg:gap-10'>
         <TicketTimeline
           events={timeline}
           ticketId={ticket.id}
           currentUserName={currentUserName}
           currentUserAvatar={currentUserAvatar}
+          disabled={rawStatus === 'Resolved' || rawStatus === 'Closed'}
           onCommentAdded={handleCommentAdded}
         />
-        <TicketSidebar
-          ticketId={ticket.id}
-          currentType={currentType}
-          currentStatus={currentStatus}
-          assignedStaff={
+        {/* Sidebar - only shown to staff */}
+        {userType === 'staff' && (
+          <TicketSidebar
+            ticketId={ticket.id}
+            currentType={currentType}
+            currentStatus={currentStatus}
+            rawStatus={rawStatus}
+            assignedStaff={
             acceptedAssignment?.staff_ticket_assignments_assigned_idTostaff
               ? {
                   id: acceptedAssignment.staff_ticket_assignments_assigned_idTostaff.id,
@@ -612,7 +702,9 @@ export default function TicketDetailsContent({
           onStatusChange={handleStatusChange}
           isStaff={userType === 'staff'}
           currentUserId={currentUserId}
+          currentUserName={currentUserName}
         />
+        )}
       </div>
     </div>
   )

@@ -63,15 +63,15 @@ export default function TicketHeader({
       </div>
 
       {/* Status Badge & Opener Info */}
-      <div className='flex items-center gap-3 mb-8'>
+      <div className='flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-6 sm:mb-8'>
         <div
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full texts-body-small-medium ${statusInfo.className}`}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full texts-body-small-medium w-fit ${statusInfo.className}`}
         >
           {statusInfo.icon}
           <span>{statusInfo.label}</span>
         </div>
-        <span className='texts-body-medium text-(--text-secondary)'>
-          <span className='texts-body-medium-medium text-(--text-primary)'>
+        <span className='texts-body-small sm:texts-body-medium text-(--text-secondary)'>
+          <span className='texts-body-small-medium sm:texts-body-medium-medium text-(--text-primary)'>
             {creatorName}
           </span>{' '}
           opened this ticket on {createdAt}
