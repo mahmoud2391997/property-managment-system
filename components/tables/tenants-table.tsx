@@ -143,27 +143,27 @@ export const columns: ColumnDef<TenantWithDetails>[] = [
       const [isResending, setIsResending] = useState(false)
       const [isDeleting, setIsDeleting] = useState(false)
 
-      const handleResendInvite = async () => {
-        setIsResending(true)
-        try {
-          const response = await fetch('/api/tenants/resend-invite', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tenantId: tenant.id })
-          })
+      // const handleResendInvite = async () => {
+      //   setIsResending(true)
+      //   try {
+      //     const response = await fetch('/api/tenants/resend-invite', {
+      //       method: 'POST',
+      //       headers: { 'Content-Type': 'application/json' },
+      //       body: JSON.stringify({ tenantId: tenant.id })
+      //     })
 
-          if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to resend invitation')
-          }
+      //     if (!response.ok) {
+      //       const data = await response.json()
+      //       throw new Error(data.error || 'Failed to resend invitation')
+      //     }
 
-          alert('Invitation email sent successfully!')
-        } catch (error: any) {
-          alert(error.message || 'Failed to resend invitation')
-        } finally {
-          setIsResending(false)
-        }
-      }
+      //     alert('Invitation email sent successfully!')
+      //   } catch (error: any) {
+      //     alert(error.message || 'Failed to resend invitation')
+      //   } finally {
+      //     setIsResending(false)
+      //   }
+      // }
 
       const handleDelete = async () => {
         setIsDeleting(true)
@@ -231,14 +231,14 @@ export const columns: ColumnDef<TenantWithDetails>[] = [
               Copy email
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            {tenant.accountStatus === 'Pending' && (
+            {/* {tenant.accountStatus === 'Pending' && (
               <DropdownMenuItem
                 onClick={handleResendInvite}
                 disabled={isResending}
               >
                 {isResending ? 'Sending...' : 'Resend Invitation'}
               </DropdownMenuItem>
-            )}
+            )} */}
             <DropdownMenuItem>View details</DropdownMenuItem>
             <ConfirmationDialog
               openDialogButton={
