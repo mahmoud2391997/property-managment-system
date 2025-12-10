@@ -166,7 +166,7 @@ export const propertiesData: Property[] = [
     address: '36 Jalan Mawar, Penang',
     project: 'Bayview Residences',
     type: 'Apartment',
-    status: 'Under Preparation'
+    status: 'Under_Preparation'
   },
   {
     id: '4',
@@ -174,7 +174,7 @@ export const propertiesData: Property[] = [
     address: '48 Jalan Dahlia, Kedah',
     project: 'Eco Horizon Apartments',
     type: 'Apartment',
-    status: 'Pending Inspection'
+    status: 'Pending_Inspection'
   },
 
   {
@@ -199,7 +199,7 @@ export const propertiesData: Property[] = [
     address: '96 Jalan Teratai, Penang',
     project: 'Horizon Bay Condos',
     type: 'Condo',
-    status: 'Under Preparation'
+    status: 'Under_Preparation'
   },
   {
     id: '9',
@@ -215,7 +215,7 @@ export const propertiesData: Property[] = [
     address: '120 Jalan Melati, Kuala Lumpur',
     project: 'The Garden Suites',
     type: 'Condo',
-    status: 'Pending Inspection'
+    status: 'Pending_Inspection'
   },
   {
     id: '11',
@@ -240,7 +240,7 @@ export const propertiesData: Property[] = [
     address: '168 Jalan Rumbia, Sarawak',
     project: 'Riverside Apartments',
     type: 'Apartment',
-    status: 'Under Preparation'
+    status: 'Under_Preparation'
   },
   {
     id: '15',
@@ -264,7 +264,7 @@ export const propertiesData: Property[] = [
     address: '204 Jalan Meranti, Johor',
     project: 'Palm Springs Condominiums',
     type: 'Condo',
-    status: 'Pending Inspection'
+    status: 'Pending_Inspection'
   },
 
   {
@@ -302,19 +302,19 @@ export const roomsData: Room[] = [
     id: '3',
     title: 'Room 103',
     property: 'Sunrise Apartments',
-    status: 'Under Preparation'
+    status: 'Under_Preparation'
   },
   {
     id: '4',
     title: 'Room 104',
     property: 'Sunrise Apartments',
-    status: 'Pending Inspection'
+    status: 'Pending_Inspection'
   },
   {
     id: '5',
     title: 'Room 105',
     property: 'Sunrise Apartments',
-    status: 'Property Rented'
+    status: 'Property_Rented'
   },
   {
     id: '6',
@@ -327,19 +327,19 @@ export const roomsData: Room[] = [
     id: '8',
     title: 'Room 203',
     property: 'Maple Residency',
-    status: 'Under Preparation'
+    status: 'Under_Preparation'
   },
   {
     id: '9',
     title: 'Room 204',
     property: 'Maple Residency',
-    status: 'Pending Inspection'
+    status: 'Pending_Inspection'
   },
   {
     id: '10',
     title: 'Room 205',
     property: 'Maple Residency',
-    status: 'Property Rented'
+    status: 'Property_Rented'
   },
   { id: '11', title: 'Room 301', property: 'Ocean View', status: 'Occupied' },
   { id: '12', title: 'Room 302', property: 'Ocean View', status: 'Vacant' },
@@ -347,19 +347,19 @@ export const roomsData: Room[] = [
     id: '13',
     title: 'Room 303',
     property: 'Ocean View',
-    status: 'Under Preparation'
+    status: 'Under_Preparation'
   },
   {
     id: '14',
     title: 'Room 304',
     property: 'Ocean View',
-    status: 'Pending Inspection'
+    status: 'Pending_Inspection'
   },
   {
     id: '15',
     title: 'Room 305',
     property: 'Ocean View',
-    status: 'Property Rented'
+    status: 'Property_Rented'
   },
   {
     id: '16',
@@ -372,19 +372,19 @@ export const roomsData: Room[] = [
     id: '18',
     title: 'Room 403',
     property: 'Skyline Towers',
-    status: 'Under Preparation'
+    status: 'Under_Preparation'
   },
   {
     id: '19',
     title: 'Room 404',
     property: 'Skyline Towers',
-    status: 'Pending Inspection'
+    status: 'Pending_Inspection'
   },
   {
     id: '20',
     title: 'Room 405',
     property: 'Skyline Towers',
-    status: 'Property Rented'
+    status: 'Property_Rented'
   }
 ]
 
@@ -403,7 +403,8 @@ export const paymentsData: Payment[] = [
     tenant_name: 'John Doe',
     tenant_picture: '/avatars/john_doe.png',
     tenant_color: '#3B82F6',
-    latest_payment_timestamp: '2025-11-10T14:30:00Z'
+    latest_payment_timestamp: '2025-11-10T14:30:00Z',
+    has_pending_payments: false
   },
   {
     id: '2',
@@ -418,7 +419,8 @@ export const paymentsData: Payment[] = [
     tenant_name: 'Jane Smith',
     tenant_picture: '/avatars/jane_smith.png',
     tenant_color: '#3B82F6',
-    latest_payment_timestamp: '2025-11-01T09:00:00Z'
+    latest_payment_timestamp: '2025-11-01T09:00:00Z',
+    has_pending_payments: true
   },
   {
     id: '3',
@@ -434,7 +436,8 @@ export const paymentsData: Payment[] = [
     tenant_name: 'Alice Johnson',
     tenant_picture: '/avatars/alice_johnson.png',
     tenant_color: '#FACC15',
-    latest_payment_timestamp: '2025-11-03T11:45:00Z'
+    latest_payment_timestamp: '2025-11-03T11:45:00Z',
+    has_pending_payments: false
   },
   {
     id: '4',
@@ -450,7 +453,8 @@ export const paymentsData: Payment[] = [
     tenant_name: 'Bob Lee',
     tenant_picture: '/avatars/bob_lee.png',
     tenant_color: '#A855F7',
-    latest_payment_timestamp: '2025-10-15T08:20:00Z'
+    latest_payment_timestamp: '2025-10-15T08:20:00Z',
+    has_pending_payments: false
   },
   {
     id: '5',
@@ -466,7 +470,8 @@ export const paymentsData: Payment[] = [
     tenant_name: 'Charlie Brown',
     tenant_picture: '/avatars/charlie_brown.png',
     tenant_color: '#EC4899',
-    latest_payment_timestamp: '2025-11-05T10:15:00Z'
+    latest_payment_timestamp: '2025-11-05T10:15:00Z',
+    has_pending_payments: true
   }
 ]
 
@@ -726,7 +731,8 @@ export const staffData: Staff[] = [
 
 export const ticketsData: Ticket[] = [
   {
-    id: 't1',
+    id: 'TK-20250001',
+    ticket_id: 't1-uuid-0001-0001-000000000001',
     type: 'Maintenance',
     title: 'Leaky faucet in kitchen',
     description: 'The kitchen faucet is leaking constantly.',
@@ -741,7 +747,8 @@ export const ticketsData: Ticket[] = [
     status: 'In Progress'
   },
   {
-    id: 't2',
+    id: 'TK-20250002',
+    ticket_id: 't2-uuid-0002-0002-000000000002',
     type: 'Maintenance',
     title: 'Air conditioner not cooling',
     description: 'AC in living room is not producing cold air.',
@@ -756,7 +763,8 @@ export const ticketsData: Ticket[] = [
     status: 'Open'
   },
   {
-    id: 't3',
+    id: 'TK-20250003',
+    ticket_id: 't3-uuid-0003-0003-000000000003',
     type: 'Maintenance',
     title: 'Broken window lock',
     description: 'Bedroom window lock is broken, cannot secure window.',
@@ -771,7 +779,8 @@ export const ticketsData: Ticket[] = [
     status: 'Resolved'
   },
   {
-    id: 't4',
+    id: 'TK-20250004',
+    ticket_id: 't4-uuid-0004-0004-000000000004',
     type: 'Maintenance',
     title: 'Internet not working',
     description: 'WiFi in apartment keeps disconnecting.',
@@ -786,7 +795,8 @@ export const ticketsData: Ticket[] = [
     status: 'In Progress'
   },
   {
-    id: 't5',
+    id: 'TK-20250005',
+    ticket_id: 't5-uuid-0005-0005-000000000005',
     type: 'Maintenance',
     title: 'Water heater not working',
     description: 'No hot water in the bathroom.',
@@ -801,7 +811,8 @@ export const ticketsData: Ticket[] = [
     status: 'Pending Tenant Confirmation'
   },
   {
-    id: 't6',
+    id: 'TK-20250006',
+    ticket_id: 't6-uuid-0006-0006-000000000006',
     type: 'Complaint',
     title: 'Stained carpet',
     description: 'Living room carpet has large stain from previous spill.',
@@ -816,7 +827,8 @@ export const ticketsData: Ticket[] = [
     status: 'Closed'
   },
   {
-    id: 't7',
+    id: 'TK-20250007',
+    ticket_id: 't7-uuid-0007-0007-000000000007',
     type: 'Maintenance',
     title: 'Door handle broken',
     description: 'Front door handle is loose and comes off.',
@@ -831,7 +843,8 @@ export const ticketsData: Ticket[] = [
     status: 'Resolved'
   },
   {
-    id: 't8',
+    id: 'TK-20250008',
+    ticket_id: 't8-uuid-0008-0008-000000000008',
     type: 'Maintenance',
     title: 'Leaking ceiling',
     description: 'Water dripping from ceiling in bedroom.',
@@ -846,7 +859,8 @@ export const ticketsData: Ticket[] = [
     status: 'In Progress'
   },
   {
-    id: 't9',
+    id: 'TK-20250009',
+    ticket_id: 't9-uuid-0009-0009-000000000009',
     type: 'Maintenance',
     title: 'Malfunctioning oven',
     description: 'Oven temperature fluctuates unexpectedly.',
@@ -861,7 +875,8 @@ export const ticketsData: Ticket[] = [
     status: 'Open'
   },
   {
-    id: 't10',
+    id: 'TK-20250010',
+    ticket_id: 't10-uuid-0010-0010-000000000010',
     type: 'Complaint',
     title: 'Noisy neighbors',
     description: 'Neighbors making loud noises late at night.',
@@ -1090,6 +1105,8 @@ export const malaysiaStates: string[] = [
 
 export const taskTypes: string[] = ['Maintenance', 'Cleaning', 'Others']
 
+export const ticketTypes: string[] = ['Maintenance', 'Complaint', 'Billing', 'Other']
+
 export const noticeTypes: string[] = [
   'General Announcement',
   'Maintenance',
@@ -1100,16 +1117,16 @@ export const noticeTypes: string[] = [
 ]
 
 export const paymentTypes: PaymentType[] = [
-  { type: 'Lease Initial Charges' },
-  { type: 'Fines or Penalties' },
+  { type: 'Lease_Initial_Charges' },
+  { type: 'Fines_or_Penalties' },
   { type: 'Utilities', isRecurrable: true },
-  { type: 'Cleaning Service', isRecurrable: true },
+  { type: 'Cleaning_Service', isRecurrable: true },
   { type: 'Parking', isRecurrable: true },
-  { type: 'Miscellaneous/Other', isRecurrable: true }
+  { type: 'Miscellaneous_Others', isRecurrable: true }
 ]
 
 export const chargeTypes: ChargeTypeType[] = [
-  { type: 'First Month Rental', taxable: true, refundable: false },
+  { type: 'First Month Rental', taxable: false, refundable: false },
   { type: 'Earnest Deposit', taxable: false, refundable: true },
   { type: 'Security Deposit', taxable: false, refundable: true },
   { type: 'Utility Deposit', taxable: false, refundable: true },

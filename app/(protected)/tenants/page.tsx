@@ -1,9 +1,5 @@
 import { cn } from '@/lib/utils'
-import SearchInput from '@/components/costume-ui/search-input'
-import Button from '@/components/costume-ui/button'
-import { DeleteButtonIcon } from '@/components/costume-ui/icon'
-import TenantsTable from '@/components/tables/tenants-table'
-import AddTenantDialog from '@/components/dialogs/add-tenant-dialog'
+import TenantsSection from '@/components/sections/tenants-section'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
 import { createAdminClient } from '@/utils/supabase/admin'
@@ -74,21 +70,7 @@ const Tenants = async () => {
       <div>
         <h1>Tenants</h1>
       </div>
-      {/* Actions */}
-      <div className={cn('flex justify-between items-center', 'w-full')}>
-        <SearchInput placeholder='Search tenants' />
-        {/* Buttons */}
-        <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <Button
-            icon={<DeleteButtonIcon />}
-            label='Delete'
-            className='bg-(--error-main)!'
-          />
-          <AddTenantDialog />
-        </div>
-      </div>
-      {/* Table */}
-      <TenantsTable data={tenantsWithStatus} />
+      <TenantsSection tenants={tenantsWithStatus} />
     </div>
   )
 }

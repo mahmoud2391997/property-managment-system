@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 
 import { createClient } from '@/utils/supabase/server';
 
-export async function logout() {
+export async function logout(redirectPath: string = '/login') {
     const supabase = await createClient();
 
     const { error } = await supabase.auth.signOut();
@@ -15,5 +15,5 @@ export async function logout() {
     }
 
     revalidatePath('/', 'layout');
-    redirect('/login');
+    redirect(redirectPath);
 }

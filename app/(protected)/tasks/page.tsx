@@ -5,8 +5,14 @@ import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
 import TasksTable from '@/components/tables/tasks-table'
 import Dialog from '@/components/costume-ui/dialog'
 import AddTask from '@/components/add-task'
+import {UnderDevelopment} from '@/components/costume-ui/under-development'
 
 const Tasks = () => {
+  if (true) {
+    return (
+      <UnderDevelopment />
+    )
+  }
   return (
     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
       {/* Heading */}
@@ -18,11 +24,11 @@ const Tasks = () => {
         <SearchInput placeholder='Search tasks' />
         {/* Buttons */}
         <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <Button
+          {/* <Button
             icon={<DeleteButtonIcon />}
             label='Delete'
             className='bg-(--error-main)!'
-          />
+          /> */}
 
           <Dialog
             openDialogButton={

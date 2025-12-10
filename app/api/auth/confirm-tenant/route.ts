@@ -36,6 +36,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Redirect to error page
-  return NextResponse.redirect(new URL('/setup-password?error=invalid_link', request.url))
+  // Redirect to error page with countdown
+  return NextResponse.redirect(new URL('/error?reason=invalid_link', request.url))
 }

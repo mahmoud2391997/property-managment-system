@@ -35,5 +35,5 @@ export async function tenantLogin(formData: FormData): Promise<string | void> {
   }
 
   revalidatePath('/', 'layout')
-  redirect('/properties')
+  redirect('/payments')
 }

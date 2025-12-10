@@ -88,23 +88,23 @@ export async function POST(request: Request) {
       )
     }
 
-    // Send invitation email with tenant-specific redirect
-    const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      email.trim(),
-      {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4000'}/api/auth/confirm-tenant`
-      }
-    )
+    // // Send invitation email with tenant-specific redirect
+    // const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    //   email.trim(),
+    //   {
+    //     redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4000'}/api/auth/confirm-tenant`
+    //   }
+    // )
 
-    if (inviteError) {
-      console.error('Error sending invite email:', inviteError)
-      // Clean up the created user
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-      return NextResponse.json(
-        { error: 'Failed to send confirmation email' },
-        { status: 500 }
-      )
-    }
+    // if (inviteError) {
+    //   console.error('Error sending invite email:', inviteError)
+    //   // Clean up the created user
+    //   await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+    //   return NextResponse.json(
+    //     { error: 'Failed to send confirmation email' },
+    //     { status: 500 }
+    //   )
+    // }
 
     let profilePicUrl: string | null = null
     let profileThumbUrl: string | null = null
@@ -239,7 +239,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Error creating tenant:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to create tenant' },
+      { error: 'Failed to create tenant' },
       { status: 500 }
     )
   }
@@ -309,7 +309,7 @@ export async function DELETE(request: Request) {
   } catch (error: any) {
     console.error('Error deleting tenant:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to delete tenant' },
+      { error: 'Failed to delete tenant' },
       { status: 500 }
     )
   }

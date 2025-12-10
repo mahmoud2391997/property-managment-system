@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import InnerSection from './collapsible-inner-section'
 import InputCard from './input-card'
 import InputGroup from './input-group'
@@ -17,6 +17,7 @@ type Charge = {
   refundable: boolean
   isRemovable: boolean
   isTaxableChecked?: boolean
+  isRefundableChecked?: boolean
 }
 
 export type ChargeData = {
@@ -27,6 +28,13 @@ export type ChargeData = {
   isTaxableChecked?: boolean
 }
 
+export type DefaultCharge = {
+  type: string
+  amount: number
+  is_taxed: boolean
+  is_refundable: boolean
+}
+
 type Props = {
   title?: string
   subtitle?: string
@@ -34,6 +42,9 @@ type Props = {
   selectable?: boolean
   onChargesChange?: (charges: ChargeData[]) => void
   defaultPayment?: boolean
+  defaultCharges?: DefaultCharge[]
+  excludedChargeTypes?: string[]
+  allChargesSelectable?: boolean
 }
 const ChargesSection = ({
   title = 'Charges',
@@ -41,23 +52,87 @@ const ChargesSection = ({
   flowType,
   selectable = false,
   onChargesChange,
-  defaultPayment = false
+  defaultPayment = false,
+  defaultCharges,
+  excludedChargeTypes = [],
+  allChargesSelectable = false
 }: Props) => {
-  const [charges, setCharges] = useState<Charge[]>(() => {
-    if (defaultPayment === true) {
-      return []
-    }
-    return [
-      {
-        type: chargeTypes[0].type,
-        amount: '',
-        refundable: chargeTypes[0].refundable,
-        taxable: chargeTypes[0].taxable,
-        isRemovable: false,
-        isTaxableChecked: false
+  // Filter out excluded charge types - memoized to prevent infinite re-renders
+  // Use JSON.stringify for stable dependency since excludedChargeTypes array reference changes
+  const excludedTypesKey = JSON.stringify(excludedChargeTypes)
+  const availableChargeTypes = useMemo(
+    () => chargeTypes.filter(ct => !excludedChargeTypes.includes(ct.type)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [excludedTypesKey]
+  )
+  const [chargesApplied, setChargesApplied] = useState(false)
+  const [initialChargesSet, setInitialChargesSet] = useState(false)
+  const [charges, setCharges] = useState<Charge[]>([])
+
+  // Track previous selectable value to detect changes
+  const [prevSelectable, setPrevSelectable] = useState<boolean | null>(null)
+
+  // Initialize charges on first render OR when selectable changes
+  useEffect(() => {
+    const selectableChanged = prevSelectable !== null && prevSelectable !== selectable
+
+    if ((!initialChargesSet || selectableChanged) && !defaultPayment && (!defaultCharges || defaultCharges.length === 0)) {
+      if (selectable) {
+        // For lease initial charges, use the first available charge type
+        if (availableChargeTypes.length > 0) {
+          const firstType = availableChargeTypes[0]
+          setCharges([
+            {
+              type: firstType.type,
+              amount: '',
+              refundable: firstType.refundable,
+              taxable: firstType.taxable,
+              isRemovable: false,
+              isTaxableChecked: false,
+              isRefundableChecked: firstType.type === 'Earnest Deposit'
+            }
+          ])
+        }
+      } else {
+        // For other payment types (non-selectable), use empty type with taxable option
+        setCharges([
+          {
+            type: '',
+            amount: '',
+            refundable: false,
+            taxable: true,
+            isRemovable: false,
+            isTaxableChecked: false,
+            isRefundableChecked: false
+          }
+        ])
       }
-    ]
-  })
+      setInitialChargesSet(true)
+    }
+    setPrevSelectable(selectable)
+  }, [availableChargeTypes, defaultPayment, defaultCharges, initialChargesSet, selectable, prevSelectable])
+
+  // Apply default charges when they arrive (after async load)
+  useEffect(() => {
+    if (defaultCharges && defaultCharges.length > 0 && !chargesApplied) {
+      const mappedCharges: Charge[] = defaultCharges.map((charge, index) => {
+        const config = chargeTypes.find(t => t.type === charge.type)
+        // Use is_refundable from database config, fallback to true only for Earnest Deposit
+        const isRefundableChecked = charge.is_refundable ?? (charge.type === 'Earnest Deposit')
+        return {
+          type: charge.type,
+          amount: String(charge.amount),
+          taxable: config?.taxable ?? false,
+          refundable: config?.refundable ?? false,
+          isRemovable: index > 0, // First charge is not removable
+          isTaxableChecked: charge.is_taxed,
+          isRefundableChecked
+        }
+      })
+      setCharges(mappedCharges)
+      setChargesApplied(true)
+    }
+  }, [defaultCharges, chargesApplied])
 
   // Notify parent when charges change
   useEffect(() => {
@@ -66,25 +141,73 @@ const ChargesSection = ({
     }
   }, [charges, onChargesChange])
 
-  // When selectable becomes true, trim charges to match chargeTypes length
+  // When selectable becomes true, trim charges to match availableChargeTypes length
   useEffect(() => {
-    if (selectable && charges.length > chargeTypes.length) {
-      setCharges(prev => prev.slice(0, chargeTypes.length))
+    if (selectable && charges.length > availableChargeTypes.length) {
+      setCharges(prev => prev.slice(0, availableChargeTypes.length))
     }
-  }, [selectable])
+  }, [selectable, availableChargeTypes.length])
+
+  // When excludedChargeTypes changes, filter out any currently selected charges that are now excluded
+  // and reset the first charge if needed
+  useEffect(() => {
+    if (excludedChargeTypes.length > 0 && initialChargesSet) {
+      setCharges(prev => {
+        // Filter out charges that are now excluded
+        const filteredCharges = prev.filter(
+          charge => !excludedChargeTypes.includes(charge.type)
+        )
+
+        // If all charges were filtered out and we have available types, add the first available one
+        if (filteredCharges.length === 0 && availableChargeTypes.length > 0) {
+          const firstType = availableChargeTypes[0]
+          return [
+            {
+              type: firstType.type,
+              amount: '',
+              refundable: firstType.refundable,
+              taxable: firstType.taxable,
+              isRemovable: false,
+              isTaxableChecked: false,
+              isRefundableChecked: firstType.type === 'Earnest Deposit'
+            }
+          ]
+        }
+
+        // Update isRemovable for the first charge
+        if (filteredCharges.length > 0) {
+          filteredCharges[0] = { ...filteredCharges[0], isRemovable: false }
+          for (let i = 1; i < filteredCharges.length; i++) {
+            filteredCharges[i] = { ...filteredCharges[i], isRemovable: true }
+          }
+        }
+
+        return filteredCharges
+      })
+    }
+  }, [excludedChargeTypes, availableChargeTypes, initialChargesSet])
 
   const handleTypeChange = (index: number, selectedType: string) => {
     const config = chargeTypes.find(t => t.type === selectedType)
-    if (!config) return
 
     setCharges(prev => {
       const updated = [...prev]
-      updated[index] = {
-        ...updated[index],
-        type: selectedType,
-        taxable: config.taxable,
-        refundable: config.refundable,
-        isTaxableChecked: false
+      if (config) {
+        // For selectable charges, update taxable/refundable from config
+        updated[index] = {
+          ...updated[index],
+          type: selectedType,
+          taxable: config.taxable,
+          refundable: config.refundable,
+          isTaxableChecked: false,
+          isRefundableChecked: selectedType === 'Earnest Deposit'
+        }
+      } else {
+        // For non-selectable charges (free text input), just update the type/title
+        updated[index] = {
+          ...updated[index],
+          type: selectedType
+        }
       }
       return updated
     })
@@ -112,6 +235,17 @@ const ChargesSection = ({
     })
   }
 
+  const handleRefundableChange = (index: number, checked: boolean) => {
+    setCharges(prev => {
+      const updated = [...prev]
+      updated[index] = {
+        ...updated[index],
+        isRefundableChecked: checked
+      }
+      return updated
+    })
+  }
+
   const handleRemoveCharge = (index: number) => {
     setCharges(prev => prev.filter((_, i) => i !== index))
   }
@@ -120,33 +254,36 @@ const ChargesSection = ({
     if (selectable) {
       // Get available charge types (not already selected)
       const selectedTypes = charges.map(c => c.type)
-      const availableType = chargeTypes.find(
+      const nextAvailableType = availableChargeTypes.find(
         t => !selectedTypes.includes(t.type)
       )
 
-      if (!availableType) return // No more types available
+      if (!nextAvailableType) return // No more types available
 
       setCharges(prev => [
         ...prev,
         {
-          type: availableType.type,
+          type: nextAvailableType.type,
           amount: '',
-          taxable: availableType.taxable,
-          refundable: availableType.refundable,
+          taxable: nextAvailableType.taxable,
+          refundable: nextAvailableType.refundable,
           isRemovable: true,
-          isTaxableChecked: false
+          isTaxableChecked: false,
+          isRefundableChecked: nextAvailableType.type === 'Earnest Deposit'
         }
       ])
     } else {
+      // For non-selectable (other payment types), use empty type with taxable option
       setCharges(prev => [
         ...prev,
         {
-          type: chargeTypes[0].type,
+          type: '',
           amount: '',
           taxable: true,
           refundable: false,
           isRemovable: true,
-          isTaxableChecked: false
+          isTaxableChecked: false,
+          isRefundableChecked: false
         }
       ])
     }
@@ -176,18 +313,18 @@ const ChargesSection = ({
   const summary = calculateSummary()
 
   // Get available charge types for a specific card (excluding types selected in other cards)
-  const getAvailableChargeTypes = (currentIndex: number) => {
+  const getAvailableChargeTypesForCard = (currentIndex: number) => {
     const selectedTypes = charges
       .map((c, i) => (i !== currentIndex ? c.type : null))
       .filter(Boolean)
 
-    return chargeTypes
+    return availableChargeTypes
       .filter(t => !selectedTypes.includes(t.type))
       .map(t => t.type)
   }
 
   // Check if we can add more charges (only when selectable is true)
-  const canAddMore = selectable ? charges.length < chargeTypes.length : true
+  const canAddMore = selectable ? charges.length < availableChargeTypes.length : true
 
   return (
     <InnerSection title={title} subtitle={subtitle}>
@@ -212,7 +349,7 @@ const ChargesSection = ({
           const config = chargeTypes.find(t => t.type === charge.type)
           const isFirstCard = index === 0
           const availableTypes = selectable
-            ? getAvailableChargeTypes(index)
+            ? getAvailableChargeTypesForCard(index)
             : []
 
           return (
@@ -227,8 +364,8 @@ const ChargesSection = ({
                 isRequired
               >
                 {selectable ? (
-                  isFirstCard && !defaultPayment ? (
-                    // First card shows charge type as text, not selectable
+                  isFirstCard && !defaultPayment && !allChargesSelectable ? (
+                    // First card shows charge type as text, not selectable (unless allChargesSelectable is true)
                     <div className='flex items-center h-10 px-3 rounded-md border border-(--border-default) bg-(--background-primary)'>
                       <span className='texts-body-medium'>{charge.type}</span>
                     </div>
@@ -248,6 +385,8 @@ const ChargesSection = ({
                     className='bg-(--background-primary)'
                     maxLength={30}
                     placeholder='Enter charge title'
+                    value={charge.type}
+                    onChange={e => handleTypeChange(index, e.target.value)}
                     required
                   />
                 )}
@@ -269,8 +408,8 @@ const ChargesSection = ({
                 />
               </InputGroup>
 
-              {/* Conditionally render based on selected type */}
-              {config?.taxable && flowType === 'income' && (
+              {/* Conditionally render based on selected type (use config for selectable, charge props otherwise) */}
+              {(selectable ? config?.taxable : charge.taxable) && flowType === 'income' && (
                 <CheckAddon
                   label='Taxable (SST 8%)'
                   checked={charge.isTaxableChecked}
@@ -280,8 +419,12 @@ const ChargesSection = ({
                 />
               )}
 
-              {config?.refundable && flowType === 'income' && (
-                <CheckAddon label='Refundable' />
+              {(selectable ? config?.refundable : charge.refundable) && flowType === 'income' && (
+                <CheckAddon
+                  label='Refundable'
+                  checked={charge.isRefundableChecked ?? (charge.type === 'Earnest Deposit')}
+                  onCheckedChange={checked => handleRefundableChange(index, checked)}
+                />
               )}
             </InputCard>
           )

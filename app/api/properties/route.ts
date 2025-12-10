@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(req: Request) {
+export async function GET (req: Request) {
   try {
     const supabase = await createClient()
     const {
@@ -90,7 +90,7 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST (req: NextRequest) {
   try {
     const supabase = await createClient()
     const {
@@ -117,6 +117,7 @@ export async function POST(req: NextRequest) {
       code,
       street_address,
       postal_code,
+      city,
       type,
       project_id,
       is_ready,
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest) {
     } = body
 
     // Validate required fields
-    if (!code || !street_address || !postal_code || !type) {
+    if (!code || !street_address || !postal_code || !city || !type) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -146,10 +147,11 @@ export async function POST(req: NextRequest) {
           code,
           street_address,
           postal_code,
+          city,
           type,
           project_id: project_id || null,
           organization_id: staff.organization_id,
-          is_ready: is_ready || false,
+          status: is_ready ? 'Ready' : 'Pending_Inspection',
           created_by: user.id
         }
       })
@@ -161,7 +163,7 @@ export async function POST(req: NextRequest) {
           data: rooms.map((room: { title: string; is_ready: boolean }) => ({
             title: room.title,
             property_id: newProperty.id,
-            is_ready: room.is_ready || false,
+            status: room.is_ready ? 'Ready' : 'Pending_Inspection',
             created_by: user.id
           }))
         })

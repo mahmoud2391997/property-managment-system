@@ -71,15 +71,14 @@ const Input = (props: Props) => {
           defaultCountry='my'
           placeholder='Enter phone number'
           inputClassName={styles}
+          style={{ '--react-international-phone-height': '40px' } as React.CSSProperties}
           countrySelectorStyleProps={{
             buttonClassName: cn(
               'bg-(--background-secondary) hover:bg-neutral-100 border border-(--border-strong)',
-              'h-10 rounded-l-[5]',
+              'h-10 w-12 rounded-l-[5]',
               'transition-colors duration-200'
             ),
-            
           }}
-          
           {...phoneProps}
         />
         {note && (

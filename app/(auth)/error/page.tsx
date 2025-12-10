@@ -1,112 +1,77 @@
 'use client'
-import { useSearchParams } from 'next/navigation'
-import { Suspense } from 'react'
 
-function ErrorContent() {
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { XCircle } from 'lucide-react'
+
+export default function ErrorPage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
+  const [count, setCount] = useState(3)
+
   const reason = searchParams.get('reason')
 
   const getErrorMessage = (reason: string | null) => {
     switch (reason) {
+      case 'invalid_link':
+        return {
+          title: 'Invalid or Expired Link',
+          message: 'The link you used is invalid or has expired.'
+        }
       case 'missing_params':
         return {
           title: 'Invalid Link',
-          message: 'The verification link is missing required parameters. Please check your email and try again.'
+          message: 'The verification link is missing required parameters.'
         }
       case 'verification_failed':
         return {
           title: 'Verification Failed',
-          message: 'The verification token is invalid or has expired. Please request a new verification email.'
+          message: 'The verification token is invalid or has expired.'
         }
       case 'expired':
         return {
           title: 'Link Expired',
-          message: 'This verification link has expired. Please request a new one.'
+          message: 'This link has expired.'
         }
       default:
         return {
-          title: 'Something went wrong',
-          message: 'An unexpected error occurred. Please try again.'
+          title: 'Something Went Wrong',
+          message: 'An unexpected error occurred.'
         }
     }
   }
 
   const error = getErrorMessage(reason)
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCount(c => c - 1)
+    }, 1000)
+
+    const redirectTimer = setTimeout(() => {
+      router.push('/login/staff')
+    }, 3000)
+
+    return () => {
+      clearInterval(timer)
+      clearTimeout(redirectTimer)
+    }
+  }, [router])
+
   return (
-    <div style={{ 
-      textAlign: 'center', 
-      marginTop: '2rem', 
-      padding: '2rem',
-      maxWidth: '500px',
-      margin: '2rem auto'
-    }}>
-      <h1 style={{ color: '#dc2626', marginBottom: '1rem' }}>
-        ❌ {error.title}
-      </h1>
-      <p style={{ 
-        marginBottom: '2rem', 
-        color: '#6b7280',
-        lineHeight: '1.6'
-      }}>
-        {error.message}
-      </p>
-      
-      <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-        <button
-          onClick={() => window.history.back()}
-          style={{
-            padding: '0.75rem 1.5rem',
-            backgroundColor: '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.5rem',
-            cursor: 'pointer',
-            textDecoration: 'none'
-          }}
-        >
-          Go Back
-        </button>
-        
-        <a
-          href="/login"
-          style={{
-            padding: '0.75rem 1.5rem',
-            backgroundColor: '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.5rem',
-            cursor: 'pointer',
-            textDecoration: 'none',
-            display: 'inline-block'
-          }}
-        >
-          Go to Login
-        </a>
+    <div className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6">
+      <div className="flex h-24 w-24 items-center justify-center rounded-full bg-red-100">
+        <XCircle className="h-14 w-14 text-red-600" />
       </div>
-
-      {reason === 'verification_failed' && (
-        <div style={{ marginTop: '1.5rem' }}>
-          <a
-            href="/resend-verification"
-            style={{
-              color: '#3b82f6',
-              textDecoration: 'underline',
-              fontSize: '0.875rem'
-            }}
-          >
-            Resend verification email
-          </a>
-        </div>
-      )}
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-bold">{error.title}</h1>
+        <p className="text-muted-foreground text-lg">
+          {error.message}
+        </p>
+      </div>
+      <p className="text-muted-foreground text-sm mt-4">
+        Redirecting to login in {count} second{count !== 1 ? 's' : ''}...
+      </p>
     </div>
-  )
-}
-
-export default function ErrorPage() {
-  return (
-    <Suspense fallback={<div style={{ textAlign: 'center', marginTop: '2rem' }}>Loading...</div>}>
-      <ErrorContent />
-    </Suspense>
   )
 }

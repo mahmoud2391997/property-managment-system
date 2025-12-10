@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState, useEffect } from 'react'
 import InnerSection from './collapsible-inner-section'
 import InputCard from './input-card'
 import InputGroup from './input-group'
@@ -8,14 +8,34 @@ import Button from './button'
 import { Plus } from 'lucide-react'
 import { LateCharge } from './payment-section'
 
-type Props = {
-  onLateChargesChange?: (charges: LateCharge[]) => void
+export type DefaultLateCharge = {
+  days_after_due: number
+  amount: number
 }
 
-const LateChargesSection = ({ onLateChargesChange }: Props) => {
+type Props = {
+  onLateChargesChange?: (charges: LateCharge[]) => void
+  defaultLateCharges?: DefaultLateCharge[]
+}
+
+const LateChargesSection = ({ onLateChargesChange, defaultLateCharges }: Props) => {
   const daysOfMonth: number[] = Array.from({ length: 28 }, (_, i) => i + 1)
+  const [lateChargesApplied, setLateChargesApplied] = useState(false)
 
   const [lateCharges, setLateCharges] = useState<LateCharge[]>([])
+
+  // Apply default late charges when they arrive (after async load)
+  useEffect(() => {
+    if (defaultLateCharges && defaultLateCharges.length > 0 && !lateChargesApplied) {
+      const mappedCharges: LateCharge[] = defaultLateCharges.map(charge => ({
+        days_after_due: charge.days_after_due,
+        amount: String(charge.amount)
+      }))
+      setLateCharges(mappedCharges)
+      onLateChargesChange?.(mappedCharges)
+      setLateChargesApplied(true)
+    }
+  }, [defaultLateCharges, lateChargesApplied, onLateChargesChange])
   const handleAddLateCharge = () => {
     const updated = [...lateCharges, { days_after_due: 0, amount: '' }]
     setLateCharges(updated)
@@ -57,7 +77,7 @@ const LateChargesSection = ({ onLateChargesChange }: Props) => {
   return (
     <InnerSection
       title='Late Payment Charges'
-      subtitle='Set up charges for late payments by tenants'
+      subtitle='Set up charges for late payments by tenants after payment'
     >
       {lateCharges.length === 0 ? (
         <div className='flex items-center justify-center py-8 px-4 border border-dashed border-(--border-subtle) rounded-lg bg-(--background-secondary)'>

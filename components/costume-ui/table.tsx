@@ -1,11 +1,18 @@
 import React from 'react'
-import type { ColumnDef, ColumnFiltersState, SortingState } from '@tanstack/react-table'
+import type {
+  ColumnDef,
+  ColumnFiltersState,
+  SortingState,
+  ExpandedState,
+  Row
+} from '@tanstack/react-table'
 import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  getExpandedRowModel,
   useReactTable
 } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
@@ -20,17 +27,34 @@ import {
 import { cn } from '@/lib/utils'
 
 type Props<TData extends object> = {
-    columns: ColumnDef<TData>[],
-    data: TData[]
-    className?: string
+  columns: ColumnDef<TData>[]
+  data: TData[]
+  className?: string
+  getRowCanExpand?: (row: Row<TData>) => boolean
+  renderSubComponent?: (row: Row<TData>) => React.ReactElement
+  noPagnitation?: boolean
+  loadingRowId?: string | null
+  getRowId?: (row: TData) => string
+  meta?: Record<string, unknown>
 }
 
-function Table<TData extends object> ({columns, data, className = ''} : Props<TData>) {
+function Table<TData extends object> ({
+  columns,
+  data,
+  className = '',
+  getRowCanExpand,
+  renderSubComponent,
+  noPagnitation = false,
+  loadingRowId = null,
+  getRowId,
+  meta
+}: Props<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   )
   const [rowSelection, setRowSelection] = React.useState({})
+  const [expanded, setExpanded] = React.useState<ExpandedState>({})
 
   const table = useReactTable({
     data,
@@ -41,11 +65,16 @@ function Table<TData extends object> ({columns, data, className = ''} : Props<TD
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
     onRowSelectionChange: setRowSelection,
+    onExpandedChange: setExpanded,
+    getRowCanExpand: getRowCanExpand,
+    meta,
     state: {
       sorting,
       columnFilters,
-      rowSelection
+      rowSelection,
+      expanded
     }
   })
 
@@ -73,21 +102,43 @@ function Table<TData extends object> ({columns, data, className = ''} : Props<TD
           </TableHeader>
           <TableBody className='bg-(--background-primary)'>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map(row => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                >
-                  {row.getVisibleCells().map(cell => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
+              table.getRowModel().rows.map(row => {
+                const rowId = getRowId ? getRowId(row.original) : null
+                const isLoading = loadingRowId && rowId === loadingRowId
+
+                return (
+                  <React.Fragment key={row.id}>
+                    <TableRow
+                      data-state={row.getIsSelected() && 'selected'}
+                      className='relative'
+                    >
+                      {row.getVisibleCells().map(cell => (
+                        <TableCell key={cell.id} className={cn(isLoading && 'opacity-30')}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                      {isLoading && (
+                        <td className='absolute inset-0 flex items-center justify-center pointer-events-none' style={{ background: 'rgba(255,255,255,0.8)' }}>
+                          <div className='flex items-center gap-2 text-sm text-gray-500'>
+                            <div className='h-4 w-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin' />
+                            Updating...
+                          </div>
+                        </td>
                       )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+                    </TableRow>
+                    {row.getCanExpand() && renderSubComponent && (
+                      <TableRow className={row.getIsExpanded() ? '' : 'hidden'}>
+                        <TableCell colSpan={row.getVisibleCells().length}>
+                          {renderSubComponent(row)}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                )
+              })
             ) : (
               <TableRow>
                 <TableCell
@@ -102,31 +153,33 @@ function Table<TData extends object> ({columns, data, className = ''} : Props<TD
         </ShadcnTable>
       </div>
 
-      <div className='flex items-center justify-end space-x-2 py-4'>
-        <div className='text-muted-foreground flex-1 text-sm'>
-          {table.getFilteredSelectedRowModel().rows.length} of{' '}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+      {!noPagnitation && (
+        <div className='flex items-center justify-end space-x-2 py-4'>
+          <div className='text-muted-foreground flex-1 text-sm'>
+            {table.getFilteredSelectedRowModel().rows.length} of{' '}
+            {table.getFilteredRowModel().rows.length} row(s) selected.
+          </div>
+          <div className='space-x-2'>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Previous
+            </Button>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
         </div>
-        <div className='space-x-2'>
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
-        </div>
-      </div>
+      )}
     </div>
   )
 }
-export {Table}
+export { Table }

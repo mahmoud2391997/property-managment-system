@@ -1,5 +1,5 @@
 export const formatCurrency = (amount: number, currency = 'MYR') =>
-  new Intl.NumberFormat('en-US', {
+  new Intl.NumberFormat('ms-MY', {
     style: 'currency',
     currency
   }).format(amount)

@@ -45,7 +45,7 @@ const CollapsibleSection = ({
 
             <span
               className={cn(
-                isCollapsed ? 'h-0 opacity-0' : 'h-5',
+                isCollapsed ? 'h-5' : 'h-0 opacity-0',
                 'transition-all duration-300',
                 'texts-body-medium text-(--text-secondary)'
               )}

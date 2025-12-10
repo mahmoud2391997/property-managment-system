@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Error marking password as set:', error)
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: 'Failed to update password status' },
       { status: 500 }
     )
   }

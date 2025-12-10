@@ -3,6 +3,7 @@ import { getUserAndStaff } from '@/utils/getUserAndStaff'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { NextResponse } from 'next/server'
+import { getBaseUrl } from '@/utils/get-base-url'
 
 export async function GET (request: Request) {
   try {
@@ -67,13 +68,13 @@ export async function GET (request: Request) {
   } catch (error: any) {
     console.error('Error fetching staff:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch staff' },
+      { error: 'Failed to fetch staff' },
       { status: 500 }
     )
   }
 }
 
-async function generateStaffId(organizationId: string): Promise<string> {
+async function generateStaffId (organizationId: string): Promise<string> {
   const lastStaff = await prisma.staff.findFirst({
     where: { organization_id: organizationId },
     orderBy: { created_at: 'desc' },
@@ -113,10 +114,7 @@ export async function POST (request: Request) {
     }
 
     if (!email || !email.trim()) {
-      return NextResponse.json(
-        { error: 'Email is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Email is required' }, { status: 400 })
     }
 
     if (!phoneNumber || !phoneNumber.trim()) {
@@ -127,10 +125,7 @@ export async function POST (request: Request) {
     }
 
     if (!roleId || !roleId.trim()) {
-      return NextResponse.json(
-        { error: 'Role is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Role is required' }, { status: 400 })
     }
 
     // Verify role belongs to organization
@@ -152,13 +147,14 @@ export async function POST (request: Request) {
     const supabaseAdmin = createAdminClient()
 
     // Create auth user first (unconfirmed, will manually send invite)
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: email.trim(),
-      email_confirm: false,
-      user_metadata: {
-        user_type: 'staff'
-      }
-    })
+    const { data: authData, error: authError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email: email.trim(),
+        email_confirm: false,
+        user_metadata: {
+          user_type: 'staff'
+        }
+      })
 
     if (authError || !authData.user) {
       console.error('Error creating auth user:', authError)
@@ -169,12 +165,10 @@ export async function POST (request: Request) {
     }
 
     // Send custom confirmation email with staff-specific redirect
-    const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      email.trim(),
-      {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4000'}/api/auth/confirm-staff`
-      }
-    )
+    const { error: inviteError } =
+      await supabaseAdmin.auth.admin.inviteUserByEmail(email.trim(), {
+        redirectTo: `${getBaseUrl()}/api/auth/confirm-staff`
+      })
 
     if (inviteError) {
       console.error('Error sending invite email:', inviteError)
@@ -286,10 +280,12 @@ export async function POST (request: Request) {
       // Clean up auth user and images if database insert fails
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       if (profilePicUrl && profileThumbUrl) {
-        await supabase.storage.from('staff').remove([
-          `${authData.user.id}/profile.jpg`,
-          `${authData.user.id}/thumb.jpg`
-        ])
+        await supabase.storage
+          .from('staff')
+          .remove([
+            `${authData.user.id}/profile.jpg`,
+            `${authData.user.id}/thumb.jpg`
+          ])
       }
       return NextResponse.json(
         { error: dbError.message || 'Failed to create staff record' },
@@ -299,13 +295,13 @@ export async function POST (request: Request) {
   } catch (error: any) {
     console.error('Error creating staff:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to create staff' },
+      { error: 'Failed to create staff' },
       { status: 500 }
     )
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE (request: Request) {
   try {
     const { user, staff: currentStaff, error } = await getUserAndStaff()
 
@@ -338,16 +334,26 @@ export async function DELETE(request: Request) {
     }
 
     if (targetStaff.organization_id !== currentStaff.organization_id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
     // Prevent self-deletion
     if (staffId === user.id) {
       return NextResponse.json(
         { error: 'Cannot delete your own account' },
+        { status: 400 }
+      )
+    }
+
+    // Check if target staff is the organization creator
+    const organization = await prisma.organizations.findUnique({
+      where: { id: currentStaff.organization_id },
+      select: { created_by: true }
+    })
+
+    if (organization?.created_by === staffId) {
+      return NextResponse.json(
+        { error: 'Cannot delete the organization owner' },
         { status: 400 }
       )
     }
@@ -361,15 +367,11 @@ export async function DELETE(request: Request) {
     })
 
     // Delete profile images from storage if they exist
-    const { data: files } = await supabase.storage
-      .from('staff')
-      .list(staffId)
+    const { data: files } = await supabase.storage.from('staff').list(staffId)
 
     if (files && files.length > 0) {
       const filePaths = files.map(file => `${staffId}/${file.name}`)
-      await supabase.storage
-        .from('staff')
-        .remove(filePaths)
+      await supabase.storage.from('staff').remove(filePaths)
     }
 
     // Delete user from Supabase Auth
@@ -385,7 +387,7 @@ export async function DELETE(request: Request) {
   } catch (error: any) {
     console.error('Error deleting staff:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to delete staff' },
+      { error: 'Failed to delete staff' },
       { status: 500 }
     )
   }

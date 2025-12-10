@@ -1,13 +1,21 @@
 import { cn } from '@/lib/utils'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 type Props = {
   defaultOption: number
   options: string[]
   onChange?: (value: number) => void
+  value?: number // Optional controlled value
 }
-const RadioGroup = ({ defaultOption, options, onChange }: Props) => {
-  const [selected, setSelected] = useState<number>(defaultOption)
+const RadioGroup = ({ defaultOption, options, onChange, value }: Props) => {
+  const [selected, setSelected] = useState<number>(value ?? defaultOption)
+
+  // Sync with controlled value when it changes
+  useEffect(() => {
+    if (value !== undefined) {
+      setSelected(value)
+    }
+  }, [value])
 
   return (
     <div className='flex gap-3'>

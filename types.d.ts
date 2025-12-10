@@ -13,7 +13,16 @@ export type Property = {
   address: string
   project: string
   type: string
-  status: 'Occupied' | 'Under Preparation' | 'Pending Inspection' | 'Vacant'
+  status: 'Occupied' | 'Vacant' | 'Pending_Inspection' | 'Under_Preparation'
+}
+
+export type PropertyWithDetails = {
+  id: string
+  code: string
+  address: string
+  project: string | null
+  type: property_type
+  status: property_status
 }
 
 export type Room = {
@@ -22,10 +31,57 @@ export type Room = {
   property: string
   status:
     | 'Occupied'
-    | 'Under Preparation'
-    | 'Pending Inspection'
     | 'Vacant'
-    | 'Property Rented'
+    | 'Pending_Inspection'
+    | 'Under_Preparation'
+    | 'Property_Rented'
+    | 'Property_Not_Ready'
+}
+
+export type RoomWithProperty = {
+  id: string
+  title: string
+  property: string
+  status: property_status
+}
+
+export type ViewWithProperty = {
+  id: string
+  reference_id: string
+  first_name: string
+  last_name: string | null
+  phone_number: string | null
+  email: string | null
+  viewed_at: string
+  created_at: string
+}
+
+export type LeaseStatusComputed = 'Scheduled' | 'Current' | 'Expired' | 'Ended'
+
+export type LeaseWithDetails = {
+  id: string
+  reference_id: string
+  start_date: string
+  number_of_months: number | null
+  monthly_rent: number
+  status: LeaseStatusComputed
+  tenant: {
+    id: string
+    first_name: string
+    last_name: string | null
+    profile_thumb: string | null
+  }
+}
+
+export type PaymentHistory = {
+  id: string
+  payment_number: number
+  payment_method: 'Cash' | 'Bank_Transfer' | 'FPX' | 'Online_Payment'
+  amount_paid: number
+  remaining_amount: number
+  status: 'Success' | 'Failed' | 'Pending'
+  paid_at: string // ISO timestamp
+  receipt_image: string | null
 }
 
 export type Payment = {
@@ -37,12 +93,14 @@ export type Payment = {
   recurring_pattern: 'Recurring' | 'One-time'
   recurring_pattern_description: string
   amount: number
-  status: 'Paid' | 'Paid Late' | 'Pending' | 'Overdue'
+  status: 'Paid' | 'Paid Late' | 'Pending' | 'Overdue' | 'Cancelled'
   payment_percentage: number
+  has_pending_payments: boolean
   tenant_name: string
   tenant_picture: string
   tenant_color: string
   latest_payment_timestamp: string // ISO timestamp
+  payment_history?: PaymentHistory[] // Loaded on demand
 }
 
 export type Expense = {
@@ -87,7 +145,8 @@ export type Staff = {
 }
 
 export type Ticket = {
-  id: string
+  id: string // reference_id (e.g., TK-20250001)
+  ticket_id: string // actual UUID for linking
   type: 'Maintenance' | 'Billing' | 'Complaint' | 'Others'
   title: string
   description: string
@@ -143,7 +202,9 @@ export type ComboBoxitemsType = {
   id?: string
   avatar?: string | React.ReactNode
   label: string
+  extraReference?: string
   subtitle?: string
+  metadata?: any // Additional metadata for special use cases
 }
 
 export type Crumb = {
@@ -164,4 +225,18 @@ export type TabType = {
   isSelected: boolean
 }
 
-type OrganizationIdParams = { params: { organizationId: string } }
+export type OrganizationIdParams = { params: { organizationId: string } }
+
+export type Notification = {
+  id: string
+  title: string
+  message: string
+  reference_id: string | null // UUID of the related entity
+  reference_type: string | null // 'tickets', 'payments', 'leases', etc.
+  is_read: boolean
+  created_at: string // ISO Timestamp
+  page: string | null // Page to navigate to
+  performer_name: string | null
+  performer_picture: string | null
+}
+

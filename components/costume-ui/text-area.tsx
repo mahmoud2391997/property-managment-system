@@ -1,4 +1,5 @@
-import React from 'react'
+'use client';
+
 import { Textarea } from '../ui/textarea'
 import { cn } from '@/lib/utils'
 

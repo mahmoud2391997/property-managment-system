@@ -1,9 +1,5 @@
 import { cn } from '@/lib/utils'
-import SearchInput from '@/components/costume-ui/search-input'
-import Button from '@/components/costume-ui/button'
-import { DeleteButtonIcon } from '@/components/costume-ui/icon'
-import OwnersTable from '@/components/tables/owners-table'
-import AddOwnerDialog from '@/components/dialogs/add-owner-dialog'
+import OwnersSection from '@/components/sections/owners-section'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 
@@ -59,23 +55,7 @@ const Owners = async () => {
       <div>
         <h1>Owners</h1>
       </div>
-      {/* Actions */}
-      <div className={cn('flex justify-between items-center', 'w-full')}>
-        <SearchInput placeholder='Search owners' />
-        {/* Buttons */}
-        <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <Button
-            icon={<DeleteButtonIcon />}
-            label='Delete'
-            className='bg-(--error-main)!'
-          />
-          <AddOwnerDialog />
-        </div>
-      </div>
-      {/* Table */}
-      <div>
-        <OwnersTable data={owners} />
-      </div>
+      <OwnersSection owners={owners} />
     </div>
   )
 }

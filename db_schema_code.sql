@@ -1,630 +1,475 @@
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
--- Create ENUM types
-CREATE TYPE organization_type AS ENUM ('Owner', 'Property Manager');
-CREATE TYPE property_type AS ENUM ('Apartment', 'House', 'Commercial Unit', 'Studio');
-CREATE TYPE tenant_type AS ENUM ('Individual', 'Company');
-CREATE TYPE payment_status AS ENUM ('Paid', 'Not Paid', 'Paid Late', 'Overdue');
-CREATE TYPE payment_method AS ENUM ('Cash', 'Bank Transfer');
-CREATE TYPE registrar_role AS ENUM ('tenant', 'staff');
-CREATE TYPE expense_category AS ENUM ('Property_Related', 'Contract_Related', 'Staff_Related', 'Company_Related');
-CREATE TYPE identity_type AS ENUM ('mykad', 'passport');
-
--- Organizations table
-CREATE TABLE organizations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title TEXT NOT NULL CHECK (char_length(title) >= 2 AND char_length(title) <= 200),
-    type organization_type NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
+CREATE TABLE public.bookings (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  tenant_id uuid NOT NULL,
+  property_id uuid NOT NULL,
+  room_id uuid,
+  move_in_timestamp timestamp with time zone NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  booking_id text NOT NULL CHECK (booking_id ~ '^BK-[0-9]{4}-[0-9]{4}$'::text),
+  CONSTRAINT bookings_pkey PRIMARY KEY (id),
+  CONSTRAINT bookings_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
+  CONSTRAINT bookings_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
+  CONSTRAINT bookings_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id),
+  CONSTRAINT bookings_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
-
--- Roles table
-CREATE TABLE roles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title TEXT NOT NULL CHECK (char_length(title) >= 2 AND char_length(title) <= 100),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-    UNIQUE(title, organization_id)
+CREATE TABLE public.charges (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  title text NOT NULL CHECK (char_length(title) >= 2 AND char_length(title) <= 200),
+  amount double precision NOT NULL CHECK (amount >= 0::double precision),
+  is_taxed boolean NOT NULL DEFAULT false,
+  is_refunded boolean NOT NULL DEFAULT false,
+  payment_id uuid,
+  expense_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  CONSTRAINT charges_pkey PRIMARY KEY (id),
+  CONSTRAINT charges_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payments(id),
+  CONSTRAINT charges_expense_id_fkey FOREIGN KEY (expense_id) REFERENCES public.expenses(id),
+  CONSTRAINT charges_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id),
+  CONSTRAINT fk_payment FOREIGN KEY (payment_id) REFERENCES public.payments(id),
+  CONSTRAINT fk_expense FOREIGN KEY (expense_id) REFERENCES public.expenses(id)
 );
-
--- Staff table
-CREATE TABLE staff (
-    id UUID PRIMARY KEY REFERENCES auth.users(id),
-    staff_id TEXT NOT NULL CHECK (char_length(staff_id) = 8 AND staff_id ~ '^STF-[0-9]{4}$'),
-    first_name TEXT NOT NULL CHECK (char_length(first_name) >= 1 AND char_length(first_name) <= 100),
-    last_name TEXT CHECK (char_length(last_name) >= 1 AND char_length(last_name) <= 100),
-    role_id UUID NOT NULL REFERENCES roles(id),
-    profile_pic TEXT CHECK (char_length(profile_pic) <= 1000),
-    profile_thumb TEXT CHECK (char_length(profile_thumb) <= 1000),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL,
-    UNIQUE(staff_id, organization_id)
+CREATE TABLE public.company_tenants (
+  tenant_id uuid NOT NULL,
+  registration_no text NOT NULL UNIQUE CHECK (char_length(registration_no) >= 5 AND char_length(registration_no) <= 50),
+  company_name text NOT NULL CHECK (char_length(company_name) >= 2 AND char_length(company_name) <= 200),
+  contact_person_first_name text NOT NULL CHECK (char_length(contact_person_first_name) >= 1 AND char_length(contact_person_first_name) <= 100),
+  contact_person_last_name text CHECK (char_length(contact_person_last_name) >= 1 AND char_length(contact_person_last_name) <= 100),
+  phone_number text NOT NULL CHECK (char_length(phone_number) >= 8 AND char_length(phone_number) <= 20 AND phone_number ~ '^\+[0-9]+$'::text),
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  CONSTRAINT company_tenants_pkey PRIMARY KEY (tenant_id),
+  CONSTRAINT company_tenants_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
+  CONSTRAINT company_tenants_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
-
--- Permissions table
-CREATE TABLE permissions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    module TEXT NOT NULL CHECK (char_length(module) >= 1 AND char_length(module) <= 100),
-    action TEXT NOT NULL CHECK (char_length(action) >= 1 AND char_length(action) <= 100),
-    title TEXT NOT NULL CHECK (char_length(title) >= 2 AND char_length(title) <= 200),
-    description TEXT NOT NULL CHECK (char_length(description) >= 1 AND char_length(description) <= 500)
+CREATE TABLE public.contracts (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  start_date timestamp with time zone NOT NULL,
+  number_of_months integer CHECK (number_of_months >= 1),
+  is_expiry_reminder boolean NOT NULL DEFAULT false,
+  expiry_days_before_reminder integer,
+  is_rent_reminder boolean NOT NULL DEFAULT false,
+  rent_reminder_days_before integer,
+  is_overdue_rent_reminder boolean NOT NULL DEFAULT false,
+  overdue_days_after_reminder integer,
+  property_id uuid NOT NULL,
+  owner_id uuid NOT NULL,
+  organization_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  contract_id text NOT NULL CHECK (contract_id ~ '^CTR-[0-9]{4}-[0-9]{4}$'::text),
+  CONSTRAINT contracts_pkey PRIMARY KEY (id),
+  CONSTRAINT contracts_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
+  CONSTRAINT contracts_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.owners(id),
+  CONSTRAINT contracts_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT contracts_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
-
--- Roles_Permissions table
-CREATE TABLE roles_permissions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-    permission_id UUID NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL,
-    UNIQUE(role_id, permission_id)
+CREATE TABLE public.expenses (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  due_payment_date timestamp with time zone,
+  payment_date timestamp with time zone,
+  category USER-DEFINED NOT NULL,
+  type text NOT NULL CHECK (char_length(type) >= 2 AND char_length(type) <= 100),
+  contract_id uuid,
+  property_id uuid,
+  organization_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  status USER-DEFINED NOT NULL,
+  CONSTRAINT expenses_pkey PRIMARY KEY (id),
+  CONSTRAINT expenses_contract_id_fkey FOREIGN KEY (contract_id) REFERENCES public.contracts(id),
+  CONSTRAINT expenses_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
+  CONSTRAINT expenses_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT expenses_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
-
--- Projects table
-CREATE TABLE projects (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title TEXT NOT NULL CHECK (char_length(title) >= 2 AND char_length(title) <= 200),
-    state TEXT NOT NULL CHECK (char_length(state) >= 2 AND char_length(state) <= 100),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL
+CREATE TABLE public.individual_tenants (
+  tenant_id uuid NOT NULL,
+  identity_type USER-DEFINED NOT NULL,
+  identity_number text NOT NULL UNIQUE,
+  first_name text NOT NULL CHECK (char_length(first_name) >= 1 AND char_length(first_name) <= 100),
+  last_name text CHECK (char_length(last_name) >= 1 AND char_length(last_name) <= 100),
+  phone_number text NOT NULL CHECK (char_length(phone_number) >= 8 AND char_length(phone_number) <= 20 AND phone_number ~ '^\+[0-9]+$'::text),
+  CONSTRAINT individual_tenants_pkey PRIMARY KEY (tenant_id),
+  CONSTRAINT individual_tenants_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id)
 );
-
--- Properties table
-CREATE TABLE properties (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code TEXT NOT NULL CHECK (char_length(code) >= 2 AND char_length(code) <= 20),
-    street_address TEXT NOT NULL CHECK (char_length(street_address) >= 5 AND char_length(street_address) <= 300),
-    postal_code TEXT NOT NULL CHECK (char_length(postal_code) >= 4 AND char_length(postal_code) <= 10),
-    is_ready BOOLEAN NOT NULL DEFAULT FALSE,
-    type property_type NOT NULL,
-    project_id UUID REFERENCES projects(id),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL
+CREATE TABLE public.late_payment_charges (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  property_id uuid,
+  days_after_due integer NOT NULL CHECK (days_after_due >= 1 AND days_after_due <= 28),
+  amount double precision NOT NULL CHECK (amount >= 0::double precision),
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  room_id uuid,
+  lease_id uuid,
+  CONSTRAINT late_payment_charges_pkey PRIMARY KEY (id),
+  CONSTRAINT late_payment_charges_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id),
+  CONSTRAINT late_payment_charges_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
+  CONSTRAINT late_payment_charges_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id),
+  CONSTRAINT late_payment_charges_lease_id_fkey FOREIGN KEY (lease_id) REFERENCES public.leases(id),
+  CONSTRAINT fk_lease FOREIGN KEY (lease_id) REFERENCES public.leases(id),
+  CONSTRAINT fk_property FOREIGN KEY (property_id) REFERENCES public.properties(id),
+  CONSTRAINT fk_room FOREIGN KEY (room_id) REFERENCES public.rooms(id)
 );
-
--- Rooms table
-CREATE TABLE rooms (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title TEXT NOT NULL CHECK (char_length(title) >= 1 AND char_length(title) <= 100),
-    is_ready BOOLEAN NOT NULL DEFAULT FALSE,
-    property_id UUID REFERENCES properties(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL
+CREATE TABLE public.leases (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  start_date timestamp with time zone NOT NULL,
+  number_of_months integer CHECK (number_of_months >= 1),
+  payment_day integer NOT NULL CHECK (payment_day >= 1 AND payment_day <= 28),
+  monthly_rent double precision NOT NULL CHECK (monthly_rent >= 0::double precision),
+  is_expiry_reminder boolean NOT NULL DEFAULT false,
+  expiry_days_before_reminder integer,
+  is_rent_reminder boolean NOT NULL DEFAULT false,
+  rent_reminder_days_before integer,
+  is_overdue_rent_reminder boolean NOT NULL DEFAULT false,
+  overdue_days_after_reminder integer,
+  property_id uuid NOT NULL,
+  room_id uuid,
+  tenant_id uuid NOT NULL,
+  organization_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  status USER-DEFINED NOT NULL,
+  reference_id text NOT NULL CHECK (reference_id ~ '^LS-[0-9]{4}-[0-9]{4}$'::text),
+  ended_at timestamp with time zone,
+  CONSTRAINT leases_pkey PRIMARY KEY (id),
+  CONSTRAINT leases_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
+  CONSTRAINT leases_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id),
+  CONSTRAINT leases_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
+  CONSTRAINT leases_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT leases_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
-
--- Tenants table
-CREATE TABLE tenants (
-    id UUID PRIMARY KEY REFERENCES auth.users(id),
-    type tenant_type NOT NULL,
-    profile_pic TEXT CHECK (char_length(profile_pic) <= 1000),
-    profile_thumb TEXT CHECK (char_length(profile_thumb) <= 1000),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  organization_id uuid,
+  user_id uuid,
+  title text NOT NULL,
+  message text NOT NULL,
+  reference_id uuid,
+  reference_type text,
+  performer_id uuid,
+  performer_type USER-DEFINED,
+  read boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  page text,
+  affected_type USER-DEFINED,
+  affected_id uuid,
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
-
--- Individual_Tenants table
-CREATE TABLE individual_tenants (
-    tenant_id UUID PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
-    identity_type identity_type NOT NULL,
-    identity_number TEXT NOT NULL UNIQUE CHECK (
-        (identity_type = 'mykad' AND char_length(identity_number) = 12 AND identity_number ~ '^[0-9]{12}$') OR
-        (identity_type = 'passport' AND char_length(identity_number) >= 6 AND char_length(identity_number) <= 20)
-    ),
-    first_name TEXT NOT NULL CHECK (char_length(first_name) >= 1 AND char_length(first_name) <= 100),
-    last_name TEXT CHECK (char_length(last_name) >= 1 AND char_length(last_name) <= 100),
-    phone_number TEXT NOT NULL CHECK (
-        char_length(phone_number) >= 8 AND 
-        char_length(phone_number) <= 20 AND 
-        phone_number ~ '^\+[0-9]+$'
-    ),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL
+CREATE TABLE public.organizations (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  title text NOT NULL CHECK (char_length(title) >= 2 AND char_length(title) <= 200),
+  type USER-DEFINED NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  CONSTRAINT organizations_pkey PRIMARY KEY (id),
+  CONSTRAINT organizations_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
 );
-
--- Company_Tenants table
-CREATE TABLE company_tenants (
-    tenant_id UUID PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
-    registration_no TEXT NOT NULL UNIQUE CHECK (char_length(registration_no) >= 5 AND char_length(registration_no) <= 50),
-    company_name TEXT NOT NULL CHECK (char_length(company_name) >= 2 AND char_length(company_name) <= 200),
-    contact_person_first_name TEXT NOT NULL CHECK (char_length(contact_person_first_name) >= 1 AND char_length(contact_person_first_name) <= 100),
-    contact_person_last_name TEXT CHECK (char_length(contact_person_last_name) >= 1 AND char_length(contact_person_last_name) <= 100),
-    phone_number TEXT NOT NULL CHECK (
-        char_length(phone_number) >= 8 AND 
-        char_length(phone_number) <= 20 AND 
-        phone_number ~ '^\+[0-9]+$'
-    ),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL
+CREATE TABLE public.organizations_tenants (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  tenant_id uuid NOT NULL,
+  organization_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  CONSTRAINT organizations_tenants_pkey PRIMARY KEY (id),
+  CONSTRAINT organizations_tenants_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
+  CONSTRAINT organizations_tenants_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT organizations_tenants_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
-
--- Owner table
-CREATE TABLE owners (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    first_name TEXT NOT NULL CHECK (char_length(first_name) >= 1 AND char_length(first_name) <= 100),
-    last_name TEXT CHECK (char_length(last_name) >= 1 AND char_length(last_name) <= 100),
-    email TEXT CHECK (char_length(email) >= 5 AND char_length(email) <= 255 AND email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
-    phone_number TEXT NOT NULL CHECK (
-        char_length(phone_number) >= 8 AND 
-        char_length(phone_number) <= 20 AND 
-        phone_number ~ '^\+[0-9]+$'
-    ),
-    profile_pic TEXT CHECK (char_length(profile_pic) <= 1000),
-    profile_thumb TEXT CHECK (char_length(profile_thumb) <= 1000),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL
+CREATE TABLE public.owners (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  first_name text NOT NULL CHECK (char_length(first_name) >= 1 AND char_length(first_name) <= 100),
+  last_name text CHECK (char_length(last_name) >= 1 AND char_length(last_name) <= 100),
+  email text CHECK (char_length(email) >= 5 AND char_length(email) <= 255 AND email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text),
+  phone_number text NOT NULL CHECK (char_length(phone_number) >= 8 AND char_length(phone_number) <= 20 AND phone_number ~ '^\+[0-9]+$'::text),
+  profile_pic text CHECK (char_length(profile_pic) <= 1000),
+  profile_thumb text CHECK (char_length(profile_thumb) <= 1000),
+  organization_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  CONSTRAINT owners_pkey PRIMARY KEY (id),
+  CONSTRAINT owners_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT owners_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
-
--- Leases table
-CREATE TABLE leases (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    start_date TIMESTAMPTZ NOT NULL,
-    number_of_months INTEGER CHECK (number_of_months >= 1),
-    payment_day INTEGER NOT NULL CHECK (payment_day >= 1 AND payment_day <= 28),
-    monthly_rent DOUBLE PRECISION NOT NULL CHECK (monthly_rent >= 0),
-    is_expiry_reminder BOOLEAN NOT NULL DEFAULT FALSE,
-    expiry_days_before_reminder INTEGER CHECK (
-        (is_expiry_reminder = TRUE AND expiry_days_before_reminder IS NOT NULL AND expiry_days_before_reminder >= 0) OR
-        (is_expiry_reminder = FALSE)
-    ),
-    is_rent_reminder BOOLEAN NOT NULL DEFAULT FALSE,
-    rent_reminder_days_before INTEGER CHECK (
-        (is_rent_reminder = TRUE AND rent_reminder_days_before IS NOT NULL AND rent_reminder_days_before >= 0) OR
-        (is_rent_reminder = FALSE)
-    ),
-    is_overdue_rent_reminder BOOLEAN NOT NULL DEFAULT FALSE,
-    overdue_days_after_reminder INTEGER CHECK (
-        (is_overdue_rent_reminder = TRUE AND overdue_days_after_reminder IS NOT NULL AND overdue_days_after_reminder >= 0) OR
-        (is_overdue_rent_reminder = FALSE)
-    ),
-    property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
-    room_id UUID REFERENCES rooms(id),
-    tenant_id UUID NOT NULL REFERENCES tenants(id),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL
+CREATE TABLE public.payment_history (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  amount double precision NOT NULL CHECK (amount >= 0::double precision),
+  payment_method USER-DEFINED NOT NULL,
+  paid_at timestamp with time zone NOT NULL,
+  registrar_role USER-DEFINED NOT NULL,
+  registrar uuid,
+  expense_id uuid,
+  payment_id uuid,
+  receipt_image text CHECK (char_length(receipt_image) <= 1000),
+  billplz_bill_id text UNIQUE,
+  billplz_transaction_id text UNIQUE,
+  status USER-DEFINED NOT NULL,
+  CONSTRAINT payment_history_pkey PRIMARY KEY (id),
+  CONSTRAINT payment_history_registrar_fkey FOREIGN KEY (registrar) REFERENCES public.staff(id),
+  CONSTRAINT payment_history_expense_id_fkey FOREIGN KEY (expense_id) REFERENCES public.expenses(id),
+  CONSTRAINT payment_history_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payments(id)
 );
-
--- Contracts table
-CREATE TABLE contracts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    start_date TIMESTAMPTZ NOT NULL,
-    number_of_months INTEGER CHECK (number_of_months >= 1),
-    is_expiry_reminder BOOLEAN NOT NULL DEFAULT FALSE,
-    expiry_days_before_reminder INTEGER CHECK (
-        (is_expiry_reminder = TRUE AND expiry_days_before_reminder IS NOT NULL AND expiry_days_before_reminder >= 0) OR
-        (is_expiry_reminder = FALSE)
-    ),
-    is_rent_reminder BOOLEAN NOT NULL DEFAULT FALSE,
-    rent_reminder_days_before INTEGER CHECK (
-        (is_rent_reminder = TRUE AND rent_reminder_days_before IS NOT NULL AND rent_reminder_days_before >= 0) OR
-        (is_rent_reminder = FALSE)
-    ),
-    is_overdue_rent_reminder BOOLEAN NOT NULL DEFAULT FALSE,
-    overdue_days_after_reminder INTEGER CHECK (
-        (is_overdue_rent_reminder = TRUE AND overdue_days_after_reminder IS NOT NULL AND overdue_days_after_reminder >= 0) OR
-        (is_overdue_rent_reminder = FALSE)
-    ),
-    property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
-    owner_id UUID NOT NULL REFERENCES owners(id),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL
+CREATE TABLE public.payments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  due_payment_timestamp timestamp with time zone,
+  lease_id uuid,
+  booking_id uuid,
+  organization_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  status USER-DEFINED NOT NULL,
+  type USER-DEFINED NOT NULL,
+  reference_id text NOT NULL DEFAULT 'PY-202500000001'::text CHECK (reference_id ~ '^PY-[0-9]{12}$'::text),
+  CONSTRAINT payments_pkey PRIMARY KEY (id),
+  CONSTRAINT payments_lease_id_fkey FOREIGN KEY (lease_id) REFERENCES public.leases(id),
+  CONSTRAINT payments_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
+  CONSTRAINT payments_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT payments_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
-
--- Bookings table
-CREATE TABLE bookings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id),
-    property_id UUID NOT NULL REFERENCES properties(id),
-    room_id UUID REFERENCES rooms(id),
-    move_in_timestamp TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL
+CREATE TABLE public.permissions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  module text NOT NULL CHECK (char_length(module) >= 1 AND char_length(module) <= 100),
+  action text NOT NULL CHECK (char_length(action) >= 1 AND char_length(action) <= 100),
+  title text NOT NULL CHECK (char_length(title) >= 2 AND char_length(title) <= 200),
+  description text NOT NULL CHECK (char_length(description) >= 1 AND char_length(description) <= 500),
+  CONSTRAINT permissions_pkey PRIMARY KEY (id)
 );
-
--- Payments table
-CREATE TABLE payments (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    status payment_status NOT NULL,
-    due_payment_timestamp TIMESTAMPTZ,
-    type TEXT NOT NULL CHECK (char_length(type) >= 2 AND char_length(type) <= 100),
-    receipt_image TEXT CHECK (char_length(receipt_image) <= 1000),
-    lease_id UUID REFERENCES leases(id),
-    booking_id UUID REFERENCES bookings(id),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL,
-    CHECK (
-        (lease_id IS NOT NULL AND booking_id IS NULL) OR
-        (lease_id IS NULL AND booking_id IS NOT NULL)
-    )
+CREATE TABLE public.projects (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  title text NOT NULL CHECK (char_length(title) >= 2 AND char_length(title) <= 200),
+  state text NOT NULL CHECK (char_length(state) >= 2 AND char_length(state) <= 100),
+  organization_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  CONSTRAINT projects_pkey PRIMARY KEY (id),
+  CONSTRAINT projects_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT projects_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
-
--- Expenses table
-CREATE TABLE expenses (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    status payment_status NOT NULL,
-    due_payment_date TIMESTAMPTZ,
-    payment_date TIMESTAMPTZ,
-    category expense_category NOT NULL,
-    type TEXT NOT NULL CHECK (char_length(type) >= 2 AND char_length(type) <= 100),
-    contract_id UUID REFERENCES contracts(id),
-    property_id UUID REFERENCES properties(id),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL
+CREATE TABLE public.properties (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  code text NOT NULL CHECK (char_length(code) >= 1 AND char_length(code) <= 50),
+  street_address text NOT NULL CHECK (char_length(street_address) >= 5 AND char_length(street_address) <= 300),
+  postal_code text NOT NULL CHECK (char_length(postal_code) >= 4 AND char_length(postal_code) <= 10),
+  type USER-DEFINED NOT NULL,
+  project_id uuid,
+  organization_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  status USER-DEFINED NOT NULL DEFAULT 'Vacant'::property_status,
+  city text NOT NULL,
+  CONSTRAINT properties_pkey PRIMARY KEY (id),
+  CONSTRAINT properties_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT properties_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT properties_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
-
--- Payment_History table
-CREATE TABLE payment_history (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    amount DOUBLE PRECISION NOT NULL CHECK (amount >= 0),
-    payment_method payment_method NOT NULL,
-    paid_at TIMESTAMPTZ NOT NULL,
-    registrar_role registrar_role NOT NULL,
-    registrar UUID REFERENCES staff(id) CHECK (
-        (registrar_role = 'staff' AND registrar IS NOT NULL) OR
-        (registrar_role = 'tenant' AND registrar IS NULL)
-    ),
-    expense_id UUID REFERENCES expenses(id),
-    payment_id UUID REFERENCES payments(id),
-    CHECK (
-        (payment_id IS NOT NULL AND expense_id IS NULL) OR
-        (payment_id IS NULL AND expense_id IS NOT NULL)
-    )
+CREATE TABLE public.property_default_initial_charges (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  property_id uuid,
+  charge_type USER-DEFINED NOT NULL,
+  amount double precision NOT NULL CHECK (amount >= 0::double precision),
+  is_taxed boolean NOT NULL DEFAULT false,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  room_id uuid,
+  is_refundable boolean NOT NULL DEFAULT false,
+  CONSTRAINT property_default_initial_charges_pkey PRIMARY KEY (id),
+  CONSTRAINT property_default_initial_charges_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
+  CONSTRAINT property_default_initial_charges_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id),
+  CONSTRAINT property_default_initial_charges_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id)
 );
-
--- Charges table
-CREATE TABLE charges (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title TEXT NOT NULL CHECK (char_length(title) >= 2 AND char_length(title) <= 200),
-    amount DOUBLE PRECISION NOT NULL CHECK (amount >= 0),
-    is_taxed BOOLEAN NOT NULL DEFAULT FALSE,
-    is_refunded BOOLEAN NOT NULL DEFAULT FALSE,
-    payment_id UUID REFERENCES payments(id),
-    expense_id UUID REFERENCES expenses(id),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL,
-    CHECK (
-        (payment_id IS NOT NULL AND expense_id IS NULL) OR
-        (payment_id IS NULL AND expense_id IS NOT NULL)
-    )
+CREATE TABLE public.property_default_lease_config (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  property_id uuid UNIQUE,
+  default_monthly_rent double precision CHECK (default_monthly_rent >= 0::double precision),
+  default_payment_day integer CHECK (default_payment_day >= 1 AND default_payment_day <= 28),
+  is_expiry_reminder boolean NOT NULL DEFAULT false,
+  expiry_days_before_reminder integer,
+  is_rent_reminder boolean NOT NULL DEFAULT false,
+  rent_reminder_days_before integer,
+  is_overdue_rent_reminder boolean NOT NULL DEFAULT false,
+  overdue_days_after_reminder integer,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  updated_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  room_id uuid UNIQUE,
+  CONSTRAINT property_default_lease_config_pkey PRIMARY KEY (id),
+  CONSTRAINT property_default_lease_config_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
+  CONSTRAINT property_default_lease_config_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id),
+  CONSTRAINT property_default_lease_config_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id)
 );
-
--- Views table
-CREATE TABLE views (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    first_name TEXT NOT NULL CHECK (char_length(first_name) >= 1 AND char_length(first_name) <= 100),
-    last_name TEXT CHECK (char_length(last_name) >= 1 AND char_length(last_name) <= 100),
-    phone_number TEXT CHECK (
-        phone_number IS NULL OR (
-            char_length(phone_number) >= 8 AND 
-            char_length(phone_number) <= 20 AND 
-            phone_number ~ '^\+[0-9]+$'
-        )
-    ),
-    email TEXT CHECK (
-        email IS NULL OR (
-            char_length(email) >= 5 AND 
-            char_length(email) <= 255 AND 
-            email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
-        )
-    ),
-    property_id UUID NOT NULL REFERENCES properties(id),
-    room_id UUID REFERENCES rooms(id),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL
+CREATE TABLE public.recurring_configs (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  every integer NOT NULL CHECK (every >= 1),
+  time_unit USER-DEFINED NOT NULL,
+  event_on text,
+  payment_id uuid NOT NULL,
+  CONSTRAINT recurring_configs_pkey PRIMARY KEY (id),
+  CONSTRAINT recurring_configs_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payments(id)
 );
-
--- Function to prevent a tenant from having both individual and company entries
-CREATE OR REPLACE FUNCTION prevent_duplicate_tenant_subtype()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    IF TG_TABLE_NAME = 'individual_tenants' THEN
-        IF EXISTS (SELECT 1 FROM company_tenants WHERE tenant_id = NEW.tenant_id) THEN
-            RAISE EXCEPTION 'Tenant already exists as a Company tenant. Cannot be both Individual and Company.';
-        END IF;
-    ELSIF TG_TABLE_NAME = 'company_tenants' THEN
-        IF EXISTS (SELECT 1 FROM individual_tenants WHERE tenant_id = NEW.tenant_id) THEN
-            RAISE EXCEPTION 'Tenant already exists as an Individual tenant. Cannot be both Individual and Company.';
-        END IF;
-    END IF;
-    RETURN NEW;
-END;
-$$;
-
--- Trigger on individual_tenants to prevent duplicate
-CREATE TRIGGER check_individual_tenant_uniqueness
-BEFORE INSERT OR UPDATE ON individual_tenants
-FOR EACH ROW
-EXECUTE FUNCTION prevent_duplicate_tenant_subtype();
-
--- Trigger on company_tenants to prevent duplicate
-CREATE TRIGGER check_company_tenant_uniqueness
-BEFORE INSERT OR UPDATE ON company_tenants
-FOR EACH ROW
-EXECUTE FUNCTION prevent_duplicate_tenant_subtype();
-
-ALTER TABLE staff
-ADD COLUMN phone_number TEXT NOT NULL CHECK (
-  char_length(phone_number) >= 8 AND 
-  char_length(phone_number) <= 20 AND 
-  phone_number ~ '^\+[0-9]+$'
+CREATE TABLE public.reminder_recipients (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  reminder_id uuid,
+  recipient_type USER-DEFINED NOT NULL,
+  recipient_id uuid,
+  role text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT reminder_recipients_pkey PRIMARY KEY (id),
+  CONSTRAINT reminder_recipients_reminder_id_fkey FOREIGN KEY (reminder_id) REFERENCES public.reminders(id)
 );
-
-
-ALTER TABLE properties
-DROP CONSTRAINT properties_code_check;
-
-ALTER TABLE properties
-ADD CONSTRAINT properties_code_check
-CHECK (char_length(code) >= 1 AND char_length(code) <= 50);
-
-
--- Create ENUM for initial charge types
-CREATE TYPE initial_charge_type AS ENUM (
-  'First Month Rental',
-  'Earnest Deposit',
-  'Security Deposit',
-  'Utility Deposit',
-  'Legal Fees'
+CREATE TABLE public.reminders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  organization_id uuid,
+  type text NOT NULL,
+  reference_id uuid,
+  reference_type text,
+  remind_at timestamp with time zone NOT NULL,
+  sent boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT reminders_pkey PRIMARY KEY (id),
+  CONSTRAINT reminders_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id)
 );
-
--- Property Default Lease Configuration
-CREATE TABLE property_default_lease_config (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
-    
-    -- Monthly rental default
-    default_monthly_rent DOUBLE PRECISION CHECK (default_monthly_rent >= 0),
-    
-    -- Payment day (1-28)
-    default_payment_day INTEGER CHECK (default_payment_day >= 1 AND default_payment_day <= 28),
-    
-    -- Reminder settings (same as lease table)
-    is_expiry_reminder BOOLEAN NOT NULL DEFAULT FALSE,
-    expiry_days_before_reminder INTEGER CHECK (
-        (is_expiry_reminder = TRUE AND expiry_days_before_reminder IS NOT NULL AND expiry_days_before_reminder >= 0) OR
-        (is_expiry_reminder = FALSE)
-    ),
-    is_rent_reminder BOOLEAN NOT NULL DEFAULT FALSE,
-    rent_reminder_days_before INTEGER CHECK (
-        (is_rent_reminder = TRUE AND rent_reminder_days_before IS NOT NULL AND rent_reminder_days_before >= 0) OR
-        (is_rent_reminder = FALSE)
-    ),
-    is_overdue_rent_reminder BOOLEAN NOT NULL DEFAULT FALSE,
-    overdue_days_after_reminder INTEGER CHECK (
-        (is_overdue_rent_reminder = TRUE AND overdue_days_after_reminder IS NOT NULL AND overdue_days_after_reminder >= 0) OR
-        (is_overdue_rent_reminder = FALSE)
-    ),
-    
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
-    -- One config per property
-    UNIQUE(property_id)
+CREATE TABLE public.roles (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  title text NOT NULL CHECK (char_length(title) >= 2 AND char_length(title) <= 100),
+  organization_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  CONSTRAINT roles_pkey PRIMARY KEY (id),
+  CONSTRAINT roles_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT roles_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
 );
-
--- Initial Charges (for new leases)
-CREATE TABLE property_default_initial_charges (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
-    charge_type initial_charge_type NOT NULL,
-    amount DOUBLE PRECISION NOT NULL CHECK (amount >= 0),
-    is_taxed BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL,
-    
-    -- One charge type per property
-    UNIQUE(property_id, charge_type)
+CREATE TABLE public.roles_permissions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  role_id uuid NOT NULL,
+  permission_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  CONSTRAINT roles_permissions_pkey PRIMARY KEY (id),
+  CONSTRAINT roles_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id),
+  CONSTRAINT roles_permissions_permission_id_fkey FOREIGN KEY (permission_id) REFERENCES public.permissions(id),
+  CONSTRAINT roles_permissions_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
-
--- Late Payment Charges Configuration
-CREATE TABLE late_payment_charges (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
-    days_after_due INTEGER NOT NULL CHECK (days_after_due >= 1 AND days_after_due <= 28),
-    amount DOUBLE PRECISION NOT NULL CHECK (amount >= 0),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL,
-    
-    -- Multiple late payment charges per property (different day ranges)
-    UNIQUE(property_id, days_after_due)
+CREATE TABLE public.rooms (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  title text NOT NULL CHECK (char_length(title) >= 1 AND char_length(title) <= 100),
+  property_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  status USER-DEFINED NOT NULL DEFAULT 'Vacant'::property_status,
+  CONSTRAINT rooms_pkey PRIMARY KEY (id),
+  CONSTRAINT rooms_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
+  CONSTRAINT rooms_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
-
--- Add comments for clarity
-COMMENT ON TABLE property_default_lease_config IS 'Default lease configuration for a property - used to pre-fill new lease forms';
-COMMENT ON TABLE property_default_initial_charges IS 'Default initial charges when creating a new lease for this property';
-COMMENT ON TABLE late_payment_charges IS 'Late payment penalty charges based on days overdue';
-
-COMMENT ON COLUMN property_default_lease_config.default_monthly_rent IS 'Default monthly rent amount for new leases';
-COMMENT ON COLUMN property_default_lease_config.default_payment_day IS 'Default payment day (1-28 of each month)';
-COMMENT ON COLUMN late_payment_charges.days_after_due IS 'Number of days after payment due date';
-COMMENT ON COLUMN late_payment_charges.amount IS 'Late payment charge amount';
-
--- Create indexes for better performance
-CREATE INDEX idx_property_default_config ON property_default_lease_config(property_id);
-CREATE INDEX idx_property_initial_charges ON property_default_initial_charges(property_id);
-CREATE INDEX idx_late_payment_charges ON late_payment_charges(property_id);
-
--- Enable RLS on new tables
-ALTER TABLE property_default_lease_config ENABLE ROW LEVEL SECURITY;
-ALTER TABLE property_default_initial_charges ENABLE ROW LEVEL SECURITY;
-ALTER TABLE late_payment_charges ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies for property_default_lease_config
-CREATE POLICY "Staff can view property default config in their organization"
-ON property_default_lease_config FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM properties
-    WHERE properties.id = property_default_lease_config.property_id
-    AND properties.organization_id = get_user_org_id()
-  )
+CREATE TABLE public.staff (
+  id uuid NOT NULL,
+  staff_id text NOT NULL CHECK (char_length(staff_id) = 8 AND staff_id ~ '^STF-[0-9]{4}$'::text),
+  first_name text NOT NULL CHECK (char_length(first_name) >= 1 AND char_length(first_name) <= 100),
+  last_name text CHECK (char_length(last_name) >= 1 AND char_length(last_name) <= 100),
+  role_id uuid NOT NULL,
+  profile_pic text CHECK (char_length(profile_pic) <= 1000),
+  profile_thumb text CHECK (char_length(profile_thumb) <= 1000),
+  organization_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  phone_number text NOT NULL CHECK (char_length(phone_number) >= 8 AND char_length(phone_number) <= 20 AND phone_number ~ '^\+[0-9]+$'::text),
+  CONSTRAINT staff_pkey PRIMARY KEY (id),
+  CONSTRAINT staff_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT staff_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id),
+  CONSTRAINT staff_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT staff_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
-
-CREATE POLICY "Staff can manage property default config"
-ON property_default_lease_config FOR ALL
-USING (
-  EXISTS (
-    SELECT 1 FROM properties
-    WHERE properties.id = property_default_lease_config.property_id
-    AND properties.organization_id = get_user_org_id()
-  )
+CREATE TABLE public.tenants (
+  id uuid NOT NULL,
+  type USER-DEFINED NOT NULL,
+  profile_pic text CHECK (char_length(profile_pic) <= 1000),
+  profile_thumb text CHECK (char_length(profile_thumb) <= 1000),
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  CONSTRAINT tenants_pkey PRIMARY KEY (id),
+  CONSTRAINT tenants_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT tenants_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
-
--- RLS Policies for property_default_initial_charges
-CREATE POLICY "Staff can view property default initial charges in their organization"
-ON property_default_initial_charges FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM properties
-    WHERE properties.id = property_default_initial_charges.property_id
-    AND properties.organization_id = get_user_org_id()
-  )
+CREATE TABLE public.ticket_assignments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  assigner_id uuid,
+  assigned_id uuid,
+  status USER-DEFINED NOT NULL DEFAULT 'Pending'::ticket_assignment_status,
+  requested_at timestamp with time zone NOT NULL DEFAULT now(),
+  responded_at timestamp with time zone,
+  unassigned_at timestamp with time zone,
+  ticket_id uuid NOT NULL,
+  cancelled_at timestamp with time zone,
+  unassigned_by uuid,
+  cancelled_by uuid,
+  CONSTRAINT ticket_assignments_pkey PRIMARY KEY (id),
+  CONSTRAINT ticket_assignments_assigner_id_fkey FOREIGN KEY (assigner_id) REFERENCES public.staff(id),
+  CONSTRAINT ticket_assignments_assigned_id_fkey FOREIGN KEY (assigned_id) REFERENCES public.staff(id),
+  CONSTRAINT ticket_assignments_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id),
+  CONSTRAINT ticket_assignments_unassigned_by_fkey FOREIGN KEY (unassigned_by) REFERENCES public.staff(id),
+  CONSTRAINT ticket_assignments_cancelled_by_fkey FOREIGN KEY (cancelled_by) REFERENCES public.staff(id)
 );
-
-CREATE POLICY "Staff can manage property default initial charges"
-ON property_default_initial_charges FOR ALL
-USING (
-  EXISTS (
-    SELECT 1 FROM properties
-    WHERE properties.id = property_default_initial_charges.property_id
-    AND properties.organization_id = get_user_org_id()
-  )
+CREATE TABLE public.ticket_comments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  message text NOT NULL,
+  attachment text,
+  sender_type USER-DEFINED NOT NULL,
+  sender_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  ticket_id uuid NOT NULL,
+  CONSTRAINT ticket_comments_pkey PRIMARY KEY (id),
+  CONSTRAINT ticket_comments_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id)
 );
-
--- RLS Policies for late_payment_charges
-CREATE POLICY "Staff can view late payment charges in their organization"
-ON late_payment_charges FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM properties
-    WHERE properties.id = late_payment_charges.property_id
-    AND properties.organization_id = get_user_org_id()
-  )
+CREATE TABLE public.ticket_statuses (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  state USER-DEFINED NOT NULL,
+  performer_type USER-DEFINED NOT NULL,
+  performer_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  ticket_id uuid NOT NULL,
+  CONSTRAINT ticket_statuses_pkey PRIMARY KEY (id),
+  CONSTRAINT ticket_statuses_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id)
 );
-
-CREATE POLICY "Staff can manage late payment charges"
-ON late_payment_charges FOR ALL
-USING (
-  EXISTS (
-    SELECT 1 FROM properties
-    WHERE properties.id = late_payment_charges.property_id
-    AND properties.organization_id = get_user_org_id()
-  )
+CREATE TABLE public.ticket_types (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  type text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  created_by uuid,
+  ticket_id uuid NOT NULL,
+  CONSTRAINT ticket_types_pkey PRIMARY KEY (id),
+  CONSTRAINT ticket_types_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id),
+  CONSTRAINT ticket_types_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id)
 );
-
--- Add room_id column
-ALTER TABLE property_default_initial_charges 
-ADD COLUMN room_id UUID REFERENCES rooms(id) ON DELETE CASCADE;
-
--- Add is_refundable column
-ALTER TABLE property_default_initial_charges 
-ADD COLUMN is_refundable BOOLEAN NOT NULL DEFAULT FALSE;
-
--- Drop the old NOT NULL constraint on property_id
-ALTER TABLE property_default_initial_charges 
-ALTER COLUMN property_id DROP NOT NULL;
-
--- Add CHECK constraint: either property_id OR room_id, not both
-ALTER TABLE property_default_initial_charges 
-ADD CONSTRAINT property_or_room_check CHECK (
-    (property_id IS NOT NULL AND room_id IS NULL) OR
-    (property_id IS NULL AND room_id IS NOT NULL)
+CREATE TABLE public.tickets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  description text NOT NULL,
+  attachment text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  reference_id text NOT NULL CHECK (reference_id ~ '^TK-[0-9]{11}$'::text),
+  organization_id uuid NOT NULL,
+  lease_id uuid,
+  CONSTRAINT tickets_pkey PRIMARY KEY (id),
+  CONSTRAINT tickets_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT tickets_lease_id_fkey FOREIGN KEY (lease_id) REFERENCES public.leases(id)
 );
-
--- Drop old unique constraint
-ALTER TABLE property_default_initial_charges 
-DROP CONSTRAINT property_default_initial_charges_property_id_charge_type_key;
-
--- Add new unique constraints
-ALTER TABLE property_default_initial_charges 
-ADD CONSTRAINT unique_property_charge_type UNIQUE(property_id, charge_type);
-
-ALTER TABLE property_default_initial_charges 
-ADD CONSTRAINT unique_room_charge_type UNIQUE(room_id, charge_type);
-
--- ============================================
--- ALTER late_payment_charges
--- ============================================
-
--- Add room_id column
-ALTER TABLE late_payment_charges 
-ADD COLUMN room_id UUID REFERENCES rooms(id) ON DELETE CASCADE;
-
--- Drop the old NOT NULL constraint on property_id
-ALTER TABLE late_payment_charges 
-ALTER COLUMN property_id DROP NOT NULL;
-
--- Add CHECK constraint: either property_id OR room_id, not both
-ALTER TABLE late_payment_charges 
-ADD CONSTRAINT late_payment_property_or_room_check CHECK (
-    (property_id IS NOT NULL AND room_id IS NULL) OR
-    (property_id IS NULL AND room_id IS NOT NULL)
-);
-
--- Drop old unique constraint
-ALTER TABLE late_payment_charges 
-DROP CONSTRAINT late_payment_charges_property_id_days_after_due_key;
-
--- Add new unique constraints
-ALTER TABLE late_payment_charges 
-ADD CONSTRAINT unique_property_days UNIQUE(property_id, days_after_due);
-
-ALTER TABLE late_payment_charges 
-ADD CONSTRAINT unique_room_days UNIQUE(room_id, days_after_due);
-
-
--- ============================================
--- ALTER property_default_lease_config
--- ============================================
-
--- Add room_id column
-ALTER TABLE property_default_lease_config 
-ADD COLUMN room_id UUID REFERENCES rooms(id) ON DELETE CASCADE;
-
--- Drop the old NOT NULL constraint on property_id
-ALTER TABLE property_default_lease_config 
-ALTER COLUMN property_id DROP NOT NULL;
-
--- Add CHECK constraint: either property_id OR room_id, not both
-ALTER TABLE property_default_lease_config 
-ADD CONSTRAINT lease_config_property_or_room_check CHECK (
-    (property_id IS NOT NULL AND room_id IS NULL) OR
-    (property_id IS NULL AND room_id IS NOT NULL)
-);
-
--- Drop old unique constraint
-ALTER TABLE property_default_lease_config 
-DROP CONSTRAINT property_default_lease_config_property_id_key;
-
--- Add new unique constraints
-ALTER TABLE property_default_lease_config 
-ADD CONSTRAINT unique_property_config UNIQUE(property_id);
-
-ALTER TABLE property_default_lease_config 
-ADD CONSTRAINT unique_room_config UNIQUE(room_id);
-
-ALTER TABLE individual_tenants
-DROP COLUMN IF EXISTS created_at,
-DROP COLUMN IF EXISTS created_by;
-
-// organiztions_tenants
-CREATE TABLE organizations_tenants (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES staff(id) ON DELETE SET NULL
+CREATE TABLE public.views (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  first_name text NOT NULL CHECK (char_length(first_name) >= 1 AND char_length(first_name) <= 100),
+  last_name text CHECK (char_length(last_name) >= 1 AND char_length(last_name) <= 100),
+  phone_number text CHECK (phone_number IS NULL OR char_length(phone_number) >= 8 AND char_length(phone_number) <= 20 AND phone_number ~ '^\+[0-9]+$'::text),
+  email text CHECK (email IS NULL OR char_length(email) >= 5 AND char_length(email) <= 255 AND email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text),
+  property_id uuid,
+  room_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  reference_id text NOT NULL CHECK (reference_id ~ '^VW-[0-9]{4}-[0-9]{4}$'::text),
+  CONSTRAINT views_pkey PRIMARY KEY (id),
+  CONSTRAINT views_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id),
+  CONSTRAINT views_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
+  CONSTRAINT views_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id)
 );

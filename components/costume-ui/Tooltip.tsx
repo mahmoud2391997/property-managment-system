@@ -43,6 +43,12 @@ const HoverTooltip = ({
     setShowTooltip(false)
   }
 
+  const handleClick = () => {
+    setShowTooltip((prev) => !prev)
+    // Auto-hide after 2 seconds on touch/click
+    setTimeout(() => setShowTooltip(false), 2000)
+  }
+
   if (variant === 'description') {
     return (
       <TooltipProvider>
@@ -50,6 +56,7 @@ const HoverTooltip = ({
           <TooltipTrigger
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
+            onClick={handleClick}
             asChild
           >
             <div className={className}>{children}</div>
@@ -70,6 +77,12 @@ const HoverTooltip = ({
             ref={ref}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
+            onClick={() => {
+              if (ref.current && ref.current.scrollWidth > ref.current.clientWidth) {
+                setShowTooltip((prev) => !prev)
+                setTimeout(() => setShowTooltip(false), 2000)
+              }
+            }}
             className={`truncate ${className}`}
             style={{ maxWidth }}
           >

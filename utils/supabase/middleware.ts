@@ -37,8 +37,9 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const publicPaths = ['/login', '/signup', '/confirm', '/error', '/api/auth']
+  const publicPaths = ['/login', '/signup', '/confirm', '/error', '/forgot-password', '/reset-password', '/setup-password', '/api/auth', '/api/webhooks']
   const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path))
+  const isUnauthorizedPage = request.nextUrl.pathname === '/unauthorized'
 
   if (!user && !isPublicPath && request.nextUrl.pathname !== '/') {
     // no user, redirect to login page
@@ -47,11 +48,12 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If user is logged in, check if they are staff and need onboarding
-  if (user && !isPublicPath && !request.nextUrl.pathname.startsWith('/onboarding')) {
+  // If user is logged in, check permissions
+  if (user && !isPublicPath && !isUnauthorizedPage) {
     const userType = user.user_metadata?.user_type
+    const isOnboardingPath = request.nextUrl.pathname.startsWith('/onboarding')
 
-    // Only check for staff users
+    // Check if user is staff
     if (userType === 'staff') {
       const { data: staff } = await supabase
         .from('staff')
@@ -59,10 +61,52 @@ export async function updateSession(request: NextRequest) {
         .eq('id', user.id)
         .single()
 
-      // If no staff record OR no organization, redirect to onboarding
-      if (!staff || !staff.organization_id) {
+      const hasOrganization = staff && staff.organization_id
+
+      // If no organization, redirect to onboarding (unless already there)
+      if (!hasOrganization && !isOnboardingPath) {
         const url = request.nextUrl.clone()
         url.pathname = '/onboarding'
+        return NextResponse.redirect(url)
+      }
+
+      // If has organization but trying to access onboarding, redirect away
+      if (hasOrganization && isOnboardingPath) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/'
+        return NextResponse.redirect(url)
+      }
+
+      // Staff cannot access tenant-only pages
+      const tenantOnlyPaths = ['/rentals']
+      const isTenantOnlyPath = tenantOnlyPaths.some(path =>
+        request.nextUrl.pathname.startsWith(path)
+      )
+      if (isTenantOnlyPath) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/unauthorized'
+        return NextResponse.redirect(url)
+      }
+    } else {
+      // Non-staff users cannot access onboarding
+      if (isOnboardingPath) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/unauthorized'
+        return NextResponse.redirect(url)
+      }
+    }
+
+    // Check if user is tenant trying to access restricted pages
+    if (userType === 'tenant') {
+      const tenantAllowedPaths = ['/rentals', '/payments', '/tickets', '/notifications', '/api', '/unauthorized']
+      const isRootPath = request.nextUrl.pathname === '/'
+      const isAllowedForTenant = isRootPath || tenantAllowedPaths.some(path =>
+        request.nextUrl.pathname.startsWith(path)
+      )
+
+      if (!isAllowedForTenant) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/unauthorized'
         return NextResponse.redirect(url)
       }
     }

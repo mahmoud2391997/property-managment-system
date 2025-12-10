@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
 import { prisma } from '@/lib/prisma'
+import { getBaseUrl } from '@/utils/get-base-url'
 
 export async function POST(req: NextRequest) {
   try {
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
       const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
         authUser.user.email!,
         {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4000'}/api/auth/confirm-tenant`
+          redirectTo: `${getBaseUrl()}/api/auth/confirm-tenant`
         }
       )
 
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
       const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
         authUser.user.email!,
         {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4000'}/api/auth/confirm-tenant`
+          redirectTo: `${getBaseUrl()}/api/auth/confirm-tenant`
         }
       )
 

@@ -2,10 +2,9 @@
 
 import { cn } from '@/lib/utils'
 import { cva } from 'class-variance-authority'
-import { Loader2 } from 'lucide-react'
 
 type Props = {
-  variant?: 'primary' | 'secondary'
+  variant?: 'primary' | 'secondary' | 'info'
   className?: string
   labelStyles?: string
   icon?: React.ReactNode
@@ -35,6 +34,12 @@ const buttonStyles = cva(
           'shadows-xs',
           'hover:bg-neutral-50! active:bg-neutral-100!',
           'disabled:hover:bg-(--background-primary)! disabled:active:bg-(--background-primary)!'
+        ),
+        info: cn(
+          'bg-blue-600',
+          'shadows-sm',
+          'hover:bg-blue-700 active:bg-blue-800',
+          'disabled:hover:bg-blue-600! disabled:active:bg-blue-600!'
         )
       }
     },
@@ -48,7 +53,8 @@ const labelStylesCVA = cva('', {
   variants: {
     variant: {
       primary: 'texts-button-primary text-(--text-inverse)',
-      secondary: 'texts-button-primary text-(--text-primary)'
+      secondary: 'texts-button-primary text-(--text-primary)',
+      info: 'texts-button-primary text-white'
     }
   }
 })

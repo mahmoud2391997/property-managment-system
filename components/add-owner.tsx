@@ -132,7 +132,7 @@ const AddOwner = ({ onSuccess, onLoadingChange }: Props) => {
         <div className='inputs-container'>
           <InputGroup
             label='Phone Number'
-            className='overflow-visible'
+            className='overflow-visible!'
             isRequired
           >
             <Input

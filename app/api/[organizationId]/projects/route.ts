@@ -1,8 +1,10 @@
 import { prisma } from '@/lib/prisma'
-import { OrganizationIdParams } from '@/types'
 
-export async function GET (req: Request, { params }: OrganizationIdParams) {
-  const { organizationId } = params
+export async function GET (
+  req: Request,
+  { params }: { params: Promise<{ organizationId: string }> }
+) {
+  const { organizationId } = await params
 
   try {
     const projects = await prisma.projects.findMany({

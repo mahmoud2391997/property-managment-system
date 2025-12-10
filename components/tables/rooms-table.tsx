@@ -1,8 +1,6 @@
 'use client'
 
-import {
-  ColumnDef
-} from '@tanstack/react-table'
+import { ColumnDef } from '@tanstack/react-table'
 import { MoreHorizontal } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -16,10 +14,26 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Table } from '../costume-ui/table'
-import { Room } from '@/types'
 import { cn } from '@/lib/utils'
+import Link from 'next/link'
+import ConfirmationDialog from '../costume-ui/confirmation-dialog'
+import { toast } from 'sonner'
 
-export const columns: ColumnDef<Room>[] = [
+type RoomTableData = {
+  id: string
+  title: string
+  property: string
+  status:
+    | 'Occupied'
+    | 'Vacant'
+    | 'Pending_Inspection'
+    | 'Under_Preparation'
+    | 'Property_Rented'
+    | 'Property_Not_Ready'
+  tenantPhone?: string | null
+}
+
+export const columns: ColumnDef<RoomTableData>[] = [
   //Checkbox
   {
     id: 'select',
@@ -48,7 +62,15 @@ export const columns: ColumnDef<Room>[] = [
     accessorKey: 'title',
     header: () => <div className='text-left'>Title</div>,
     cell: ({ row }) => {
-      return <div className='text-left'>{row.getValue('title')}</div>
+      const room = row.original
+      return (
+        <Link
+          href={`/rooms/${room.id}/overview`}
+          className='text-left hover:underline hover:text-primary-main transition-colors'
+        >
+          {row.getValue('title')}
+        </Link>
+      )
     }
   },
 
@@ -64,23 +86,22 @@ export const columns: ColumnDef<Room>[] = [
     accessorKey: 'status',
     header: () => <div className='text-left'>Status</div>,
     cell: ({ row }) => {
-      const rawStatus: Room['status'] = row.getValue('status') // e.g., "Under Preparation"
-      const statusKey = rawStatus.toLowerCase().replace(/\s/g, '-') // "under-preparation"
+      const rawStatus: RoomTableData['status'] = row.getValue('status') // e.g., "Under_Preparation"
 
+      const displayStatus = rawStatus.replace(/_/g, ' ')
+
+      const statusStyles: Record<string, string> = {
+        Occupied: 'bg-green-100 text-green-800',
+        Under_Preparation: 'bg-yellow-100 text-yellow-800',
+        Pending_Inspection: 'bg-orange-100 text-orange-800',
+        Vacant: 'bg-gray-100 text-gray-800',
+        Property_Rented: 'bg-blue-100 text-blue-800',
+        Property_Not_Ready: 'bg-red-100 text-red-800'
+      }
       return (
         <div className='texts-table-cell-primary text-left'>
-          <div
-            data-status={statusKey}
-            className={cn(
-              'status-styles',
-              'data-[status=occupied]:bg-green-100 data-[status=occupied]:text-green-800',
-              'data-[status=under-preparation]:bg-yellow-100 data-[status=under-preparation]:text-yellow-800',
-              'data-[status=pending-inspection]:bg-orange-100 data-[status=pending-inspection]:text-orange-800',
-              'data-[status=vacant]:bg-gray-100 data-[status=vacant]:text-gray-800',
-              'data-[status=property-rented]:bg-blue-100 data-[status=property-rented]:text-blue-800'
-            )}
-          >
-            {row.getValue('status')}
+          <div className={cn('status-styles', statusStyles[rawStatus])}>
+            {displayStatus}
           </div>
         </div>
       )
@@ -91,8 +112,41 @@ export const columns: ColumnDef<Room>[] = [
     id: 'actions',
     header: 'Actions',
     enableHiding: false,
-    cell: ({ row }) => {
-      const property = row.original
+    cell: ({ row, table }) => {
+      const room = row.original
+      const canWhatsApp =
+        (room.status === 'Occupied' || room.status === 'Property_Rented') &&
+        room.tenantPhone
+      const onDelete = (table.options.meta as any)?.onDeleteRoom
+
+      const handleWhatsAppTenant = () => {
+        if (room.tenantPhone) {
+          const phoneNumber = room.tenantPhone.replace(/\D/g, '')
+          window.open(`https://wa.me/${phoneNumber}`, '_blank')
+        }
+      }
+
+      const handleDeleteRoom = async () => {
+        const response = await fetch(`/api/rooms/${room.id}/delete`, {
+          method: 'DELETE'
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          if (data.has_leases) {
+            toast.error('Cannot delete room', {
+              description: data.message
+            })
+          } else {
+            toast.error(data.error || 'Failed to delete room')
+          }
+          throw new Error(data.error)
+        }
+
+        toast.success('Room deleted successfully')
+        onDelete?.()
+      }
 
       return (
         <DropdownMenu>
@@ -104,14 +158,43 @@ export const columns: ColumnDef<Room>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end'>
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(property.id)}
-            >
-              Copy payment ID
+            <DropdownMenuItem asChild>
+              <Link href={`/rooms/${room.id}/overview`}>View room details</Link>
             </DropdownMenuItem>
+            <Link href={`/rooms/${room.id}/edit`}>
+              <DropdownMenuItem>Edit room</DropdownMenuItem>
+            </Link>
+            {canWhatsApp && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleWhatsAppTenant}>
+                  WhatsApp Tenant
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem>View customer</DropdownMenuItem>
-            <DropdownMenuItem>View payment details</DropdownMenuItem>
+            <ConfirmationDialog
+              openDialogButton={
+                <DropdownMenuItem
+                  onSelect={e => e.preventDefault()}
+                  className='text-error-main focus:text-error-main'
+                >
+                  Delete Room
+                </DropdownMenuItem>
+              }
+              title='Delete Room'
+              description={
+                <>
+                  Are you sure you want to delete{' '}
+                  <strong>{room.title}</strong>? This action cannot be
+                  undone. All associated data (views, configurations)
+                  will be permanently removed.
+                </>
+              }
+              onConfirm={handleDeleteRoom}
+              confirmButtonLabel='Delete'
+              confirmButtonLoadingLabel='Deleting...'
+            />
           </DropdownMenuContent>
         </DropdownMenu>
       )
@@ -119,10 +202,26 @@ export const columns: ColumnDef<Room>[] = [
   }
 ]
 
-interface RoomsTableProps {
-  data: Room[]
+type Props = {
+  data: RoomTableData[]
+  className?: string
+  noPagnitation?: boolean
+  onDeleteRoom?: () => void
 }
 
-export default function RoomsTable ({ data }: RoomsTableProps) {
-  return <Table columns={columns} data={data} />
+export default function RoomsTable ({
+  data,
+  className = '',
+  noPagnitation = false,
+  onDeleteRoom
+}: Props) {
+  return (
+    <Table
+      columns={columns}
+      className={className}
+      data={data}
+      noPagnitation={noPagnitation}
+      meta={{ onDeleteRoom }}
+    />
+  )
 }

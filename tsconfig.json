@@ -30,6 +30,6 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts",
     "types.d.ts"
-, "tailwind.config.js", "app/(protected)/payments/add-payment"  ],
+, "tailwind.config.js", "app/(protected)/payments/add-payment", "app/(protected)/testing/(with layout)"  ],
   "exclude": ["node_modules"]
 }

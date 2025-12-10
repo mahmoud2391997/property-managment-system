@@ -24,7 +24,6 @@ import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 // Main compoennt
 const AddProperty = () => {
   const router = useRouter()
-  const formRef = useRef<HTMLFormElement>(null)
 
   const [projects, setProjects] = useState<projects[]>([])
   const [loadingProjects, setLoadingProjects] = useState(true)
@@ -110,6 +109,7 @@ const AddProperty = () => {
         code,
         street_address: streetAddress,
         postal_code: postalCode,
+        city: city,
         type: selectedType.replace(' ', '_'),
         project_id: selectedProject?.id || null,
         is_ready: isPropertyReady,
@@ -187,9 +187,10 @@ const AddProperty = () => {
       }
 
       // Show success toast with detailed information
-      const roomInfo = data.roomsCount > 0
-        ? ` with ${data.roomsCount} room${data.roomsCount > 1 ? 's' : ''}`
-        : ''
+      const roomInfo =
+        data.roomsCount > 0
+          ? ` with ${data.roomsCount} room${data.roomsCount > 1 ? 's' : ''}`
+          : ''
       FeedbackToasts.created(
         'Property',
         `${code} has been successfully added to your properties${roomInfo}.`
@@ -255,7 +256,8 @@ const AddProperty = () => {
             <InputGroup label='Code' isRequired>
               <Input
                 placeholder='E.g. B-2-1'
-                maxLength={20}
+                minLength={1}
+                maxLength={50}
                 required
                 value={code}
                 onChange={e => setCode(e.target.value)}
@@ -285,7 +287,8 @@ const AddProperty = () => {
           <InputGroup label='Street Address' isRequired>
             <Input
               placeholder='E.g. 1234 West Pinecrest Avenue'
-              maxLength={150}
+              minLength={5}
+              maxLength={300}
               required
               value={streetAddress}
               onChange={e => setStreetAddress(e.target.value)}
@@ -295,6 +298,7 @@ const AddProperty = () => {
             <InputGroup label='City' isRequired>
               <Input
                 placeholder='E.g. Ayer Keroh'
+                minLength={1}
                 maxLength={100}
                 required
                 value={city}
@@ -304,8 +308,8 @@ const AddProperty = () => {
             <InputGroup label='Postal Code' isRequired>
               <Input
                 placeholder='E.g. 50450'
-                maxLength={5}
-                pattern='\d{5}'
+                minLength={4}
+                maxLength={10}
                 required
                 value={postalCode}
                 onChange={e => setPostalCode(e.target.value)}
@@ -393,17 +397,20 @@ const AddProperty = () => {
       </CollapsibleSection>
 
       {/* Default Payment Details - Using PaymentSection Component */}
-      <PaymentSection
-        key={`payment-${formKey}`}
-        sectionNumber={2}
-        title='Default Payment Details (Optional)'
-        onInitialChargesChange={setInitialCharges}
-        onMonthlyRentChange={setMonthlyRent}
-        onPaymentDayChange={setPaymentDay}
-        onLateChargesChange={setLateCharges}
+      <CollapsibleSection
+        number={2}
+        title={'Default Payment Details (Optional)'}
         defaultCollapse
-        defaultPayment
-      />
+      >
+        <PaymentSection
+          key={`payment-${formKey}`}
+          onInitialChargesChange={setInitialCharges}
+          onMonthlyRentChange={setMonthlyRent}
+          onPaymentDayChange={setPaymentDay}
+          onLateChargesChange={setLateCharges}
+          defaultPayment
+        />
+      </CollapsibleSection>
 
       {/* Default Reminders - Using ReminderSection Component */}
       <ReminderSection
@@ -423,7 +430,6 @@ const AddProperty = () => {
           setOverdueReminderDays(days)
         }}
         defaultCollapse
-        isOptional
       />
     </form>
   )

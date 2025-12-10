@@ -57,6 +57,7 @@ function Tab ({ label, isSelected, className = '', ...props }: TabProps) {
         className={cn(
           'transition-all duration-200',
           'absolute bottom-0 left-0 w-full bg-(--success-dark)',
+          'rounded-t-full',
           isSelected ? 'h-[2]' : 'h-0'
         )}
       />

@@ -1,4 +1,4 @@
-import TablePageSkeleton from '@/components/costume-ui/table-page-skeleton'
+import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
 
 const Loading = () => {
   return (

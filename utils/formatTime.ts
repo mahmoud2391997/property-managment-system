@@ -1,7 +1,9 @@
 // Date -> DD/MM/YYYY
-export const formatDate = (date?: Date | null): string => {
+export const formatDate = (date?: Date | string | null): string => {
   if (!date) return '—'
-  return new Intl.DateTimeFormat('en-GB').format(date)
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  if (isNaN(dateObj.getTime())) return '—'
+  return new Intl.DateTimeFormat('en-GB').format(dateObj)
 }
 
 // Timestamp -> mins ago / hrs ago / DD/MM/YYYY
@@ -37,4 +39,12 @@ export function formatTimestampLong(iso: string): string {
     minute: '2-digit',    // "10"
     hour12: true,         // AM/PM
   });
+}
+
+// Date -> YYYY-MM-DD (for API submissions, avoids timezone shift)
+export function formatDateForAPI(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }

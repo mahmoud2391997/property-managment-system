@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Check, ChevronsUpDown, X } from 'lucide-react'
+import { Check, ChevronsUpDown, X, Loader2 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -36,7 +36,10 @@ type Props = {
   value?: string
   onValueChange?: (value: string) => void
   disabled?: boolean
+  disabledReason?: string
   required?: boolean
+  isLoading?: boolean
+  loadingMessage?: string
 }
 
 export default function Combobox ({
@@ -50,7 +53,10 @@ export default function Combobox ({
   value,
   onValueChange,
   disabled = false,
-  required = false
+  disabledReason,
+  required = false,
+  isLoading = false,
+  loadingMessage = 'Loading...'
 }: Props) {
   const [open, setOpen] = React.useState(false)
   const [singleValue, setSingleValue] = React.useState(value || '')
@@ -93,7 +99,7 @@ export default function Combobox ({
     const selectedItem = items.find(item =>
       item.id ? item.id === singleValue : item.label === singleValue
     )
-    return selectedItem ? selectedItem.label : placeholder
+    return (disabled && disabledReason) ? disabledReason : selectedItem ? selectedItem.label : placeholder
   }
 
   const isSelected = (item: ComboBoxitemsType) => {
@@ -150,41 +156,50 @@ export default function Combobox ({
           <Command>
             <CommandInput placeholder={searchPlaceholder} className='h-9' />
             <CommandList>
-              <CommandEmpty>{NotFoundMessage}</CommandEmpty>
-              <CommandGroup>
-                {items.map((item, index) => {
-                  const itemValue = item.id || item.label
-                  const selected = isSelected(item)
-                  // Use unique value for Command component (includes ID for uniqueness but searchable by label and subtitle)
-                  const commandValue = item.id
-                    ? `${item.id}|||${item.label} ${item.subtitle || ''}`
-                    : `${item.label} ${item.subtitle || ''}`
-                  return (
-                    <CommandItem
-                      key={item.id || `${item.label}-${index}`}
-                      value={commandValue}
-                      onSelect={() => handleSelect(itemValue)}
-                      className='flex items-center gap-2'
-                    >
-                      {showAvatar && renderAvatar(item)}
-                      <div className='flex-1 flex flex-col'>
-                        <span>{item.label}</span>
-                        {item.subtitle && (
-                          <span className='text-xs text-(--text-secondary)'>
-                            {item.subtitle}
-                          </span>
-                        )}
-                      </div>
-                      <Check
-                        className={cn(
-                          'ml-auto h-4 w-4',
-                          selected ? 'opacity-100' : 'opacity-0'
-                        )}
-                      />
-                    </CommandItem>
-                  )
-                })}
-              </CommandGroup>
+              {isLoading ? (
+                <div className='flex flex-col items-center justify-center py-6 px-4'>
+                  <Loader2 className='h-8 w-8 animate-spin text-(--text-secondary) mb-2' />
+                  <p className='text-sm text-(--text-secondary)'>{loadingMessage}</p>
+                </div>
+              ) : (
+                <>
+                  <CommandEmpty>{NotFoundMessage}</CommandEmpty>
+                  <CommandGroup>
+                    {items.map((item, index) => {
+                      const itemValue = item.id || item.label
+                      const selected = isSelected(item)
+                      // Use unique value for Command component (includes ID for uniqueness but searchable by label and subtitle)
+                      const commandValue = item.id
+                        ? `${item.id}|||${item.label} ${item.subtitle || ''}`
+                        : `${item.label} ${item.subtitle || ''}`
+                      return (
+                        <CommandItem
+                          key={item.id || `${item.label}-${index}`}
+                          value={commandValue}
+                          onSelect={() => handleSelect(itemValue)}
+                          className='flex items-center gap-2'
+                        >
+                          {showAvatar && renderAvatar(item)}
+                          <div className='flex-1 flex flex-col'>
+                            <span>{item.label}<span className='ml-1 texts-caption-large text-(--text-secondary)'>{item.extraReference ? `(${item.extraReference})` : ''}</span></span>
+                            {item.subtitle && (
+                              <span className='text-xs text-(--text-secondary)'>
+                                {item.subtitle}
+                              </span>
+                            )}
+                          </div>
+                          <Check
+                            className={cn(
+                              'ml-auto h-4 w-4',
+                              selected ? 'opacity-100' : 'opacity-0'
+                            )}
+                          />
+                        </CommandItem>
+                      )
+                    })}
+                  </CommandGroup>
+                </>
+              )}
             </CommandList>
           </Command>
         </PopoverContent>

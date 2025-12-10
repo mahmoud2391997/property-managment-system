@@ -28,7 +28,6 @@ type StaffWithRole = Prisma.staffGetPayload<{
     first_name: true
     last_name: true
     phone_number: true
-    profile_pic: true
     profile_thumb: true
     roles: {
       select: {

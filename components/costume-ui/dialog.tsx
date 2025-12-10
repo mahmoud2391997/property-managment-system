@@ -23,6 +23,8 @@ type props = {
   cancelButtonLabel?: string
   className?: string
   loading?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 export default function Dialog ({
   children,
@@ -32,13 +34,15 @@ export default function Dialog ({
   saveButtonLabel,
   cancelButtonLabel,
   className = '',
-  loading = false
+  loading = false,
+  open,
+  onOpenChange
 }: props) {
   return (
-    <ShadcnDialog>
+    <ShadcnDialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{openDialogButton}</DialogTrigger>
-      <DialogContent className={`py-0! px-0! my-10! overflow-visible! sm:max-w-[425px] ${className}`}>
-        <DialogHeader className='px-7 py-2.5!  border-b border-(--border-strong)'>
+      <DialogContent className={`py-0! px-0! overflow-auto! sm:max-w-[425px] max-h-[calc(100vh-5rem)] flex flex-col ${className}`}>
+        <DialogHeader className='gap-0 px-7 py-2.5!  border-b border-(--border-strong)'>
           <DialogTitle asChild>
             <div className='py-[15] text-left'>
               <h3>{title}</h3>
@@ -46,7 +50,7 @@ export default function Dialog ({
           </DialogTitle>
           {sub_title && <DialogDescription>{sub_title}</DialogDescription>}
         </DialogHeader>
-        <div className='transition-all duration-300 p-5  max-h-120 overflow-auto'>{children}</div>
+        <div className='transition-all duration-300 p-5 min-h-24 flex-1 overflow-auto'>{children}</div>
         {(saveButtonLabel || cancelButtonLabel) && (
           <DialogFooter>
             <div className='w-full flex items-center justify-end border-t border-(--border-strong) p-7 py-5'>

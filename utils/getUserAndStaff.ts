@@ -19,7 +19,7 @@ export async function getUserAndStaff() {
 
   const staff = await prisma.staff.findUnique({
     where: { id: user.id },
-    select: { organization_id: true }
+    select: { id: true, organization_id: true }
   })
 
   if (!staff) {
