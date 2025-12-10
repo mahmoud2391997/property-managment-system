@@ -61,7 +61,7 @@ export async function GET(
     }
 
     // Verify room's property belongs to this organization
-    if (room.properties.organization_id !== staff.organization_id) {
+    if (!room.properties || room.properties.organization_id !== staff.organization_id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
@@ -182,7 +182,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
 
-    if (existingRoom.properties.organization_id !== staff.organization_id) {
+    if (!existingRoom.properties || existingRoom.properties.organization_id !== staff.organization_id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 

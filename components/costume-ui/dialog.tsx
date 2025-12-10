@@ -15,7 +15,7 @@ import Button from '@/components/costume-ui/button'
 
 type props = {
   children: React.ReactNode
-  openDialogButton: React.ReactElement
+  openDialogButton: React.ReactNode
   title: string
   sub_title?: string
   hasFooter?: boolean
