@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { cn } from '@/lib/utils'
 import { Payment } from '@/types'
 import { prisma } from '@/lib/prisma'
@@ -186,15 +187,17 @@ const Payments = async () => {
   const { payments, userType } = await fetchPayments()
 
   return (
-    <PaymentsPageWrapper>
-      <div className={cn('flex flex-col gap-2.5', 'h-full')}>
-        {/* Heading */}
-        <div>
-          <h1>Payments</h1>
+    <Suspense fallback={<div>Loading...</div>}>
+      <PaymentsPageWrapper>
+        <div className={cn('flex flex-col gap-2.5', 'h-full')}>
+          {/* Heading */}
+          <div>
+            <h1>Payments</h1>
+          </div>
+          <PaymentsSection payments={payments} userType={userType} />
         </div>
-        <PaymentsSection payments={payments} userType={userType} />
-      </div>
-    </PaymentsPageWrapper>
+      </PaymentsPageWrapper>
+    </Suspense>
   )
 }
 

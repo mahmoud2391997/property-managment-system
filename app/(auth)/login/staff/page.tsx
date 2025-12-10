@@ -1,11 +1,14 @@
+import { Suspense } from "react";
 import StaffLoginForm from "@/components/staff-login-form";
 
 const Login = async () => {
-    
+
     return (
         <div className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
             <div className="flex w-full max-w-sm flex-col gap-6">
-                <StaffLoginForm />
+                <Suspense fallback={<div>Loading...</div>}>
+                    <StaffLoginForm />
+                </Suspense>
             </div>
         </div>
     )
