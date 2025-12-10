@@ -9,6 +9,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Tab, TabGroup } from '@/components/costume-ui/tab'
@@ -19,6 +20,9 @@ import { Property } from '@/types'
 import { propertiesData } from '@/utils/data'
 import { useSingleSelectOption } from '@/hooks/useSingleSelectOption'
 import { useRouter, usePathname } from 'next/navigation'
+import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
+import { toast } from 'sonner'
+import { useActionUnderDevelopment } from '@/components/costume-ui/under-development'
 
 type Props = {
   children: React.ReactNode
@@ -41,6 +45,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const propertyData: Property | undefined = propertiesData.find(
     p => p.id === id
   )
+  const { showUnderDevelopment, ActionUnderDevelopmentOverlay} = useActionUnderDevelopment()
   const {
     options: tabs,
     selectByIndex,
@@ -86,8 +91,30 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const handleTabClick = (index: number) => {
     const route = routes[index]
     if (route) {
-      router.replace(`/properties/${id}/${route}`)
+      router.push(`/properties/${id}/${route}`)
     }
+  }
+
+  const handleDeleteProperty = async () => {
+    const response = await fetch(`/api/properties/${id}/delete`, {
+      method: 'DELETE'
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      if (data.has_leases) {
+        toast.error('Cannot delete property', {
+          description: data.message
+        })
+      } else {
+        toast.error(data.error || 'Failed to delete property')
+      }
+      throw new Error(data.error)
+    }
+
+    toast.success('Property deleted successfully')
+    router.push('/properties')
   }
 
   return (
@@ -131,8 +158,33 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem>Assign owner</DropdownMenuItem>
-              <DropdownMenuItem>View payment details</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push(`/properties/${id}/edit`)}>
+                Edit Property
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={showUnderDevelopment}>Assign owner</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <ConfirmationDialog
+                openDialogButton={
+                  <DropdownMenuItem
+                    onSelect={e => e.preventDefault()}
+                    className='text-error-main focus:text-error-main'
+                  >
+                    Delete Property
+                  </DropdownMenuItem>
+                }
+                title='Delete Property'
+                description={
+                  <>
+                    Are you sure you want to delete{' '}
+                    <strong>{propertyCode}</strong>? This action cannot be
+                    undone. All associated data (rooms, views, configurations)
+                    will be permanently removed.
+                  </>
+                }
+                onConfirm={handleDeleteProperty}
+                confirmButtonLabel='Delete'
+                confirmButtonLoadingLabel='Deleting...'
+              />
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -161,6 +213,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
       <section className='flex flex-col gap-5 -mx-7.5 -mb-7.5 p-7.5 py-5 bg-(--background-tertiary) min-h-full h-fit'>
         {children}
       </section>
+      <ActionUnderDevelopmentOverlay />
     </>
   )
 }

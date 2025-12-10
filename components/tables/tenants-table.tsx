@@ -25,7 +25,6 @@ import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
 type TenantWithDetails = Prisma.tenantsGetPayload<{
   select: {
     id: true
-    profile_pic: true
     profile_thumb: true
     individual_tenants: {
       select: {

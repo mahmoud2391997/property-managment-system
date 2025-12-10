@@ -103,7 +103,7 @@ export async function GET () {
         message: n.message,
         reference_id: n.reference_id,
         reference_type: n.reference_type,
-        is_read: n.read ?? false,
+        is_read: n.is_read ?? false,
         created_at: n.created_at?.toISOString() ?? new Date().toISOString(),
         page: n.page,
         performer_name: performerName,
@@ -134,10 +134,10 @@ export async function PATCH () {
     await prisma.notifications.updateMany({
       where: {
         user_id: user.id,
-        read: false
+        is_read: false
       },
       data: {
-        read: true
+        is_read: true
       }
     })
 

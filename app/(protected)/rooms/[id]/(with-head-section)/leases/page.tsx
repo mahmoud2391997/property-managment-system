@@ -1,4 +1,4 @@
-import LeasesSection from '@/components/leases-section'
+import LeasesSection from '@/components/sections/leases-section'
 
 type Props = {
   params: Promise<{ id: string }>

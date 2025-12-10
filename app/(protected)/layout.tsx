@@ -3,6 +3,7 @@ import { SidebarProvider } from '@/components/ui/sidebar'
 import Sidebar, { MobileHeader } from '@/components/app-sidebar'
 import { cn } from '@/lib/utils'
 import NextTopLoader from 'nextjs-toploader'
+import { NotificationProvider } from '@/contexts/notification-context'
 
 export default async function ProtectedLayout ({
   children
@@ -12,6 +13,7 @@ export default async function ProtectedLayout ({
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get('sidebar_state')?.value === 'true'
   return (
+    <NotificationProvider>
     <SidebarProvider
       defaultOpen={defaultOpen}
       className='md:px-[15] px-0 flex-col'
@@ -38,5 +40,6 @@ export default async function ProtectedLayout ({
         </div>
       </main>
     </SidebarProvider>
+    </NotificationProvider>
   )
 }

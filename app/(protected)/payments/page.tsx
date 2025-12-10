@@ -1,13 +1,9 @@
 import { cn } from '@/lib/utils'
-import SearchInput from '@/components/costume-ui/search-input'
-import Button from '@/components/costume-ui/button'
-import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
-import { PaymentsTableWithRefresh } from '@/components/payments-table-with-refresh'
-import Link from 'next/link'
 import { Payment } from '@/types'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { PaymentsPageWrapper } from '@/components/payments-page-wrapper'
+import PaymentsSection from '@/components/sections/payments-section'
 
 async function fetchPayments(): Promise<{ payments: Payment[], userType: 'staff' | 'tenant' }> {
   try {
@@ -196,32 +192,7 @@ const Payments = async () => {
         <div>
           <h1>Payments</h1>
         </div>
-        {/* Actions */}
-        <div className={cn('flex flex-col sm:flex-row justify-between sm:items-center gap-3', 'w-full')}>
-          <SearchInput placeholder='Search payments' />
-          {/* Buttons */}
-          {userType === 'staff' && (
-            <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
-              <Button
-                icon={<DeleteButtonIcon />}
-                label='Delete'
-                className='bg-(--error-main)! flex-1 sm:flex-none'
-              />
-
-              <Link href='/payments/add-payment' className='flex-1 sm:flex-none'>
-                <Button
-                  icon={<AddButtonIcon className='text-neutral-300' />}
-                  label='Add Payment'
-                  className='w-full'
-                />
-              </Link>
-            </div>
-          )}
-        </div>
-        {/* Table */}
-        <div>
-          <PaymentsTableWithRefresh data={payments} userType={userType} />
-        </div>
+        <PaymentsSection payments={payments} userType={userType} />
       </div>
     </PaymentsPageWrapper>
   )

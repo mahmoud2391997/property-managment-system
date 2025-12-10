@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
 import { prisma } from '@/lib/prisma'
+import { getBaseUrl } from '@/utils/get-base-url'
 
-export async function POST(req: NextRequest) {
+export async function POST (req: NextRequest) {
   try {
     // Verify current user is staff
     const { staff: currentStaff, error } = await getUserAndStaff()
@@ -35,15 +36,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (targetStaff.organization_id !== currentStaff.organization_id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
     // Check if account is already activated via Supabase Auth
     const supabaseAdmin = createAdminClient()
-    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(staffId)
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(
+      staffId
+    )
 
     if (!authUser?.user) {
       return NextResponse.json(
@@ -77,12 +77,10 @@ export async function POST(req: NextRequest) {
 
     if (hasInvitedAt && isEmailConfirmed && !passwordSet) {
       // Case 1: Send password reset link
-      const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
-        authUser.user.email!,
-        {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4000'}/api/auth/confirm-staff`
-        }
-      )
+      const { error: resetError } =
+        await supabaseAdmin.auth.resetPasswordForEmail(authUser.user.email!, {
+          redirectTo: `${getBaseUrl()}/api/auth/confirm-staff`
+        })
 
       if (resetError) {
         console.error('Error sending password setup link:', resetError)
@@ -94,12 +92,10 @@ export async function POST(req: NextRequest) {
       successMessage = 'Password setup link sent successfully'
     } else {
       // Case 2: Send new invite link
-      const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-        authUser.user.email!,
-        {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4000'}/api/auth/confirm-staff`
-        }
-      )
+      const { error: inviteError } =
+        await supabaseAdmin.auth.admin.inviteUserByEmail(authUser.user.email!, {
+          redirectTo: `${getBaseUrl()}/api/auth/confirm-staff`
+        })
 
       if (inviteError) {
         console.error('Error resending invite:', inviteError)

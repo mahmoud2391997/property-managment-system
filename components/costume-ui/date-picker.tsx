@@ -54,6 +54,8 @@ export default function DatePicker ({ className, onValueChange, value, ...props 
           mode='single'
           selected={date}
           captionLayout='dropdown'
+          startMonth={new Date(new Date().getFullYear() - 5, 0)}
+          endMonth={new Date(new Date().getFullYear() + 10, 11)}
           onSelect={date => {
             setDate(date)
             onValueChange?.(date)

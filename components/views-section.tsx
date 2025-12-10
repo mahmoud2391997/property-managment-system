@@ -61,11 +61,11 @@ export default function ViewsSection({ propertyId, roomId }: Props) {
         <h2>Views</h2>
         {/* Buttons */}
         <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <Button
+          {/* <Button
             icon={<DeleteButtonIcon />}
             label='Delete'
             className='bg-(--error-main)!'
-          />
+          /> */}
 
           <AddViewDialog propertyId={propertyId} roomId={roomId} onSuccess={handleRefresh} />
         </div>
@@ -75,6 +75,7 @@ export default function ViewsSection({ propertyId, roomId }: Props) {
         data={views}
         className='-mx-5! rounded-none! border-x-0 mb-5'
         noPagnitation={true}
+        onRefresh={handleRefresh}
       />
     </div>
   )

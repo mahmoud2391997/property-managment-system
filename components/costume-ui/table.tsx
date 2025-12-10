@@ -35,6 +35,7 @@ type Props<TData extends object> = {
   noPagnitation?: boolean
   loadingRowId?: string | null
   getRowId?: (row: TData) => string
+  meta?: Record<string, unknown>
 }
 
 function Table<TData extends object> ({
@@ -45,7 +46,8 @@ function Table<TData extends object> ({
   renderSubComponent,
   noPagnitation = false,
   loadingRowId = null,
-  getRowId
+  getRowId,
+  meta
 }: Props<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -67,6 +69,7 @@ function Table<TData extends object> ({
     onRowSelectionChange: setRowSelection,
     onExpandedChange: setExpanded,
     getRowCanExpand: getRowCanExpand,
+    meta,
     state: {
       sorting,
       columnFilters,

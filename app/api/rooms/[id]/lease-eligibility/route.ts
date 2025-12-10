@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import {
+  computeLeaseStatus,
+  hasLeaseEndDate,
+  getEarliestNewLeaseStartDate,
+  formatLeaseDate,
+  calculateLeaseEndDate
+} from '@/utils/lease-status'
 
 export async function GET(
   request: Request,
@@ -24,21 +31,20 @@ export async function GET(
       select: {
         id: true,
         title: true,
+        status: true,
         property_id: true,
         properties: {
           select: {
             id: true,
-            code: true
+            code: true,
+            status: true
           }
         }
       }
     })
 
     if (!room) {
-      return NextResponse.json(
-        { error: 'Room not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
 
     if (!room.property_id) {
@@ -48,75 +54,191 @@ export async function GET(
       )
     }
 
-    // Check if the property (parent) has an active lease (Current or Expired)
-    // A property lease means room_id is null
-    const propertyLease = await prisma.leases.findFirst({
+    // Check if room status is Pending_Inspection or Under_Preparation
+    if (room.status === 'Pending_Inspection' || room.status === 'Under_Preparation') {
+      const statusDisplay = room.status.replace(/_/g, ' ')
+      return NextResponse.json({
+        canAddLease: false,
+        canScheduleLease: false,
+        blockedBy: 'status',
+        blockedStatus: room.status,
+        blockedLeaseId: null,
+        message: `Room is currently "${statusDisplay}". Please mark it as ready before adding a lease.`,
+        room: {
+          id: room.id,
+          title: room.title,
+          propertyId: room.property_id,
+          propertyCode: room.properties?.code
+        }
+      })
+    }
+
+    // Check if parent property status is Pending_Inspection or Under_Preparation
+    if (room.properties?.status === 'Pending_Inspection' || room.properties?.status === 'Under_Preparation') {
+      const statusDisplay = room.properties.status.replace(/_/g, ' ')
+      return NextResponse.json({
+        canAddLease: false,
+        canScheduleLease: false,
+        blockedBy: 'property_status',
+        blockedStatus: room.properties.status,
+        blockedLeaseId: null,
+        message: `The property "${room.properties.code}" is currently "${statusDisplay}". Please mark it as ready before adding a room lease.`,
+        room: {
+          id: room.id,
+          title: room.title,
+          propertyId: room.property_id,
+          propertyCode: room.properties?.code
+        }
+      })
+    }
+
+    // Check if the property (parent) has an active lease
+    const propertyLeases = await prisma.leases.findMany({
       where: {
         property_id: room.property_id,
         room_id: null,
-        status: {
-          in: ['Current', 'Expired']
-        }
+        status: 'Current'
       },
       select: {
         id: true,
         reference_id: true,
+        start_date: true,
+        number_of_months: true,
         status: true
-      }
-    })
-
-    // Check if this room has an active lease (Current or Expired)
-    const roomLease = await prisma.leases.findFirst({
-      where: {
-        room_id: roomId,
-        status: {
-          in: ['Current', 'Expired']
-        }
       },
-      select: {
-        id: true,
-        reference_id: true,
-        status: true
+      orderBy: {
+        start_date: 'desc'
       }
     })
 
-    // Determine eligibility
-    let canAddLease = true
-    let blockedBy: 'property' | 'room' | null = null
-    let blockedStatus: 'Current' | 'Expired' | null = null
-    let blockedLeaseId: string | null = null
-    let message: string | null = null
+    // Find blocking property lease (Current or Expired)
+    const blockingPropertyLease = propertyLeases.find(lease => {
+      const computedStatus = computeLeaseStatus(lease)
+      return computedStatus === 'Current' || computedStatus === 'Expired'
+    })
 
-    if (propertyLease) {
-      canAddLease = false
-      blockedBy = 'property'
-      blockedStatus = propertyLease.status as 'Current' | 'Expired'
-      blockedLeaseId = propertyLease.reference_id
+    if (blockingPropertyLease) {
+      const computedStatus = computeLeaseStatus(blockingPropertyLease)
+      const hasEndDate = hasLeaseEndDate(blockingPropertyLease)
 
-      if (propertyLease.status === 'Current') {
-        message = `The property "${room.properties?.code}" has an active lease (${propertyLease.reference_id}). You cannot add a lease for this room while the property has an active lease.`
-      } else if (propertyLease.status === 'Expired') {
-        message = `The property "${room.properties?.code}" has an expired lease (${propertyLease.reference_id}) that needs to be ended before adding a lease for this room or any rooms under it.`
-      }
-    } else if (roomLease) {
-      canAddLease = false
-      blockedBy = 'room'
-      blockedStatus = roomLease.status as 'Current' | 'Expired'
-      blockedLeaseId = roomLease.reference_id
+      if (!hasEndDate) {
+        return NextResponse.json({
+          canAddLease: false,
+          canScheduleLease: false,
+          blockedBy: 'property',
+          blockedStatus: computedStatus,
+          blockedLeaseId: blockingPropertyLease.reference_id,
+          message: `The property "${room.properties?.code}" has an active lease (${blockingPropertyLease.reference_id}) with no end date. You cannot add a room lease until the property lease is ended.`,
+          room: {
+            id: room.id,
+            title: room.title,
+            propertyId: room.property_id,
+            propertyCode: room.properties?.code
+          }
+        })
+      } else {
+        const earliestStart = getEarliestNewLeaseStartDate(blockingPropertyLease)
+        const endDate = calculateLeaseEndDate(
+          blockingPropertyLease.start_date,
+          blockingPropertyLease.number_of_months
+        )
 
-      if (roomLease.status === 'Current') {
-        message = `This room already has an active lease (${roomLease.reference_id}). You cannot add another lease while the current one is active.`
-      } else if (roomLease.status === 'Expired') {
-        message = `This room has an expired lease (${roomLease.reference_id}) that needs to be ended before adding a new lease.`
+        return NextResponse.json({
+          canAddLease: true,
+          canScheduleLease: true,
+          blockedBy: 'property',
+          blockedStatus: computedStatus,
+          blockedLeaseId: blockingPropertyLease.reference_id,
+          existingLeaseEndDate: endDate?.toISOString(),
+          earliestNewLeaseStart: earliestStart?.toISOString(),
+          message: `The property "${room.properties?.code}" has an active lease (${blockingPropertyLease.reference_id}) ending on ${formatLeaseDate(endDate!)}. You can schedule a room lease starting from ${formatLeaseDate(earliestStart!)}.`,
+          room: {
+            id: room.id,
+            title: room.title,
+            propertyId: room.property_id,
+            propertyCode: room.properties?.code
+          }
+        })
       }
     }
 
+    // Check if this room has an active lease
+    const roomLeases = await prisma.leases.findMany({
+      where: {
+        room_id: roomId,
+        status: 'Current'
+      },
+      select: {
+        id: true,
+        reference_id: true,
+        start_date: true,
+        number_of_months: true,
+        status: true
+      },
+      orderBy: {
+        start_date: 'desc'
+      }
+    })
+
+    // Find blocking room lease (Current or Expired)
+    const blockingRoomLease = roomLeases.find(lease => {
+      const computedStatus = computeLeaseStatus(lease)
+      return computedStatus === 'Current' || computedStatus === 'Expired'
+    })
+
+    if (blockingRoomLease) {
+      const computedStatus = computeLeaseStatus(blockingRoomLease)
+      const hasEndDate = hasLeaseEndDate(blockingRoomLease)
+
+      if (!hasEndDate) {
+        return NextResponse.json({
+          canAddLease: false,
+          canScheduleLease: false,
+          blockedBy: 'room',
+          blockedStatus: computedStatus,
+          blockedLeaseId: blockingRoomLease.reference_id,
+          message: `This room has an active lease (${blockingRoomLease.reference_id}) with no end date. You cannot add a new lease until this lease is ended.`,
+          room: {
+            id: room.id,
+            title: room.title,
+            propertyId: room.property_id,
+            propertyCode: room.properties?.code
+          }
+        })
+      } else {
+        const earliestStart = getEarliestNewLeaseStartDate(blockingRoomLease)
+        const endDate = calculateLeaseEndDate(
+          blockingRoomLease.start_date,
+          blockingRoomLease.number_of_months
+        )
+
+        return NextResponse.json({
+          canAddLease: true,
+          canScheduleLease: true,
+          blockedBy: 'room',
+          blockedStatus: computedStatus,
+          blockedLeaseId: blockingRoomLease.reference_id,
+          existingLeaseEndDate: endDate?.toISOString(),
+          earliestNewLeaseStart: earliestStart?.toISOString(),
+          message: `This room has an active lease (${blockingRoomLease.reference_id}) ending on ${formatLeaseDate(endDate!)}. You can schedule a new lease starting from ${formatLeaseDate(earliestStart!)}.`,
+          room: {
+            id: room.id,
+            title: room.title,
+            propertyId: room.property_id,
+            propertyCode: room.properties?.code
+          }
+        })
+      }
+    }
+
+    // No blocking leases found
     return NextResponse.json({
-      canAddLease,
-      blockedBy,
-      blockedStatus,
-      blockedLeaseId,
-      message,
+      canAddLease: true,
+      canScheduleLease: false,
+      blockedBy: null,
+      blockedStatus: null,
+      blockedLeaseId: null,
+      message: null,
       room: {
         id: room.id,
         title: room.title,
@@ -124,7 +246,7 @@ export async function GET(
         propertyCode: room.properties?.code
       }
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error checking lease eligibility:', error)
     return NextResponse.json(
       { error: 'Failed to check lease eligibility' },

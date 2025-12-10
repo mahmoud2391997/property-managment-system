@@ -19,8 +19,9 @@ import { Table } from '../costume-ui/table'
 import { ViewWithProperty } from '@/types'
 import TimestampWithTooltip from '../costume-ui/timestamp-with-tooltip'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
+import EditViewDialog from '../dialogs/edit-view-dialog'
 
-export const columns: ColumnDef<ViewWithProperty>[] = [
+const createColumns = (onRefresh?: () => void): ColumnDef<ViewWithProperty>[] => [
   //Checkbox
   {
     id: 'select',
@@ -65,12 +66,12 @@ export const columns: ColumnDef<ViewWithProperty>[] = [
   },
 
   {
-    accessorKey: 'created_at',
+    accessorKey: 'viewed_at',
     header: () => <div className='text-left'>Viewed at</div>,
     cell: ({ row }) => {
       return (
         <div className='text-left'>
-          <TimestampWithTooltip timestamp={row.getValue('created_at')} />
+          <TimestampWithTooltip timestamp={row.getValue('viewed_at')} />
         </div>
       )
     }
@@ -94,6 +95,15 @@ export const columns: ColumnDef<ViewWithProperty>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end'>
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <EditViewDialog
+              view={view}
+              onSuccess={onRefresh}
+              trigger={
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  Edit View
+                </DropdownMenuItem>
+              }
+            />
             <DropdownMenuItem
               onClick={() => navigator.clipboard.writeText(view.reference_id)}
             >
@@ -135,8 +145,10 @@ type Props = {
   data: ViewWithProperty[]
   className?: string
   noPagnitation?: boolean
+  onRefresh?: () => void
 }
 
-export default function ViewsTable ({ data, className = '', noPagnitation = false }: Props) {
+export default function ViewsTable ({ data, className = '', noPagnitation = false, onRefresh }: Props) {
+  const columns = createColumns(onRefresh)
   return <Table columns={columns} className={className} data={data} noPagnitation={noPagnitation} />
 }

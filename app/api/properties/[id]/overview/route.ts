@@ -19,7 +19,10 @@ export async function GET(
         id: propertyId,
         organization_id: staff.organization_id
       },
-      select: { id: true }
+      select: {
+        id: true,
+        status: true
+      }
     })
 
     if (!property) {
@@ -29,15 +32,13 @@ export async function GET(
       )
     }
 
-    // Fetch active lease for this property (Current or Scheduled)
+    // Fetch active lease for this property (Current status in DB)
     // Only get property-level leases (room_id is null), not room leases
     const lease = await prisma.leases.findFirst({
       where: {
         property_id: propertyId,
         room_id: null, // Property-level lease only
-        status: {
-          in: ['Current', 'Scheduled']
-        }
+        status: 'Current'
       },
       select: {
         id: true,
@@ -45,6 +46,7 @@ export async function GET(
         monthly_rent: true,
         payment_day: true,
         start_date: true,
+        number_of_months: true,
         tenants: {
           select: {
             id: true,
@@ -52,7 +54,8 @@ export async function GET(
             individual_tenants: {
               select: {
                 first_name: true,
-                last_name: true
+                last_name: true,
+                phone_number: true
               }
             },
             company_tenants: {
@@ -183,10 +186,13 @@ export async function GET(
         reference_id: lease.reference_id,
         monthly_rent: lease.monthly_rent,
         due_date: calculateNextDueDate(lease.payment_day),
+        start_date: lease.start_date,
+        number_of_months: lease.number_of_months,
         tenant: {
           id: lease.tenants.id,
           name: tenantName,
-          profile_thumb: lease.tenants.profile_thumb
+          profile_thumb: lease.tenants.profile_thumb,
+          phone_number: lease.tenants.individual_tenants?.phone_number || null
         }
       }
     }
@@ -251,6 +257,7 @@ export async function GET(
     }
 
     return NextResponse.json({
+      propertyStatus: property.status,
       lease: leaseData,
       contract: contractData,
       booking: bookingData

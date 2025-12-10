@@ -256,7 +256,8 @@ const AddProperty = () => {
             <InputGroup label='Code' isRequired>
               <Input
                 placeholder='E.g. B-2-1'
-                maxLength={20}
+                minLength={1}
+                maxLength={50}
                 required
                 value={code}
                 onChange={e => setCode(e.target.value)}
@@ -286,7 +287,8 @@ const AddProperty = () => {
           <InputGroup label='Street Address' isRequired>
             <Input
               placeholder='E.g. 1234 West Pinecrest Avenue'
-              maxLength={150}
+              minLength={5}
+              maxLength={300}
               required
               value={streetAddress}
               onChange={e => setStreetAddress(e.target.value)}
@@ -296,6 +298,7 @@ const AddProperty = () => {
             <InputGroup label='City' isRequired>
               <Input
                 placeholder='E.g. Ayer Keroh'
+                minLength={1}
                 maxLength={100}
                 required
                 value={city}
@@ -305,8 +308,8 @@ const AddProperty = () => {
             <InputGroup label='Postal Code' isRequired>
               <Input
                 placeholder='E.g. 50450'
-                maxLength={5}
-                pattern='\d{5}'
+                minLength={4}
+                maxLength={10}
                 required
                 value={postalCode}
                 onChange={e => setPostalCode(e.target.value)}

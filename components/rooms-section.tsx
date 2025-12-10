@@ -5,16 +5,23 @@ import { cn } from '@/lib/utils'
 import Button from './costume-ui/button'
 import { AddButtonIcon, DeleteButtonIcon } from './costume-ui/icon'
 import RoomsTable from './tables/rooms-table'
-import { RoomWithProperty } from '@/types'
 import TableSectionSkeleton from './loading-ui/table-section-skeleton'
 import Link from 'next/link'
+
+type RoomTableData = {
+  id: string
+  title: string
+  property: string
+  status: 'Occupied' | 'Vacant' | 'Pending_Inspection' | 'Under_Preparation' | 'Property_Rented' | 'Property_Not_Ready'
+  tenantPhone?: string | null
+}
 
 type Props = {
   propertyId: string
 }
 
 export default function RoomsSection({ propertyId }: Props) {
-  const [rooms, setRooms] = useState<RoomWithProperty[]>([])
+  const [rooms, setRooms] = useState<RoomTableData[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchRooms = useCallback(async () => {
@@ -52,11 +59,11 @@ export default function RoomsSection({ propertyId }: Props) {
         <h2>Rooms</h2>
         {/* Buttons */}
         <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <Button
+          {/* <Button
             icon={<DeleteButtonIcon />}
             label='Delete'
             className='bg-(--error-main)!'
-          />
+          /> */}
 
           <Link href={`/properties/${propertyId}/add-room`}>
             <Button

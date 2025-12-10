@@ -132,7 +132,7 @@ const AddTenant = ({ onSuccess, onLoadingChange }: Props) => {
                   ? 'E.g. 900101014321 (12 digits)'
                   : identityType === 'passport'
                   ? 'E.g. A1234567 (6–20 characters)'
-                  : 'Enter identity number'
+                  : 'Select Identity Type First'
               }
               value={identityNumber}
               onChange={e => {

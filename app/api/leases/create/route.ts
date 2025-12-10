@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { computeLeaseStatus, isLeaseActive } from '@/utils/lease-status'
 
 export async function POST(request: Request) {
   try {
@@ -111,43 +112,45 @@ export async function POST(request: Request) {
         )
       }
 
-      // Check if property has an active lease (Current or Expired) - rooms cannot have leases if property does
-      const propertyLease = await prisma.leases.findFirst({
+      // Check if property has an active lease - rooms cannot have leases if property does
+      const propertyLeases = await prisma.leases.findMany({
         where: {
           property_id: property_id,
           room_id: null,
-          status: {
-            in: ['Current', 'Expired']
-          }
+          status: 'Current' // DB status
         },
-        select: { id: true, status: true, reference_id: true }
+        select: { id: true, start_date: true, number_of_months: true, status: true, reference_id: true }
       })
 
-      if (propertyLease) {
-        const message = propertyLease.status === 'Current'
-          ? `Cannot create room lease: Property has an active lease (${propertyLease.reference_id})`
-          : `Cannot create room lease: Property has an expired lease (${propertyLease.reference_id}) that needs to be ended first`
+      const activePropertyLease = propertyLeases.find(lease => isLeaseActive(lease))
+
+      if (activePropertyLease) {
+        const computedStatus = computeLeaseStatus(activePropertyLease)
+        const message = computedStatus === 'Current'
+          ? `Cannot create room lease: Property has an active lease (${activePropertyLease.reference_id})`
+          : `Cannot create room lease: Property has an expired lease (${activePropertyLease.reference_id}) that needs to be ended first`
         return NextResponse.json(
           { error: message },
           { status: 400 }
         )
       }
 
-      // Check if room already has an active lease (Current or Expired)
-      const roomLease = await prisma.leases.findFirst({
+      // Check if room already has an active lease
+      const roomLeases = await prisma.leases.findMany({
         where: {
           room_id: room_id,
-          status: {
-            in: ['Current', 'Expired']
-          }
+          status: 'Current'
         },
-        select: { id: true, status: true, reference_id: true }
+        select: { id: true, start_date: true, number_of_months: true, status: true, reference_id: true }
       })
 
-      if (roomLease) {
-        const message = roomLease.status === 'Current'
-          ? `Room already has an active lease (${roomLease.reference_id})`
-          : `Room has an expired lease (${roomLease.reference_id}) that needs to be ended first`
+      const activeRoomLease = roomLeases.find(lease => isLeaseActive(lease))
+
+      if (activeRoomLease) {
+        const computedStatus = computeLeaseStatus(activeRoomLease)
+        const message = computedStatus === 'Current'
+          ? `Room already has an active lease (${activeRoomLease.reference_id})`
+          : `Room has an expired lease (${activeRoomLease.reference_id}) that needs to be ended first`
         return NextResponse.json(
           { error: message },
           { status: 400 }
@@ -156,46 +159,49 @@ export async function POST(request: Request) {
     } else {
       // This is a property lease (no room_id) - check for conflicts
 
-      // Check if property already has an active lease (Current or Expired)
-      const existingPropertyLease = await prisma.leases.findFirst({
+      // Check if property already has an active lease
+      const existingPropertyLeases = await prisma.leases.findMany({
         where: {
           property_id: property_id,
           room_id: null,
-          status: {
-            in: ['Current', 'Expired']
-          }
+          status: 'Current'
         },
-        select: { id: true, status: true, reference_id: true }
+        select: { id: true, start_date: true, number_of_months: true, status: true, reference_id: true }
       })
 
-      if (existingPropertyLease) {
-        const message = existingPropertyLease.status === 'Current'
-          ? `Property already has an active lease (${existingPropertyLease.reference_id})`
-          : `Property has an expired lease (${existingPropertyLease.reference_id}) that needs to be ended first`
+      const existingActivePropertyLease = existingPropertyLeases.find(lease => isLeaseActive(lease))
+
+      if (existingActivePropertyLease) {
+        const computedStatus = computeLeaseStatus(existingActivePropertyLease)
+        const message = computedStatus === 'Current'
+          ? `Property already has an active lease (${existingActivePropertyLease.reference_id})`
+          : `Property has an expired lease (${existingActivePropertyLease.reference_id}) that needs to be ended first`
         return NextResponse.json(
           { error: message },
           { status: 400 }
         )
       }
 
-      // Check if any rooms under this property have active leases (Current or Expired)
+      // Check if any rooms under this property have active leases
       const roomLeases = await prisma.leases.findMany({
         where: {
           property_id: property_id,
           room_id: { not: null },
-          status: {
-            in: ['Current', 'Expired']
-          }
+          status: 'Current'
         },
         select: {
           id: true,
+          start_date: true,
+          number_of_months: true,
           status: true
         }
       })
 
-      if (roomLeases.length > 0) {
-        const hasExpired = roomLeases.some(lease => lease.status === 'Expired')
-        const roomCount = roomLeases.length
+      const activeRoomLeases = roomLeases.filter(lease => isLeaseActive(lease))
+
+      if (activeRoomLeases.length > 0) {
+        const hasExpired = activeRoomLeases.some(lease => computeLeaseStatus(lease) === 'Expired')
+        const roomCount = activeRoomLeases.length
         const roomText = roomCount === 1 ? 'a room' : `${roomCount} rooms`
 
         const message = hasExpired

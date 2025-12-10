@@ -166,7 +166,7 @@ export const propertiesData: Property[] = [
     address: '36 Jalan Mawar, Penang',
     project: 'Bayview Residences',
     type: 'Apartment',
-    status: 'Under Preparation'
+    status: 'Under_Preparation'
   },
   {
     id: '4',
@@ -174,7 +174,7 @@ export const propertiesData: Property[] = [
     address: '48 Jalan Dahlia, Kedah',
     project: 'Eco Horizon Apartments',
     type: 'Apartment',
-    status: 'Pending Inspection'
+    status: 'Pending_Inspection'
   },
 
   {
@@ -199,7 +199,7 @@ export const propertiesData: Property[] = [
     address: '96 Jalan Teratai, Penang',
     project: 'Horizon Bay Condos',
     type: 'Condo',
-    status: 'Under Preparation'
+    status: 'Under_Preparation'
   },
   {
     id: '9',
@@ -215,7 +215,7 @@ export const propertiesData: Property[] = [
     address: '120 Jalan Melati, Kuala Lumpur',
     project: 'The Garden Suites',
     type: 'Condo',
-    status: 'Pending Inspection'
+    status: 'Pending_Inspection'
   },
   {
     id: '11',
@@ -240,7 +240,7 @@ export const propertiesData: Property[] = [
     address: '168 Jalan Rumbia, Sarawak',
     project: 'Riverside Apartments',
     type: 'Apartment',
-    status: 'Under Preparation'
+    status: 'Under_Preparation'
   },
   {
     id: '15',
@@ -264,7 +264,7 @@ export const propertiesData: Property[] = [
     address: '204 Jalan Meranti, Johor',
     project: 'Palm Springs Condominiums',
     type: 'Condo',
-    status: 'Pending Inspection'
+    status: 'Pending_Inspection'
   },
 
   {
@@ -302,19 +302,19 @@ export const roomsData: Room[] = [
     id: '3',
     title: 'Room 103',
     property: 'Sunrise Apartments',
-    status: 'Under Preparation'
+    status: 'Under_Preparation'
   },
   {
     id: '4',
     title: 'Room 104',
     property: 'Sunrise Apartments',
-    status: 'Pending Inspection'
+    status: 'Pending_Inspection'
   },
   {
     id: '5',
     title: 'Room 105',
     property: 'Sunrise Apartments',
-    status: 'Property Rented'
+    status: 'Property_Rented'
   },
   {
     id: '6',
@@ -327,19 +327,19 @@ export const roomsData: Room[] = [
     id: '8',
     title: 'Room 203',
     property: 'Maple Residency',
-    status: 'Under Preparation'
+    status: 'Under_Preparation'
   },
   {
     id: '9',
     title: 'Room 204',
     property: 'Maple Residency',
-    status: 'Pending Inspection'
+    status: 'Pending_Inspection'
   },
   {
     id: '10',
     title: 'Room 205',
     property: 'Maple Residency',
-    status: 'Property Rented'
+    status: 'Property_Rented'
   },
   { id: '11', title: 'Room 301', property: 'Ocean View', status: 'Occupied' },
   { id: '12', title: 'Room 302', property: 'Ocean View', status: 'Vacant' },
@@ -347,19 +347,19 @@ export const roomsData: Room[] = [
     id: '13',
     title: 'Room 303',
     property: 'Ocean View',
-    status: 'Under Preparation'
+    status: 'Under_Preparation'
   },
   {
     id: '14',
     title: 'Room 304',
     property: 'Ocean View',
-    status: 'Pending Inspection'
+    status: 'Pending_Inspection'
   },
   {
     id: '15',
     title: 'Room 305',
     property: 'Ocean View',
-    status: 'Property Rented'
+    status: 'Property_Rented'
   },
   {
     id: '16',
@@ -372,19 +372,19 @@ export const roomsData: Room[] = [
     id: '18',
     title: 'Room 403',
     property: 'Skyline Towers',
-    status: 'Under Preparation'
+    status: 'Under_Preparation'
   },
   {
     id: '19',
     title: 'Room 404',
     property: 'Skyline Towers',
-    status: 'Pending Inspection'
+    status: 'Pending_Inspection'
   },
   {
     id: '20',
     title: 'Room 405',
     property: 'Skyline Towers',
-    status: 'Property Rented'
+    status: 'Property_Rented'
   }
 ]
 

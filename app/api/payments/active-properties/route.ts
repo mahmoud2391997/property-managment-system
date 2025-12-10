@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { ComboBoxitemsType } from '@/types'
+import { isLeaseActive } from '@/utils/lease-status'
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,19 +34,21 @@ export async function GET(request: NextRequest) {
     }
 
     // Get properties linked to active leases for this tenant
-    const activeLeases = await prisma.leases.findMany({
+    // Query 'Current' status and filter by computed active status (includes expired)
+    const leases = await prisma.leases.findMany({
       where: {
         tenant_id: tenantId,
         organization_id: staff.organization_id,
-        status: {
-          in: ['Current', 'Expired']
-        }
+        status: 'Current'
       },
       select: {
         id: true,
         reference_id: true,
         property_id: true,
         room_id: true,
+        status: true,
+        start_date: true,
+        number_of_months: true,
         properties: {
           select: {
             id: true,
@@ -60,6 +63,9 @@ export async function GET(request: NextRequest) {
       },
       distinct: ['property_id']
     })
+
+    // Filter to only include active leases (Current or Expired by date)
+    const activeLeases = leases.filter(lease => isLeaseActive(lease))
 
     const properties:ComboBoxitemsType[] = activeLeases.map((lease) => ({
       id: lease.reference_id,

@@ -151,7 +151,7 @@ export async function POST (req: NextRequest) {
           type,
           project_id: project_id || null,
           organization_id: staff.organization_id,
-          status: is_ready ? 'Vacant' : 'Pending_Inspection',
+          status: is_ready ? 'Ready' : 'Pending_Inspection',
           created_by: user.id
         }
       })
@@ -163,7 +163,7 @@ export async function POST (req: NextRequest) {
           data: rooms.map((room: { title: string; is_ready: boolean }) => ({
             title: room.title,
             property_id: newProperty.id,
-            status: room.is_ready ? 'Vacant' : 'Pending_Inspection',
+            status: room.is_ready ? 'Ready' : 'Pending_Inspection',
             created_by: user.id
           }))
         })

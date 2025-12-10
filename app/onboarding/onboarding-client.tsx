@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import CustomInput from '@/components/costume-ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Card,
@@ -204,12 +205,11 @@ export default function OnboardingClient() {
 
                   <div className="space-y-2">
                     <Label htmlFor="phone_number">Phone Number</Label>
-                    <Input
-                      id="phone_number"
+                    <CustomInput
+                      phoneNumber
                       value={staffData.phone_number}
-                      onChange={(e) => setStaffData(prev => ({ ...prev, phone_number: e.target.value }))}
-                      placeholder="+60123456789"
-                      required
+                      onChange={(phone) => setStaffData(prev => ({ ...prev, phone_number: phone }))}
+                      className="bg-background! border-input! h-9! rounded-md!"
                     />
                   </div>
 

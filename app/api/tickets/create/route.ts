@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { isLeaseActive } from '@/utils/lease-status'
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,19 +58,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify the lease belongs to this tenant and has valid status (Current or Expired)
+    // Verify the lease belongs to this tenant and has valid status (Current in DB)
     const lease = await prisma.leases.findFirst({
       where: {
         id: lease_id,
         tenant_id: tenant.id,
-        status: {
-          in: ['Current', 'Expired']
-        }
+        status: 'Current'
       },
-      select: { id: true, organization_id: true }
+      select: {
+        id: true,
+        organization_id: true,
+        status: true,
+        start_date: true,
+        number_of_months: true
+      }
     })
 
-    if (!lease) {
+    // Check if lease exists and is active (Current or Expired by date)
+    if (!lease || !isLeaseActive(lease)) {
       return NextResponse.json(
         { error: 'Invalid lease or lease status does not allow ticket creation' },
         { status: 400 }

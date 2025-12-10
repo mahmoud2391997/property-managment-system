@@ -72,10 +72,11 @@ export async function GET(request: Request) {
         last_name: true,
         phone_number: true,
         email: true,
+        viewed_at: true,
         created_at: true
       },
       orderBy: {
-        created_at: 'desc'
+        viewed_at: 'desc'
       }
     })
 
@@ -87,6 +88,7 @@ export async function GET(request: Request) {
         last_name: view.last_name,
         phone_number: view.phone_number,
         email: view.email,
+        viewed_at: view.viewed_at.toISOString(),
         created_at: view.created_at.toISOString()
       }))
     })
@@ -222,8 +224,8 @@ export async function POST(request: Request) {
     // Format: VW-YYYY-#### (e.g., VW-2025-0001)
     const reference_id = `${yearPrefix}${nextSequence.toString().padStart(4, '0')}`
 
-    // Combine date and time into a timestamp
-    const created_at = new Date(`${date}T${time}`)
+    // Combine date and time into a timestamp for viewed_at
+    const viewed_at = new Date(`${date}T${time}`)
 
     // Create view - property_id is null when room_id is set (XOR constraint)
     const view = await prisma.views.create({
@@ -236,7 +238,7 @@ export async function POST(request: Request) {
         property_id: targetPropertyId,
         room_id: targetRoomId,
         created_by: user.id,
-        created_at
+        viewed_at
       }
     })
 

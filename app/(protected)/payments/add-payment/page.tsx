@@ -18,6 +18,7 @@ import { paymentTypes } from '@/utils/data'
 import { useState, useEffect } from 'react'
 import { Info } from 'lucide-react'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
+import { formatDateForAPI } from '@/utils/formatTime'
 
 const AddPayment = () => {
   const [tenantItems, setTenantItems] = useState<ComboBoxitemsType[]>([])
@@ -98,7 +99,7 @@ const AddPayment = () => {
     // Validate payment date is not in the future (only for paid payments)
     if (isPaid) {
       const paymentDateTime = new Date(
-        `${paymentDate.toISOString().split('T')[0]}T${paymentTime}`
+        `${formatDateForAPI(paymentDate)}T${paymentTime}`
       )
       const now = new Date()
       if (paymentDateTime > now) {
@@ -155,7 +156,7 @@ const AddPayment = () => {
       }
 
       // Format date for API
-      const formattedDate = paymentDate.toISOString().split('T')[0]
+      const formattedDate = formatDateForAPI(paymentDate)
 
       // Create payment
       const response = await fetch('/api/payments/create', {

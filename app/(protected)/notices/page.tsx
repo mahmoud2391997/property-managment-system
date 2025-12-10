@@ -7,8 +7,14 @@ import { noticesData } from '@/utils/data'
 import React from 'react'
 import Dialog from '@/components/costume-ui/dialog'
 import AddNotice from '@/components/add-notice'
+import { UnderDevelopment } from '@/components/costume-ui/under-development'
 
 const Notices = () => {
+  if (true) {
+      return (
+        <UnderDevelopment />
+      )
+    }
   return (
     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
       {/* Heading */}

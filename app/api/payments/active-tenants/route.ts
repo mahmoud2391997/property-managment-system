@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { isLeaseActive } from '@/utils/lease-status'
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,16 +24,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
     }
 
-    // Get tenants with active leases (status = 'Current' or 'Expired')
-    const activeLeases = await prisma.leases.findMany({
+    // Get tenants with active leases (status = 'Current' in DB, filter by computed status)
+    const leases = await prisma.leases.findMany({
       where: {
         organization_id: staff.organization_id,
-        status: {
-          in: ['Current', 'Expired']
-        }
+        status: 'Current'
       },
       select: {
         tenant_id: true,
+        status: true,
+        start_date: true,
+        number_of_months: true,
         tenants: {
           select: {
             id: true,
@@ -48,6 +50,9 @@ export async function GET(request: NextRequest) {
       },
       distinct: ['tenant_id']
     })
+
+    // Filter to only include active leases (Current or Expired by date)
+    const activeLeases = leases.filter(lease => isLeaseActive(lease))
 
     // Get tenant emails from Supabase Auth
     const tenantsWithEmail = await Promise.all(

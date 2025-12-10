@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { CheckCircle2, Loader2Icon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -18,13 +18,11 @@ import { Label } from '@/components/ui/label'
 
 export default function SetupPasswordPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const error = searchParams.get('error')
 
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState(error === 'invalid_link' ? 'Invalid or expired confirmation link' : '')
+  const [errorMessage, setErrorMessage] = useState('')
 
   // Password validation rules
   const passwordRules = {
@@ -97,7 +95,7 @@ export default function SetupPasswordPage() {
           <CardHeader>
             <CardTitle>Set Your Password</CardTitle>
             <CardDescription>
-              Create a strong password for your staff account
+              Create a strong password for your account
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -20,6 +20,7 @@ const Toggle = ({
 }: ToggleProps) => {
   return (
     <button
+      type='button'
       className={cn(
         'flex items-center gap-3 p-3 cursor-pointer select-none',
         'transition-all duration-200',
@@ -44,12 +45,17 @@ const Toggle = ({
       </div>
       {label && (
         <div className='flex flex-col items-start'>
-            <span className={`texts-body-large ${disabled && 'text-muted'}`}>
-              {label}
-            </span>
-            <span className={cn('texts-body-small text-(--text-secondary)', disabled && 'text-muted')}>
-                {subtitle}
-            </span>
+          <span className={`texts-body-large ${disabled && 'text-muted'}`}>
+            {label}
+          </span>
+          <span
+            className={cn(
+              'texts-body-small text-(--text-secondary)',
+              disabled && 'text-muted'
+            )}
+          >
+            {subtitle}
+          </span>
         </div>
       )}
     </button>

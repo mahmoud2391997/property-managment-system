@@ -9,6 +9,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Tab, TabGroup } from '@/components/costume-ui/tab'
@@ -17,6 +18,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useParams } from 'next/navigation'
 import { useSingleSelectOption } from '@/hooks/useSingleSelectOption'
 import { useRouter, usePathname } from 'next/navigation'
+import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
+import { toast } from 'sonner'
 
 type Props = {
   children: React.ReactNode
@@ -85,6 +88,28 @@ const WithHeadSectionLayout = ({ children }: Props) => {
     }
   }
 
+  const handleDeleteRoom = async () => {
+    const response = await fetch(`/api/rooms/${roomId}/delete`, {
+      method: 'DELETE'
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      if (data.has_leases) {
+        toast.error('Cannot delete room', {
+          description: data.message
+        })
+      } else {
+        toast.error(data.error || 'Failed to delete room')
+      }
+      throw new Error(data.error)
+    }
+
+    toast.success('Room deleted successfully')
+    router.push('/rooms')
+  }
+
   return (
     <>
       <section className={cn('flex flex-col gap-2.5 mb-2.5')}>
@@ -126,8 +151,30 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem>Edit room</DropdownMenuItem>
-              <DropdownMenuItem>View payment details</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push(`/rooms/${roomId}/edit`)}>Edit room</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <ConfirmationDialog
+                openDialogButton={
+                  <DropdownMenuItem
+                    onSelect={e => e.preventDefault()}
+                    className='text-error-main focus:text-error-main'
+                  >
+                    Delete Room
+                  </DropdownMenuItem>
+                }
+                title='Delete Room'
+                description={
+                  <>
+                    Are you sure you want to delete{' '}
+                    <strong>{roomConfig?.roomTitle}</strong>? This action cannot be
+                    undone. All associated data (views, configurations)
+                    will be permanently removed.
+                  </>
+                }
+                onConfirm={handleDeleteRoom}
+                confirmButtonLabel='Delete'
+                confirmButtonLoadingLabel='Deleting...'
+              />
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -27,7 +27,10 @@ export async function signup(formData: FormData): Promise<{ error?: string } | v
     email,
     password,
     options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/confirm`,
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/confirm`,
+      data: {
+        user_type: 'staff'
+      }
     }
   })
 

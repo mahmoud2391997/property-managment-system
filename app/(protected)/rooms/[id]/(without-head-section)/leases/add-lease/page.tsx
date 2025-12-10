@@ -16,7 +16,7 @@ import { ChargeData } from '@/components/costume-ui/charges-section'
 import Alert from '@/components/costume-ui/alert'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { Info, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
-import { formatDate } from '@/utils/formatTime'
+import { formatDate, formatDateForAPI } from '@/utils/formatTime'
 
 // Helper to calculate end date (end date is start_date + number_of_months, same day of month)
 const calculateEndDate = (startDate: Date, numberOfMonths: number): Date => {
@@ -205,7 +205,7 @@ const AddRoomLease = () => {
     // Validate payment date is not in the future (only for paid payments)
     if (isPaid) {
       const paymentDateTime = new Date(
-        `${paymentDate.toISOString().split('T')[0]}T${paymentTime}`
+        `${formatDateForAPI(paymentDate)}T${paymentTime}`
       )
       const now = new Date()
       if (paymentDateTime > now) {
@@ -267,8 +267,8 @@ const AddRoomLease = () => {
       }
 
       // Format dates for API
-      const formattedStartDate = startDate.toISOString().split('T')[0]
-      const formattedPaymentDate = paymentDate.toISOString().split('T')[0]
+      const formattedStartDate = formatDateForAPI(startDate)
+      const formattedPaymentDate = formatDateForAPI(paymentDate)
 
       // Create lease - include both property_id and room_id for room leases
       const response = await fetch('/api/leases/create', {

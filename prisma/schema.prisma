@@ -683,7 +683,7 @@ model properties {
   organization_id                  String                             @db.Uuid
   created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
   created_by                       String?                            @db.Uuid
-  status                           property_status                    @default(Vacant)
+  status                           property_status_new                @default(Ready)
   city                             String
   bookings                         bookings[]
   contracts                        contracts[]
@@ -738,7 +738,7 @@ model rooms {
   property_id                      String?                            @db.Uuid
   created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
   created_by                       String?                            @db.Uuid
-  status                           property_status                    @default(Vacant)
+  status                           property_status_new                @default(Ready)
   bookings                         bookings[]
   late_payment_charges             late_payment_charges[]
   leases                           leases[]
@@ -829,6 +829,7 @@ model views {
   created_at   DateTime    @default(now()) @db.Timestamptz(6)
   created_by   String?     @db.Uuid
   reference_id String
+  viewed_at    DateTime    @db.Timestamptz(6)
   staff        staff?      @relation(fields: [created_by], references: [id], onUpdate: NoAction)
   properties   properties? @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   rooms        rooms?      @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -938,22 +939,21 @@ model recurring_configs {
 model notifications {
   id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organization_id String?         @db.Uuid
-  user_id         String?         @db.Uuid
+  user_id         String          @db.Uuid
   title           String
   message         String
   reference_id    String?         @db.Uuid
   reference_type  String?
   performer_id    String?         @db.Uuid
   performer_type  performer_type?
-  read            Boolean?        @default(false)
+  is_read         Boolean?        @default(false)
   created_at      DateTime?       @default(now()) @db.Timestamptz(6)
   page            String?
   affected_type   affected_type?
   affected_id     String?         @db.Uuid
   organizations   organizations?  @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users           users?          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users           users           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([user_id, read, created_at(sort: Desc)], map: "idx_notifications_user")
   @@schema("public")
 }
 
@@ -1308,6 +1308,14 @@ enum affected_type {
 enum lease_status_new {
   Current
   Ended
+
+  @@schema("public")
+}
+
+enum property_status_new {
+  Ready
+  Pending_Inspection @map("Pending Inspection")
+  Under_Preparation  @map("Under Preparation")
 
   @@schema("public")
 }

@@ -5,8 +5,10 @@ import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
 import ExpensesTable from '@/components/tables/expenses-table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
+import { UnderDevelopment } from '@/components/costume-ui/under-development'
 
 const Expenses = () => {
+  return <UnderDevelopment />
   return (
     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
       {/* Heading */}
@@ -18,11 +20,11 @@ const Expenses = () => {
         <SearchInput placeholder='Search expenses' />
         {/* Buttons */}
         <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <Button
+          {/* <Button
             icon={<DeleteButtonIcon />}
             label='Delete'
             className='bg-(--error-main)!'
-          />
+          /> */}
 
           <Link href='/expenses/add-expense'>
             <Button

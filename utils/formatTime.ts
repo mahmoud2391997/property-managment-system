@@ -40,3 +40,11 @@ export function formatTimestampLong(iso: string): string {
     hour12: true,         // AM/PM
   });
 }
+
+// Date -> YYYY-MM-DD (for API submissions, avoids timezone shift)
+export function formatDateForAPI(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}

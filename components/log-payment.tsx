@@ -9,6 +9,7 @@ import TimePicker from './costume-ui/time-picker'
 import UploadFile from './costume-ui/upload-file'
 import { FeedbackToasts } from './costume-ui/feedback-toast'
 import { useRouter } from 'next/navigation'
+import { formatDateForAPI } from '@/utils/formatTime'
 import { cn } from '@/lib/utils'
 
 type Props = {
@@ -59,7 +60,7 @@ const LogPayment = ({
 
       // Validate payment date is not in the future
       const paymentDateTime = new Date(
-        `${paymentDate.toISOString().split('T')[0]}T${paymentTime}`
+        `${formatDateForAPI(paymentDate)}T${paymentTime}`
       )
       const now = new Date()
       if (paymentDateTime > now) {
@@ -92,7 +93,7 @@ const LogPayment = ({
       }
 
       // Format date for API
-      const formattedDate = paymentDate.toISOString().split('T')[0]
+      const formattedDate = formatDateForAPI(paymentDate)
 
       // Create payment history record
       const response = await fetch('/api/payments/log', {

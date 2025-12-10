@@ -14,7 +14,9 @@ import {
   MoreVertical,
   ArrowDownLeft,
   CalendarCheck2,
-  Plus
+  Plus,
+  Check,
+  Wrench
 } from 'lucide-react'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import Image from 'next/image'
@@ -30,6 +32,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import Alert from '@/components/costume-ui/alert'
 import { useRouter } from 'next/navigation'
+import { buildWhatsAppLink } from '@/utils/functions'
+import { useActionUnderDevelopment } from '@/components/costume-ui/under-development'
 
 // Types for room overview data
 type LeaseOverview = {
@@ -37,10 +41,13 @@ type LeaseOverview = {
   reference_id: string
   monthly_rent: number
   due_date: string
+  start_date: string
+  number_of_months: number | null
   tenant: {
     id: string
     name: string
     profile_thumb: string | null
+    phone_number: string | null
   }
 }
 
@@ -56,6 +63,7 @@ type BookingOverview = {
 }
 
 type RoomOverviewData = {
+  roomStatus: string
   lease: LeaseOverview | null
   booking: BookingOverview | null
   propertyId: string | null
@@ -278,6 +286,115 @@ const EmptyCard = ({
   )
 }
 
+// Status action card for Pending Inspection / Under Preparation
+type StatusCardProps = {
+  iconStyles: string
+  Icon: LucideIcon
+  title: string
+  subtitle: string
+  status: string
+  onMarkReady: () => void
+  onNeedsPreparation?: () => void
+  isLoading?: boolean
+}
+
+const StatusCard = ({
+  iconStyles,
+  Icon,
+  title,
+  subtitle,
+  status,
+  onMarkReady,
+  onNeedsPreparation,
+  isLoading
+}: StatusCardProps) => {
+  const isPendingInspection = status === 'Pending_Inspection'
+  const isUnderPreparation = status === 'Under_Preparation'
+
+  return (
+    <div
+      className={cn(
+        'flex flex-col w-full',
+        'w-full p-5 rounded-[12px]',
+        'bg-(--background-primary)',
+        'min-h-[232px]'
+      )}
+    >
+      {/* Head */}
+      <div className={cn('flex justify-between items-center', 'w-full')}>
+        <div className='flex gap-2.5'>
+          <div
+            className={cn(
+              'flex items-center justify-center rounded-[7px]',
+              'h-[31] w-[31]',
+              iconStyles
+            )}
+          >
+            <Icon size={19} strokeWidth={1.5} />
+          </div>
+          <div className='flex flex-col'>
+            <h3>{title}</h3>
+            <span className='texts-caption-large text-(--text-secondary)'>
+              {subtitle}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Status Badge */}
+      <div className='mt-4 mb-2'>
+        <span
+          className={cn(
+            'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium',
+            isPendingInspection && 'bg-orange-100 text-orange-800',
+            isUnderPreparation && 'bg-yellow-100 text-yellow-800'
+          )}
+        >
+          {status.replace(/_/g, ' ')}
+        </span>
+      </div>
+
+      {/* Action Buttons */}
+      <div className='flex flex-1 flex-col items-center justify-center gap-3 mt-2'>
+        {isPendingInspection ? (
+          <>
+            <Button
+              variant='outline'
+              className='w-full gap-2'
+              onClick={onMarkReady}
+              disabled={isLoading}
+            >
+              <Check size={16} />
+              Room is Ready
+            </Button>
+            {onNeedsPreparation && (
+              <Button
+                variant='ghost'
+                className='w-full gap-2 text-neutral-600'
+                onClick={onNeedsPreparation}
+                disabled={isLoading}
+              >
+                <Wrench size={16} />
+                Needs Preparation
+              </Button>
+            )}
+          </>
+        ) : (
+          <Button
+            variant='outline'
+            className='w-full gap-2'
+            onClick={onMarkReady}
+            disabled={isLoading}
+          >
+            <Check size={16} />
+            Mark as Ready
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // Loading skeleton for cards
 const CardSkeleton = () => {
   return (
@@ -331,15 +448,22 @@ type Props = {
   roomId: string
 }
 
-export default function RoomOverviewContent({ roomId }: Props) {
+export default function RoomOverviewContent ({ roomId }: Props) {
   const router = useRouter()
-  const [overviewData, setOverviewData] = useState<RoomOverviewData | null>(null)
+  const [overviewData, setOverviewData] = useState<RoomOverviewData | null>(
+    null
+  )
   const [loading, setLoading] = useState(true)
+  const [statusLoading, setStatusLoading] = useState(false)
 
   // Alert state for lease eligibility
   const [alertOpen, setAlertOpen] = useState(false)
   const [alertMessage, setAlertMessage] = useState('')
-  const [alertType, setAlertType] = useState<'info' | 'error' | 'success' | 'warning'>('info')
+  const [alertType, setAlertType] = useState<
+    'info' | 'error' | 'success' | 'warning'
+  >('info')
+  const { showUnderDevelopment, ActionUnderDevelopmentOverlay } =
+    useActionUnderDevelopment()
 
   const fetchOverviewData = useCallback(async () => {
     try {
@@ -359,6 +483,47 @@ export default function RoomOverviewContent({ roomId }: Props) {
     fetchOverviewData()
   }, [fetchOverviewData])
 
+  // Handle room status update
+  const handleStatusUpdate = async (
+    newStatus: 'Ready' | 'Under_Preparation'
+  ) => {
+    setStatusLoading(true)
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      if (response.ok) {
+        showFeedbackToast({
+          title: 'Status updated',
+          description: `Room is now ${
+            newStatus === 'Ready' ? 'ready for leasing' : 'under preparation'
+          }.`,
+          type: 'success'
+        })
+        fetchOverviewData()
+      } else {
+        const data = await response.json()
+        showFeedbackToast({
+          title: 'Failed to update status',
+          description: data.error || 'Please try again.',
+          type: 'error'
+        })
+      }
+    } catch (error) {
+      console.error('Error updating room status:', error)
+      showFeedbackToast({
+        title: 'Error',
+        description: 'Failed to update room status.',
+        type: 'error'
+      })
+    } finally {
+      setStatusLoading(false)
+    }
+  }
+
   // Handle add lease with eligibility check
   const handleAddLease = async () => {
     try {
@@ -368,8 +533,11 @@ export default function RoomOverviewContent({ roomId }: Props) {
 
         if (!eligibility.canAddLease) {
           // Show appropriate alert based on blocked status
-          const alertTypeToUse = eligibility.blockedStatus === 'Expired' ? 'warning' : 'error'
-          setAlertMessage(eligibility.message || 'Cannot add lease for this room.')
+          const alertTypeToUse =
+            eligibility.blockedStatus === 'Expired' ? 'warning' : 'error'
+          setAlertMessage(
+            eligibility.message || 'Cannot add lease for this room.'
+          )
           setAlertType(alertTypeToUse)
           setAlertOpen(true)
           return
@@ -390,6 +558,22 @@ export default function RoomOverviewContent({ roomId }: Props) {
         {/* Lease Card */}
         {loading ? (
           <CardSkeleton />
+        ) : overviewData?.roomStatus === 'Pending_Inspection' ||
+          overviewData?.roomStatus === 'Under_Preparation' ? (
+          <StatusCard
+            iconStyles='bg-[#DEFFE2] text-(--success-dark)'
+            Icon={ArrowDownLeft}
+            title='Lease Overview'
+            subtitle='Income from tenant'
+            status={overviewData.roomStatus}
+            onMarkReady={() => handleStatusUpdate('Ready')}
+            onNeedsPreparation={
+              overviewData.roomStatus === 'Pending_Inspection'
+                ? () => handleStatusUpdate('Under_Preparation')
+                : undefined
+            }
+            isLoading={statusLoading}
+          />
         ) : overviewData?.lease ? (
           <Card
             iconStyles='bg-[#DEFFE2] text-(--success-dark)'
@@ -404,6 +588,18 @@ export default function RoomOverviewContent({ roomId }: Props) {
             user_avatar={overviewData.lease.tenant.profile_thumb}
             menuItems={
               <>
+                {overviewData.lease?.tenant.phone_number && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const whatsappUrl = buildWhatsAppLink(
+                        overviewData.lease!.tenant.phone_number!
+                      )
+                      window.open(whatsappUrl, '_blank')
+                    }}
+                  >
+                    WhatsApp {overviewData.lease.tenant.name.split(' ')[0]}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={() =>
                     navigator.clipboard.writeText(
@@ -413,8 +609,10 @@ export default function RoomOverviewContent({ roomId }: Props) {
                 >
                   Copy lease ID
                 </DropdownMenuItem>
-                <DropdownMenuItem>Edit lease</DropdownMenuItem>
-                <DropdownMenuItem>Schedule rental change</DropdownMenuItem>
+                <DropdownMenuItem onClick={showUnderDevelopment}>
+                  Schedule rental change
+                </DropdownMenuItem>
+
                 <DropdownMenuSeparator />
                 <ConfirmationDialog
                   openDialogButton={
@@ -437,7 +635,9 @@ export default function RoomOverviewContent({ roomId }: Props) {
                         <li>
                           Change the lease status to <strong>Ended</strong>
                         </li>
-                        <li>Cancel all pending payments linked to this lease</li>
+                        <li>
+                          Cancel all pending payments linked to this lease
+                        </li>
                         <li>Stop any recurring payment schedules</li>
                         <li>Close all tickets linked to this lease</li>
                       </ul>
@@ -512,7 +712,7 @@ export default function RoomOverviewContent({ roomId }: Props) {
             title='Booking Overview'
             subtitle='Room reservation'
             buttonLabel='Add Booking'
-            href={`#`}
+            onClick={showUnderDevelopment}
           />
         )}
       </div>
@@ -526,6 +726,7 @@ export default function RoomOverviewContent({ roomId }: Props) {
         message={alertMessage}
         type={alertType}
       />
+      <ActionUnderDevelopmentOverlay />
     </>
   )
 }

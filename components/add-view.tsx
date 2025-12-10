@@ -6,6 +6,7 @@ import DatePicker from './costume-ui/date-picker'
 import TimePicker from './costume-ui/time-picker'
 import { FeedbackToasts } from './costume-ui/feedback-toast'
 import Alert from './costume-ui/alert'
+import { formatDateForAPI } from '@/utils/formatTime'
 
 type Props = {
   propertyId?: string
@@ -50,9 +51,7 @@ const AddView = ({ propertyId, roomId, onSuccess, onLoadingChange }: Props) => {
 
     // Validate date and time are not in the future
     if (date) {
-      const viewDateTime = new Date(
-        `${date.toISOString().split('T')[0]}T${time}`
-      )
+      const viewDateTime = new Date(`${formatDateForAPI(date)}T${time}`)
       const now = new Date()
       if (viewDateTime > now) {
         showAlert('View date and time cannot be in the future', 'error')
@@ -64,8 +63,11 @@ const AddView = ({ propertyId, roomId, onSuccess, onLoadingChange }: Props) => {
     onLoadingChange?.(true)
 
     try {
-      // Format date for API
-      const formattedDate = date ? date.toISOString().split('T')[0] : ''
+      // Format date for API using local date components to avoid timezone shift
+      const formattedDate = date ? formatDateForAPI(date) : ''
+
+      // Only send phone number if it's longer than just the country code (min 7 chars for valid number)
+      const validPhoneNumber = phoneNumber && phoneNumber.length >= 7 ? phoneNumber : null
 
       const response = await fetch('/api/views', {
         method: 'POST',
@@ -79,7 +81,7 @@ const AddView = ({ propertyId, roomId, onSuccess, onLoadingChange }: Props) => {
           time,
           firstName,
           lastName: lastName || null,
-          phoneNumber: phoneNumber || null,
+          phoneNumber: validPhoneNumber,
           email: email || null
         })
       })

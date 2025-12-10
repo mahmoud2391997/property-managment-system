@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { computeLeaseStatus } from '@/utils/lease-status'
 
 export async function GET(request: Request) {
   try {
@@ -115,13 +116,20 @@ export async function GET(request: Request) {
           lastName = tenant.company_tenants.contact_person_last_name
         }
 
+        // Compute display status based on dates
+        const displayStatus = computeLeaseStatus({
+          status: lease.status,
+          start_date: lease.start_date,
+          number_of_months: lease.number_of_months
+        })
+
         return {
           id: lease.id,
           reference_id: lease.reference_id,
           start_date: lease.start_date.toISOString(),
           number_of_months: lease.number_of_months,
           monthly_rent: lease.monthly_rent,
-          status: lease.status,
+          status: displayStatus,
           tenant: {
             id: tenant.id,
             first_name: firstName,

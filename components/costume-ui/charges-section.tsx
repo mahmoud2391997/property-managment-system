@@ -69,26 +69,48 @@ const ChargesSection = ({
   const [initialChargesSet, setInitialChargesSet] = useState(false)
   const [charges, setCharges] = useState<Charge[]>([])
 
-  // Initialize charges on first render (only when not using defaultPayment or defaultCharges)
+  // Track previous selectable value to detect changes
+  const [prevSelectable, setPrevSelectable] = useState<boolean | null>(null)
+
+  // Initialize charges on first render OR when selectable changes
   useEffect(() => {
-    if (!initialChargesSet && !defaultPayment && (!defaultCharges || defaultCharges.length === 0)) {
-      if (availableChargeTypes.length > 0) {
-        const firstType = availableChargeTypes[0]
+    const selectableChanged = prevSelectable !== null && prevSelectable !== selectable
+
+    if ((!initialChargesSet || selectableChanged) && !defaultPayment && (!defaultCharges || defaultCharges.length === 0)) {
+      if (selectable) {
+        // For lease initial charges, use the first available charge type
+        if (availableChargeTypes.length > 0) {
+          const firstType = availableChargeTypes[0]
+          setCharges([
+            {
+              type: firstType.type,
+              amount: '',
+              refundable: firstType.refundable,
+              taxable: firstType.taxable,
+              isRemovable: false,
+              isTaxableChecked: false,
+              isRefundableChecked: firstType.type === 'Earnest Deposit'
+            }
+          ])
+        }
+      } else {
+        // For other payment types (non-selectable), use empty type with taxable option
         setCharges([
           {
-            type: firstType.type,
+            type: '',
             amount: '',
-            refundable: firstType.refundable,
-            taxable: firstType.taxable,
+            refundable: false,
+            taxable: true,
             isRemovable: false,
             isTaxableChecked: false,
-            isRefundableChecked: firstType.type === 'Earnest Deposit'
+            isRefundableChecked: false
           }
         ])
-        setInitialChargesSet(true)
       }
+      setInitialChargesSet(true)
     }
-  }, [availableChargeTypes, defaultPayment, defaultCharges, initialChargesSet])
+    setPrevSelectable(selectable)
+  }, [availableChargeTypes, defaultPayment, defaultCharges, initialChargesSet, selectable, prevSelectable])
 
   // Apply default charges when they arrive (after async load)
   useEffect(() => {
@@ -167,17 +189,25 @@ const ChargesSection = ({
 
   const handleTypeChange = (index: number, selectedType: string) => {
     const config = chargeTypes.find(t => t.type === selectedType)
-    if (!config) return
 
     setCharges(prev => {
       const updated = [...prev]
-      updated[index] = {
-        ...updated[index],
-        type: selectedType,
-        taxable: config.taxable,
-        refundable: config.refundable,
-        isTaxableChecked: false,
-        isRefundableChecked: selectedType === 'Earnest Deposit'
+      if (config) {
+        // For selectable charges, update taxable/refundable from config
+        updated[index] = {
+          ...updated[index],
+          type: selectedType,
+          taxable: config.taxable,
+          refundable: config.refundable,
+          isTaxableChecked: false,
+          isRefundableChecked: selectedType === 'Earnest Deposit'
+        }
+      } else {
+        // For non-selectable charges (free text input), just update the type/title
+        updated[index] = {
+          ...updated[index],
+          type: selectedType
+        }
       }
       return updated
     })
@@ -243,10 +273,11 @@ const ChargesSection = ({
         }
       ])
     } else {
+      // For non-selectable (other payment types), use empty type with taxable option
       setCharges(prev => [
         ...prev,
         {
-          type: availableChargeTypes[0]?.type || chargeTypes[0].type,
+          type: '',
           amount: '',
           taxable: true,
           refundable: false,
@@ -354,6 +385,8 @@ const ChargesSection = ({
                     className='bg-(--background-primary)'
                     maxLength={30}
                     placeholder='Enter charge title'
+                    value={charge.type}
+                    onChange={e => handleTypeChange(index, e.target.value)}
                     required
                   />
                 )}
@@ -375,8 +408,8 @@ const ChargesSection = ({
                 />
               </InputGroup>
 
-              {/* Conditionally render based on selected type */}
-              {config?.taxable && flowType === 'income' && (
+              {/* Conditionally render based on selected type (use config for selectable, charge props otherwise) */}
+              {(selectable ? config?.taxable : charge.taxable) && flowType === 'income' && (
                 <CheckAddon
                   label='Taxable (SST 8%)'
                   checked={charge.isTaxableChecked}
@@ -386,7 +419,7 @@ const ChargesSection = ({
                 />
               )}
 
-              {config?.refundable && flowType === 'income' && (
+              {(selectable ? config?.refundable : charge.refundable) && flowType === 'income' && (
                 <CheckAddon
                   label='Refundable'
                   checked={charge.isRefundableChecked ?? (charge.type === 'Earnest Deposit')}

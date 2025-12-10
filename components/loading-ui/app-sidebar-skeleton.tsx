@@ -80,3 +80,29 @@ export function AppSidebarSkeleton({ isSidebarOpen }: Props) {
     </>
   )
 }
+
+export function AppSidebarFooterSkeleton({ isSidebarOpen }: Props) {
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-between',
+        'px-4 py-3',
+        isSidebarOpen ? 'gap-3' : 'justify-center'
+      )}
+    >
+      {/* Avatar and name skeleton - hidden when collapsed */}
+      <div className={cn(
+        'flex items-center gap-3 min-w-0',
+        !isSidebarOpen && 'hidden'
+      )}>
+        <Skeleton className='w-[30px] h-[30px] rounded-full flex-shrink-0 bg-neutral-200/70' />
+        <div className='flex flex-col gap-1.5 min-w-0'>
+          <Skeleton className='h-3.5 w-24 bg-neutral-200/70' />
+          <Skeleton className='h-3 w-16 bg-neutral-200/70' />
+        </div>
+      </div>
+      {/* Logout button skeleton */}
+      <Skeleton className='w-9 h-9 rounded-lg flex-shrink-0 bg-neutral-200/70' />
+    </div>
+  )
+}

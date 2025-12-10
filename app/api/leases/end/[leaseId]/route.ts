@@ -21,7 +21,9 @@ export async function POST(
       },
       select: {
         id: true,
-        status: true
+        status: true,
+        property_id: true,
+        room_id: true
       }
     })
 
@@ -81,6 +83,21 @@ export async function POST(
             performer_type: 'system',
             performer_id: null
           }))
+        })
+      }
+
+      // Update property/room status to Pending_Inspection
+      if (lease.room_id) {
+        // This is a room lease - update room status
+        await tx.rooms.update({
+          where: { id: lease.room_id },
+          data: { status: 'Pending_Inspection' }
+        })
+      } else {
+        // This is a property lease - update property status
+        await tx.properties.update({
+          where: { id: lease.property_id },
+          data: { status: 'Pending_Inspection' }
         })
       }
     })

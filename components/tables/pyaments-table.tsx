@@ -555,7 +555,7 @@ export default function PaymentsTable ({ data, showPropertyColumn = true, classN
 
     {
       accessorKey: 'payment_percentage',
-      header: () => <div className='text-left'>{userType === 'staff' ? 'Payment & Tenant' : 'Payment'}</div>,
+      header: () => <div className='text-left'>Payment</div>,
       cell: ({ row }) => {
         const {
           amount,

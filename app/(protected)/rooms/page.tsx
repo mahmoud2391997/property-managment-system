@@ -1,11 +1,39 @@
 import { cn } from '@/lib/utils'
-import SearchInput from '@/components/costume-ui/search-input'
-import Button from '@/components/costume-ui/button'
-import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
-import RoomsTable from '@/components/tables/rooms-table'
-import Link from 'next/link'
+import RoomsSection from '@/components/sections/rooms-section'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { isLeaseActive } from '@/utils/lease-status'
+
+type DisplayStatus = 'Occupied' | 'Vacant' | 'Pending_Inspection' | 'Under_Preparation' | 'Property_Rented' | 'Property_Not_Ready'
+
+// Compute display status for a room
+function computeRoomDisplayStatus(
+  roomStatus: string,
+  propertyStatus: string,
+  roomLease: { status: string; start_date: Date; number_of_months: number | null } | null,
+  propertyLease: { status: string; start_date: Date; number_of_months: number | null } | null
+): DisplayStatus {
+  // Priority 1: Property is Pending_Inspection or Under_Preparation
+  if (propertyStatus === 'Pending_Inspection' || propertyStatus === 'Under_Preparation') {
+    return 'Property_Not_Ready'
+  }
+
+  // Priority 2: Property has an active lease (whole-unit rental)
+  if (propertyLease && isLeaseActive(propertyLease)) {
+    return 'Property_Rented'
+  }
+
+  // Priority 3: Room's own status
+  if (roomStatus === 'Pending_Inspection') return 'Pending_Inspection'
+  if (roomStatus === 'Under_Preparation') return 'Under_Preparation'
+
+  // Room is Ready - check for lease
+  if (roomLease && isLeaseActive(roomLease)) {
+    return 'Occupied'
+  }
+
+  return 'Vacant'
+}
 
 async function getRooms() {
   const supabase = await createClient()
@@ -25,7 +53,7 @@ async function getRooms() {
     return []
   }
 
-  // Get rooms for properties in this organization
+  // Get rooms for properties in this organization with leases
   const rooms = await prisma.rooms.findMany({
     where: {
       properties: {
@@ -38,8 +66,50 @@ async function getRooms() {
       status: true,
       properties: {
         select: {
-          code: true
+          code: true,
+          status: true,
+          leases: {
+            where: {
+              room_id: null,
+              status: 'Current'
+            },
+            select: {
+              status: true,
+              start_date: true,
+              number_of_months: true,
+              tenants: {
+                select: {
+                  individual_tenants: {
+                    select: {
+                      phone_number: true
+                    }
+                  }
+                }
+              }
+            },
+            orderBy: { created_at: 'desc' },
+            take: 1
+          }
         }
+      },
+      leases: {
+        where: { status: 'Current' },
+        select: {
+          status: true,
+          start_date: true,
+          number_of_months: true,
+          tenants: {
+            select: {
+              individual_tenants: {
+                select: {
+                  phone_number: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: { created_at: 'desc' },
+        take: 1
       }
     },
     orderBy: {
@@ -47,12 +117,28 @@ async function getRooms() {
     }
   })
 
-  return rooms.map(room => ({
-    id: room.id,
-    title: room.title,
-    property: room.properties?.code || 'No Property',
-    status: room.status
-  }))
+  return rooms.map(room => {
+    const roomLease = room.leases[0] || null
+    const propertyLease = room.properties?.leases[0] || null
+    const propertyStatus = room.properties?.status || 'Ready'
+    const displayStatus = computeRoomDisplayStatus(room.status, propertyStatus, roomLease, propertyLease)
+
+    // Get tenant phone number from room lease or property lease
+    let tenantPhone: string | null = null
+    if (displayStatus === 'Occupied' && roomLease) {
+      tenantPhone = roomLease.tenants.individual_tenants?.phone_number || null
+    } else if (displayStatus === 'Property_Rented' && propertyLease) {
+      tenantPhone = propertyLease.tenants.individual_tenants?.phone_number || null
+    }
+
+    return {
+      id: room.id,
+      title: room.title,
+      property: room.properties?.code || 'No Property',
+      status: displayStatus,
+      tenantPhone
+    }
+  })
 }
 
 const Rooms = async () => {
@@ -64,29 +150,7 @@ const Rooms = async () => {
       <div>
         <h1>Rooms</h1>
       </div>
-      {/* Actions */}
-      <div className={cn('flex justify-between items-center', 'w-full')}>
-        <SearchInput placeholder='Search rooms' />
-        {/* Buttons */}
-        <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <Button
-            icon={<DeleteButtonIcon />}
-            label='Delete'
-            className='bg-(--error-main)!'
-          />
-
-          <Link href='/rooms/add-room'>
-            <Button
-              icon={<AddButtonIcon className='text-neutral-300' />}
-              label='Add Room'
-            />
-          </Link>
-        </div>
-      </div>
-      {/* Table */}
-      <div>
-        <RoomsTable data={rooms} />
-      </div>
+      <RoomsSection rooms={rooms} />
     </div>
   )
 }

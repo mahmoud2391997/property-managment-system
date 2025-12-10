@@ -13,7 +13,7 @@ export type Property = {
   address: string
   project: string
   type: string
-  status: 'Occupied' | 'Under Preparation' | 'Pending Inspection' | 'Vacant'
+  status: 'Occupied' | 'Vacant' | 'Pending_Inspection' | 'Under_Preparation'
 }
 
 export type PropertyWithDetails = {
@@ -31,10 +31,11 @@ export type Room = {
   property: string
   status:
     | 'Occupied'
-    | 'Under Preparation'
-    | 'Pending Inspection'
     | 'Vacant'
-    | 'Property Rented'
+    | 'Pending_Inspection'
+    | 'Under_Preparation'
+    | 'Property_Rented'
+    | 'Property_Not_Ready'
 }
 
 export type RoomWithProperty = {
@@ -51,8 +52,11 @@ export type ViewWithProperty = {
   last_name: string | null
   phone_number: string | null
   email: string | null
+  viewed_at: string
   created_at: string
 }
+
+export type LeaseStatusComputed = 'Scheduled' | 'Current' | 'Expired' | 'Ended'
 
 export type LeaseWithDetails = {
   id: string
@@ -60,7 +64,7 @@ export type LeaseWithDetails = {
   start_date: string
   number_of_months: number | null
   monthly_rent: number
-  status: 'Scheduled' | 'Current' | 'Ended' | 'Expired'
+  status: LeaseStatusComputed
   tenant: {
     id: string
     first_name: string

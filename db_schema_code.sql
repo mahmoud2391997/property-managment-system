@@ -132,9 +132,9 @@ CREATE TABLE public.leases (
   organization_id uuid NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
   created_by uuid,
-  leave_day integer,
   status USER-DEFINED NOT NULL,
   reference_id text NOT NULL CHECK (reference_id ~ '^LS-[0-9]{4}-[0-9]{4}$'::text),
+  ended_at timestamp with time zone,
   CONSTRAINT leases_pkey PRIMARY KEY (id),
   CONSTRAINT leases_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
   CONSTRAINT leases_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id),
@@ -148,13 +148,15 @@ CREATE TABLE public.notifications (
   user_id uuid,
   title text NOT NULL,
   message text NOT NULL,
-  type text,
   reference_id uuid,
   reference_type text,
   performer_id uuid,
   performer_type USER-DEFINED,
   read boolean DEFAULT false,
   created_at timestamp with time zone DEFAULT now(),
+  page text,
+  affected_type USER-DEFINED,
+  affected_id uuid,
   CONSTRAINT notifications_pkey PRIMARY KEY (id),
   CONSTRAINT notifications_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
   CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
@@ -392,19 +394,82 @@ CREATE TABLE public.tenants (
   CONSTRAINT tenants_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
   CONSTRAINT tenants_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
 );
+CREATE TABLE public.ticket_assignments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  assigner_id uuid,
+  assigned_id uuid,
+  status USER-DEFINED NOT NULL DEFAULT 'Pending'::ticket_assignment_status,
+  requested_at timestamp with time zone NOT NULL DEFAULT now(),
+  responded_at timestamp with time zone,
+  unassigned_at timestamp with time zone,
+  ticket_id uuid NOT NULL,
+  cancelled_at timestamp with time zone,
+  unassigned_by uuid,
+  cancelled_by uuid,
+  CONSTRAINT ticket_assignments_pkey PRIMARY KEY (id),
+  CONSTRAINT ticket_assignments_assigner_id_fkey FOREIGN KEY (assigner_id) REFERENCES public.staff(id),
+  CONSTRAINT ticket_assignments_assigned_id_fkey FOREIGN KEY (assigned_id) REFERENCES public.staff(id),
+  CONSTRAINT ticket_assignments_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id),
+  CONSTRAINT ticket_assignments_unassigned_by_fkey FOREIGN KEY (unassigned_by) REFERENCES public.staff(id),
+  CONSTRAINT ticket_assignments_cancelled_by_fkey FOREIGN KEY (cancelled_by) REFERENCES public.staff(id)
+);
+CREATE TABLE public.ticket_comments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  message text NOT NULL,
+  attachment text,
+  sender_type USER-DEFINED NOT NULL,
+  sender_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  ticket_id uuid NOT NULL,
+  CONSTRAINT ticket_comments_pkey PRIMARY KEY (id),
+  CONSTRAINT ticket_comments_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id)
+);
+CREATE TABLE public.ticket_statuses (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  state USER-DEFINED NOT NULL,
+  performer_type USER-DEFINED NOT NULL,
+  performer_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  ticket_id uuid NOT NULL,
+  CONSTRAINT ticket_statuses_pkey PRIMARY KEY (id),
+  CONSTRAINT ticket_statuses_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id)
+);
+CREATE TABLE public.ticket_types (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  type text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  created_by uuid,
+  ticket_id uuid NOT NULL,
+  CONSTRAINT ticket_types_pkey PRIMARY KEY (id),
+  CONSTRAINT ticket_types_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id),
+  CONSTRAINT ticket_types_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id)
+);
+CREATE TABLE public.tickets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  description text NOT NULL,
+  attachment text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  reference_id text NOT NULL CHECK (reference_id ~ '^TK-[0-9]{11}$'::text),
+  organization_id uuid NOT NULL,
+  lease_id uuid,
+  CONSTRAINT tickets_pkey PRIMARY KEY (id),
+  CONSTRAINT tickets_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
+  CONSTRAINT tickets_lease_id_fkey FOREIGN KEY (lease_id) REFERENCES public.leases(id)
+);
 CREATE TABLE public.views (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   first_name text NOT NULL CHECK (char_length(first_name) >= 1 AND char_length(first_name) <= 100),
   last_name text CHECK (char_length(last_name) >= 1 AND char_length(last_name) <= 100),
   phone_number text CHECK (phone_number IS NULL OR char_length(phone_number) >= 8 AND char_length(phone_number) <= 20 AND phone_number ~ '^\+[0-9]+$'::text),
   email text CHECK (email IS NULL OR char_length(email) >= 5 AND char_length(email) <= 255 AND email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text),
-  property_id uuid NOT NULL,
+  property_id uuid,
   room_id uuid,
   created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
   created_by uuid,
   reference_id text NOT NULL CHECK (reference_id ~ '^VW-[0-9]{4}-[0-9]{4}$'::text),
   CONSTRAINT views_pkey PRIMARY KEY (id),
+  CONSTRAINT views_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id),
   CONSTRAINT views_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
-  CONSTRAINT views_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id),
-  CONSTRAINT views_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.staff(id)
+  CONSTRAINT views_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id)
 );

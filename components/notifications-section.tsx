@@ -59,10 +59,17 @@ export default function NotificationsSection () {
       (filter === 'unread' && !n.is_read) ||
       (filter === 'read' && n.is_read)
 
+    if (searchQuery === '') {
+      return matchesFilter
+    }
+
+    const lowerSearch = searchQuery.toLowerCase()
     const matchesSearch =
-      searchQuery === '' ||
-      n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      n.message.toLowerCase().includes(searchQuery.toLowerCase())
+      n.title.toLowerCase().includes(lowerSearch) ||
+      n.message.toLowerCase().includes(lowerSearch) ||
+      n.performer_name?.toLowerCase().includes(lowerSearch) ||
+      n.reference_type?.toLowerCase().includes(lowerSearch) ||
+      n.page?.toLowerCase().includes(lowerSearch)
 
     return matchesFilter && matchesSearch
   })

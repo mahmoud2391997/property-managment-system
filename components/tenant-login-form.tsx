@@ -11,14 +11,18 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { tenantLogin } from "@/app/(auth)/login/actions";
 import { useState } from "react";
-import { Loader2Icon } from "lucide-react";
+import { Loader2Icon, CheckCircle2 } from "lucide-react";
 
 const TenantLoginForm = ({
   className,
   ...props
 }: React.ComponentProps<"div">) => {
+  const searchParams = useSearchParams();
+  const message = searchParams.get('message');
+
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
@@ -46,6 +50,12 @@ const TenantLoginForm = ({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {message === 'password_set' && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg bg-green-50 p-3 text-sm text-green-700">
+              <CheckCircle2 className="h-4 w-4" />
+              Password set successfully. You can now log in.
+            </div>
+          )}
           <form onSubmit={handleSubmit}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-3">
@@ -61,12 +71,12 @@ const TenantLoginForm = ({
               <div className="grid gap-3">
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
-                  <a
-                    href="#"
+                  <Link
+                    href="/forgot-password"
                     className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
                   >
                     Forgot your password?
-                  </a>
+                  </Link>
                 </div>
                 <Input
                   id="password"

@@ -2,6 +2,38 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { isLeaseActive } from '@/utils/lease-status'
+
+type DisplayStatus = 'Occupied' | 'Vacant' | 'Pending_Inspection' | 'Under_Preparation' | 'Property_Rented' | 'Property_Not_Ready'
+
+// Compute display status for a room
+function computeRoomDisplayStatus(
+  roomStatus: string,
+  propertyStatus: string,
+  roomLease: { status: string; start_date: Date; number_of_months: number | null } | null,
+  propertyLease: { status: string; start_date: Date; number_of_months: number | null } | null
+): DisplayStatus {
+  // Priority 1: Property is Pending_Inspection or Under_Preparation
+  if (propertyStatus === 'Pending_Inspection' || propertyStatus === 'Under_Preparation') {
+    return 'Property_Not_Ready'
+  }
+
+  // Priority 2: Property has an active lease (whole-unit rental)
+  if (propertyLease && isLeaseActive(propertyLease)) {
+    return 'Property_Rented'
+  }
+
+  // Priority 3: Room's own status
+  if (roomStatus === 'Pending_Inspection') return 'Pending_Inspection'
+  if (roomStatus === 'Under_Preparation') return 'Under_Preparation'
+
+  // Room is Ready - check for lease
+  if (roomLease && isLeaseActive(roomLease)) {
+    return 'Occupied'
+  }
+
+  return 'Vacant'
+}
 
 export async function GET(request: Request) {
   try {
@@ -19,13 +51,39 @@ export async function GET(request: Request) {
       )
     }
 
-    // Verify property belongs to the organization
+    // Verify property belongs to the organization and get property lease
     const property = await prisma.properties.findFirst({
       where: {
         id: propertyId,
         organization_id: staff.organization_id
       },
-      select: { id: true, code: true }
+      select: {
+        id: true,
+        code: true,
+        status: true,
+        leases: {
+          where: {
+            room_id: null,
+            status: 'Current'
+          },
+          select: {
+            status: true,
+            start_date: true,
+            number_of_months: true,
+            tenants: {
+              select: {
+                individual_tenants: {
+                  select: {
+                    phone_number: true
+                  }
+                }
+              }
+            }
+          },
+          orderBy: { created_at: 'desc' },
+          take: 1
+        }
+      }
     })
 
     if (!property) {
@@ -35,7 +93,9 @@ export async function GET(request: Request) {
       )
     }
 
-    // Fetch rooms for this property
+    const propertyLease = property.leases[0] || null
+
+    // Fetch rooms for this property with their leases
     const rooms = await prisma.rooms.findMany({
       where: {
         property_id: propertyId
@@ -44,7 +104,26 @@ export async function GET(request: Request) {
         id: true,
         title: true,
         status: true,
-        created_at: true
+        created_at: true,
+        leases: {
+          where: { status: 'Current' },
+          select: {
+            status: true,
+            start_date: true,
+            number_of_months: true,
+            tenants: {
+              select: {
+                individual_tenants: {
+                  select: {
+                    phone_number: true
+                  }
+                }
+              }
+            }
+          },
+          orderBy: { created_at: 'desc' },
+          take: 1
+        }
       },
       orderBy: {
         created_at: 'desc'
@@ -52,12 +131,26 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json({
-      rooms: rooms.map(room => ({
-        id: room.id,
-        title: room.title,
-        property: property.code,
-        status: room.status
-      }))
+      rooms: rooms.map(room => {
+        const roomLease = room.leases[0] || null
+        const displayStatus = computeRoomDisplayStatus(room.status, property.status, roomLease, propertyLease)
+
+        // Get tenant phone number from room lease or property lease
+        let tenantPhone: string | null = null
+        if (displayStatus === 'Occupied' && roomLease) {
+          tenantPhone = roomLease.tenants.individual_tenants?.phone_number || null
+        } else if (displayStatus === 'Property_Rented' && propertyLease) {
+          tenantPhone = propertyLease.tenants.individual_tenants?.phone_number || null
+        }
+
+        return {
+          id: room.id,
+          title: room.title,
+          property: property.code,
+          status: displayStatus,
+          tenantPhone
+        }
+      })
     })
   } catch (error: any) {
     console.error('Error fetching rooms:', error)
@@ -109,7 +202,7 @@ export async function POST(req: NextRequest) {
         data: {
           title,
           property_id,
-          status: is_ready ? 'Vacant' : 'Pending_Inspection',
+          status: is_ready ? 'Ready' : 'Pending_Inspection',
           created_by: user.id
         }
       })

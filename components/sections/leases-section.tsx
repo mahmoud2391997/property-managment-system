@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
-import Button from './costume-ui/button'
-import { DeleteButtonIcon } from './costume-ui/icon'
-import LeasesTable from './tables/leases-table'
+import Button from '../costume-ui/button'
+import { DeleteButtonIcon } from '../costume-ui/icon'
+import LeasesTable from '../tables/leases-table'
 import { LeaseWithDetails } from '@/types'
-import TableSectionSkeleton from './loading-ui/table-section-skeleton'
+import TableSectionSkeleton from '../loading-ui/table-section-skeleton'
 import { useRouter } from 'next/navigation'
-import Alert from './costume-ui/alert'
+import Alert from '../costume-ui/alert'
 
 type Props = {
   propertyId?: string
@@ -120,11 +120,11 @@ export default function LeasesSection({ propertyId, roomId }: Props) {
         <h2>Leases</h2>
         {/* Buttons */}
         <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <Button
+          {/* <Button
             icon={<DeleteButtonIcon />}
             label='Delete'
             className='bg-(--error-main)!'
-          />
+          /> */}
 
           <Button label='Add Lease' onClick={handleAddLease} />
         </div>

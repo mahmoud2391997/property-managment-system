@@ -2,7 +2,6 @@
 
 import { cn } from '@/lib/utils'
 import { cva } from 'class-variance-authority'
-import { Loader2 } from 'lucide-react'
 
 type Props = {
   variant?: 'primary' | 'secondary' | 'info'
