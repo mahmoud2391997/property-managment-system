@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       })
 
       // Create notifications
-      if (isAssignerCancelling) {
+      if (isAssignerCancelling && latestAssignment.assigned_id) {
         // Assigner cancelled → notify assigned only
         await tx.notifications.create({
           data: {
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
             page: 'tickets'
           }
         })
-      } else {
+      } else if (latestAssignment.assigned_id && latestAssignment.assigner_id) {
         // Someone else cancelled → notify both assigner and assigned
         await tx.notifications.createMany({
           data: [

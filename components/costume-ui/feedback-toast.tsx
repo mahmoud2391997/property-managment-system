@@ -115,5 +115,13 @@ export const FeedbackToasts = {
       title,
       description,
       type: 'warning'
+    }),
+
+  // Generic error message
+  error: (title: string, description?: string) =>
+    showFeedbackToast({
+      title,
+      description,
+      type: 'error'
     })
 }
