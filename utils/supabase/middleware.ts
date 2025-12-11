@@ -41,7 +41,7 @@ export async function updateSession(request: NextRequest) {
   const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path))
   const isUnauthorizedPage = request.nextUrl.pathname === '/unauthorized'
 
-  if (!user && !isPublicPath && request.nextUrl.pathname !== '/') {
+  if (!user && !isPublicPath) {
     // no user, redirect to login page
     const url = request.nextUrl.clone()
     url.pathname = '/login'
