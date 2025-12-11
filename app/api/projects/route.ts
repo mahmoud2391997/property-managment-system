@@ -58,6 +58,21 @@ export async function POST(request: Request) {
       )
     }
 
+    // Check if project title already exists in this organization
+    const existingProject = await prisma.projects.findFirst({
+      where: {
+        title: title.trim(),
+        organization_id: staff.organization_id
+      }
+    })
+
+    if (existingProject) {
+      return NextResponse.json(
+        { error: `A project with the name "${title.trim()}" already exists` },
+        { status: 400 }
+      )
+    }
+
     // Create project
     const project = await prisma.projects.create({
       data: {

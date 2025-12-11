@@ -1,18 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import Button from '@/components/costume-ui/button'
-import InputGroup from '@/components/costume-ui/input-group'
-import Select from '@/components/costume-ui/select'
 import Breadcrumb from '@/components/costume-ui/breadcrumb'
 import { cn } from '@/lib/utils'
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download, X } from 'lucide-react'
-import type { projects } from '@prisma/client'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { useRouter } from 'next/navigation'
 
-const PROPERTY_TYPES = ['House', 'Apartment', 'Studio', 'Commercial_Unit'] as const
-const PROPERTY_STATUSES = ['Ready', 'Pending_Inspection', 'Under_Preparation'] as const
+const VALID_IDENTITY_TYPES = ['mykad', 'passport'] as const
 
 type ImportError = {
   row: number
@@ -21,13 +17,9 @@ type ImportError = {
   value?: string
 }
 
-const ImportProperties = () => {
+const ImportTenants = () => {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const [projects, setProjects] = useState<projects[]>([])
-  const [loadingProjects, setLoadingProjects] = useState(true)
-  const [selectedProject, setSelectedProject] = useState<projects>()
 
   const [file, setFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -35,25 +27,6 @@ const ImportProperties = () => {
   const [importErrors, setImportErrors] = useState<ImportError[]>([])
   const [importSuccess, setImportSuccess] = useState(false)
   const [importedCount, setImportedCount] = useState(0)
-
-  // Fetch projects from API
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const response = await fetch('/api/projects')
-        if (response.ok) {
-          const data = await response.json()
-          setProjects(data.projects || [])
-        }
-      } catch (error) {
-        console.error('Error fetching projects:', error)
-      } finally {
-        setLoadingProjects(false)
-      }
-    }
-
-    fetchProjects()
-  }, [])
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -99,8 +72,8 @@ const ImportProperties = () => {
   }
 
   const handleImport = async () => {
-    if (!file || !selectedProject) {
-      FeedbackToasts.createFailed('import', 'Please select a project and upload a file')
+    if (!file) {
+      FeedbackToasts.createFailed('import', 'Please upload a file')
       return
     }
 
@@ -111,9 +84,8 @@ const ImportProperties = () => {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('project_id', selectedProject.id)
 
-      const response = await fetch('/api/properties/import', {
+      const response = await fetch('/api/tenants/import', {
         method: 'POST',
         body: formData
       })
@@ -124,14 +96,14 @@ const ImportProperties = () => {
         if (data.errors && Array.isArray(data.errors)) {
           setImportErrors(data.errors)
         } else {
-          FeedbackToasts.createFailed('import', data.error || 'Failed to import properties')
+          FeedbackToasts.createFailed('import', data.error || 'Failed to import tenants')
         }
         return
       }
 
       setImportSuccess(true)
       setImportedCount(data.count)
-      FeedbackToasts.created('Properties', `Successfully imported ${data.count} properties`)
+      FeedbackToasts.created('Tenants', `Successfully imported ${data.count} tenants`)
 
       // Clear file after successful import
       setFile(null)
@@ -160,12 +132,10 @@ const ImportProperties = () => {
 
   const downloadTemplate = () => {
     // Create a simple CSV template that users can open in Excel
-    const headers = ['code', 'street_address', 'city', 'postal_code', 'type', 'status']
+    const headers = ['identity_type', 'identity_number', 'first_name', 'last_name', 'phone_number', 'email']
     const exampleRows = [
-      ['B-2-1', 'Bukit Burueng', 'Ayer Keroh', '75450', 'Apartment', 'Ready'],
-      ['C-3-2', 'Jalan Harmoni', 'Petaling Jaya', '46000', 'House', 'Pending_Inspection'],
-      ['D-1-5', 'Taman Melati', 'Kuala Lumpur', '53100', 'Studio', 'Under_Preparation'],
-      ['E-4-3', 'Business Park', 'Shah Alam', '40150', 'Commercial_Unit', 'Ready']
+      ['mykad', '901234567890', 'Ahmad', 'Bin Ali', '60123456789', 'ahmad@example.com'],
+      ['passport', 'AB1234567', 'John', 'Smith', '60187654321', 'john.smith@example.com']
     ]
 
     const csvContent = [
@@ -176,7 +146,7 @@ const ImportProperties = () => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
-    link.download = 'properties_import_template.csv'
+    link.download = 'tenants_import_template.csv'
     link.click()
   }
 
@@ -186,15 +156,15 @@ const ImportProperties = () => {
       <section className='flex flex-col gap-2.5'>
         <Breadcrumb
           items={[
-            { label: 'Properties', href: '/properties' },
-            { label: 'Import Properties' }
+            { label: 'Tenants', href: '/tenants' },
+            { label: 'Import Tenants' }
           ]}
         />
         <div className='flex items-center justify-between w-full'>
           <div>
-            <h2>Import Properties</h2>
+            <h2>Import Tenants</h2>
             <span className='texts-body-medium text-(--text-secondary)'>
-              Bulk import properties from an Excel file
+              Bulk import tenants from an Excel file (maximum 50 tenants per import)
             </span>
           </div>
         </div>
@@ -202,40 +172,10 @@ const ImportProperties = () => {
 
       {/* Main Content */}
       <div className='flex flex-col gap-6 w-full'>
-        {/* Step 1: Select Project */}
+        {/* Upload File Section */}
         <div className='flex flex-col gap-3 p-5 border border-(--border-strong) rounded-lg'>
           <div className='flex items-center gap-2'>
             <span className='flex items-center justify-center w-6 h-6 rounded-full bg-(--primary-color) text-white text-sm font-medium'>1</span>
-            <h3 className='texts-body-large font-semibold'>Select Project</h3>
-          </div>
-          <p className='texts-body-medium text-(--text-secondary)'>
-            All imported properties will be assigned to the selected project.
-          </p>
-          <InputGroup label='Project' isRequired>
-            <Select
-              items={projects.map(p => ({ value: p.id, label: p.title }))}
-              label='Projects'
-              placeholder={loadingProjects ? 'Loading projects...' : 'Select a project'}
-              required
-              value={selectedProject?.id}
-              onValueChange={(id: string) => {
-                const project = projects.find(p => p.id === id)
-                setSelectedProject(project)
-              }}
-              disabled={loadingProjects}
-            />
-          </InputGroup>
-          {selectedProject && (
-            <p className='texts-caption-large text-(--text-secondary)'>
-              State: <span className='font-medium'>{selectedProject.state}</span> (automatically applied to all properties)
-            </p>
-          )}
-        </div>
-
-        {/* Step 2: Upload File */}
-        <div className='flex flex-col gap-3 p-5 border border-(--border-strong) rounded-lg'>
-          <div className='flex items-center gap-2'>
-            <span className='flex items-center justify-center w-6 h-6 rounded-full bg-(--primary-color) text-white text-sm font-medium'>2</span>
             <h3 className='texts-body-large font-semibold'>Upload Excel File</h3>
           </div>
 
@@ -256,38 +196,42 @@ const ImportProperties = () => {
                     </thead>
                     <tbody>
                       <tr className='border-b border-blue-100'>
-                        <td className='py-1 pr-4 font-medium'>code</td>
-                        <td className='py-1 pr-4'>Text, 1-50 characters</td>
-                        <td className='py-1'>B-2-1</td>
-                      </tr>
-                      <tr className='border-b border-blue-100'>
-                        <td className='py-1 pr-4 font-medium'>street_address</td>
-                        <td className='py-1 pr-4'>Text, 5-300 characters</td>
-                        <td className='py-1'>Jalan 123, Bukit Burueng</td>
-                      </tr>
-                      <tr className='border-b border-blue-100'>
-                        <td className='py-1 pr-4 font-medium'>city</td>
-                        <td className='py-1 pr-4'>Text, 1-100 characters</td>
-                        <td className='py-1'>Ayer Keroh</td>
-                      </tr>
-                      <tr className='border-b border-blue-100'>
-                        <td className='py-1 pr-4 font-medium'>postal_code</td>
-                        <td className='py-1 pr-4'>Text, 4-10 characters</td>
-                        <td className='py-1'>50450</td>
-                      </tr>
-                      <tr className='border-b border-blue-100'>
-                        <td className='py-1 pr-4 font-medium'>type</td>
+                        <td className='py-1 pr-4 font-medium'>identity_type</td>
                         <td className='py-1 pr-4'>
-                          One of: <code className='bg-blue-100 px-1 rounded'>House</code>, <code className='bg-blue-100 px-1 rounded'>Apartment</code>, <code className='bg-blue-100 px-1 rounded'>Studio</code>, <code className='bg-blue-100 px-1 rounded'>Commercial_Unit</code>
+                          One of: <code className='bg-blue-100 px-1 rounded'>mykad</code>, <code className='bg-blue-100 px-1 rounded'>passport</code>
                         </td>
-                        <td className='py-1'>Apartment</td>
+                        <td className='py-1'>mykad</td>
+                      </tr>
+                      <tr className='border-b border-blue-100'>
+                        <td className='py-1 pr-4 font-medium'>identity_number</td>
+                        <td className='py-1 pr-4'>
+                          MyKad: exactly 12 digits<br />
+                          Passport: 6-20 characters
+                        </td>
+                        <td className='py-1'>901234567890</td>
+                      </tr>
+                      <tr className='border-b border-blue-100'>
+                        <td className='py-1 pr-4 font-medium'>first_name</td>
+                        <td className='py-1 pr-4'>Text, 1-100 characters</td>
+                        <td className='py-1'>Ahmad</td>
+                      </tr>
+                      <tr className='border-b border-blue-100'>
+                        <td className='py-1 pr-4 font-medium'>last_name</td>
+                        <td className='py-1 pr-4'>Text, 1-100 characters (optional, but column required)</td>
+                        <td className='py-1'>Bin Ali</td>
+                      </tr>
+                      <tr className='border-b border-blue-100'>
+                        <td className='py-1 pr-4 font-medium'>phone_number</td>
+                        <td className='py-1 pr-4'>
+                          Numbers only with country code, 8-20 digits<br />
+                          <span className='text-xs text-gray-500'>(Do not include + sign, it will be added automatically)</span>
+                        </td>
+                        <td className='py-1'>60123456789</td>
                       </tr>
                       <tr>
-                        <td className='py-1 pr-4 font-medium'>status</td>
-                        <td className='py-1 pr-4'>
-                          One of: <code className='bg-blue-100 px-1 rounded'>Ready</code>, <code className='bg-blue-100 px-1 rounded'>Pending_Inspection</code>, <code className='bg-blue-100 px-1 rounded'>Under_Preparation</code>
-                        </td>
-                        <td className='py-1'>Ready</td>
+                        <td className='py-1 pr-4 font-medium'>email</td>
+                        <td className='py-1 pr-4'>Valid email address</td>
+                        <td className='py-1'>ahmad@example.com</td>
                       </tr>
                     </tbody>
                   </table>
@@ -411,7 +355,7 @@ const ImportProperties = () => {
                 Import Successful
               </h3>
               <p className='texts-body-medium text-green-700'>
-                {importedCount} properties have been imported successfully.
+                {importedCount} tenants have been imported successfully.
               </p>
             </div>
           </div>
@@ -421,14 +365,14 @@ const ImportProperties = () => {
         <div className='flex gap-3'>
           <Button
             onClick={handleImport}
-            disabled={!file || !selectedProject || isImporting}
+            disabled={!file || isImporting}
             loading={isImporting}
-            label={isImporting ? 'Importing...' : 'Import Properties'}
+            label={isImporting ? 'Importing...' : 'Import Tenants'}
             icon={<Upload className='w-4 h-4 text-white!' />}
           />
           <Button
             variant='secondary'
-            onClick={() => router.push('/properties')}
+            onClick={() => router.push('/tenants')}
             label='Cancel'
           />
         </div>
@@ -437,4 +381,4 @@ const ImportProperties = () => {
   )
 }
 
-export default ImportProperties
+export default ImportTenants

@@ -192,11 +192,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check for existing codes in database
+    // Check for existing codes in database (scoped to the selected project)
     if (codesInFile.size > 0) {
       const existingProperties = await prisma.properties.findMany({
         where: {
-          organization_id: staff.organization_id,
+          project_id: projectId,
           code: { in: Array.from(codesInFile.keys()) }
         },
         select: { code: true }
@@ -208,7 +208,7 @@ export async function POST(req: NextRequest) {
           errors.push({
             row: rowNum,
             field: 'code',
-            message: 'A property with this code already exists',
+            message: 'A property with this code already exists in this project',
             value: existing.code
           })
         }

@@ -68,6 +68,11 @@ async function getRooms() {
         select: {
           code: true,
           status: true,
+          projects: {
+            select: {
+              title: true
+            }
+          },
           leases: {
             where: {
               room_id: null,
@@ -135,6 +140,7 @@ async function getRooms() {
       id: room.id,
       title: room.title,
       property: room.properties?.code || 'No Property',
+      project: room.properties?.projects?.title || null,
       status: displayStatus,
       tenantPhone
     }

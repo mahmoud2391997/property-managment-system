@@ -195,6 +195,28 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Check if room title already exists for this property
+    const existingRoom = await prisma.rooms.findFirst({
+      where: {
+        title,
+        property_id
+      },
+      select: {
+        id: true,
+        properties: {
+          select: { code: true }
+        }
+      }
+    })
+
+    if (existingRoom) {
+      const propertyCode = existingRoom.properties?.code || 'this property'
+      return NextResponse.json(
+        { error: `A room with title "${title}" already exists in property ${propertyCode}` },
+        { status: 400 }
+      )
+    }
+
     // Create room with all related data in a transaction
     const result = await prisma.$transaction(async tx => {
       // 1. Create the room first

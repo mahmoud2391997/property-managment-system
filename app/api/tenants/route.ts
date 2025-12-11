@@ -3,6 +3,7 @@ import { getUserAndStaff } from '@/utils/getUserAndStaff'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { NextResponse } from 'next/server'
+import { getBaseUrl } from '@/utils/get-base-url'
 
 export async function POST(request: Request) {
   try {
@@ -71,28 +72,29 @@ export async function POST(request: Request) {
     const supabase = await createClient()
     const supabaseAdmin = createAdminClient()
 
-    // Create auth user first (unconfirmed, will manually send invite)
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: email.trim(),
-      email_confirm: false,
-      user_metadata: {
-        user_type: 'tenant'
-      }
-    })
+    // ============ OLD (uncomment when ready to send emails) ============
+    // // Create auth user first (unconfirmed, will manually send invite)
+    // const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    //   email: email.trim(),
+    //   email_confirm: false,
+    //   user_metadata: {
+    //     user_type: 'tenant'
+    //   }
+    // })
 
-    if (authError || !authData.user) {
-      console.error('Error creating auth user:', authError)
-      return NextResponse.json(
-        { error: authError?.message || 'Failed to create user account' },
-        { status: 500 }
-      )
-    }
+    // if (authError || !authData.user) {
+    //   console.error('Error creating auth user:', authError)
+    //   return NextResponse.json(
+    //     { error: authError?.message || 'Failed to create user account' },
+    //     { status: 500 }
+    //   )
+    // }
 
     // // Send invitation email with tenant-specific redirect
     // const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
     //   email.trim(),
     //   {
-    //     redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4000'}/api/auth/confirm-tenant`
+    //     redirectTo: `${getBaseUrl()}/api/auth/confirm-tenant`
     //   }
     // )
 
@@ -105,6 +107,31 @@ export async function POST(request: Request) {
     //     { status: 500 }
     //   )
     // }
+    // ============ END OLD ============
+
+    // ============ TEMPORARY NEW (remove when ready to send emails) ============
+    // Use generateLink with type 'invite' to create user in invited/pending state WITHOUT sending email
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'invite',
+      email: email.trim(),
+      options: {
+        redirectTo: `${getBaseUrl()}/api/auth/confirm-tenant`,
+        data: {
+          user_type: 'tenant'
+        }
+      }
+    })
+
+    if (linkError || !linkData.user) {
+      console.error('Error creating auth user:', linkError)
+      return NextResponse.json(
+        { error: linkError?.message || 'Failed to create user account' },
+        { status: 500 }
+      )
+    }
+
+    const authData = { user: linkData.user }
+    // ============ END TEMPORARY NEW ============
 
     let profilePicUrl: string | null = null
     let profileThumbUrl: string | null = null
