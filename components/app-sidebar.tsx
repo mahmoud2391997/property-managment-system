@@ -275,7 +275,7 @@ export default function AppSidebar () {
             style={{ maxWidth: effectiveSidebarOpen ? '200px' : '0px' }}
           >
             <h2 className='texts-heading-h2 opacity-100 transition-opacity duration-200'>
-              EzyRoom
+              TenancyPilot
             </h2>
           </div>
         </div>
@@ -660,7 +660,7 @@ export function MobileHeader () {
     >
       <div className='flex items-center gap-2'>
         <Image src='/icons/logo.png' width={24} height={24} alt='logo' />
-        <h2 className='texts-heading-h2'>EzyRoom</h2>
+        <h2 className='texts-heading-h2'>TenancyPilot</h2>
       </div>
       <button
         onClick={() => setOpenMobile(!openMobile)}
