@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
-import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
+import { AddButtonIcon, DeleteButtonIcon, ImportButtonIcon } from '@/components/costume-ui/icon'
 import RoomsTable from '@/components/tables/rooms-table'
 import Link from 'next/link'
 
@@ -12,6 +12,7 @@ type RoomTableData = {
   id: string
   title: string
   property: string
+  project?: string | null
   status:
     | 'Occupied'
     | 'Vacant'
@@ -39,9 +40,10 @@ export default function RoomsSection({ rooms }: RoomsSectionProps) {
     return rooms.filter(room => {
       const titleMatch = room.title?.toLowerCase().includes(lowerSearch)
       const propertyMatch = room.property?.toLowerCase().includes(lowerSearch)
+      const projectMatch = room.project?.toLowerCase().includes(lowerSearch)
       const statusMatch = room.status?.toLowerCase().replace(/_/g, ' ').includes(lowerSearch)
 
-      return titleMatch || propertyMatch || statusMatch
+      return titleMatch || propertyMatch || projectMatch || statusMatch
     })
   }, [rooms, searchTerm])
 
@@ -61,7 +63,13 @@ export default function RoomsSection({ rooms }: RoomsSectionProps) {
             label='Delete'
             className='bg-(--error-main)!'
           /> */}
-
+          <Link href='/rooms/import-rooms'>
+            <Button
+              variant='secondary'
+              icon={<ImportButtonIcon className='text-neutral-400' />}
+              label='Import'
+            />
+          </Link>
           <Link href='/rooms/add-room'>
             <Button
               icon={<AddButtonIcon className='text-neutral-300' />}

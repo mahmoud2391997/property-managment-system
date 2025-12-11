@@ -139,6 +139,42 @@ export async function POST (req: NextRequest) {
       )
     }
 
+    // Check if property code already exists in the same project
+    if (project_id) {
+      const existingProperty = await prisma.properties.findFirst({
+        where: {
+          code,
+          project_id
+        },
+        select: {
+          id: true,
+          projects: {
+            select: { title: true }
+          }
+        }
+      })
+
+      if (existingProperty) {
+        const projectName = existingProperty.projects?.title || 'this project'
+        return NextResponse.json(
+          { error: `A property with code "${code}" already exists in ${projectName}` },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Validate room titles are unique within this property (check for duplicates in the request)
+    if (rooms && Array.isArray(rooms) && rooms.length > 0) {
+      const roomTitles = rooms.map((r: { title: string }) => r.title.toLowerCase())
+      const uniqueTitles = new Set(roomTitles)
+      if (roomTitles.length !== uniqueTitles.size) {
+        return NextResponse.json(
+          { error: 'Duplicate room titles found. Each room must have a unique title.' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Create property with all related data in a transaction
     const result = await prisma.$transaction(async tx => {
       // 1. Create the property first

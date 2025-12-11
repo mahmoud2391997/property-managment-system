@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
-import { DeleteButtonIcon } from '@/components/costume-ui/icon'
+import { DeleteButtonIcon, ImportButtonIcon } from '@/components/costume-ui/icon'
 import TenantsTable from '@/components/tables/tenants-table'
 import AddTenantDialog from '@/components/dialogs/add-tenant-dialog'
 import { Prisma } from '@prisma/client'
@@ -84,6 +85,13 @@ export default function TenantsSection({ tenants }: TenantsSectionProps) {
             label='Delete'
             className='bg-(--error-main)!'
           /> */}
+          <Link href='/tenants/import-tenants'>
+            <Button
+              variant='secondary'
+              icon={<ImportButtonIcon className='text-neutral-400' />}
+              label='Import'
+            />
+          </Link>
           <AddTenantDialog />
         </div>
       </div>

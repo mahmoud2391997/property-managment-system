@@ -23,6 +23,7 @@ type RoomTableData = {
   id: string
   title: string
   property: string
+  project?: string | null
   status:
     | 'Occupied'
     | 'Vacant'
@@ -78,7 +79,15 @@ export const columns: ColumnDef<RoomTableData>[] = [
     accessorKey: 'property',
     header: () => <div className='text-left'>Property</div>,
     cell: ({ row }) => {
-      return <div className='text-left'>{row.getValue('property')}</div>
+      const room = row.original
+      return (
+        <div className='text-left'>
+          <div>{row.getValue('property')}</div>
+          {room.project && (
+            <div className='text-xs text-(--text-secondary)'>{room.project}</div>
+          )}
+        </div>
+      )
     }
   },
 

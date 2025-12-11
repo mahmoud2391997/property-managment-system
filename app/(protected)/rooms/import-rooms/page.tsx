@@ -11,8 +11,7 @@ import type { projects } from '@prisma/client'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { useRouter } from 'next/navigation'
 
-const PROPERTY_TYPES = ['House', 'Apartment', 'Studio', 'Commercial_Unit'] as const
-const PROPERTY_STATUSES = ['Ready', 'Pending_Inspection', 'Under_Preparation'] as const
+const ROOM_STATUSES = ['Ready', 'Pending_Inspection', 'Under_Preparation'] as const
 
 type ImportError = {
   row: number
@@ -21,7 +20,7 @@ type ImportError = {
   value?: string
 }
 
-const ImportProperties = () => {
+const ImportRooms = () => {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -113,7 +112,7 @@ const ImportProperties = () => {
       formData.append('file', file)
       formData.append('project_id', selectedProject.id)
 
-      const response = await fetch('/api/properties/import', {
+      const response = await fetch('/api/rooms/import', {
         method: 'POST',
         body: formData
       })
@@ -124,14 +123,14 @@ const ImportProperties = () => {
         if (data.errors && Array.isArray(data.errors)) {
           setImportErrors(data.errors)
         } else {
-          FeedbackToasts.createFailed('import', data.error || 'Failed to import properties')
+          FeedbackToasts.createFailed('import', data.error || 'Failed to import rooms')
         }
         return
       }
 
       setImportSuccess(true)
       setImportedCount(data.count)
-      FeedbackToasts.created('Properties', `Successfully imported ${data.count} properties`)
+      FeedbackToasts.created('Rooms', `Successfully imported ${data.count} rooms`)
 
       // Clear file after successful import
       setFile(null)
@@ -160,12 +159,12 @@ const ImportProperties = () => {
 
   const downloadTemplate = () => {
     // Create a simple CSV template that users can open in Excel
-    const headers = ['code', 'street_address', 'city', 'postal_code', 'type', 'status']
+    const headers = ['property_code', 'title', 'status']
     const exampleRows = [
-      ['B-2-1', 'Bukit Burueng', 'Ayer Keroh', '75450', 'Apartment', 'Ready'],
-      ['C-3-2', 'Jalan Harmoni', 'Petaling Jaya', '46000', 'House', 'Pending_Inspection'],
-      ['D-1-5', 'Taman Melati', 'Kuala Lumpur', '53100', 'Studio', 'Under_Preparation'],
-      ['E-4-3', 'Business Park', 'Shah Alam', '40150', 'Commercial_Unit', 'Ready']
+      ['B-2-1', 'Room A', 'Ready'],
+      ['B-2-1', 'Room B', 'Pending_Inspection'],
+      ['C-3-2', 'Master Bedroom', 'Under_Preparation'],
+      ['C-3-2', 'Small Room', 'Ready']
     ]
 
     const csvContent = [
@@ -176,7 +175,7 @@ const ImportProperties = () => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
-    link.download = 'properties_import_template.csv'
+    link.download = 'rooms_import_template.csv'
     link.click()
   }
 
@@ -186,15 +185,15 @@ const ImportProperties = () => {
       <section className='flex flex-col gap-2.5'>
         <Breadcrumb
           items={[
-            { label: 'Properties', href: '/properties' },
-            { label: 'Import Properties' }
+            { label: 'Rooms', href: '/rooms' },
+            { label: 'Import Rooms' }
           ]}
         />
         <div className='flex items-center justify-between w-full'>
           <div>
-            <h2>Import Properties</h2>
+            <h2>Import Rooms</h2>
             <span className='texts-body-medium text-(--text-secondary)'>
-              Bulk import properties from an Excel file
+              Bulk import rooms from an Excel file
             </span>
           </div>
         </div>
@@ -209,7 +208,7 @@ const ImportProperties = () => {
             <h3 className='texts-body-large font-semibold'>Select Project</h3>
           </div>
           <p className='texts-body-medium text-(--text-secondary)'>
-            All imported properties will be assigned to the selected project.
+            Rooms will be added to properties within the selected project. Only properties of type House or Apartment can have rooms.
           </p>
           <InputGroup label='Project' isRequired>
             <Select
@@ -225,11 +224,6 @@ const ImportProperties = () => {
               disabled={loadingProjects}
             />
           </InputGroup>
-          {selectedProject && (
-            <p className='texts-caption-large text-(--text-secondary)'>
-              State: <span className='font-medium'>{selectedProject.state}</span> (automatically applied to all properties)
-            </p>
-          )}
         </div>
 
         {/* Step 2: Upload File */}
@@ -256,31 +250,17 @@ const ImportProperties = () => {
                     </thead>
                     <tbody>
                       <tr className='border-b border-blue-100'>
-                        <td className='py-1 pr-4 font-medium'>code</td>
-                        <td className='py-1 pr-4'>Text, 1-50 characters</td>
+                        <td className='py-1 pr-4 font-medium'>property_code</td>
+                        <td className='py-1 pr-4'>
+                          Code of the property (must exist in selected project)<br />
+                          Property must be of type House or Apartment
+                        </td>
                         <td className='py-1'>B-2-1</td>
                       </tr>
                       <tr className='border-b border-blue-100'>
-                        <td className='py-1 pr-4 font-medium'>street_address</td>
-                        <td className='py-1 pr-4'>Text, 5-300 characters</td>
-                        <td className='py-1'>Jalan 123, Bukit Burueng</td>
-                      </tr>
-                      <tr className='border-b border-blue-100'>
-                        <td className='py-1 pr-4 font-medium'>city</td>
-                        <td className='py-1 pr-4'>Text, 1-100 characters</td>
-                        <td className='py-1'>Ayer Keroh</td>
-                      </tr>
-                      <tr className='border-b border-blue-100'>
-                        <td className='py-1 pr-4 font-medium'>postal_code</td>
-                        <td className='py-1 pr-4'>Text, 4-10 characters</td>
-                        <td className='py-1'>50450</td>
-                      </tr>
-                      <tr className='border-b border-blue-100'>
-                        <td className='py-1 pr-4 font-medium'>type</td>
-                        <td className='py-1 pr-4'>
-                          One of: <code className='bg-blue-100 px-1 rounded'>House</code>, <code className='bg-blue-100 px-1 rounded'>Apartment</code>, <code className='bg-blue-100 px-1 rounded'>Studio</code>, <code className='bg-blue-100 px-1 rounded'>Commercial_Unit</code>
-                        </td>
-                        <td className='py-1'>Apartment</td>
+                        <td className='py-1 pr-4 font-medium'>title</td>
+                        <td className='py-1 pr-4'>Text, 1-100 characters (unique per property)</td>
+                        <td className='py-1'>Room A</td>
                       </tr>
                       <tr>
                         <td className='py-1 pr-4 font-medium'>status</td>
@@ -411,7 +391,7 @@ const ImportProperties = () => {
                 Import Successful
               </h3>
               <p className='texts-body-medium text-green-700'>
-                {importedCount} properties have been imported successfully.
+                {importedCount} rooms have been imported successfully.
               </p>
             </div>
           </div>
@@ -423,12 +403,12 @@ const ImportProperties = () => {
             onClick={handleImport}
             disabled={!file || !selectedProject || isImporting}
             loading={isImporting}
-            label={isImporting ? 'Importing...' : 'Import Properties'}
+            label={isImporting ? 'Importing...' : 'Import Rooms'}
             icon={<Upload className='w-4 h-4 text-white!' />}
           />
           <Button
             variant='secondary'
-            onClick={() => router.push('/properties')}
+            onClick={() => router.push('/rooms')}
             label='Cancel'
           />
         </div>
@@ -437,4 +417,4 @@ const ImportProperties = () => {
   )
 }
 
-export default ImportProperties
+export default ImportRooms
