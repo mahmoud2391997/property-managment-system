@@ -234,14 +234,63 @@ export const columns: ColumnDef<PropertyWithDetails>[] = [
 interface PropertiesTableProps {
   data: PropertyWithDetails[]
   onDeleteProperty?: () => void
+  isLoading?: boolean
+  currentPage?: number
+  totalItems?: number
+  pageSize?: number
+  canGoNext?: boolean
+  canGoPrevious?: boolean
+  onNextPage?: () => void
+  onPreviousPage?: () => void
 }
 
-export default function PropertiesTable ({ data, onDeleteProperty }: PropertiesTableProps) {
+export default function PropertiesTable ({
+  data,
+  onDeleteProperty,
+  isLoading = false,
+  currentPage = 1,
+  totalItems = 0,
+  pageSize = 10,
+  canGoNext = false,
+  canGoPrevious = false,
+  onNextPage,
+  onPreviousPage
+}: PropertiesTableProps) {
+  const hasServerPagination = onNextPage !== undefined || onPreviousPage !== undefined
+
   return (
-    <Table
-      columns={columns}
-      data={data}
-      meta={{ onDeleteProperty }}
-    />
+    <div>
+      <Table
+        columns={columns}
+        data={data}
+        meta={{ onDeleteProperty }}
+        noPagnitation={hasServerPagination}
+        isLoadingRows={isLoading}
+        loadingRowsCount={pageSize}
+      />
+      {hasServerPagination && (
+        <div className='flex items-center justify-end space-x-2 py-4'>
+          <div className='text-muted-foreground flex-1 text-sm'>
+            Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalItems)} of {totalItems} properties
+          </div>
+          <div className='space-x-2'>
+            <button
+              className='inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3'
+              onClick={onPreviousPage}
+              disabled={!canGoPrevious || isLoading}
+            >
+              Previous
+            </button>
+            <button
+              className='inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3'
+              onClick={onNextPage}
+              disabled={!canGoNext || isLoading}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

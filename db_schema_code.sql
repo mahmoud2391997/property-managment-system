@@ -473,3 +473,32 @@ CREATE TABLE public.views (
   CONSTRAINT views_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id),
   CONSTRAINT views_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id)
 );
+
+
+
+
+
+
+
+create table public.staff (
+  id uuid primary key references auth.users(id) not null,
+  staff_id text not null,
+  first_name text not null,
+  last_name text,
+  role_id uuid not null references public.roles(id),
+  profile_pic text,
+  profile_thumb text,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  created_at timestamptz not null default current_timestamp,
+  created_by uuid references public.staff(id) on delete set null,
+  phone_number text not null,
+  
+  unique (staff_id, organization_id),
+  
+  constraint staff_first_name_check check (char_length(first_name) >= 1 and char_length(first_name) <= 100),
+  constraint staff_last_name_check check (char_length(last_name) >= 1 and char_length(last_name) <= 100),
+  constraint staff_phone_number_check check (char_length(phone_number) >= 8 and char_length(phone_number) <= 20 and phone_number ~ '^\+[0-9]+$'),
+  constraint staff_profile_pic_check check (char_length(profile_pic) <= 1000),
+  constraint staff_profile_thumb_check check (char_length(profile_thumb) <= 1000),
+  constraint staff_staff_id_check check (char_length(staff_id) = 8 and staff_id ~ '^STF-[0-9]{4}$')
+);

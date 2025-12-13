@@ -25,6 +25,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
 
 type Props<TData extends object> = {
   columns: ColumnDef<TData>[]
@@ -36,6 +37,10 @@ type Props<TData extends object> = {
   loadingRowId?: string | null
   getRowId?: (row: TData) => string
   meta?: Record<string, unknown>
+  /** Show skeleton loading state for rows */
+  isLoadingRows?: boolean
+  /** Number of skeleton rows to show when loading */
+  loadingRowsCount?: number
 }
 
 function Table<TData extends object> ({
@@ -47,7 +52,9 @@ function Table<TData extends object> ({
   noPagnitation = false,
   loadingRowId = null,
   getRowId,
-  meta
+  meta,
+  isLoadingRows = false,
+  loadingRowsCount = 10
 }: Props<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -101,7 +108,24 @@ function Table<TData extends object> ({
             ))}
           </TableHeader>
           <TableBody className='bg-(--background-primary)'>
-            {table.getRowModel().rows?.length ? (
+            {isLoadingRows ? (
+              // Skeleton loading rows
+              Array.from({ length: loadingRowsCount }).map((_, rowIndex) => (
+                <TableRow
+                  key={`skeleton-${rowIndex}`}
+                  className={cn(
+                    'animate-in fade-in slide-in-from-left-1 duration-300'
+                  )}
+                  style={{ animationDelay: `${rowIndex * 50}ms` }}
+                >
+                  {columns.map((_, colIndex) => (
+                    <TableCell key={`skeleton-cell-${colIndex}`} className='p-4'>
+                      <Skeleton className='h-4 w-full bg-neutral-200' />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map(row => {
                 const rowId = getRowId ? getRowId(row.original) : null
                 const isLoading = loadingRowId && rowId === loadingRowId
