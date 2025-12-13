@@ -3,10 +3,11 @@ import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
 import { isLeaseActive } from '@/utils/lease-status'
+import { transformRoom } from '@/lib/rooms-utils'
 
 type DisplayStatus = 'Occupied' | 'Vacant' | 'Pending_Inspection' | 'Under_Preparation' | 'Property_Rented' | 'Property_Not_Ready'
 
-// Compute display status for a room
+// Compute display status for a room (kept for legacy propertyId mode)
 function computeRoomDisplayStatus(
   roomStatus: string,
   propertyStatus: string,
@@ -44,6 +45,109 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const propertyId = searchParams.get('propertyId')
 
+    // Pagination and search params
+    const paginate = searchParams.get('paginate') === 'true'
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const search = searchParams.get('search')?.trim() || ''
+
+    // If paginate mode is enabled, return all rooms with pagination
+    if (paginate) {
+      // Build where clause with search
+      const whereClause: any = {
+        properties: {
+          organization_id: staff.organization_id
+        },
+        ...(search && {
+          OR: [
+            { title: { contains: search, mode: 'insensitive' } },
+            { properties: { code: { contains: search, mode: 'insensitive' } } },
+            { properties: { projects: { title: { contains: search, mode: 'insensitive' } } } }
+          ]
+        })
+      }
+
+      // Fetch rooms and total count in parallel
+      const [rooms, total] = await Promise.all([
+        prisma.rooms.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            properties: {
+              select: {
+                code: true,
+                status: true,
+                projects: {
+                  select: {
+                    title: true
+                  }
+                },
+                leases: {
+                  where: {
+                    room_id: null,
+                    status: 'Current'
+                  },
+                  select: {
+                    status: true,
+                    start_date: true,
+                    number_of_months: true,
+                    tenants: {
+                      select: {
+                        individual_tenants: {
+                          select: {
+                            phone_number: true
+                          }
+                        }
+                      }
+                    }
+                  },
+                  orderBy: { created_at: 'desc' },
+                  take: 1
+                }
+              }
+            },
+            leases: {
+              where: { status: 'Current' },
+              select: {
+                status: true,
+                start_date: true,
+                number_of_months: true,
+                tenants: {
+                  select: {
+                    individual_tenants: {
+                      select: {
+                        phone_number: true
+                      }
+                    }
+                  }
+                }
+              },
+              orderBy: { created_at: 'desc' },
+              take: 1
+            }
+          },
+          orderBy: { created_at: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit
+        }),
+        prisma.rooms.count({ where: whereClause })
+      ])
+
+      // Transform rooms for display
+      const transformedRooms = rooms.map(transformRoom)
+
+      return NextResponse.json({
+        success: true,
+        data: transformedRooms,
+        total,
+        page,
+        pageSize: limit
+      })
+    }
+
+    // Legacy mode: requires propertyId
     if (!propertyId) {
       return NextResponse.json(
         { error: 'Property ID is required' },

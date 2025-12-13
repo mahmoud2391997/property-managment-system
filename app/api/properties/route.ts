@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { transformProperty } from '@/lib/properties-utils'
 
 export async function GET (req: Request) {
   try {
@@ -23,12 +24,108 @@ export async function GET (req: Request) {
       return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
     }
 
-    // Parse query parameters to determine what fields to return
+    // Parse query parameters
     const { searchParams } = new URL(req.url)
     const fieldsParam = searchParams.get('fields')
     const includeProject = searchParams.get('includeProject') === 'true'
 
-    // Build query based on whether specific fields are requested
+    // Pagination and search params
+    const paginate = searchParams.get('paginate') === 'true'
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const search = searchParams.get('search')?.trim() || ''
+
+    // If paginate mode is enabled, use new pagination/search logic
+    if (paginate) {
+      // Build where clause with search
+      const whereClause: any = {
+        organization_id: staff.organization_id,
+        ...(search && {
+          OR: [
+            { code: { contains: search, mode: 'insensitive' } },
+            { street_address: { contains: search, mode: 'insensitive' } },
+            { projects: { title: { contains: search, mode: 'insensitive' } } }
+          ]
+        })
+      }
+
+      // Fetch properties and total count in parallel
+      const [properties, total] = await Promise.all([
+        prisma.properties.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            code: true,
+            street_address: true,
+            postal_code: true,
+            city: true,
+            type: true,
+            status: true,
+            projects: {
+              select: {
+                title: true,
+                state: true
+              }
+            },
+            rooms: {
+              select: {
+                id: true,
+                status: true,
+                leases: {
+                  where: { status: 'Current' },
+                  select: {
+                    status: true,
+                    start_date: true,
+                    number_of_months: true
+                  },
+                  orderBy: { created_at: 'desc' },
+                  take: 1
+                }
+              }
+            },
+            leases: {
+              where: {
+                room_id: null,
+                status: 'Current'
+              },
+              select: {
+                status: true,
+                start_date: true,
+                number_of_months: true,
+                tenants: {
+                  select: {
+                    individual_tenants: {
+                      select: {
+                        phone_number: true
+                      }
+                    }
+                  }
+                }
+              },
+              orderBy: { created_at: 'desc' },
+              take: 1
+            }
+          },
+          orderBy: { created_at: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit
+        }),
+        prisma.properties.count({ where: whereClause })
+      ])
+
+      // Transform properties for display
+      const transformedProperties = properties.map(transformProperty)
+
+      return NextResponse.json({
+        success: true,
+        data: transformedProperties,
+        total,
+        page,
+        pageSize: limit
+      })
+    }
+
+    // Legacy mode: return all properties (backward compatibility)
     let properties
     if (fieldsParam) {
       // When selecting specific fields, use select with projects included
