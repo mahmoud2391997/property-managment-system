@@ -1,0 +1,144 @@
+type RawCharge = {
+  amount: number
+  is_taxed: boolean
+}
+
+type RawPaymentHistory = {
+  amount: number
+  paid_at: Date
+  status: string
+}
+
+type RawRecurringConfig = {
+  every: number
+  time_unit: string
+  event_on: string | null
+}
+
+type RawPayment = {
+  reference_id: string
+  type: string
+  status: string
+  due_payment_timestamp: Date | null
+  created_at: Date
+  leases: {
+    properties: {
+      code: string
+      projects: {
+        title: string
+      } | null
+    } | null
+    rooms: {
+      title: string
+    } | null
+    tenants: {
+      id: string
+      type: string
+      profile_pic: string | null
+      individual_tenants: {
+        first_name: string
+        last_name: string | null
+      } | null
+      company_tenants: {
+        company_name: string
+      } | null
+    } | null
+  } | null
+  charges: RawCharge[]
+  payment_history: RawPaymentHistory[]
+  recurring_configs: RawRecurringConfig[]
+}
+
+export type PaymentWithDetails = {
+  id: string
+  type: string
+  property: string
+  room: string
+  due_date: Date | null
+  recurring_pattern: 'Recurring' | 'One-time'
+  recurring_pattern_description: string
+  amount: number
+  status: 'Paid' | 'Paid Late' | 'Pending' | 'Overdue' | 'Cancelled'
+  payment_percentage: number
+  has_pending_payments: boolean
+  tenant_name: string
+  tenant_picture: string
+  tenant_color: string
+  latest_payment_timestamp: string
+}
+
+// Transform raw payment from database to display format
+export function transformPayment(payment: RawPayment): PaymentWithDetails {
+  // Calculate total amount from charges
+  const totalAmount = payment.charges.reduce((sum, charge) => {
+    const amount = charge.amount
+    const tax = charge.is_taxed ? amount * 0.08 : 0
+    return sum + amount + tax
+  }, 0)
+
+  // Only count SUCCESS payments in total paid
+  const successfulPayments = payment.payment_history.filter(
+    h => h.status === 'Success'
+  )
+  const totalPaid = successfulPayments.reduce(
+    (sum, history) => sum + history.amount,
+    0
+  )
+  const paymentPercentage = totalAmount > 0 ? Math.round((totalPaid / totalAmount) * 100) : 0
+
+  // Check if there are any Pending payment_history records
+  const hasPendingPayments = payment.payment_history.some(h => h.status === 'Pending')
+
+  // Get status
+  const status = payment.status as 'Paid' | 'Paid Late' | 'Pending' | 'Overdue' | 'Cancelled'
+
+  // Get recurring pattern info
+  const recurringConfig = payment.recurring_configs[0]
+  const isRecurring = !!recurringConfig
+  let recurringDescription = ''
+
+  if (recurringConfig) {
+    const { every, time_unit, event_on } = recurringConfig
+    if (time_unit === 'Week' && event_on) {
+      const days = event_on.split(',').join(', ')
+      recurringDescription = `Every ${every} ${time_unit.toLowerCase()}${every > 1 ? 's' : ''} on ${days}`
+    } else if (time_unit === 'Month' && event_on) {
+      const days = event_on.split(',').join(', ')
+      recurringDescription = `Every ${every} ${time_unit.toLowerCase()}${every > 1 ? 's' : ''} on day ${days}`
+    } else {
+      recurringDescription = `Every ${every} ${time_unit.toLowerCase()}${every > 1 ? 's' : ''}`
+    }
+  }
+
+  // Get tenant name based on type
+  const tenant = payment.leases?.tenants
+  let tenantName = 'N/A'
+  if (tenant) {
+    if (tenant.type === 'Individual' && tenant.individual_tenants) {
+      tenantName = `${tenant.individual_tenants.first_name} ${tenant.individual_tenants.last_name || ''}`.trim()
+    } else if (tenant.type === 'Company' && tenant.company_tenants) {
+      tenantName = tenant.company_tenants.company_name
+    }
+  }
+
+  // Get latest payment timestamp
+  const latestPaymentTimestamp = successfulPayments[0]?.paid_at?.toISOString() || payment.created_at.toISOString()
+
+  return {
+    id: payment.reference_id,
+    type: payment.type,
+    property: payment.leases?.properties?.code || 'N/A',
+    room: payment.leases?.rooms?.title || 'Whole unit',
+    due_date: payment.due_payment_timestamp,
+    recurring_pattern: isRecurring ? 'Recurring' : 'One-time',
+    recurring_pattern_description: recurringDescription,
+    amount: totalAmount,
+    status,
+    payment_percentage: paymentPercentage,
+    has_pending_payments: hasPendingPayments,
+    tenant_name: tenantName,
+    tenant_picture: tenant?.profile_pic || '',
+    tenant_color: '',
+    latest_payment_timestamp: latestPaymentTimestamp
+  }
+}

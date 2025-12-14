@@ -25,10 +25,9 @@ export default function PaymentHistoryRow({ referenceId, isExpanded }: Props) {
   const [dueDate, setDueDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [lastFetch, setLastFetch] = useState<number>(0)
+  const [hasFetched, setHasFetched] = useState(false)
   const thStyles = 'border-b border-(--border-light) p-[15] px-5'
   const trStyles = 'p-[15] px-5'
-  const CACHE_DURATION = 60 * 1000 // 60 seconds in milliseconds
 
   // Helper to determine if payment was on-time or late
   const getTimingStatus = (paidAt: string): 'On-Time' | 'Late' => {
@@ -43,11 +42,8 @@ export default function PaymentHistoryRow({ referenceId, isExpanded }: Props) {
     }
 
     const fetchHistory = async () => {
-      const now = Date.now()
-      const timeSinceLastFetch = now - lastFetch
-
-      // Skip fetch if data was fetched within the last 60 seconds
-      if (timeSinceLastFetch < CACHE_DURATION && history.length > 0) {
+      // Skip fetch if already fetched (cache until page reload)
+      if (hasFetched) {
         return
       }
 
@@ -62,7 +58,7 @@ export default function PaymentHistoryRow({ referenceId, isExpanded }: Props) {
         const data = await response.json()
         setHistory(data.payment_history || [])
         setDueDate(data.due_date || null)
-        setLastFetch(now)
+        setHasFetched(true)
       } catch (err: any) {
         setError(err.message)
       } finally {

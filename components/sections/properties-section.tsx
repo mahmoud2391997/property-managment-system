@@ -34,8 +34,7 @@ export default function PropertiesSection({ initialData, initialTotal }: Propert
     apiRoute: '/api/properties',
     initialData,
     initialTotal,
-    pageSize: 10,
-    debounceMs: 500
+    pageSize: 10
   })
 
   return (

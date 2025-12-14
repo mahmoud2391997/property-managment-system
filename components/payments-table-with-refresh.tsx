@@ -1,20 +1,13 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import PaymentsTable from '@/components/tables/pyaments-table'
-import { Payment } from '@/types'
+import { PaymentWithDetails } from '@/lib/payments-utils'
 
 type Props = {
-  data: Payment[]
+  data: PaymentWithDetails[]
   userType: 'staff' | 'tenant'
 }
 
 export function PaymentsTableWithRefresh({ data, userType }: Props) {
-  const router = useRouter()
-
-  const handleRefresh = () => {
-    router.refresh()
-  }
-
-  return <PaymentsTable data={data} userType={userType} onDataRefresh={handleRefresh} />
+  return <PaymentsTable data={data} userType={userType} />
 }

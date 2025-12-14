@@ -46,7 +46,7 @@ export function usePaginatedSearch<T>({
   initialData,
   initialTotal,
   pageSize = 10,
-  debounceMs = 500
+  debounceMs = 1000
 }: UsePaginatedSearchOptions<T>): UsePaginatedSearchReturn<T> {
   const pathname = usePathname()
   const searchParams = useSearchParams()

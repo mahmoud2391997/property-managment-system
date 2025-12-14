@@ -31,8 +31,7 @@ export default function RoomsSection({ initialData, initialTotal }: RoomsSection
     apiRoute: '/api/rooms',
     initialData,
     initialTotal,
-    pageSize: 10,
-    debounceMs: 500
+    pageSize: 10
   })
 
   return (
