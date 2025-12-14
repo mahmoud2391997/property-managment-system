@@ -72,6 +72,30 @@ export async function GET(request: NextRequest) {
         skipCount ? Promise.resolve(-1) : prisma.organizations_tenants.count({ where: whereClause })
       ])
 
+      // Get tenant IDs for active lease count query
+      const tenantIds = organizationTenants.map(ot => ot.tenants.id)
+
+      // Get active lease counts for all tenants in one query
+      let leaseCountMap = new Map<string, number>()
+
+      if (tenantIds.length > 0) {
+        // Get all active leases for these tenants
+        const activeLeases = await prisma.leases.findMany({
+          where: {
+            tenant_id: { in: tenantIds },
+            organization_id: currentStaff.organization_id,
+            status: 'Current'
+          },
+          select: { tenant_id: true }
+        })
+
+        // Count leases per tenant
+        for (const lease of activeLeases) {
+          const currentCount = leaseCountMap.get(lease.tenant_id) || 0
+          leaseCountMap.set(lease.tenant_id, currentCount + 1)
+        }
+      }
+
       // Get account activation status and email from Supabase Auth for this page of tenants
       const supabaseAdmin = createAdminClient()
       const tenantsWithStatus = await Promise.all(
@@ -83,8 +107,9 @@ export async function GET(request: NextRequest) {
           const isActivated = wasInvited ? passwordSet : true
           const email = authUser?.user?.email || ''
           const accountStatus = isActivated ? 'Activated' as const : 'Pending' as const
+          const activeLeaseCount = leaseCountMap.get(ot.tenants.id) || 0
 
-          return transformTenant(ot, email, accountStatus)
+          return transformTenant(ot, email, accountStatus, activeLeaseCount)
         })
       )
 
@@ -109,6 +134,30 @@ export async function GET(request: NextRequest) {
     // Filter for Individual type only
     const tenants = organizationTenants.filter(ot => ot.tenants.type === 'Individual')
 
+    // Get tenant IDs for active lease count query
+    const tenantIds = tenants.map(ot => ot.tenants.id)
+
+    // Get active lease counts for all tenants in one query
+    let leaseCountMap = new Map<string, number>()
+
+    if (tenantIds.length > 0) {
+      // Get all active leases for these tenants
+      const activeLeases = await prisma.leases.findMany({
+        where: {
+          tenant_id: { in: tenantIds },
+          organization_id: currentStaff.organization_id,
+          status: 'Current'
+        },
+        select: { tenant_id: true }
+      })
+
+      // Count leases per tenant
+      for (const lease of activeLeases) {
+        const currentCount = leaseCountMap.get(lease.tenant_id) || 0
+        leaseCountMap.set(lease.tenant_id, currentCount + 1)
+      }
+    }
+
     // Get account activation status and email from Supabase Auth
     const supabaseAdmin = createAdminClient()
     const tenantsWithStatus = await Promise.all(
@@ -120,8 +169,9 @@ export async function GET(request: NextRequest) {
         const isActivated = wasInvited ? passwordSet : true
         const email = authUser?.user?.email || ''
         const accountStatus = isActivated ? 'Activated' as const : 'Pending' as const
+        const activeLeaseCount = leaseCountMap.get(ot.tenants.id) || 0
 
-        return transformTenant(ot, email, accountStatus)
+        return transformTenant(ot, email, accountStatus, activeLeaseCount)
       })
     )
 

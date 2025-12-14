@@ -11,6 +11,7 @@ export type TenantWithDetails = {
   phone_number: string
   email: string
   accountStatus: 'Activated' | 'Pending'
+  activeLeaseCount: number
 }
 
 // Raw tenant type from Prisma query
@@ -34,7 +35,8 @@ type RawTenant = {
 export function transformTenant(
   raw: RawTenant,
   email: string,
-  accountStatus: 'Activated' | 'Pending'
+  accountStatus: 'Activated' | 'Pending',
+  activeLeaseCount: number = 0
 ): TenantWithDetails {
   const tenant = raw.tenants
   const individual = tenant.individual_tenants
@@ -50,6 +52,7 @@ export function transformTenant(
     identity_number: individual?.identity_number || '',
     phone_number: individual?.phone_number || '',
     email,
-    accountStatus
+    accountStatus,
+    activeLeaseCount
   }
 }

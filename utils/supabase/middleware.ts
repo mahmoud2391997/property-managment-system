@@ -1,9 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function updateSession(request: NextRequest) {
+export async function updateSession (request: NextRequest) {
   let supabaseResponse = NextResponse.next({
-    request,
+    request
   })
 
   const supabase = createServerClient(
@@ -11,19 +11,21 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
       cookies: {
-        getAll() {
+        getAll () {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+        setAll (cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            request.cookies.set(name, value)
+          )
           supabaseResponse = NextResponse.next({
-            request,
+            request
           })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
-        },
-      },
+        }
+      }
     }
   )
 
@@ -34,14 +36,27 @@ export async function updateSession(request: NextRequest) {
   // IMPORTANT: DO NOT REMOVE auth.getUser()
 
   const {
-    data: { user },
+    data: { user }
   } = await supabase.auth.getUser()
 
-  const publicPaths = ['/login', '/signup', '/confirm', '/error', '/forgot-password', '/reset-password', '/setup-password', '/api/auth', '/api/webhooks']
-  const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path))
+  const publicPaths = [
+    '/login',
+    '/signup',
+    '/confirm',
+    '/error',
+    '/forgot-password',
+    '/reset-password',
+    '/setup-password',
+    '/api/auth',
+    '/api/webhooks'
+  ]
+  const isPublicPath = publicPaths.some(path =>
+    request.nextUrl.pathname.startsWith(path)
+  )
+  const isRootPath = request.nextUrl.pathname === '/'
   const isUnauthorizedPage = request.nextUrl.pathname === '/unauthorized'
 
-  if (!user && !isPublicPath && request.nextUrl.pathname !== '/') {
+  if (!user && !isPublicPath && !isRootPath) {
     // no user, redirect to login page
     const url = request.nextUrl.clone()
     url.pathname = '/login'
@@ -73,7 +88,7 @@ export async function updateSession(request: NextRequest) {
       // If has organization but trying to access onboarding, redirect away
       if (hasOrganization && isOnboardingPath) {
         const url = request.nextUrl.clone()
-        url.pathname = '/'
+        url.pathname = '/projects'
         return NextResponse.redirect(url)
       }
 
@@ -98,17 +113,41 @@ export async function updateSession(request: NextRequest) {
 
     // Check if user is tenant trying to access restricted pages
     if (userType === 'tenant') {
-      const tenantAllowedPaths = ['/rentals', '/payments', '/tickets', '/notifications', '/api', '/unauthorized']
+      const tenantAllowedPaths = [
+        '/rentals',
+        '/payments',
+        '/tickets',
+        '/notifications',
+        '/api',
+        '/unauthorized'
+      ]
       const isRootPath = request.nextUrl.pathname === '/'
-      const isAllowedForTenant = isRootPath || tenantAllowedPaths.some(path =>
-        request.nextUrl.pathname.startsWith(path)
-      )
+      const isAllowedForTenant =
+        isRootPath ||
+        tenantAllowedPaths.some(path =>
+          request.nextUrl.pathname.startsWith(path)
+        )
 
       if (!isAllowedForTenant) {
         const url = request.nextUrl.clone()
         url.pathname = '/unauthorized'
         return NextResponse.redirect(url)
       }
+    }
+  }
+
+  if (user && (isPublicPath || isRootPath)) {
+    // Get user type tenant/staff
+    const userType = user.user_metadata?.user_type
+
+    if (userType === 'staff') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/projects'
+      return NextResponse.redirect(url)
+    } else if (userType === 'tenant') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/rentals'
+      return NextResponse.redirect(url)
     }
   }
 

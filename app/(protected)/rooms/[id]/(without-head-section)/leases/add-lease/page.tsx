@@ -333,12 +333,12 @@ const AddRoomLease = () => {
       <AddPageHead
         crumb_items={[
           { label: 'Rooms', href: '/rooms' },
-          { label: roomConfig?.roomTitle, href: `/rooms/${roomId}/leases` },
+          { label: roomConfig?.propertyCode + '(' +roomConfig?.roomTitle + ')', href: `/rooms/${roomId}/leases` },
           { label: 'Add Lease' }
         ]}
         isCrumbLoading={isRoomConfigLoading}
         title='Add a lease'
-        subtitle={`Create a new lease for ${roomConfig?.roomTitle || 'this room'}`}
+        subtitle={`Create a new lease for ${roomConfig?.roomTitle || 'this room'} ${' under ' + roomConfig?.propertyCode || ''}`}
         className='mb-7.5'
         isSubmitting={isSubmitting}
       />

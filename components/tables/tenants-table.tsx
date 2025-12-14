@@ -138,6 +138,38 @@ export default function TenantsTable({
     },
 
     {
+      accessorKey: 'activeLeaseCount',
+      header: () => <div className='text-left'>Rental</div>,
+      cell: ({ row }) => {
+        const count = row.original.activeLeaseCount || 0
+
+        const getRentalStatus = (leaseCount: number) => {
+          if (leaseCount === 0) return 'Not Renting'
+          if (leaseCount === 1) return 'Renting'
+          return `Renting (${leaseCount})`
+        }
+
+        const rentalStatus = getRentalStatus(count)
+        const isRenting = count > 0
+
+        return (
+          <div className='texts-table-cell-primary text-left'>
+            <div
+              className={cn(
+                'status-styles',
+                isRenting
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-gray-100 text-gray-800'
+              )}
+            >
+              {rentalStatus}
+            </div>
+          </div>
+        )
+      }
+    },
+
+    {
       id: 'actions',
       header: 'Actions',
       enableHiding: false,
@@ -215,7 +247,7 @@ export default function TenantsTable({
               <ConfirmationDialog
                 openDialogButton={
                   <button type='button' className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'>
-                    Delete tenant
+                    Delete Tenant
                   </button>
                 }
                 title='Delete Tenant'
@@ -237,6 +269,9 @@ export default function TenantsTable({
     const [isDeleting, setIsDeleting] = useState(false)
     const fullName = `${tenant.first_name}${tenant.last_name ? ` ${tenant.last_name}` : ''}`
     const statusKey = (tenant.accountStatus || 'Pending').toLowerCase()
+    const leaseCount = tenant.activeLeaseCount || 0
+    const rentalStatus = leaseCount === 0 ? 'Not Renting' : leaseCount === 1 ? 'Renting' : `Renting (${leaseCount})`
+    const isRenting = leaseCount > 0
 
     const handleDelete = async () => {
       setIsDeleting(true)
@@ -276,7 +311,7 @@ export default function TenantsTable({
               <UserAvatar name={fullName} size={40} className='text-sm!' />
             )}
             <div>
-              <div className='flex items-center gap-2'>
+              <div className='flex items-center gap-2 flex-wrap'>
                 <span className='texts-body-medium-semibold text-(--text-primary)'>
                   {fullName}
                 </span>
@@ -289,6 +324,16 @@ export default function TenantsTable({
                   )}
                 >
                   {tenant.accountStatus || 'Pending'}
+                </div>
+                <div
+                  className={cn(
+                    'px-2 py-0.5 rounded-full text-xs font-medium',
+                    isRenting
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                  )}
+                >
+                  {rentalStatus}
                 </div>
               </div>
             </div>
@@ -343,7 +388,7 @@ export default function TenantsTable({
               <ConfirmationDialog
                 openDialogButton={
                   <button type='button' className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'>
-                    Delete tenant
+                    Delete Tenant
                   </button>
                 }
                 title='Delete Tenant'

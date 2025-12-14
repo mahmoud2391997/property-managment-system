@@ -116,7 +116,10 @@ const WithHeadSectionLayout = ({ children }: Props) => {
         <Breadcrumb
           items={[
             { label: 'Rooms', href: '/rooms' },
-            { label: roomConfig?.roomTitle }
+            {
+              label:
+                roomConfig?.propertyCode + '(' + roomConfig?.roomTitle + ')'
+            }
           ]}
           isLoading={isLoading}
           crumbSkeletonWidth='w-33'
@@ -139,7 +142,9 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             {isLoading ? (
               <Skeleton className='h-7 w-40 bg-neutral-300' />
             ) : (
-              <h1>{roomConfig?.roomTitle}</h1>
+              <h1>
+                {roomConfig?.propertyCode + '(' + roomConfig?.roomTitle + ')'}
+              </h1>
             )}
           </div>
           <DropdownMenu>
@@ -151,24 +156,25 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => router.push(`/rooms/${roomId}/edit`)}>Edit room</DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => router.push(`/rooms/${roomId}/edit`)}
+              >
+                Edit room
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <ConfirmationDialog
                 openDialogButton={
-                  <DropdownMenuItem
-                    onSelect={e => e.preventDefault()}
-                    className='text-error-main focus:text-error-main'
-                  >
+                  <button type='button' className='delete-dropdown-button'>
                     Delete Room
-                  </DropdownMenuItem>
+                  </button>
                 }
                 title='Delete Room'
                 description={
                   <>
                     Are you sure you want to delete{' '}
-                    <strong>{roomConfig?.roomTitle}</strong>? This action cannot be
-                    undone. All associated data (views, configurations)
-                    will be permanently removed.
+                    <strong>{roomConfig?.roomTitle}</strong>? This action cannot
+                    be undone. All associated data (views, configurations) will
+                    be permanently removed.
                   </>
                 }
                 onConfirm={handleDeleteRoom}

@@ -1,9 +1,38 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
-import { computeLeaseStatus, isLeaseActive } from '@/utils/lease-status'
 
-export async function POST(request: Request) {
+// Helper function to parse lease conflict errors from database trigger
+function parseLeaseConflictError (errorMessage: string): string | null {
+  if (!errorMessage) return null
+
+  // Error codes from validate_lease_insert trigger
+  const errorMappings: Record<string, (refId?: string) => string> = {
+    'LEASE_ERROR:ENDED_NO_END_DATE': () =>
+      'Cannot create lease with status Ended without an end date',
+    'LEASE_ERROR:ENDED_FUTURE_DATE': () =>
+      'Cannot create lease with status Ended when end date is in the future',
+    'LEASE_CONFLICT:PROPERTY_HAS_LEASE': refId =>
+      `Property already has an active lease (${refId})`,
+    'LEASE_CONFLICT:ROOM_HAS_LEASE': refId =>
+      `Room already has an active lease (${refId})`,
+    'LEASE_CONFLICT:ROOM_HAS_ACTIVE_LEASE': refId =>
+      `Cannot create property lease: A room under this property has an active lease (${refId})`
+  }
+
+  for (const [code, getMessage] of Object.entries(errorMappings)) {
+    if (errorMessage.includes(code)) {
+      // Extract reference ID if present (format: CODE:REF_ID)
+      const parts = errorMessage.split(code + ':')
+      const refId = parts[1]?.split(/[\s\n]/)[0]?.trim()
+      return getMessage(refId)
+    }
+  }
+
+  return null
+}
+
+export async function POST (request: Request) {
   try {
     const { staff, error } = await getUserAndStaff()
 
@@ -36,191 +65,49 @@ export async function POST(request: Request) {
       late_charges
     } = body
 
-    // Validation
-    if (!property_id) {
-      return NextResponse.json(
-        { error: 'Property ID is required' },
-        { status: 400 }
-      )
+    const requiredFields = [
+      [property_id, 'Property ID'],
+      [tenant_id, 'Tenant ID'],
+      [start_date, 'Start date'],
+      [payment_day, 'Payment day'],
+      [initial_charges?.length, 'At least one initial charge'],
+      [payment_date && payment_time, 'Payment date and time']
+    ] as const
+
+    for (const [value, name] of requiredFields) {
+      if (!value) {
+        return NextResponse.json(
+          { error: `${name} is required` },
+          { status: 400 }
+        )
+      }
     }
 
-    if (!tenant_id) {
-      return NextResponse.json(
-        { error: 'Tenant ID is required' },
-        { status: 400 }
-      )
-    }
-
-    if (!start_date) {
-      return NextResponse.json(
-        { error: 'Start date is required' },
-        { status: 400 }
-      )
-    }
-
-    if (!payment_day) {
-      return NextResponse.json(
-        { error: 'Payment day is required' },
-        { status: 400 }
-      )
-    }
-
-    if (!initial_charges || initial_charges.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one initial charge is required' },
-        { status: 400 }
-      )
-    }
-
-    if (!payment_date || !payment_time) {
-      return NextResponse.json(
-        { error: 'Payment date and time are required' },
-        { status: 400 }
-      )
-    }
-
-    // Verify property belongs to the organization
-    const property = await prisma.properties.findFirst({
-      where: {
-        id: property_id,
-        organization_id: staff.organization_id
-      },
-      select: { id: true }
-    })
+    // Authorization checks - verify property and tenant belong to the organization
+    // Note: Existence checks are handled by database foreign key constraints
+    // Lease conflict checks are handled by database trigger (validate_lease_insert)
+    const [property, organizationTenant] = await Promise.all([
+      prisma.properties.findFirst({
+        where: {
+          id: property_id,
+          organization_id: staff.organization_id
+        },
+        select: { id: true }
+      }),
+      prisma.organizations_tenants.findFirst({
+        where: {
+          tenant_id: tenant_id,
+          organization_id: staff.organization_id
+        }
+      })
+    ])
 
     if (!property) {
       return NextResponse.json(
-        { error: 'Property not found' },
+        { error: 'Property not found or does not belong to your organization' },
         { status: 404 }
       )
     }
-
-    // If room_id is provided, this is a room lease - verify room and check for conflicts
-    if (room_id) {
-      const room = await prisma.rooms.findFirst({
-        where: {
-          id: room_id,
-          property_id: property_id
-        },
-        select: { id: true }
-      })
-
-      if (!room) {
-        return NextResponse.json(
-          { error: 'Room not found or does not belong to this property' },
-          { status: 404 }
-        )
-      }
-
-      // Check if property has an active lease - rooms cannot have leases if property does
-      const propertyLeases = await prisma.leases.findMany({
-        where: {
-          property_id: property_id,
-          room_id: null,
-          status: 'Current' // DB status
-        },
-        select: { id: true, start_date: true, number_of_months: true, status: true, reference_id: true }
-      })
-
-      const activePropertyLease = propertyLeases.find(lease => isLeaseActive(lease))
-
-      if (activePropertyLease) {
-        const computedStatus = computeLeaseStatus(activePropertyLease)
-        const message = computedStatus === 'Current'
-          ? `Cannot create room lease: Property has an active lease (${activePropertyLease.reference_id})`
-          : `Cannot create room lease: Property has an expired lease (${activePropertyLease.reference_id}) that needs to be ended first`
-        return NextResponse.json(
-          { error: message },
-          { status: 400 }
-        )
-      }
-
-      // Check if room already has an active lease
-      const roomLeases = await prisma.leases.findMany({
-        where: {
-          room_id: room_id,
-          status: 'Current'
-        },
-        select: { id: true, start_date: true, number_of_months: true, status: true, reference_id: true }
-      })
-
-      const activeRoomLease = roomLeases.find(lease => isLeaseActive(lease))
-
-      if (activeRoomLease) {
-        const computedStatus = computeLeaseStatus(activeRoomLease)
-        const message = computedStatus === 'Current'
-          ? `Room already has an active lease (${activeRoomLease.reference_id})`
-          : `Room has an expired lease (${activeRoomLease.reference_id}) that needs to be ended first`
-        return NextResponse.json(
-          { error: message },
-          { status: 400 }
-        )
-      }
-    } else {
-      // This is a property lease (no room_id) - check for conflicts
-
-      // Check if property already has an active lease
-      const existingPropertyLeases = await prisma.leases.findMany({
-        where: {
-          property_id: property_id,
-          room_id: null,
-          status: 'Current'
-        },
-        select: { id: true, start_date: true, number_of_months: true, status: true, reference_id: true }
-      })
-
-      const existingActivePropertyLease = existingPropertyLeases.find(lease => isLeaseActive(lease))
-
-      if (existingActivePropertyLease) {
-        const computedStatus = computeLeaseStatus(existingActivePropertyLease)
-        const message = computedStatus === 'Current'
-          ? `Property already has an active lease (${existingActivePropertyLease.reference_id})`
-          : `Property has an expired lease (${existingActivePropertyLease.reference_id}) that needs to be ended first`
-        return NextResponse.json(
-          { error: message },
-          { status: 400 }
-        )
-      }
-
-      // Check if any rooms under this property have active leases
-      const roomLeases = await prisma.leases.findMany({
-        where: {
-          property_id: property_id,
-          room_id: { not: null },
-          status: 'Current'
-        },
-        select: {
-          id: true,
-          start_date: true,
-          number_of_months: true,
-          status: true
-        }
-      })
-
-      const activeRoomLeases = roomLeases.filter(lease => isLeaseActive(lease))
-
-      if (activeRoomLeases.length > 0) {
-        const hasExpired = activeRoomLeases.some(lease => computeLeaseStatus(lease) === 'Expired')
-        const roomCount = activeRoomLeases.length
-        const roomText = roomCount === 1 ? 'a room' : `${roomCount} rooms`
-
-        const message = hasExpired
-          ? `Cannot add property lease: ${roomText} under this property has a lease that needs to be ended first`
-          : `Cannot add property lease: ${roomText} under this property has an active lease`
-        return NextResponse.json(
-          { error: message },
-          { status: 400 }
-        )
-      }
-    }
-
-    // Verify tenant belongs to the organization
-    const organizationTenant = await prisma.organizations_tenants.findFirst({
-      where: {
-        tenant_id: tenant_id,
-        organization_id: staff.organization_id
-      }
-    })
 
     if (!organizationTenant) {
       return NextResponse.json(
@@ -290,7 +177,9 @@ export async function POST(request: Request) {
         leaseNextSequence = lastSequence + 1
       }
 
-      const leaseReferenceId = `${leaseYearPrefix}${leaseNextSequence.toString().padStart(4, '0')}`
+      const leaseReferenceId = `${leaseYearPrefix}${leaseNextSequence
+        .toString()
+        .padStart(4, '0')}`
 
       const lease = await tx.leases.create({
         data: {
@@ -324,7 +213,9 @@ export async function POST(request: Request) {
       const generatePaymentReferenceId = async (
         currentSequence: number
       ): Promise<string> => {
-        return `${paymentYearPrefix}${currentSequence.toString().padStart(8, '0')}`
+        return `${paymentYearPrefix}${currentSequence
+          .toString()
+          .padStart(8, '0')}`
       }
 
       // Generate payment reference_id (unique per organization)
@@ -509,7 +400,7 @@ export async function POST(request: Request) {
         initialChargesPayment,
         firstMonthRentalPayment
       }
-    })
+    }, { timeout: 10000 })
 
     return NextResponse.json(
       {
@@ -529,6 +420,21 @@ export async function POST(request: Request) {
     )
   } catch (error: any) {
     console.error('Error creating lease:', error)
+
+    // Check for transaction timeout (P2028 = transaction expired)
+    if (error.code === 'P2028') {
+      return NextResponse.json(
+        { error: 'The server is taking too long to respond. Please try again' },
+        { status: 408 }
+      )
+    }
+
+    // Check for lease conflict errors from database trigger
+    const conflictError = parseLeaseConflictError(error.message)
+    if (conflictError) {
+      return NextResponse.json({ error: conflictError }, { status: 400 })
+    }
+
     return NextResponse.json(
       { error: 'Failed to create lease' },
       { status: 500 }
