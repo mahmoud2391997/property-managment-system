@@ -2,8 +2,135 @@ import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getBaseUrl } from '@/utils/get-base-url'
+import { transformTenant } from '@/lib/tenants-utils'
+
+// Shared select for tenant queries via organizations_tenants junction table
+const tenantSelect = {
+  tenants: {
+    select: {
+      id: true,
+      type: true,
+      profile_pic: true,
+      profile_thumb: true,
+      individual_tenants: {
+        select: {
+          identity_type: true,
+          identity_number: true,
+          first_name: true,
+          last_name: true,
+          phone_number: true
+        }
+      }
+    }
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const { staff: currentStaff, error } = await getUserAndStaff()
+
+    if (error) return error
+
+    const { searchParams } = new URL(request.url)
+
+    // Pagination and search params
+    const paginate = searchParams.get('paginate') === 'true'
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const search = searchParams.get('search')?.trim() || ''
+    const skipCount = searchParams.get('skipCount') === 'true'
+
+    if (paginate) {
+      // Build where clause with search
+      // Search is done on individual_tenants fields via tenants relation
+      const whereClause: any = {
+        organization_id: currentStaff.organization_id,
+        tenants: {
+          type: 'Individual'
+        },
+        ...(search && {
+          OR: [
+            { tenants: { individual_tenants: { first_name: { contains: search, mode: 'insensitive' } } } },
+            { tenants: { individual_tenants: { last_name: { contains: search, mode: 'insensitive' } } } },
+            { tenants: { individual_tenants: { identity_number: { contains: search, mode: 'insensitive' } } } },
+            { tenants: { individual_tenants: { phone_number: { contains: search, mode: 'insensitive' } } } }
+          ]
+        })
+      }
+
+      // Fetch tenants and optionally total count in parallel
+      const [organizationTenants, total] = await Promise.all([
+        prisma.organizations_tenants.findMany({
+          where: whereClause,
+          select: tenantSelect,
+          orderBy: { created_at: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit
+        }),
+        skipCount ? Promise.resolve(-1) : prisma.organizations_tenants.count({ where: whereClause })
+      ])
+
+      // Get account activation status and email from Supabase Auth for this page of tenants
+      const supabaseAdmin = createAdminClient()
+      const tenantsWithStatus = await Promise.all(
+        organizationTenants.map(async (ot) => {
+          const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(ot.tenants.id)
+
+          const wasInvited = !!authUser?.user?.invited_at
+          const passwordSet = authUser?.user?.app_metadata?.password_set === true
+          const isActivated = wasInvited ? passwordSet : true
+          const email = authUser?.user?.email || ''
+          const accountStatus = isActivated ? 'Activated' as const : 'Pending' as const
+
+          return transformTenant(ot, email, accountStatus)
+        })
+      )
+
+      return NextResponse.json({
+        success: true,
+        data: tenantsWithStatus,
+        total,
+        page,
+        pageSize: limit
+      })
+    }
+
+    // Legacy mode: return all tenants (for backward compatibility)
+    const organizationTenants = await prisma.organizations_tenants.findMany({
+      where: {
+        organization_id: currentStaff.organization_id
+      },
+      select: tenantSelect,
+      orderBy: { created_at: 'desc' }
+    })
+
+    // Filter for Individual type only
+    const tenants = organizationTenants.filter(ot => ot.tenants.type === 'Individual')
+
+    // Get account activation status and email from Supabase Auth
+    const supabaseAdmin = createAdminClient()
+    const tenantsWithStatus = await Promise.all(
+      tenants.map(async (ot) => {
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(ot.tenants.id)
+
+        const wasInvited = !!authUser?.user?.invited_at
+        const passwordSet = authUser?.user?.app_metadata?.password_set === true
+        const isActivated = wasInvited ? passwordSet : true
+        const email = authUser?.user?.email || ''
+        const accountStatus = isActivated ? 'Activated' as const : 'Pending' as const
+
+        return transformTenant(ot, email, accountStatus)
+      })
+    )
+
+    return NextResponse.json(tenantsWithStatus)
+  } catch (error: any) {
+    console.error('Error fetching tenants:', error)
+    return NextResponse.json({ error: 'Failed to fetch tenants' }, { status: 500 })
+  }
+}
 
 export async function POST(request: Request) {
   try {

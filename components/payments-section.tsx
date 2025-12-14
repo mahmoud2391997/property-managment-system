@@ -9,7 +9,7 @@ import { useSingleSelectOption } from '@/hooks/useSingleSelectOption'
 import SearchInput from './costume-ui/search-input'
 import Link from 'next/link'
 import PaymentsTable from './tables/pyaments-table'
-import { Payment } from '@/types'
+import { PaymentWithDetails } from '@/lib/payments-utils'
 import TableSectionSkeleton from './loading-ui/table-section-skeleton'
 
 type Props = {
@@ -18,7 +18,7 @@ type Props = {
 }
 
 export default function PaymentsSection({ propertyId, roomId }: Props) {
-  const [payments, setPayments] = useState<Payment[]>([])
+  const [payments, setPayments] = useState<PaymentWithDetails[]>([])
   const [loading, setLoading] = useState(true)
 
   const {
@@ -84,10 +84,6 @@ export default function PaymentsSection({ propertyId, roomId }: Props) {
     fetchPayments()
   }, [fetchPayments])
 
-  const handleRefresh = () => {
-    fetchPayments()
-  }
-
   if (loading) {
     return <TableSectionSkeleton />
   }
@@ -147,7 +143,6 @@ export default function PaymentsSection({ propertyId, roomId }: Props) {
         data={payments}
         showPropertyColumn={false}
         className='-mx-5! rounded-none! border-x-0'
-        onDataRefresh={handleRefresh}
       />
     </div>
   )
