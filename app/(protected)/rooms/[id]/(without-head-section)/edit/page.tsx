@@ -3,7 +3,6 @@ import { useState, useEffect, use } from 'react'
 import CollapsibleSection from '@/components/costume-ui/collapsible-section'
 import InputGroup from '@/components/costume-ui/input-group'
 import Input from '@/components/costume-ui/input'
-import Select from '@/components/costume-ui/select'
 import InnerSection from '@/components/costume-ui/collapsible-inner-section'
 import AddPageHead from '@/components/costume-ui/add-page-head'
 import { useRouter } from 'next/navigation'
@@ -11,27 +10,25 @@ import type { ChargeData } from '@/components/costume-ui/charges-section'
 import PaymentSection from '@/components/costume-ui/payment-section'
 import ReminderSection from '@/components/costume-ui/reminder-section'
 import type { LateCharge } from '@/components/costume-ui/payment-section'
-import type { projects } from '@prisma/client'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
-import { Skeleton } from '@/components/ui/skeleton'
+import ActionPageSkeleton from '@/components/loading-ui/action-page-skeleton'
 
 type PageProps = {
   params: Promise<{ id: string }>
 }
 
-type PropertyData = {
+type RoomData = {
   id: string
-  code: string
-  street_address: string
-  city: string
-  postal_code: string
-  type: string
+  title: string
   status: string
-  project: {
+  property: {
     id: string
-    title: string
-    state: string
-  } | null
+    code: string
+    project: {
+      id: string
+      title: string
+    } | null
+  }
 }
 
 type LeaseConfig = {
@@ -59,26 +56,20 @@ type LatePaymentCharge = {
   amount: number
 }
 
-const EditProperty = ({ params }: PageProps) => {
+const EditRoom = ({ params }: PageProps) => {
   const router = useRouter()
-  const { id: propertyId } = use(params)
+  const { id: roomId } = use(params)
 
   const [loading, setLoading] = useState(true)
-  const [projects, setProjects] = useState<projects[]>([])
-  const [loadingProjects, setLoadingProjects] = useState(true)
 
-  // Property data from API
-  const [propertyData, setPropertyData] = useState<PropertyData | null>(null)
+  // Room data from API
+  const [roomData, setRoomData] = useState<RoomData | null>(null)
   const [leaseConfig, setLeaseConfig] = useState<LeaseConfig | null>(null)
   const [existingInitialCharges, setExistingInitialCharges] = useState<InitialCharge[]>([])
   const [existingLateCharges, setExistingLateCharges] = useState<LatePaymentCharge[]>([])
 
-  // Property Details State (editable)
-  const [code, setCode] = useState('')
-  const [selectedProject, setSelectedProject] = useState<projects>()
-  const [streetAddress, setStreetAddress] = useState('')
-  const [city, setCity] = useState('')
-  const [postalCode, setPostalCode] = useState('')
+  // Room Details State (editable)
+  const [title, setTitle] = useState('')
 
   // Payment Details State (Optional) - managed by PaymentSection component
   const [initialCharges, setInitialCharges] = useState<ChargeData[]>([])
@@ -96,45 +87,23 @@ const EditProperty = ({ params }: PageProps) => {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Fetch projects from API
+  // Fetch room data for editing
   useEffect(() => {
-    const fetchProjects = async () => {
+    const fetchRoomData = async () => {
       try {
-        const response = await fetch('/api/projects')
-        if (response.ok) {
-          const data = await response.json()
-          setProjects(data.projects || [])
-        }
-      } catch (error) {
-        console.error('Error fetching projects:', error)
-      } finally {
-        setLoadingProjects(false)
-      }
-    }
-
-    fetchProjects()
-  }, [])
-
-  // Fetch property data for editing
-  useEffect(() => {
-    const fetchPropertyData = async () => {
-      try {
-        const response = await fetch(`/api/properties/${propertyId}/edit`)
+        const response = await fetch(`/api/rooms/${roomId}/edit`)
         if (!response.ok) {
-          throw new Error('Failed to fetch property')
+          throw new Error('Failed to fetch room')
         }
         const data = await response.json()
 
-        setPropertyData(data.property)
+        setRoomData(data.room)
         setLeaseConfig(data.leaseConfig)
         setExistingInitialCharges(data.initialCharges)
         setExistingLateCharges(data.latePaymentCharges)
 
         // Set form values from fetched data
-        setCode(data.property.code)
-        setStreetAddress(data.property.street_address)
-        setCity(data.property.city)
-        setPostalCode(data.property.postal_code)
+        setTitle(data.room.title)
 
         // Set lease config values
         if (data.leaseConfig) {
@@ -148,25 +117,15 @@ const EditProperty = ({ params }: PageProps) => {
           setOverdueReminderDays(data.leaseConfig.overdue_days_after_reminder?.toString() || '')
         }
       } catch (error) {
-        console.error('Error fetching property:', error)
-        FeedbackToasts.error('Failed to load property details')
+        console.error('Error fetching room:', error)
+        FeedbackToasts.error('Failed to load room details')
       } finally {
         setLoading(false)
       }
     }
 
-    fetchPropertyData()
-  }, [propertyId])
-
-  // Set selected project when both projects and propertyData are loaded
-  useEffect(() => {
-    if (!loadingProjects && propertyData?.project && projects.length > 0) {
-      const project = projects.find(p => p.id === propertyData.project?.id)
-      if (project) {
-        setSelectedProject(project)
-      }
-    }
-  }, [loadingProjects, propertyData, projects])
+    fetchRoomData()
+  }, [roomId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -175,12 +134,8 @@ const EditProperty = ({ params }: PageProps) => {
     try {
       // Prepare the payload
       const payload: any = {
-        // Property details (editable)
-        code,
-        street_address: streetAddress,
-        postal_code: postalCode,
-        city: city,
-        project_id: selectedProject?.id || null
+        // Room details (editable)
+        title
       }
 
       // Add optional initial charges if any have amounts
@@ -234,7 +189,7 @@ const EditProperty = ({ params }: PageProps) => {
         }
       }
 
-      const response = await fetch(`/api/properties/${propertyId}/edit`, {
+      const response = await fetch(`/api/rooms/${roomId}/edit`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -245,21 +200,21 @@ const EditProperty = ({ params }: PageProps) => {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to update property')
+        throw new Error(data.error || 'Failed to update room')
       }
 
       FeedbackToasts.updated(
-        'Property',
-        `${code} has been successfully updated.`
+        'Room',
+        `${title} has been successfully updated.`
       )
 
-      // Navigate back to property page
-      router.push(`/properties/${propertyId}/overview`)
+      // Navigate back to room page
+      router.push(`/rooms/${roomId}/overview`)
       router.refresh()
     } catch (error: any) {
-      console.error('Error updating property:', error)
-      const errorMessage = error.message || 'Failed to update property'
-      FeedbackToasts.updateFailed('property', errorMessage)
+      console.error('Error updating room:', error)
+      const errorMessage = error.message || 'Failed to update room'
+      FeedbackToasts.updateFailed('room', errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -267,30 +222,14 @@ const EditProperty = ({ params }: PageProps) => {
 
   if (loading) {
     return (
-      <div className='flex flex-col gap-5'>
-        {/* Head skeleton */}
-        <section className='flex flex-col gap-2.5'>
-          <Skeleton className='h-5 w-48' />
-          <div className='flex items-center justify-between w-full'>
-            <div>
-              <Skeleton className='h-8 w-64 mb-2' />
-              <Skeleton className='h-5 w-80' />
-            </div>
-            <Skeleton className='h-10 w-24' />
-          </div>
-        </section>
-        {/* Content skeleton */}
-        <Skeleton className='h-96 w-full rounded-lg' />
-        <Skeleton className='h-64 w-full rounded-lg' />
-        <Skeleton className='h-48 w-full rounded-lg' />
-      </div>
+      <ActionPageSkeleton />
     )
   }
 
-  if (!propertyData) {
+  if (!roomData) {
     return (
       <div className='flex flex-col items-center justify-center h-64'>
-        <p className='text-(--text-secondary)'>Property not found</p>
+        <p className='text-(--text-secondary)'>Room not found</p>
       </div>
     )
   }
@@ -300,123 +239,53 @@ const EditProperty = ({ params }: PageProps) => {
       {/* Head section */}
       <AddPageHead
         crumb_items={[
-          { label: 'Properties', href: '/properties' },
-          { label: propertyData.code, href: `/properties/${propertyId}/overview` },
-          { label: 'Edit Property' }
+          { label: 'Rooms', href: '/rooms' },
+          { label: roomData.property.code + '(' + roomData.title + ')', href: `/rooms/${roomId}/overview` },
+          { label: 'Edit Room' }
         ]}
-        title={`Edit ${propertyData.code}`}
-        subtitle='Update property details and default configurations'
+        title={`Edit ${roomData.title}`}
+        subtitle='Update room details and default configurations'
         isSubmitting={isSubmitting}
       />
 
-      {/* Property Details Section */}
-      <CollapsibleSection number={1} title='Property Details'>
+      {/* Room Details Section */}
+      <CollapsibleSection number={1} title='Room Details'>
         {/* Basic Details */}
         <InnerSection
           title='Basic Details'
-          subtitle='Update the property details'
+          subtitle='Update the room details'
         >
           <div className='inputs-container'>
-            <InputGroup label='Code' isRequired>
+            <InputGroup label='Title' isRequired>
               <Input
-                placeholder='E.g. B-2-1'
-                minLength={1}
-                maxLength={50}
-                required
-                value={code}
-                onChange={e => setCode(e.target.value)}
-              />
-            </InputGroup>
-            <InputGroup label='Project' isRequired>
-              <Select
-                items={projects.map(p => ({ value: p.id, label: p.title }))}
-                label='Projects'
-                placeholder={
-                  loadingProjects ? 'Loading projects...' : 'Select a project'
-                }
-                required
-                value={selectedProject?.id}
-                onValueChange={(id: string) => {
-                  const project = projects.find(p => p.id === id)
-                  setSelectedProject(project)
-                }}
-                disabled={loadingProjects}
-              />
-            </InputGroup>
-          </div>
-        </InnerSection>
-
-        {/* Address */}
-        <InnerSection title='Address' subtitle='Property location details'>
-          <InputGroup label='Street Address' isRequired>
-            <Input
-              placeholder='E.g. 1234 West Pinecrest Avenue'
-              minLength={5}
-              maxLength={300}
-              required
-              value={streetAddress}
-              onChange={e => setStreetAddress(e.target.value)}
-            />
-          </InputGroup>
-          <div className='inputs-container'>
-            <InputGroup label='City' isRequired>
-              <Input
-                placeholder='E.g. Ayer Keroh'
+                placeholder='E.g. Master'
                 minLength={1}
                 maxLength={100}
                 required
-                value={city}
-                onChange={e => setCity(e.target.value)}
+                value={title}
+                onChange={e => setTitle(e.target.value)}
               />
             </InputGroup>
-            <InputGroup label='Postal Code' isRequired>
+            <InputGroup label='Property'>
               <Input
-                placeholder='E.g. 50450'
-                minLength={4}
-                maxLength={10}
-                required
-                value={postalCode}
-                onChange={e => setPostalCode(e.target.value)}
-              />
-            </InputGroup>
-            <InputGroup label='State' isRequired>
-              <Input
-                value={selectedProject?.state || ''}
-                note='Automatically set based on project'
+                value={roomData.property.code}
                 disabled
-                required
+                note='Property cannot be changed'
               />
-            </InputGroup>
-            <InputGroup label='Country'>
-              <Input defaultValue='Malaysia' disabled />
             </InputGroup>
           </div>
-        </InnerSection>
-
-        {/* Property Type - Read Only */}
-        <InnerSection
-          title='Property Type'
-          subtitle='Property type cannot be changed after creation'
-        >
-          <InputGroup label='Type'>
-            <Input
-              value={propertyData.type.replace(/_/g, ' ')}
-              disabled
-              note='Property type cannot be modified'
-            />
-          </InputGroup>
         </InnerSection>
 
         {/* Status - Read Only */}
         <InnerSection
           title='Status'
-          subtitle='Property status is managed separately'
+          subtitle='Room status is managed separately'
         >
           <InputGroup label='Current Status'>
             <Input
-              value={propertyData.status.replace(/_/g, ' ')}
+              value={roomData.status.replace(/_/g, ' ')}
               disabled
-              note='Use the property overview page to change status'
+              note='Use the room overview page to change status'
             />
           </InputGroup>
         </InnerSection>
@@ -481,4 +350,4 @@ const EditProperty = ({ params }: PageProps) => {
   )
 }
 
-export default EditProperty
+export default EditRoom
