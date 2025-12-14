@@ -213,12 +213,9 @@ const createColumns = (
                 <DropdownMenuSeparator />
                 <ConfirmationDialog
                   openDialogButton={
-                    <DropdownMenuItem
-                      onSelect={e => e.preventDefault()}
-                      className='text-error-main focus:text-error-main'
-                    >
+                    <button type='button' className='delete-dropdown-button'>
                       End Lease
-                    </DropdownMenuItem>
+                    </button>
                   }
                   title='End Lease'
                   description={

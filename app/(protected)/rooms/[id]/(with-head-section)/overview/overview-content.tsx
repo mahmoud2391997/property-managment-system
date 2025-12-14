@@ -30,7 +30,6 @@ import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/formatTime'
 import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
-import Alert from '@/components/costume-ui/alert'
 import { useRouter } from 'next/navigation'
 import { buildWhatsAppLink } from '@/utils/functions'
 import { useActionUnderDevelopment } from '@/components/costume-ui/under-development'
@@ -436,14 +435,6 @@ const CardSkeleton = () => {
   )
 }
 
-type LeaseEligibility = {
-  canAddLease: boolean
-  blockedBy: 'property' | 'room' | null
-  blockedStatus: 'Current' | 'Expired' | null
-  blockedLeaseId: string | null
-  message: string | null
-}
-
 type Props = {
   roomId: string
 }
@@ -455,13 +446,6 @@ export default function RoomOverviewContent ({ roomId }: Props) {
   )
   const [loading, setLoading] = useState(true)
   const [statusLoading, setStatusLoading] = useState(false)
-
-  // Alert state for lease eligibility
-  const [alertOpen, setAlertOpen] = useState(false)
-  const [alertMessage, setAlertMessage] = useState('')
-  const [alertType, setAlertType] = useState<
-    'info' | 'error' | 'success' | 'warning'
-  >('info')
   const { showUnderDevelopment, ActionUnderDevelopmentOverlay } =
     useActionUnderDevelopment()
 
@@ -524,30 +508,8 @@ export default function RoomOverviewContent ({ roomId }: Props) {
     }
   }
 
-  // Handle add lease with eligibility check
-  const handleAddLease = async () => {
-    try {
-      const response = await fetch(`/api/rooms/${roomId}/lease-eligibility`)
-      if (response.ok) {
-        const eligibility: LeaseEligibility = await response.json()
-
-        if (!eligibility.canAddLease) {
-          // Show appropriate alert based on blocked status
-          const alertTypeToUse =
-            eligibility.blockedStatus === 'Expired' ? 'warning' : 'error'
-          setAlertMessage(
-            eligibility.message || 'Cannot add lease for this room.'
-          )
-          setAlertType(alertTypeToUse)
-          setAlertOpen(true)
-          return
-        }
-      }
-    } catch (error) {
-      console.error('Error checking lease eligibility:', error)
-    }
-
-    // Navigate to add lease page for room
+  // Handle add lease - navigate directly, trigger handles conflict checking
+  const handleAddLease = () => {
     router.push(`/rooms/${roomId}/leases/add-lease`)
   }
 
@@ -616,12 +578,9 @@ export default function RoomOverviewContent ({ roomId }: Props) {
                 <DropdownMenuSeparator />
                 <ConfirmationDialog
                   openDialogButton={
-                    <DropdownMenuItem
-                      onSelect={e => e.preventDefault()}
-                      className='text-error-main focus:text-error-main'
-                    >
+                    <button type='button' className='delete-dropdown-button'>
                       End Lease
-                    </DropdownMenuItem>
+                    </button>
                   }
                   title='End Lease'
                   description={
@@ -718,14 +677,6 @@ export default function RoomOverviewContent ({ roomId }: Props) {
       </div>
       {/* Payments */}
       <PaymentsSection roomId={roomId} />
-
-      {/* Alert Dialog for lease eligibility */}
-      <Alert
-        open={alertOpen}
-        onClose={() => setAlertOpen(false)}
-        message={alertMessage}
-        type={alertType}
-      />
       <ActionUnderDevelopmentOverlay />
     </>
   )

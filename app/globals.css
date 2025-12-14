@@ -502,3 +502,7 @@ h3 {
     transform: translateX(50%);
   }
 }
+
+.delete-dropdown-button {
+  @apply w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default;
+}

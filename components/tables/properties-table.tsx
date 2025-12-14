@@ -1,8 +1,6 @@
 'use client'
 
-import {
-  ColumnDef
-} from '@tanstack/react-table'
+import { ColumnDef } from '@tanstack/react-table'
 import { Checkbox } from '@/components/ui/checkbox'
 import DropdownMenu from '../costume-ui/dropdown-menu'
 import {
@@ -16,7 +14,11 @@ import Link from 'next/link'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 import { toast } from 'sonner'
 
-type DisplayStatus = 'Occupied' | 'Vacant' | 'Pending_Inspection' | 'Under_Preparation'
+type DisplayStatus =
+  | 'Occupied'
+  | 'Vacant'
+  | 'Pending_Inspection'
+  | 'Under_Preparation'
 
 type StatusCount = {
   status: DisplayStatus
@@ -153,9 +155,12 @@ export const columns: ColumnDef<PropertyWithDetails>[] = [
     cell: ({ row, table }) => {
       const property = row.original
       const rawStatus = property.status
-      const isOccupied = typeof rawStatus === 'string' && rawStatus === 'Occupied'
+      const isOccupied =
+        typeof rawStatus === 'string' && rawStatus === 'Occupied'
       const canWhatsApp = isOccupied && property.tenantPhone
       const onDelete = (table.options.meta as any)?.onDeleteProperty
+      const isVacant = typeof rawStatus === 'string' && rawStatus === 'Vacant'
+      const canAddLease = isVacant
 
       const handleWhatsAppTenant = () => {
         if (property.tenantPhone) {
@@ -194,6 +199,11 @@ export const columns: ColumnDef<PropertyWithDetails>[] = [
           <Link href={`/properties/${property.id}/edit`}>
             <DropdownMenuItem>Edit Property</DropdownMenuItem>
           </Link>
+          {canAddLease && (
+            <Link href={`/properties/${property.id}/leases/add-lease`}>
+              <DropdownMenuItem>Add Lease</DropdownMenuItem>
+            </Link>
+          )}
           {canWhatsApp && (
             <>
               <DropdownMenuSeparator />
@@ -205,20 +215,19 @@ export const columns: ColumnDef<PropertyWithDetails>[] = [
           <DropdownMenuSeparator />
           <ConfirmationDialog
             openDialogButton={
-              <DropdownMenuItem
-                onSelect={e => e.preventDefault()}
-                className='text-error-main focus:text-error-main'
+              <button
+                type='button'
+                className='delete-dropdown-button'
               >
                 Delete Property
-              </DropdownMenuItem>
+              </button>
             }
             title='Delete Property'
             description={
               <>
-                Are you sure you want to delete{' '}
-                <strong>{property.code}</strong>? This action cannot be
-                undone. All associated data (rooms, views, configurations)
-                will be permanently removed.
+                Are you sure you want to delete <strong>{property.code}</strong>
+                ? This action cannot be undone. All associated data (rooms,
+                views, configurations) will be permanently removed.
               </>
             }
             onConfirm={handleDeleteProperty}
@@ -256,7 +265,8 @@ export default function PropertiesTable ({
   onNextPage,
   onPreviousPage
 }: PropertiesTableProps) {
-  const hasServerPagination = onNextPage !== undefined || onPreviousPage !== undefined
+  const hasServerPagination =
+    onNextPage !== undefined || onPreviousPage !== undefined
 
   return (
     <div>
@@ -271,7 +281,9 @@ export default function PropertiesTable ({
       {hasServerPagination && (
         <div className='flex items-center justify-end space-x-2 py-4'>
           <div className='text-muted-foreground flex-1 text-sm'>
-            Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalItems)} of {totalItems} properties
+            Showing {(currentPage - 1) * pageSize + 1}-
+            {Math.min(currentPage * pageSize, totalItems)} of {totalItems}{' '}
+            properties
           </div>
           <div className='space-x-2'>
             <button

@@ -84,7 +84,9 @@ export const columns: ColumnDef<RoomTableData>[] = [
         <div className='text-left'>
           <div>{row.getValue('property')}</div>
           {room.project && (
-            <div className='text-xs text-(--text-secondary)'>{room.project}</div>
+            <div className='text-xs text-(--text-secondary)'>
+              {room.project}
+            </div>
           )}
         </div>
       )
@@ -127,6 +129,7 @@ export const columns: ColumnDef<RoomTableData>[] = [
         (room.status === 'Occupied' || room.status === 'Property_Rented') &&
         room.tenantPhone
       const onDelete = (table.options.meta as any)?.onDeleteRoom
+      const canAddLease = room.status === 'Vacant'
 
       const handleWhatsAppTenant = () => {
         if (room.tenantPhone) {
@@ -173,6 +176,11 @@ export const columns: ColumnDef<RoomTableData>[] = [
             <Link href={`/rooms/${room.id}/edit`}>
               <DropdownMenuItem>Edit room</DropdownMenuItem>
             </Link>
+            {canAddLease && (
+              <Link href={`/rooms/${room.id}/leases/add-lease`}>
+                <DropdownMenuItem>Add Lease</DropdownMenuItem>
+              </Link>
+            )}
             {canWhatsApp && (
               <>
                 <DropdownMenuSeparator />
@@ -184,20 +192,16 @@ export const columns: ColumnDef<RoomTableData>[] = [
             <DropdownMenuSeparator />
             <ConfirmationDialog
               openDialogButton={
-                <DropdownMenuItem
-                  onSelect={e => e.preventDefault()}
-                  className='text-error-main focus:text-error-main'
-                >
+                <button type='button' className='delete-dropdown-button'>
                   Delete Room
-                </DropdownMenuItem>
+                </button>
               }
               title='Delete Room'
               description={
                 <>
-                  Are you sure you want to delete{' '}
-                  <strong>{room.title}</strong>? This action cannot be
-                  undone. All associated data (views, configurations)
-                  will be permanently removed.
+                  Are you sure you want to delete <strong>{room.title}</strong>?
+                  This action cannot be undone. All associated data (views,
+                  configurations) will be permanently removed.
                 </>
               }
               onConfirm={handleDeleteRoom}
@@ -240,7 +244,8 @@ export default function RoomsTable ({
   onNextPage,
   onPreviousPage
 }: Props) {
-  const hasServerPagination = onNextPage !== undefined || onPreviousPage !== undefined
+  const hasServerPagination =
+    onNextPage !== undefined || onPreviousPage !== undefined
 
   return (
     <div>
@@ -256,7 +261,8 @@ export default function RoomsTable ({
       {hasServerPagination && (
         <div className='flex items-center justify-end space-x-2 py-4'>
           <div className='text-muted-foreground flex-1 text-sm'>
-            Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalItems)} of {totalItems} rooms
+            Showing {(currentPage - 1) * pageSize + 1}-
+            {Math.min(currentPage * pageSize, totalItems)} of {totalItems} rooms
           </div>
           <div className='space-x-2'>
             <button

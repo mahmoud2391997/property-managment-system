@@ -45,7 +45,8 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const propertyData: Property | undefined = propertiesData.find(
     p => p.id === id
   )
-  const { showUnderDevelopment, ActionUnderDevelopmentOverlay} = useActionUnderDevelopment()
+  const { showUnderDevelopment, ActionUnderDevelopmentOverlay } =
+    useActionUnderDevelopment()
   const {
     options: tabs,
     selectByIndex,
@@ -158,19 +159,20 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => router.push(`/properties/${id}/edit`)}>
+              <DropdownMenuItem
+                onClick={() => router.push(`/properties/${id}/edit`)}
+              >
                 Edit Property
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={showUnderDevelopment}>Assign owner</DropdownMenuItem>
+              <DropdownMenuItem onClick={showUnderDevelopment}>
+                Assign owner
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <ConfirmationDialog
                 openDialogButton={
-                  <DropdownMenuItem
-                    onSelect={e => e.preventDefault()}
-                    className='text-error-main focus:text-error-main'
-                  >
+                  <button type='button' className='delete-dropdown-button'>
                     Delete Property
-                  </DropdownMenuItem>
+                  </button>
                 }
                 title='Delete Property'
                 description={
