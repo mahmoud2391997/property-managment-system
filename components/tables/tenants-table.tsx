@@ -19,6 +19,7 @@ import { useState } from 'react'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
 import { TenantWithDetails } from '@/lib/tenants-utils'
+import { toast } from 'sonner'
 
 type TenantsTableProps = {
   data: TenantWithDetails[]
@@ -32,7 +33,7 @@ type TenantsTableProps = {
   onPreviousPage?: () => void
 }
 
-export default function TenantsTable({
+export default function TenantsTable ({
   data,
   isLoading = false,
   currentPage = 1,
@@ -43,7 +44,8 @@ export default function TenantsTable({
   onNextPage,
   onPreviousPage
 }: TenantsTableProps) {
-  const hasServerPagination = onNextPage !== undefined || onPreviousPage !== undefined
+  const hasServerPagination =
+    onNextPage !== undefined || onPreviousPage !== undefined
 
   const columns: ColumnDef<TenantWithDetails>[] = [
     //Checkbox
@@ -75,7 +77,9 @@ export default function TenantsTable({
       header: () => <div className='text-left'>Name</div>,
       cell: ({ row }) => {
         const tenant = row.original
-        const fullName = `${tenant.first_name}${tenant.last_name ? ` ${tenant.last_name}` : ''}`
+        const fullName = `${tenant.first_name}${
+          tenant.last_name ? ` ${tenant.last_name}` : ''
+        }`
 
         return (
           <div className={cn('flex items-center gap-[5]', 'text-left')}>
@@ -175,7 +179,30 @@ export default function TenantsTable({
       enableHiding: false,
       cell: ({ row }) => {
         const tenant = row.original
+        const [isResending, setIsResending] = useState(false)
         const [isDeleting, setIsDeleting] = useState(false)
+
+        const handleResendInvite = async () => {
+          setIsResending(true)
+          try {
+            const response = await fetch('/api/tenants/resend-invite', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ tenantId: tenant.id })
+            })
+
+            if (!response.ok) {
+              const data = await response.json()
+              throw new Error(data.error || 'Failed to resend invitation')
+            }
+
+            toast.success('Invitation email sent successfully!')
+          } catch (error: any) {
+            toast.error('Failed to resend invitation')
+          } finally {
+            setIsResending(false)
+          }
+        }
 
         const handleDelete = async () => {
           setIsDeleting(true)
@@ -189,10 +216,10 @@ export default function TenantsTable({
               throw new Error(data.error || 'Failed to delete tenant')
             }
 
-            alert('Tenant deleted successfully!')
+            toast.success('Tenant deleted successfully!')
             window.location.reload()
           } catch (error: any) {
-            alert(error.message || 'Failed to delete tenant')
+            toast.error('Failed to delete tenant')
             setIsDeleting(false)
           }
         }
@@ -217,7 +244,10 @@ export default function TenantsTable({
                 }}
                 className='gap-1'
               >
-                WhatsApp <span className='font-semibold'>{tenant.first_name.trim().split(' ')[0]}</span>
+                WhatsApp{' '}
+                <span className='font-semibold'>
+                  {tenant.first_name.trim().split(' ')[0]}
+                </span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
@@ -229,29 +259,51 @@ export default function TenantsTable({
                 }}
                 className='gap-1'
               >
-                Email <span className='font-semibold'>{tenant.first_name.trim().split(' ')[0]}</span>
+                Email{' '}
+                <span className='font-semibold'>
+                  {tenant.first_name.trim().split(' ')[0]}
+                </span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(tenant.phone_number || '')}
+                onClick={() =>
+                  navigator.clipboard.writeText(tenant.phone_number || '')
+                }
               >
                 Copy phone number
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(tenant.email || '')}
+                onClick={() =>
+                  navigator.clipboard.writeText(tenant.email || '')
+                }
               >
                 Copy email
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              {tenant.accountStatus === 'Pending' && (
+                <DropdownMenuItem
+                  onClick={handleResendInvite}
+                  disabled={isResending}
+                >
+                  {isResending ? 'Sending...' : 'Resend Invitation'}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem>View details</DropdownMenuItem>
               <ConfirmationDialog
                 openDialogButton={
-                  <button type='button' className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'>
+                  <button
+                    type='button'
+                    className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'
+                  >
                     Delete Tenant
                   </button>
                 }
                 title='Delete Tenant'
-                description={`Are you sure you want to delete ${tenant.first_name}${tenant.last_name ? ` ${tenant.last_name}` : ''}? This will permanently remove their account and all associated data.`}
+                description={`Are you sure you want to delete ${
+                  tenant.first_name
+                }${
+                  tenant.last_name ? ` ${tenant.last_name}` : ''
+                }? This will permanently remove their account and all associated data.`}
                 confirmationText='DELETE'
                 onConfirm={handleDelete}
                 loading={isDeleting}
@@ -266,12 +318,42 @@ export default function TenantsTable({
 
   // Mobile Card Component
   const TenantCard = ({ tenant }: { tenant: TenantWithDetails }) => {
+    const [isResending, setIsResending] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
-    const fullName = `${tenant.first_name}${tenant.last_name ? ` ${tenant.last_name}` : ''}`
+    const fullName = `${tenant.first_name}${
+      tenant.last_name ? ` ${tenant.last_name}` : ''
+    }`
     const statusKey = (tenant.accountStatus || 'Pending').toLowerCase()
     const leaseCount = tenant.activeLeaseCount || 0
-    const rentalStatus = leaseCount === 0 ? 'Not Renting' : leaseCount === 1 ? 'Renting' : `Renting (${leaseCount})`
+    const rentalStatus =
+      leaseCount === 0
+        ? 'Not Renting'
+        : leaseCount === 1
+        ? 'Renting'
+        : `Renting (${leaseCount})`
     const isRenting = leaseCount > 0
+
+    const handleResendInvite = async () => {
+      setIsResending(true)
+      try {
+        const response = await fetch('/api/tenants/resend-invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenantId: tenant.id })
+        })
+
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || 'Failed to resend invitation')
+        }
+
+        toast.success('Invitation email sent successfully!')
+      } catch (error: any) {
+        toast.error('Failed to resend invitation')
+      } finally {
+        setIsResending(false)
+      }
+    }
 
     const handleDelete = async () => {
       setIsDeleting(true)
@@ -285,19 +367,21 @@ export default function TenantsTable({
           throw new Error(data.error || 'Failed to delete tenant')
         }
 
-        alert('Tenant deleted successfully!')
+        toast.success('Tenant deleted successfully!')
         window.location.reload()
       } catch (error: any) {
-        alert(error.message || 'Failed to delete tenant')
+        toast.error('Failed to delete tenant')
         setIsDeleting(false)
       }
     }
 
     return (
-      <div className={cn(
-        'bg-(--background-primary) rounded-xl border border-(--border-default)',
-        'p-4 space-y-3'
-      )}>
+      <div
+        className={cn(
+          'bg-(--background-primary) rounded-xl border border-(--border-default)',
+          'p-4 space-y-3'
+        )}
+      >
         {/* Header: Avatar, Name, Status, Actions */}
         <div className='flex items-start justify-between'>
           <div className='flex items-center gap-3'>
@@ -358,7 +442,10 @@ export default function TenantsTable({
                 }}
                 className='gap-1'
               >
-                WhatsApp <span className='font-semibold'>{tenant.first_name.trim().split(' ')[0]}</span>
+                WhatsApp{' '}
+                <span className='font-semibold'>
+                  {tenant.first_name.trim().split(' ')[0]}
+                </span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
@@ -370,24 +457,42 @@ export default function TenantsTable({
                 }}
                 className='gap-1'
               >
-                Email <span className='font-semibold'>{tenant.first_name.trim().split(' ')[0]}</span>
+                Email{' '}
+                <span className='font-semibold'>
+                  {tenant.first_name.trim().split(' ')[0]}
+                </span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(tenant.phone_number || '')}
+                onClick={() =>
+                  navigator.clipboard.writeText(tenant.phone_number || '')
+                }
               >
                 Copy phone number
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(tenant.email || '')}
+                onClick={() =>
+                  navigator.clipboard.writeText(tenant.email || '')
+                }
               >
                 Copy email
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              {tenant.accountStatus === 'Pending' && (
+                <DropdownMenuItem
+                  onClick={handleResendInvite}
+                  disabled={isResending}
+                >
+                  {isResending ? 'Sending...' : 'Resend Invitation'}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem>View details</DropdownMenuItem>
               <ConfirmationDialog
                 openDialogButton={
-                  <button type='button' className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'>
+                  <button
+                    type='button'
+                    className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'
+                  >
                     Delete Tenant
                   </button>
                 }
@@ -447,12 +552,14 @@ export default function TenantsTable({
           noPagnitation={hasServerPagination}
           isLoadingRows={isLoading}
           loadingRowsCount={pageSize}
-          getRowId={(row) => row.id}
+          getRowId={row => row.id}
         />
         {hasServerPagination && (
           <div className='flex items-center justify-end space-x-2 py-4'>
             <div className='text-muted-foreground flex-1 text-sm'>
-              Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalItems)} of {totalItems} tenants
+              Showing {(currentPage - 1) * pageSize + 1}-
+              {Math.min(currentPage * pageSize, totalItems)} of {totalItems}{' '}
+              tenants
             </div>
             <div className='space-x-2'>
               <button
@@ -479,7 +586,10 @@ export default function TenantsTable({
         {isLoading ? (
           // Loading skeleton for mobile
           Array.from({ length: pageSize }).map((_, i) => (
-            <div key={i} className='bg-white rounded-xl border border-(--border-default) p-4 animate-pulse'>
+            <div
+              key={i}
+              className='bg-white rounded-xl border border-(--border-default) p-4 animate-pulse'
+            >
               <div className='flex items-start gap-3 mb-3'>
                 <div className='w-10 h-10 bg-gray-200 rounded-full' />
                 <div className='flex-1'>
@@ -495,9 +605,7 @@ export default function TenantsTable({
             </div>
           ))
         ) : data.length > 0 ? (
-          data.map((tenant) => (
-            <TenantCard key={tenant.id} tenant={tenant} />
-          ))
+          data.map(tenant => <TenantCard key={tenant.id} tenant={tenant} />)
         ) : (
           <div className='text-center py-12 text-(--text-secondary)'>
             No tenants found.
@@ -508,7 +616,9 @@ export default function TenantsTable({
         {hasServerPagination && (
           <div className='flex flex-col gap-3 py-4'>
             <div className='text-center texts-caption-large text-(--text-secondary)'>
-              Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalItems)} of {totalItems} tenants
+              Showing {(currentPage - 1) * pageSize + 1}-
+              {Math.min(currentPage * pageSize, totalItems)} of {totalItems}{' '}
+              tenants
             </div>
             <div className='flex justify-center gap-2'>
               <button

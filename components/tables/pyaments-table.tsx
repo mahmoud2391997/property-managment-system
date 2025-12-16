@@ -37,6 +37,7 @@ import {
 import { PaymentHistory } from '@/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import TimestampWithTooltip from '../costume-ui/timestamp-with-tooltip'
+import { toast } from 'sonner'
 
 type Props = {
   data: PaymentWithDetails[]
@@ -193,7 +194,7 @@ export default function PaymentsTable ({
       }
     } catch (error: any) {
       console.error('Error creating payment:', error)
-      alert(`Failed to create payment: ${error.message}`)
+      toast.error(`Failed to create payment`)
       setIsProcessingPayment(null)
       setLoadingState(null)
     }

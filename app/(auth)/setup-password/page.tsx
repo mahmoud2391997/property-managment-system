@@ -69,9 +69,20 @@ export default function SetupPasswordPage() {
       }
 
       // Mark password as set in app_metadata (requires API call with service role)
-      await fetch('/api/auth/mark-password-set', {
-        method: 'POST'
+      console.log('Calling mark-password-set API...')
+      const markResponse = await fetch('/api/auth/mark-password-set', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
+      const responseData = await markResponse.json()
+      console.log('mark-password-set response:', markResponse.status, responseData)
+
+      if (!markResponse.ok) {
+        console.error('mark-password-set error:', responseData)
+        throw new Error('Failed to complete password setup')
+      }
 
       // Sign out the user
       await supabase.auth.signOut()

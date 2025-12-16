@@ -136,7 +136,7 @@ export async function updateSession (request: NextRequest) {
     }
   }
 
-  if (user && (isPublicPath || isRootPath)) {
+  if (user && isRootPath) {
     // Get user type tenant/staff
     const userType = user.user_metadata?.user_type
 
