@@ -20,6 +20,7 @@ import { useState } from 'react'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 import { useRouter } from 'next/navigation'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
+import { toast } from 'sonner'
 
 type StaffWithRole = Prisma.staffGetPayload<{
   select: {
@@ -158,9 +159,9 @@ export const columns: ColumnDef<StaffWithRole>[] = [
             throw new Error(data.error || 'Failed to resend invitation')
           }
 
-          alert('Invitation email sent successfully!')
+          toast.success('Invitation email sent successfully!')
         } catch (error: any) {
-          alert(error.message || 'Failed to resend invitation')
+          toast.error(error.message || 'Failed to resend invitation')
         } finally {
           setIsResending(false)
         }
@@ -178,10 +179,10 @@ export const columns: ColumnDef<StaffWithRole>[] = [
             throw new Error(data.error || 'Failed to delete staff')
           }
 
-          alert('Staff member deleted successfully!')
+          toast.success('Staff member deleted successfully!')
           router.refresh()
         } catch (error: any) {
-          alert(error.message || 'Failed to delete staff')
+          toast.error(error.message || 'Failed to delete staff')
           setIsDeleting(false)
         }
       }

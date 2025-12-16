@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import TicketsSection from '@/components/tickets-section'

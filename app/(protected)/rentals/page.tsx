@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { cn } from '@/lib/utils'
 import RentalsSection from '@/components/sections/rentals-section'
 import { RentalWithDetails } from '@/components/tables/rentals-table'
