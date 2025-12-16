@@ -11,6 +11,7 @@ export type TenantWithDetails = {
   phone_number: string
   email: string
   accountStatus: 'Activated' | 'Pending'
+  inviteSent: boolean
   activeLeaseCount: number
 }
 
@@ -21,6 +22,7 @@ type RawTenant = {
     type: string
     profile_pic: string | null
     profile_thumb: string | null
+    invite_sent: boolean | null
     individual_tenants: {
       identity_type: string
       identity_number: string
@@ -53,6 +55,7 @@ export function transformTenant(
     phone_number: individual?.phone_number || '',
     email,
     accountStatus,
+    inviteSent: tenant.invite_sent ?? false,
     activeLeaseCount
   }
 }

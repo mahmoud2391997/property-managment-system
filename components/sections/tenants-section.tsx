@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback } from 'react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
@@ -30,13 +31,18 @@ export default function TenantsSection({
     canGoPrevious,
     goToNextPage,
     goToPreviousPage,
-    pageSize
+    pageSize,
+    updateItem
   } = usePaginatedSearch<TenantWithDetails>({
     apiRoute: '/api/tenants',
     initialData,
     initialTotal,
     pageSize: 10
   })
+
+  const handleInviteSent = useCallback((tenantId: string) => {
+    updateItem(tenantId, { inviteSent: true })
+  }, [updateItem])
 
   return (
     <>
@@ -76,6 +82,7 @@ export default function TenantsSection({
         canGoPrevious={canGoPrevious}
         onNextPage={goToNextPage}
         onPreviousPage={goToPreviousPage}
+        onInviteSent={handleInviteSent}
       />
     </>
   )

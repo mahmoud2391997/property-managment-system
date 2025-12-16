@@ -31,6 +31,7 @@ type TenantsTableProps = {
   canGoPrevious?: boolean
   onNextPage?: () => void
   onPreviousPage?: () => void
+  onInviteSent?: (tenantId: string) => void
 }
 
 export default function TenantsTable ({
@@ -42,7 +43,8 @@ export default function TenantsTable ({
   canGoNext = false,
   canGoPrevious = false,
   onNextPage,
-  onPreviousPage
+  onPreviousPage,
+  onInviteSent
 }: TenantsTableProps) {
   const hasServerPagination =
     onNextPage !== undefined || onPreviousPage !== undefined
@@ -123,6 +125,7 @@ export default function TenantsTable ({
       cell: ({ row }) => {
         const status = row.original.accountStatus || 'Pending'
         const statusKey = status.toLowerCase()
+        const inviteSent = row.original.inviteSent
 
         return (
           <div className='texts-table-cell-primary text-left'>
@@ -135,6 +138,11 @@ export default function TenantsTable ({
               )}
             >
               {status}
+              {status === 'Pending' && (
+                <span className='ml-1 text-xs opacity-70'>
+                  ({inviteSent ? 'Invited' : 'Not Invited'})
+                </span>
+              )}
             </div>
           </div>
         )
@@ -197,6 +205,7 @@ export default function TenantsTable ({
             }
 
             toast.success('Invitation email sent successfully!')
+            onInviteSent?.(tenant.id)
           } catch (error: any) {
             toast.error('Failed to resend invitation')
           } finally {
@@ -348,6 +357,7 @@ export default function TenantsTable ({
         }
 
         toast.success('Invitation email sent successfully!')
+        onInviteSent?.(tenant.id)
       } catch (error: any) {
         toast.error('Failed to resend invitation')
       } finally {
@@ -408,6 +418,11 @@ export default function TenantsTable ({
                   )}
                 >
                   {tenant.accountStatus || 'Pending'}
+                  {tenant.accountStatus === 'Pending' && (
+                    <span className='ml-1 opacity-70'>
+                      ({tenant.inviteSent ? 'Invited' : 'Not Invited'})
+                    </span>
+                  )}
                 </div>
                 <div
                   className={cn(

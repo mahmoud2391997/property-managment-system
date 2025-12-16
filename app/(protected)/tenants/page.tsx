@@ -18,6 +18,7 @@ const tenantSelect = {
       type: true,
       profile_pic: true,
       profile_thumb: true,
+      invite_sent: true,
       individual_tenants: {
         select: {
           identity_type: true,

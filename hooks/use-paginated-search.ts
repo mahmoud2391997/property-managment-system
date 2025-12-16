@@ -39,6 +39,8 @@ interface UsePaginatedSearchReturn<T> {
   goToPreviousPage: () => void
   /** Page size */
   pageSize: number
+  /** Update a single item by id */
+  updateItem: (id: string, updates: Partial<T>) => void
 }
 
 export function usePaginatedSearch<T>({
@@ -286,6 +288,30 @@ export function usePaginatedSearch<T>({
   const canGoNext = currentPage * pageSize < currentTotal
   const canGoPrevious = currentPage > 1
 
+  // Update a single item by id (for optimistic updates)
+  const updateItem = useCallback((id: string, updates: Partial<T>) => {
+    const updateInArray = (arr: T[]) =>
+      arr.map(item => ((item as any).id === id ? { ...item, ...updates } : item))
+
+    // Update paginated data
+    setPaginatedData(prev => updateInArray(prev))
+
+    // Update search results if in search mode
+    if (debouncedSearchTerm) {
+      setSearchResults(prev => updateInArray(prev))
+    }
+
+    // Update page cache
+    pageCacheRef.current.forEach((data, pageNum) => {
+      pageCacheRef.current.set(pageNum, updateInArray(data))
+    })
+
+    // Update search cache
+    searchCacheRef.current.forEach((data, key) => {
+      searchCacheRef.current.set(key, updateInArray(data))
+    })
+  }, [debouncedSearchTerm])
+
   // Handle initial URL params on mount
   useEffect(() => {
     if (initialLoadRef.current) return
@@ -335,6 +361,7 @@ export function usePaginatedSearch<T>({
     canGoPrevious,
     goToNextPage,
     goToPreviousPage,
-    pageSize
+    pageSize,
+    updateItem
   }
 }

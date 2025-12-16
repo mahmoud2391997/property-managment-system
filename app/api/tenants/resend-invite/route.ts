@@ -84,6 +84,11 @@ export async function POST(req: NextRequest) {
           { status: 500 }
         )
       }
+      // Update invite_sent flag
+      await prisma.tenants.update({
+        where: { id: tenantId },
+        data: { invite_sent: true }
+      })
       successMessage = 'Password setup link sent successfully'
     } else {
       // Case 2: Send new invite link
@@ -101,6 +106,11 @@ export async function POST(req: NextRequest) {
           { status: 500 }
         )
       }
+      // Update invite_sent flag
+      await prisma.tenants.update({
+        where: { id: tenantId },
+        data: { invite_sent: true }
+      })
       successMessage = 'Invitation email sent successfully'
     }
 
