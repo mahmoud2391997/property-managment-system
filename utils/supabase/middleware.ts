@@ -119,7 +119,8 @@ export async function updateSession (request: NextRequest) {
         '/tickets',
         '/notifications',
         '/api',
-        '/unauthorized'
+        '/unauthorized',
+        '/tenant-welcome'
       ]
       const isRootPath = request.nextUrl.pathname === '/'
       const isAllowedForTenant =

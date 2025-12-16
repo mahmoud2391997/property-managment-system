@@ -12,10 +12,10 @@ export default function PasswordSetupGuard({
   const router = useRouter()
   const pathname = usePathname()
   const [isChecking, setIsChecking] = useState(true)
-  const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false)
+  const [needsRedirect, setNeedsRedirect] = useState(false)
 
   useEffect(() => {
-    const checkPasswordStatus = async () => {
+    const checkUserStatus = async () => {
       // Skip check if already on setup-password page
       if (pathname === '/setup-password') {
         setIsChecking(false)
@@ -31,6 +31,8 @@ export default function PasswordSetupGuard({
           return
         }
 
+        const userType = user.user_metadata?.user_type
+
         // Check if user was invited
         const wasInvited = !!user.invited_at
         if (!wasInvited) {
@@ -42,21 +44,26 @@ export default function PasswordSetupGuard({
         const passwordSet = user.app_metadata?.password_set === true
 
         if (!passwordSet) {
-          setNeedsPasswordSetup(true)
+          // Password not set - redirect to setup
+          setNeedsRedirect(true)
           router.replace('/setup-password')
+        } else if (userType === 'tenant') {
+          // Tenant with password set - redirect to welcome page
+          setNeedsRedirect(true)
+          router.replace('/tenant-welcome')
         } else {
           setIsChecking(false)
         }
       } catch (error) {
-        console.error('Error checking password status:', error)
+        console.error('Error checking user status:', error)
         setIsChecking(false)
       }
     }
 
-    checkPasswordStatus()
+    checkUserStatus()
   }, [pathname, router])
 
-  if (isChecking || needsPasswordSetup) {
+  if (isChecking || needsRedirect) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
