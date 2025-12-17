@@ -26,7 +26,7 @@ export default async function ProtectedLayout ({
           <main
             className={cn(
               'flex gap-2.5',
-              'md:h-screen h-[calc(100dvh-60px)] w-full md:py-[15] py-0'
+              'md:h-screen md:min-h-0 min-h-[calc(100dvh-60px)] w-full md:py-[15] py-0'
             )}
           >
             <Sidebar />
@@ -34,7 +34,8 @@ export default async function ProtectedLayout ({
               className={cn(
                 'w-full p-4 md:p-7.5 pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-7.5',
                 'bg-(--background-primary) md:border border-0 border-(--border-default)',
-                'md:rounded-[15] rounded-none overflow-auto'
+                'md:rounded-[15] rounded-none',
+                'md:overflow-y-auto'
               )}
             >
               <NextTopLoader color='#000' shadow={false} showSpinner={false} height={2} />
