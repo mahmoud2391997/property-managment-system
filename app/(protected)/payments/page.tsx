@@ -20,6 +20,8 @@ const paymentSelect = {
   created_at: true,
   leases: {
     select: {
+      property_id: true,
+      room_id: true,
       properties: {
         select: {
           code: true,

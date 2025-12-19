@@ -3,6 +3,7 @@ import { useState } from 'react'
 export type SingleSelectItem = {
   label: string
   isSelected: boolean
+  isDisabled?: boolean
   Icon?: React.ComponentType<any>
 }
 
@@ -11,15 +12,20 @@ export function useSingleSelectOption(items: SingleSelectItem[]) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(
     items.findIndex(i => i.isSelected) ?? null
   )
+   const [disabledIndex, setDisabledIndex] = useState<number | null>(
+    items.findIndex(i => i.isDisabled) ?? null
+  )
 
   const selectByIndex = (index: number) => {
     setOptions(prev =>
       prev.map((option, i) => ({
         ...option,
-        isSelected: i === index
+        isSelected: i === index,
+        isDisabled: i === index
       }))
     )
     setSelectedIndex(index)
+    setDisabledIndex(index)
   }
 
   return { options, selectByIndex, selectedIndex }

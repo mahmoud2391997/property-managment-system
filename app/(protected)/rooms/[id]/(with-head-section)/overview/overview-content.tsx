@@ -23,6 +23,7 @@ import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import PaymentsSection from '@/components/payments-section'
+import RecurringSectionRoom from '@/components/recurring-section-room'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { showFeedbackToast } from '@/components/costume-ui/feedback-toast'
@@ -677,6 +678,8 @@ export default function RoomOverviewContent ({ roomId }: Props) {
       </div>
       {/* Payments */}
       <PaymentsSection roomId={roomId} />
+      {/* Recurring Payments */}
+      <RecurringSectionRoom roomId={roomId} />
       <ActionUnderDevelopmentOverlay />
     </>
   )

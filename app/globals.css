@@ -12,9 +12,7 @@
   z-index: 50 !important;
 }
 
-html, body {
-  overscroll-behavior-y: auto;
-}
+
 
 body {
   margin: 0;

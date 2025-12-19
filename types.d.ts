@@ -218,7 +218,7 @@ export type ChargeTypeType = {
   refundable: boolean
 }
 
-export type PaymentType = { type: string; isRecurrable?: boolean }
+export type PaymentType = { type: string; isRecurrable?: boolean; isFixedByDefault?: boolean }
 
 export type TabType = {
   label: string

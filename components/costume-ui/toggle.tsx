@@ -19,30 +19,28 @@ const Toggle = ({
   className = ''
 }: ToggleProps) => {
   return (
-    <button
-      type='button'
+    <div
       className={cn(
-        'flex items-center gap-3 p-3 cursor-pointer select-none',
-        'transition-all duration-200',
-        'hover:bg-neutral-100',
+        'flex items-center gap-3',
         'rounded-lg',
         className
       )}
-      onClick={() => !disabled && onChange(!checked)}
     >
-      <div
+      <button
+        type='button'
         className={cn(
-          'relative w-12 h-7 rounded-full transition-colors',
-          checked ? 'bg-neutral-700' : 'bg-neutral-200',
-          disabled ? 'opacity-50 cursor-not-allowed' : ''
+          'relative w-11 h-6 rounded-full transition-colors duration-200',
+          checked ? 'bg-(--secondary-color)' : 'bg-neutral-200 hover:bg-neutral-300',
+          disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
         )}
+        onClick={() => !disabled && onChange(!checked)}
       >
         <span
-          className={`absolute left-[3] top-1/2 -translate-y-1/2 w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${
-            checked ? 'translate-x-5' : ''
+          className={`absolute left-[3] top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${
+            checked ? 'translate-[21px]' : 'translate-x-0'
           }`}
         />
-      </div>
+      </button>
       {label && (
         <div className='flex flex-col items-start'>
           <span className={`texts-body-large ${disabled && 'text-muted'}`}>
@@ -58,7 +56,7 @@ const Toggle = ({
           </span>
         </div>
       )}
-    </button>
+    </div>
   )
 }
 

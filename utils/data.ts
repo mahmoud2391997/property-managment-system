@@ -1119,10 +1119,13 @@ export const noticeTypes: string[] = [
 export const paymentTypes: PaymentType[] = [
   { type: 'Lease_Initial_Charges' },
   { type: 'Fines_or_Penalties' },
-  { type: 'Utilities', isRecurrable: true },
-  { type: 'Cleaning_Service', isRecurrable: true },
-  { type: 'Parking', isRecurrable: true },
-  { type: 'Miscellaneous_Others', isRecurrable: true }
+  { type: 'Internet_Bill', isRecurrable: true, isFixedByDefault: true },
+  { type: 'Water_Bill', isRecurrable: true, isFixedByDefault: false },
+  { type: 'Electricity_Bill', isRecurrable: true, isFixedByDefault: false },
+  { type: 'Sewerage_Bill', isRecurrable: true, isFixedByDefault: false },
+  { type: 'Cleaning_Service', isRecurrable: true, isFixedByDefault: true },
+  { type: 'Parking', isRecurrable: true, isFixedByDefault: true },
+  { type: 'Miscellaneous_Others', isRecurrable: true, isFixedByDefault: false }
 ]
 
 export const chargeTypes: ChargeTypeType[] = [
@@ -1134,13 +1137,16 @@ export const chargeTypes: ChargeTypeType[] = [
 ]
 
 export const propertyExpenseTypes: PaymentType[] = [
-  { type: 'Cleaning Services', isRecurrable: true },
-  { type: 'Utilities', isRecurrable: true },
-  { type: 'Agent Fees', isRecurrable: true },
-  { type: 'Maintenance & Repair', isRecurrable: true },
-  { type: 'Parking', isRecurrable: true },
-  { type: 'Furniture & Appliances', isRecurrable: true },
-  { type: 'Miscellaneous/Other', isRecurrable: true }
+  { type: 'Maintenance', isRecurrable: true, isFixedByDefault: false },
+  { type: 'Cleaning_Service', isRecurrable: true, isFixedByDefault: true },
+  { type: 'Internet_Bill', isRecurrable: true, isFixedByDefault: true },
+  { type: 'Water_Bill', isRecurrable: true, isFixedByDefault: false },
+  { type: 'Electricity_Bill', isRecurrable: true, isFixedByDefault: false },
+  { type: 'Sewerage_Bill', isRecurrable: true, isFixedByDefault: false },
+  { type: 'Management_Fees', isRecurrable: true, isFixedByDefault: true },
+  { type: 'Renovation', isRecurrable: true, isFixedByDefault: false },
+  { type: 'Furniture___Appliances', isRecurrable: true, isFixedByDefault: false },
+  { type: 'Miscellaneous_Others', isRecurrable: true, isFixedByDefault: false }
 ]
 
 export const contractExpenseTypes: PaymentType[] = [
