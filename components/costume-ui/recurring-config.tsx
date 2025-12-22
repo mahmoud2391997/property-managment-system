@@ -144,7 +144,7 @@ const RecurringConfig = ({ onConfigChange, defaultIsPaymentFixed = false }: Recu
             placeholder='e.g. Monthly Internet Bill'
             note='This title will be displayed in the recurring payments section.'
             maxLength={50}
-            required
+            required={!disableRecurring}
             onChange={(e) => setTitle(e.target.value)}
           />
         </InputGroup>
