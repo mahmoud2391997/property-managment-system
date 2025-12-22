@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import CustomButton from './costume-ui/button'
 import { AddButtonIcon, DeleteButtonIcon } from './costume-ui/icon'
 import { Tab, TabGroup } from './costume-ui/tab'
+import SectionTab from './costume-ui/section-tab'
 import { useSingleSelectOption } from '@/hooks/useSingleSelectOption'
 import SearchInput from './costume-ui/search-input'
 import Link from 'next/link'
@@ -13,7 +14,8 @@ import ExpensesTable from './tables/expenses-table'
 import { PaymentWithDetails } from '@/lib/payments-utils'
 import { ExpenseWithDetails } from '@/lib/expenses-utils'
 import TableSectionSkeleton from './loading-ui/table-section-skeleton'
-import { CreditCard } from 'lucide-react'
+import { CreditCard, Receipt } from 'lucide-react'
+import { SectionUnderDevelopment } from './costume-ui/under-development'
 
 type Props = {
   propertyId?: string
@@ -31,7 +33,6 @@ export default function PaymentsSection({ propertyId, roomId }: Props) {
   const isRoomMode = !!roomId && !propertyId
 
   const {
-    options: tabs,
     selectByIndex,
     selectedIndex
   } = useSingleSelectOption([
@@ -131,7 +132,7 @@ export default function PaymentsSection({ propertyId, roomId }: Props) {
   return (
     <div
       className={cn(
-        'flex flex-col gap-5',
+        'flex flex-col',
         'p-5 py-2.5 rounded-[12px]',
         'bg-(--background-primary) '
       )}
@@ -143,23 +144,23 @@ export default function PaymentsSection({ propertyId, roomId }: Props) {
             <CreditCard size={19} strokeWidth={1.5} />
           </div>
           <div className='flex flex-col'>
-            <h3>Payments</h3>
+            <h3 className='mb-1'>Payments</h3>
             <span className='texts-caption-large text-(--text-secondary)'>
               Tenant payment records for this room
             </span>
           </div>
         </div>
       ) : (
-        <TabGroup className='-mx-5 px-5'>
-          {tabs.map((tab, index) => (
-            <Tab
-              key={index}
-              label={tab.label}
-              isSelected={tab.isSelected}
-              onClick={() => selectByIndex(index)}
-            />
-          ))}
-        </TabGroup>
+        <div className='py-3'>
+          <SectionTab
+            options={[
+              { label: 'Payments', icon: <CreditCard size={16} /> },
+              { label: 'Expenses', icon: <Receipt size={16} /> }
+            ]}
+            selectedIndex={selectedIndex ?? 0}
+            onChange={selectByIndex}
+          />
+        </div>
       )}
 
       {/* Actions */}
@@ -183,7 +184,7 @@ export default function PaymentsSection({ propertyId, roomId }: Props) {
       </div>
 
       {/* Filters */}
-      <TabGroup showButton={true} className='-mx-5 px-5'>
+      <TabGroup showButton={true} className='-mx-5 px-5 mb-3'>
         {filterTabs.map((tab, index) => (
           <Tab
             key={index}
@@ -204,14 +205,15 @@ export default function PaymentsSection({ propertyId, roomId }: Props) {
         />
       )}
       {isExpensesTab && (
-        loadingExpenses ? (
-          <TableSectionSkeleton />
-        ) : (
-          <ExpensesTable
-            data={expenses}
-            className='-mx-5! rounded-none! border-x-0'
-          />
-        )
+        // loadingExpenses ? (
+        //   <TableSectionSkeleton />
+        // ) : (
+        //   <ExpensesTable
+        //     data={expenses}
+        //     className='-mx-5! rounded-none! border-x-0'
+        //   />
+        // )
+        <SectionUnderDevelopment />
       )}
     </div>
   )

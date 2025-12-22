@@ -116,11 +116,6 @@ export async function DELETE(
       where: { payment_id: payment.id }
     })
 
-    // Delete associated recurring configs
-    await prisma.recurring_configs.deleteMany({
-      where: { payment_id: payment.id }
-    })
-
     // Delete the payment
     await prisma.payments.delete({
       where: { id: payment.id }

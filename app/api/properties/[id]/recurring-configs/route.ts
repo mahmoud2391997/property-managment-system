@@ -194,7 +194,7 @@ export async function GET(
       return nextDate.toISOString()
     }
 
-    // Transform recurring configs
+    // Transform recurring configs for payments
     const recurringPayments: RecurringConfigWithDetails[] = recurringConfigs.map(config => {
       const latestPayment = config.payments[0]
 
@@ -227,9 +227,81 @@ export async function GET(
       }
     })
 
+    // Fetch recurring expenses linked directly to this property (not via lease)
+    const expenseRecurringConfigs = await prisma.recurring_configs.findMany({
+      where: {
+        property_id: propertyId,
+        lease_id: null, // Expenses are linked to property, not lease
+        organization_id: staff.organization_id
+      },
+      select: {
+        id: true,
+        title: true,
+        every: true,
+        time_unit: true,
+        event_on: true,
+        is_payment_fixed: true,
+        is_active: true,
+        created_at: true,
+        expenses: {
+          select: {
+            id: true,
+            type: true,
+            due_payment_date: true,
+            charges: {
+              select: {
+                amount: true,
+                is_taxed: true
+              }
+            }
+          },
+          orderBy: {
+            due_payment_date: 'desc'
+          },
+          take: 1 // Get latest expense to determine type and amount
+        }
+      },
+      orderBy: {
+        created_at: 'desc'
+      }
+    })
+
+    // Transform recurring configs for expenses
+    const recurringExpenses: RecurringConfigWithDetails[] = expenseRecurringConfigs.map(config => {
+      const latestExpense = config.expenses[0]
+
+      // Calculate amount from charges if fixed
+      let amount: number | null = null
+      if (config.is_payment_fixed && latestExpense) {
+        amount = latestExpense.charges.reduce((sum: number, charge: { amount: number; is_taxed: boolean }) => {
+          const chargeAmount = charge.amount
+          const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
+          return sum + chargeAmount + tax
+        }, 0)
+      }
+
+      const lastExpenseDate = latestExpense?.due_payment_date || null
+
+      return {
+        id: config.id,
+        title: config.title,
+        every: config.every,
+        time_unit: config.time_unit,
+        event_on: config.event_on,
+        is_payment_fixed: config.is_payment_fixed ?? false,
+        is_active: config.is_active,
+        created_at: config.created_at.toISOString(),
+        next_payment_date: config.is_active
+          ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastExpenseDate)
+          : null,
+        amount,
+        payment_type: latestExpense?.type || null // expense_type
+      }
+    })
+
     return NextResponse.json({
       recurringPayments,
-      recurringExpenses: [] // TODO: Add expenses later
+      recurringExpenses
     })
   } catch (error: any) {
     console.error('Error fetching recurring configs:', error)

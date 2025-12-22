@@ -9,7 +9,7 @@ export async function tenantLogin(formData: FormData): Promise<string | void> {
   const supabase = await createClient()
 
   const data = {
-    email: formData.get('email') as string,
+    email: formData.get('username') as string,
     password: formData.get('password') as string,
   }
 
