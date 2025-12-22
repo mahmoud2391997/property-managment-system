@@ -47,11 +47,13 @@ export default function PasswordSetupGuard({
           // Password not set - redirect to setup
           setNeedsRedirect(true)
           router.replace('/setup-password')
-        } else if (userType === 'tenant') {
-          // Tenant with password set - redirect to welcome page
-          setNeedsRedirect(true)
-          router.replace('/tenant-welcome')
-        } else {
+        } 
+        //else if (userType === 'tenant') {
+        //   // Tenant with password set - redirect to welcome page
+        //   setNeedsRedirect(true)
+        //   router.replace('/tenant-welcome')
+        // } 
+        else {
           setIsChecking(false)
         }
       } catch (error) {

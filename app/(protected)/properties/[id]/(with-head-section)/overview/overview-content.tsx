@@ -24,6 +24,7 @@ import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import PaymentsSection from '@/components/payments-section'
+import RecurringSection from '@/components/recurring-section'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { showFeedbackToast } from '@/components/costume-ui/feedback-toast'
@@ -724,6 +725,8 @@ export default function OverviewContent ({ propertyId }: Props) {
       </div>
       {/* Payments */}
       <PaymentsSection propertyId={propertyId} />
+      {/* Recurring Payments & Expenses */}
+      <RecurringSection propertyId={propertyId} />
     </>
   )
 }

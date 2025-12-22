@@ -487,23 +487,27 @@ model contracts {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model expenses {
-  id               String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  due_payment_date DateTime?         @db.Timestamptz(6)
-  payment_date     DateTime?         @db.Timestamptz(6)
-  category         expense_category
-  type             String
-  contract_id      String?           @db.Uuid
-  property_id      String?           @db.Uuid
-  organization_id  String            @db.Uuid
-  created_at       DateTime          @default(now()) @db.Timestamptz(6)
-  created_by       String?           @db.Uuid
-  status           payment_status
-  charges          charges[]
-  contracts        contracts?        @relation(fields: [contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  staff            staff?            @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations    organizations     @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  properties       properties?       @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  payment_history  payment_history[]
+  id                  String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  due_payment_date    DateTime?          @db.Timestamptz(6)
+  category            expense_category
+  type                String
+  contract_id         String?            @db.Uuid
+  property_id         String?            @db.Uuid
+  organization_id     String             @db.Uuid
+  created_at          DateTime           @default(now()) @db.Timestamptz(6)
+  created_by          String?            @db.Uuid
+  status              payment_status
+  lease_id            String?            @db.Uuid
+  reference_id        String             @default("'XP-202500000001'::text")
+  recurring_config_id String?            @db.Uuid
+  charges             charges[]
+  contracts           contracts?         @relation(fields: [contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  staff               staff?             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  leases              leases?            @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations       organizations      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties          properties?        @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recurring_configs   recurring_configs? @relation(fields: [recurring_config_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payment_history     payment_history[]
 
   @@schema("public")
 }
@@ -543,6 +547,7 @@ model leases {
   status                      lease_status_new
   reference_id                String
   ended_at                    DateTime?              @db.Timestamptz(6)
+  expenses                    expenses[]
   late_payment_charges        late_payment_charges[]
   staff                       staff?                 @relation(fields: [created_by], references: [id], onUpdate: NoAction)
   organizations               organizations          @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -550,6 +555,7 @@ model leases {
   rooms                       rooms?                 @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tenants                     tenants                @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   payments                    payments[]
+  recurring_configs           recurring_configs[]
   tickets                     tickets[]
 
   @@unique([organization_id, reference_id], map: "unique_reference_id_per_organization")
@@ -573,6 +579,7 @@ model organizations {
   payments              payments[]
   projects              projects[]
   properties            properties[]
+  recurring_configs     recurring_configs[]
   reminders             reminders[]
   roles                 roles[]
   staff                 staff[]
@@ -623,23 +630,24 @@ model payment_history {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model payments {
-  id                    String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  due_payment_timestamp DateTime?           @db.Timestamptz(6)
-  lease_id              String?             @db.Uuid
-  booking_id            String?             @db.Uuid
-  organization_id       String              @db.Uuid
-  created_at            DateTime            @default(now()) @db.Timestamptz(6)
-  created_by            String?             @db.Uuid
+  id                    String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  due_payment_timestamp DateTime?          @db.Timestamptz(6)
+  lease_id              String?            @db.Uuid
+  booking_id            String?            @db.Uuid
+  organization_id       String             @db.Uuid
+  created_at            DateTime           @default(now()) @db.Timestamptz(6)
+  created_by            String?            @db.Uuid
   status                payment_status
   type                  payment_type
-  reference_id          String              @default("PY-202500000001")
+  reference_id          String             @default("PY-202500000001")
+  recurring_config_id   String?            @db.Uuid
   charges               charges[]
   payment_history       payment_history[]
-  bookings              bookings?           @relation(fields: [booking_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  staff                 staff?              @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  leases                leases?             @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  organizations         organizations       @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  recurring_configs     recurring_configs[]
+  bookings              bookings?          @relation(fields: [booking_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  staff                 staff?             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  leases                leases?            @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations         organizations      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  recurring_configs     recurring_configs? @relation(fields: [recurring_config_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([organization_id, reference_id], map: "unique_org_reference")
   @@schema("public")
@@ -696,6 +704,7 @@ model properties {
   projects                         projects?                          @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   property_default_initial_charges property_default_initial_charges[]
   property_default_lease_config    property_default_lease_config?
+  recurring_configs                recurring_configs[]
   rooms                            rooms[]
   views                            views[]
 
@@ -782,6 +791,7 @@ model staff {
   properties                                                 properties[]
   property_default_initial_charges                           property_default_initial_charges[]
   property_default_lease_config                              property_default_lease_config[]
+  recurring_configs                                          recurring_configs[]
   roles_permissions                                          roles_permissions[]
   rooms                                                      rooms[]
   staff                                                      staff?                             @relation("staffTostaff", fields: [created_by], references: [id], onUpdate: NoAction)
@@ -930,13 +940,26 @@ model organizations_tenants {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model recurring_configs {
-  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  every      Int
-  time_unit  time_unit
-  event_on   String?
-  payment_id String    @db.Uuid
-  payments   payments  @relation(fields: [payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id               String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  every            Int
+  time_unit        time_unit
+  event_on         String?
+  title            String
+  lease_id         String?       @db.Uuid
+  organization_id  String        @db.Uuid
+  is_payment_fixed Boolean?
+  is_active        Boolean       @default(true)
+  created_at       DateTime      @default(now()) @db.Timestamptz(6)
+  created_by       String?       @db.Uuid
+  property_id      String?       @db.Uuid
+  expenses         expenses[]
+  payments         payments[]
+  staff            staff?        @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  leases           leases?       @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations    organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties       properties?   @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@index([organization_id], map: "idx_recurring_configs_organization_id")
   @@schema("public")
 }
 
@@ -1258,11 +1281,14 @@ enum time_unit {
 enum payment_type {
   Lease_Initial_Charges @map("Lease Initial Charges")
   Fines_or_Penalties    @map("Fines or Penalties")
-  Utilities
+  Internet_Bill         @map("Internet Bill")
+  Water_Bill            @map("Water Bill")
+  Electricity_Bill      @map("Electricity Bill")
+  Sewerage_Bill         @map("Sewerage Bill")
   Cleaning_Service      @map("Cleaning Service")
   Parking
-  Miscellaneous_Others  @map("Miscellaneous/Others")
   Rental
+  Miscellaneous_Others  @map("Miscellaneous/Others")
 
   @@schema("public")
 }
@@ -1331,6 +1357,22 @@ enum property_status_new {
   Ready
   Pending_Inspection @map("Pending Inspection")
   Under_Preparation  @map("Under Preparation")
+
+  @@schema("public")
+}
+
+enum expense_type {
+  Refund
+  Maintenance
+  Cleaning_Service       @map("Cleaning Service")
+  Internet_Bill          @map("Internet Bill")
+  Water_Bill             @map("Water Bill")
+  Electricity_Bill       @map("Electricity Bill")
+  Sewerage_Bill          @map("Sewerage Bill")
+  Management_Fees        @map("Management Fees")
+  Renovation
+  Furniture___Appliances @map("Furniture & Appliances")
+  Miscellaneous_Others   @map("Miscellaneous/Others")
 
   @@schema("public")
 }

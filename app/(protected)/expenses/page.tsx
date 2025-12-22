@@ -1,64 +1,122 @@
-import { cn } from '@/lib/utils'
-import SearchInput from '@/components/costume-ui/search-input'
-import Button from '@/components/costume-ui/button'
-import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
-import ExpensesTable from '@/components/tables/expenses-table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import Link from 'next/link'
+export const dynamic = 'force-dynamic'
 import { UnderDevelopment } from '@/components/costume-ui/under-development'
+// import { Suspense } from 'react'
+// import { cn } from '@/lib/utils'
+// import { prisma } from '@/lib/prisma'
+// import { createClient } from '@/utils/supabase/server'
+// import ExpensesSection from '@/components/sections/expenses-section'
+// import { transformExpense, ExpenseWithDetails } from '@/lib/expenses-utils'
+// import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
 
-const Expenses = () => {
+// const PAGE_SIZE = 10
+
+// // Shared select for expense queries
+// const expenseSelect = {
+//   reference_id: true,
+//   type: true,
+//   status: true,
+//   due_payment_date: true,
+//   created_at: true,
+//   properties: {
+//     select: {
+//       id: true,
+//       code: true,
+//       projects: {
+//         select: {
+//           title: true
+//         }
+//       }
+//     }
+//   },
+//   charges: {
+//     select: {
+//       amount: true,
+//       is_taxed: true
+//     }
+//   },
+//   payment_history: {
+//     orderBy: {
+//       paid_at: 'desc' as const
+//     },
+//     select: {
+//       paid_at: true,
+//       amount: true,
+//       status: true
+//     }
+//   },
+//   recurring_configs: {
+//     select: {
+//       every: true,
+//       time_unit: true,
+//       event_on: true
+//     }
+//   }
+// }
+
+// async function getExpenses(): Promise<{ data: ExpenseWithDetails[]; total: number }> {
+//   try {
+//     const supabase = await createClient()
+//     const { data: { user } } = await supabase.auth.getUser()
+
+//     if (!user) {
+//       return { data: [], total: 0 }
+//     }
+
+//     // Get staff organization
+//     const staff = await prisma.staff.findUnique({
+//       where: { id: user.id },
+//       select: { organization_id: true }
+//     })
+
+//     if (!staff) {
+//       return { data: [], total: 0 }
+//     }
+
+//     const whereClause = {
+//       organization_id: staff.organization_id,
+//       category: 'Property_Related' as const
+//     }
+
+//     // Fetch first page of expenses and total count in parallel
+//     const [expenses, total] = await Promise.all([
+//       prisma.expenses.findMany({
+//         where: whereClause,
+//         select: expenseSelect,
+//         orderBy: { created_at: 'desc' },
+//         take: PAGE_SIZE
+//       }),
+//       prisma.expenses.count({ where: whereClause })
+//     ])
+
+//     return {
+//       data: expenses.map(transformExpense),
+//       total
+//     }
+//   } catch (error) {
+//     console.error('Error fetching expenses:', error)
+//     return { data: [], total: 0 }
+//   }
+// }
+
+const Expenses = async () => {
+  // const { data: initialData, total: initialTotal } = await getExpenses()
+
+  // return (
+  //   <Suspense fallback={<TablePageSkeleton />}>
+  //     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
+  //       Heading
+  //       <div>
+  //         <h1>Expenses</h1>
+  //       </div>
+  //       <ExpensesSection
+  //         initialData={initialData}
+  //         initialTotal={initialTotal}
+  //       />
+  //     </div>
+  //   </Suspense>
+  // )
+
   return <UnderDevelopment />
-  return (
-    <div className={cn('flex flex-col gap-2.5', 'h-full')}>
-      {/* Heading */}
-      <div>
-        <h1>Expenses</h1>
-      </div>
-      {/* Actions */}
-      <div className={cn('flex justify-between items-center', 'w-full')}>
-        <SearchInput placeholder='Search expenses' />
-        {/* Buttons */}
-        <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          {/* <Button
-            icon={<DeleteButtonIcon />}
-            label='Delete'
-            className='bg-(--error-main)!'
-          /> */}
-
-          <Link href='/expenses/add-expense'>
-            <Button
-              icon={<AddButtonIcon className='text-neutral-300' />}
-              label='Add Expense'
-            />
-          </Link>
-        </div>
-      </div>
-      {/* Table */}
-      <Tabs defaultValue='property_related' className='w-full'>
-        <div className='flex justify-center w-full'>
-          <TabsList>
-            <TabsTrigger value='property_related'>Property Related</TabsTrigger>
-            <TabsTrigger value='contract_related'>Contract Related</TabsTrigger>
-            <TabsTrigger value='staff_related'>Staff Related</TabsTrigger>
-            <TabsTrigger value='company_related'>Company Related</TabsTrigger>
-          </TabsList>
-        </div>
-        <TabsContent value='property_related'>
-          <ExpensesTable />
-        </TabsContent>
-        <TabsContent value='contract_related'>
-          <ExpensesTable />
-        </TabsContent>
-        <TabsContent value='staff_related'>
-          <ExpensesTable />
-        </TabsContent>
-        <TabsContent value='company_related'>
-          <ExpensesTable />
-        </TabsContent>
-      </Tabs>
-    </div>
-  )
 }
 
 export default Expenses

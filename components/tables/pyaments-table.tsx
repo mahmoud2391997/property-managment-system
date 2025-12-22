@@ -38,6 +38,7 @@ import { PaymentHistory } from '@/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import TimestampWithTooltip from '../costume-ui/timestamp-with-tooltip'
 import { toast } from 'sonner'
+import Link from 'next/link'
 
 type Props = {
   data: PaymentWithDetails[]
@@ -437,7 +438,32 @@ export default function PaymentsTable ({
             accessorKey: 'property',
             header: () => <div className='text-left'>Property</div>,
             cell: ({ row }) => {
-              const { property, room } = row.original
+              const { property, property_id, room, room_id } = row.original
+
+              // Build navigation URL based on room_id
+              const href = property_id
+                ? room_id
+                  ? `/properties/${property_id}/rooms/${room_id}`
+                  : `/properties/${property_id}/overview`
+                : null
+
+              // Only staff can click to navigate
+              if (userType === 'staff' && href) {
+                return (
+                  <Link
+                    href={href}
+                    className='block group hover:underline'
+                  >
+                    <div className='text-left texts-table-cell-primary group-hover:underline'>
+                      {property}
+                    </div>
+                    <div className='text-left texts-table-cell-secondary group-hover:underline'>
+                      {room}
+                    </div>
+                  </Link>
+                )
+              }
+
               return (
                 <div>
                   <div className='text-left texts-table-cell-primary'>
@@ -849,14 +875,38 @@ export default function PaymentsTable ({
         <div className='grid grid-cols-2 gap-3'>
           {/* Property */}
           {showPropertyColumn && (
-            <div className='flex items-start gap-2'>
-              <Building2 className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
-              <div className='min-w-0'>
-                <div className='texts-caption-small text-(--text-secondary)'>Property</div>
-                <div className='texts-body-small-medium text-(--text-primary) truncate'>{payment.property}</div>
-                <div className='texts-caption-small text-(--text-secondary) truncate'>{payment.room}</div>
-              </div>
-            </div>
+            (() => {
+              const href = payment.property_id
+                ? payment.room_id
+                  ? `/properties/${payment.property_id}/rooms/${payment.room_id}`
+                  : `/properties/${payment.property_id}/overview`
+                : null
+
+              const content = (
+                <>
+                  <Building2 className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
+                  <div className='min-w-0'>
+                    <div className='texts-caption-small text-(--text-secondary)'>Property</div>
+                    <div className='texts-body-small-medium text-(--text-primary) truncate group-hover:underline'>{payment.property}</div>
+                    <div className='texts-caption-small text-(--text-secondary) truncate group-hover:underline'>{payment.room}</div>
+                  </div>
+                </>
+              )
+
+              if (userType === 'staff' && href) {
+                return (
+                  <Link href={href} className='flex items-start gap-2 group'>
+                    {content}
+                  </Link>
+                )
+              }
+
+              return (
+                <div className='flex items-start gap-2'>
+                  {content}
+                </div>
+              )
+            })()
           )}
 
           {/* Due Date */}

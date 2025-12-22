@@ -48,12 +48,14 @@ export async function updateSession (request: NextRequest) {
     '/reset-password',
     '/setup-password',
     '/api/auth',
-    '/api/webhooks'
+    '/api/webhooks',
+    '/migrate'
   ]
   const isPublicPath = publicPaths.some(path =>
     request.nextUrl.pathname.startsWith(path)
   )
   const isRootPath = request.nextUrl.pathname === '/'
+  const isMigratePath = request.nextUrl.pathname === '/migrate'
   const isUnauthorizedPage = request.nextUrl.pathname === '/unauthorized'
 
   if (!user && !isPublicPath && !isRootPath) {
@@ -137,7 +139,7 @@ export async function updateSession (request: NextRequest) {
     }
   }
 
-  if (user && isRootPath) {
+  if (user && (isRootPath || isMigratePath)) {
     // Get user type tenant/staff
     const userType = user.user_metadata?.user_type
 

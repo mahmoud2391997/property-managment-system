@@ -312,7 +312,7 @@ const ChargesSection = ({
 
   const summary = calculateSummary()
 
-  // Get available charge types for a specific card (excluding types selected in other cards)
+  // Get available charge types for a specific card (excluding types selected in other cards) (used when selectable)
   const getAvailableChargeTypesForCard = (currentIndex: number) => {
     const selectedTypes = charges
       .map((c, i) => (i !== currentIndex ? c.type : null))

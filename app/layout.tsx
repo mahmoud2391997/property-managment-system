@@ -42,7 +42,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-(--background-secondary) h-screen overflow-auto" suppressHydrationWarning>
+      <body className="md:bg-(--background-secondary) h-screen overflow-hidden" suppressHydrationWarning>
         {children}
         <Toaster position="top-right" richColors />
       </body>

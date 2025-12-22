@@ -18,9 +18,10 @@ import TimestampWithTooltip from '../costume-ui/timestamp-with-tooltip'
 type Props = {
   referenceId: string
   isExpanded: boolean
+  type?: 'payment' | 'expense'
 }
 
-export default function PaymentHistoryRow({ referenceId, isExpanded }: Props) {
+export default function PaymentHistoryRow({ referenceId, isExpanded, type = 'payment' }: Props) {
   const [history, setHistory] = useState<PaymentHistory[]>([])
   const [dueDate, setDueDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -49,7 +50,10 @@ export default function PaymentHistoryRow({ referenceId, isExpanded }: Props) {
 
       try {
         setLoading(true)
-        const response = await fetch(`/api/payments/${referenceId}/history`)
+        const apiRoute = type === 'expense'
+          ? `/api/expenses/${referenceId}/history`
+          : `/api/payments/${referenceId}/history`
+        const response = await fetch(apiRoute)
 
         if (!response.ok) {
           throw new Error('Failed to fetch payment history')
@@ -67,7 +71,7 @@ export default function PaymentHistoryRow({ referenceId, isExpanded }: Props) {
     }
 
     fetchHistory()
-  }, [referenceId, isExpanded])
+  }, [referenceId, isExpanded, type])
 
   if (loading) {
     return (

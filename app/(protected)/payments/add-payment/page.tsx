@@ -31,9 +31,9 @@ const AddPayment = () => {
   const [selectedPropertyIdForRoomFilter, setSelectedPropertyIdForRoomFilter] =
     useState<string | null>(null)
   const [isRoomRented, setIsRoomRented] = useState<boolean>(false)
-  const [loadingTenants, setLoadingTenants] = useState(true)
-  const [loadingProperties, setLoadingProperties] = useState(false)
-  const [loadingRooms, setLoadingRooms] = useState(false)
+  const [loadingTenants, setLoadingTenants] = useState<boolean>(true)
+  const [loadingProperties, setLoadingProperties] = useState<boolean>(false)
+  const [loadingRooms, setLoadingRooms] = useState<boolean>(false)
   const typesOfPayment = paymentTypes.map(pt => pt.type)
   const [paymentType, setPaymentType] = useState<PaymentType>(paymentTypes[0])
   const selectable: boolean = paymentType === paymentTypes[0]
@@ -69,6 +69,59 @@ const AddPayment = () => {
   // Helper to get lease reference_id
   const getLeaseReferenceId = () => {
     return selectedLeaseReferenceId
+  }
+
+  // Helper to translate week day codes to full names
+  const weekDayFullNames: Record<string, string> = {
+    'Su': 'Sunday',
+    'Mo': 'Monday',
+    'Tu': 'Tuesday',
+    'We': 'Wednesday',
+    'Th': 'Thursday',
+    'Fr': 'Friday',
+    'Sa': 'Saturday'
+  }
+  const translateWeekDays = (codes: string) => {
+    return codes.split(',').map(code => weekDayFullNames[code] || code).join(', ')
+  }
+
+  // Helper to calculate next payment date based on recurring config
+  const calculateNextPaymentDate = (startDate: Date, config: any): Date => {
+    const next = new Date(startDate)
+    const { every, time_unit, event_on } = config
+
+    switch (time_unit) {
+      case 'Day':
+        next.setDate(next.getDate() + every)
+        break
+      case 'Week':
+        // Find next occurrence of selected weekday
+        if (event_on) {
+          const weekDayMap: Record<string, number> = { 'Su': 0, 'Mo': 1, 'Tu': 2, 'We': 3, 'Th': 4, 'Fr': 5, 'Sa': 6 }
+          const selectedDays = event_on.split(',').map((d: string) => weekDayMap[d]).sort((a: number, b: number) => a - b)
+          // Add weeks first
+          next.setDate(next.getDate() + (every * 7))
+          // Find the first selected day in that week
+          const daysUntilNext = selectedDays.find((d: number) => d >= next.getDay()) ?? selectedDays[0]
+          const diff = daysUntilNext - next.getDay()
+          next.setDate(next.getDate() + (diff >= 0 ? diff : 7 + diff))
+        } else {
+          next.setDate(next.getDate() + (every * 7))
+        }
+        break
+      case 'Month':
+        next.setMonth(next.getMonth() + every)
+        // If specific days are selected, use the first one
+        if (event_on) {
+          const selectedDays = event_on.split(',').map(Number).sort((a: number, b: number) => a - b)
+          next.setDate(selectedDays[0])
+        }
+        break
+      case 'Year':
+        next.setFullYear(next.getFullYear() + every)
+        break
+    }
+    return next
   }
 
   // Handle form submission
@@ -120,7 +173,12 @@ const AddPayment = () => {
 
     // Validate recurring config if enabled
     if (recurringConfig && recurringConfig.enabled) {
-      const { time_unit, event_on } = recurringConfig
+      const { title, time_unit, event_on } = recurringConfig
+      // Check if title is provided
+      if (!title || title.trim() === '') {
+        showAlert('Please enter a title for the recurring payment', 'warning')
+        return
+      }
       // Check if Week or Month is selected but no days are chosen
       if (
         (time_unit === 'Week' || time_unit === 'Month') &&
@@ -535,7 +593,46 @@ const AddPayment = () => {
 
       {/* Recurring Pattern */}
       {paymentType.isRecurrable && (
-        <RecurringConfig onConfigChange={setRecurringConfig} />
+        <>
+          <RecurringConfig
+            onConfigChange={setRecurringConfig}
+            defaultIsPaymentFixed={paymentType.isFixedByDefault ?? false}
+          />
+          {/* Recurring explanation */}
+          {recurringConfig && recurringConfig.enabled && paymentDate && (
+            <div className='p-3 rounded-md bg-blue-50 border border-blue-200'>
+              <div className='flex items-start gap-2 text-sm text-blue-800'>
+                <Info strokeWidth={1.5} size={18} className='mt-0.5 shrink-0' />
+                <div className='flex flex-col gap-1'>
+                  <p className='font-medium'>Recurring Payment Schedule</p>
+                  <p>
+                    Starting from the {isPaid ? 'payment' : 'due'} date ({paymentDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}),
+                    this payment titled "<span className='font-semibold'>{recurringConfig.title || 'Untitled'}</span>" will generate every{' '}
+                    <span className='font-semibold'>
+                      {recurringConfig.every} {recurringConfig.time_unit.toLowerCase()}{recurringConfig.every > 1 ? 's' : ''}
+                    </span>
+                    {recurringConfig.event_on && recurringConfig.time_unit === 'Week' && (
+                      <> on <span className='font-semibold'>{translateWeekDays(recurringConfig.event_on)}</span></>
+                    )}
+                    {recurringConfig.event_on && recurringConfig.time_unit === 'Month' && (
+                      <> on day <span className='font-semibold'>{recurringConfig.event_on.split(',').join(', ')}</span> of each month</>
+                    )}
+                    .
+                  </p>
+                  <p>
+                    <span className='font-medium'>Next payment:</span>{' '}
+                    <span className='font-semibold'>
+                      {calculateNextPaymentDate(paymentDate, recurringConfig).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  </p>
+                  <p className='text-blue-600 mt-1'>
+                    This recurring payment will continue until the lease ends or is manually stopped by staff.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Alert Dialog */}

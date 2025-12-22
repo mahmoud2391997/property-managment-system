@@ -41,6 +41,7 @@ type Props<TData extends object> = {
   isLoadingRows?: boolean
   /** Number of skeleton rows to show when loading */
   loadingRowsCount?: number
+  emptyMessage?: string
 }
 
 function Table<TData extends object> ({
@@ -54,7 +55,8 @@ function Table<TData extends object> ({
   getRowId,
   meta,
   isLoadingRows = false,
-  loadingRowsCount = 10
+  loadingRowsCount = 10,
+  emptyMessage
 }: Props<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -169,7 +171,7 @@ function Table<TData extends object> ({
                   colSpan={columns.length}
                   className='h-24 text-center'
                 >
-                  No results.
+                  {emptyMessage ? emptyMessage : 'No results.'}
                 </TableCell>
               </TableRow>
             )}
