@@ -59,6 +59,7 @@ export type PaymentWithDetails = {
   room: string
   room_id: string | null
   due_date: Date | null
+  issued_at: string
   recurring_pattern: 'Recurring' | 'One-time'
   recurring_pattern_description: string
   amount: number
@@ -136,6 +137,7 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
     room: payment.leases?.rooms?.title || 'Whole unit',
     room_id: payment.leases?.room_id || null,
     due_date: payment.due_payment_timestamp,
+    issued_at: payment.created_at.toISOString(),
     recurring_pattern: isRecurring ? 'Recurring' : 'One-time',
     recurring_pattern_description: recurringDescription,
     amount: totalAmount,

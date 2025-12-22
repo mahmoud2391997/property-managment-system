@@ -12,7 +12,17 @@
   z-index: 50 !important;
 }
 
+html {
+  color-scheme: light only;
+  forced-color-adjust: none;
+  -webkit-text-fill-color: inherit;
+}
 
+/* Force your background colors to stick */
+body, 
+* {
+  forced-color-adjust: none;
+}
 
 body {
   margin: 0;

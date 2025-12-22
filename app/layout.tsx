@@ -29,6 +29,9 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  other: {
+    'color-scheme': 'only light',
+  },
 };
 
 export const viewport: Viewport = {
@@ -41,7 +44,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" data-darkreader-mode="disabled" style={{ colorScheme: 'light only' }}>
       <body className="md:bg-(--background-secondary) h-screen overflow-hidden" suppressHydrationWarning>
         {children}
         <Toaster position="top-right" richColors />
