@@ -48,6 +48,7 @@ export async function GET(
           select: {
             id: true,
             due_payment_timestamp: true,
+            created_at: true,
             charges: {
               select: {
                 amount: true,
@@ -79,6 +80,7 @@ export async function GET(
           select: {
             id: true,
             due_payment_timestamp: true,
+            created_at: true,
             charges: {
               select: {
                 amount: true,
@@ -133,7 +135,8 @@ export async function GET(
     return NextResponse.json({
       payment_history: transformedHistory,
       total_amount: totalAmount,
-      due_date: payment.due_payment_timestamp?.toISOString() || null
+      due_date: payment.due_payment_timestamp?.toISOString() || null,
+      issued_at: payment.created_at.toISOString()
     })
   } catch (error: any) {
     console.error('Error fetching payment history:', error)

@@ -523,6 +523,21 @@ export default function PaymentsTable ({
     },
 
     {
+      accessorKey: 'issued_at',
+      header: () => <div className='text-left'>Issued at</div>,
+      cell: ({ row }) => {
+        const { issued_at } = row.original
+
+        return (
+          <TimestampWithTooltip
+            timestamp={issued_at}
+            className='texts-table-cell-secondary text-(--text-secondary)'
+          />
+        )
+      }
+    },
+
+    {
       accessorKey: 'amount',
       header: () => <div className='text-left'>Amount</div>,
       cell: ({ row }) => {
