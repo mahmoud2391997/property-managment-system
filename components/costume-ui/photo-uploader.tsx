@@ -5,21 +5,26 @@ import PhotoEditorModal from './photo-editor'
 import { Upload } from 'lucide-react'
 
 type Props = {
-description: string
+  description: string
   loading?: boolean
   onSave: (mainBlob: Blob, thumbBlob: Blob) => void
   size?: number
+  existingImageUrl?: string | null
 }
 
 export default function PhotoUploader({
   description,
   loading = false,
   onSave,
-  size = 100
+  size = 100,
+  existingImageUrl
 }: Props) {
   const [profileImage, setProfileImage] = useState<Blob | null>(null)
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null)
   const [isPhotoEditorOpen, setIsPhotoEditorOpen] = useState(false)
+
+  // Display existing image if provided and no new image uploaded
+  const displayUrl = profileImageUrl || existingImageUrl
 
   const generateThumbnail = async (mainBlob: Blob): Promise<Blob> => {
     return new Promise((resolve, reject) => {
@@ -92,10 +97,10 @@ export default function PhotoUploader({
         style={{ width: size, height: size }}
         className='relative rounded-full overflow-hidden border-2 border-dashed border-(--border-strong) group hover:border-(--primary-color) transition-colors disabled:opacity-50'
       >
-        {profileImageUrl ? (
+        {displayUrl ? (
           <>
             <img
-              src={profileImageUrl}
+              src={displayUrl}
               alt='Profile preview'
               className='w-full h-full object-cover'
             />

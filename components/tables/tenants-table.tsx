@@ -20,6 +20,9 @@ import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
 import { TenantWithDetails } from '@/lib/tenants-utils'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import EditTenantDialog from '../dialogs/edit-tenant-dialog'
 
 type TenantsTableProps = {
   data: TenantWithDetails[]
@@ -187,6 +190,7 @@ export default function TenantsTable ({
       enableHiding: false,
       cell: ({ row }) => {
         const tenant = row.original
+        const router = useRouter()
         const [isResending, setIsResending] = useState(false)
         const [isDeleting, setIsDeleting] = useState(false)
 
@@ -297,7 +301,31 @@ export default function TenantsTable ({
                   {isResending ? 'Sending...' : 'Resend Invitation'}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem>View details</DropdownMenuItem>
+              <EditTenantDialog
+                tenantId={tenant.id}
+                initialData={{
+                  id: tenant.id,
+                  type: tenant.type,
+                  profile_pic: tenant.profile_pic,
+                  profile_thumb: tenant.profile_thumb,
+                  first_name: tenant.first_name,
+                  last_name: tenant.last_name,
+                  identity_type: tenant.identity_type,
+                  identity_number: tenant.identity_number,
+                  phone_number: tenant.phone_number,
+                  email: tenant.email,
+                  accountStatus: tenant.accountStatus
+                }}
+                trigger={
+                  <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                    Edit Tenant
+                  </DropdownMenuItem>
+                }
+                onSuccess={() => window.location.reload()}
+              />
+              <Link href={`/tenants/${tenant.id}/overview`}>
+                <DropdownMenuItem>View details</DropdownMenuItem>
+              </Link>
               <ConfirmationDialog
                 openDialogButton={
                   <button
@@ -327,6 +355,7 @@ export default function TenantsTable ({
 
   // Mobile Card Component
   const TenantCard = ({ tenant }: { tenant: TenantWithDetails }) => {
+    const router = useRouter()
     const [isResending, setIsResending] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
     const fullName = `${tenant.first_name}${
@@ -501,7 +530,33 @@ export default function TenantsTable ({
                   {isResending ? 'Sending...' : 'Resend Invitation'}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem>View details</DropdownMenuItem>
+              <EditTenantDialog
+                tenantId={tenant.id}
+                initialData={{
+                  id: tenant.id,
+                  type: tenant.type,
+                  profile_pic: tenant.profile_pic,
+                  profile_thumb: tenant.profile_thumb,
+                  first_name: tenant.first_name,
+                  last_name: tenant.last_name,
+                  identity_type: tenant.identity_type,
+                  identity_number: tenant.identity_number,
+                  phone_number: tenant.phone_number,
+                  email: tenant.email,
+                  accountStatus: tenant.accountStatus
+                }}
+                trigger={
+                  <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                    Edit Tenant
+                  </DropdownMenuItem>
+                }
+                onSuccess={() => window.location.reload()}
+              />
+              <DropdownMenuItem
+                onClick={() => router.push(`/tenants/${tenant.id}/overview`)}
+              >
+                View details
+              </DropdownMenuItem>
               <ConfirmationDialog
                 openDialogButton={
                   <button
