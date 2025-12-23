@@ -443,7 +443,7 @@ export default function PaymentsTable ({
               // Build navigation URL based on room_id
               const href = property_id
                 ? room_id
-                  ? `/properties/${property_id}/rooms/${room_id}`
+                  ? `/rooms/${room_id}/overview`
                   : `/properties/${property_id}/overview`
                 : null
 
