@@ -23,6 +23,7 @@ type props = {
   cancelButtonLabel?: string
   className?: string
   loading?: boolean
+  disabled?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void
 }
@@ -35,6 +36,7 @@ export default function Dialog ({
   cancelButtonLabel,
   className = '',
   loading = false,
+  disabled = false,
   open,
   onOpenChange
 }: props) {
@@ -66,6 +68,7 @@ export default function Dialog ({
                   type='submit'
                   form='dialog-form'
                   loading={loading}
+                  disabled={disabled}
                 />
               )}
             </div>
