@@ -163,27 +163,19 @@ const WithHeadSectionLayout = ({ children }: Props) => {
           <div className='flex items-center gap-2.5'>
             {isLoading ? (
               <Skeleton className='w-12 h-12 rounded-full bg-neutral-300' />
-            ) : tenantInfo?.profile_thumb ? (
-              <span className='w-12 h-12 rounded-full overflow-hidden relative'>
-                <Image
-                  src={tenantInfo.profile_thumb}
-                  fill
-                  alt='Tenant Profile'
-                  className='object-cover'
-                />
-              </span>
-            ) : (
+            ) : 
               <UserAvatar
+              imgSrc={tenantInfo?.profile_thumb}
                 name={displayName}
                 size={48}
                 className='texts-body-large-medium'
               />
-            )}
+          }
             {isLoading ? (
               <Skeleton className='h-7 w-40 bg-neutral-300' />
             ) : (
-              <div className='flex flex-col'>
-                <h1>{displayName}</h1>
+              <div className='flex flex-col gap-1'>
+                <h2>{displayName}</h2>
                 <div className='flex items-center gap-2'>
                   <span
                     className={cn(

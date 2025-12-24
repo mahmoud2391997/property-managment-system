@@ -29,6 +29,7 @@ type RawRoom = {
   title: string
   status: string
   properties: {
+    id: string
     code: string
     status: string
     projects?: {
@@ -42,6 +43,7 @@ type RawRoom = {
 export type RoomWithDetails = {
   id: string
   title: string
+  propertyId: string | null
   property: string
   project: string | null
   status: DisplayStatus
@@ -95,6 +97,7 @@ export function transformRoom(room: RawRoom): RoomWithDetails {
   return {
     id: room.id,
     title: room.title,
+    propertyId: room.properties?.id || null,
     property: room.properties?.code || 'No Property',
     project: room.properties?.projects?.title || null,
     status: displayStatus,

@@ -251,12 +251,12 @@ export async function PATCH(
 
     // Email validation and update (only allowed if account is not activated)
     if (email && email.trim() !== currentEmail) {
-      if (isActivated) {
-        return NextResponse.json(
-          { error: 'Cannot change email for an activated account' },
-          { status: 400 }
-        )
-      }
+      // if (isActivated) {
+      //   return NextResponse.json(
+      //     { error: 'Cannot change email for an activated account' },
+      //     { status: 400 }
+      //   )
+      // }
 
       // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

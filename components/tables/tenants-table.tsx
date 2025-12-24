@@ -87,17 +87,17 @@ export default function TenantsTable ({
         }`
 
         return (
-          <div className={cn('flex items-center gap-[5]', 'text-left')}>
-            {tenant.profile_thumb ? (
-              <img
-                src={tenant.profile_thumb}
-                alt={fullName}
-                className='w-[25px] h-[25px] rounded-full object-cover'
-              />
-            ) : (
-              <UserAvatar name={fullName} size={25} className='text-[11px]!' />
-            )}
-            <span className='texts-table-cell-primary'>{fullName}</span>
+          <div className={cn('flex items-center gap-2', 'text-left')}>
+            <UserAvatar
+              imgSrc={tenant.profile_thumb}
+              name={fullName}
+              size={30}
+              className='text-[11px]!'
+            />
+            <div className='flex flex-col'>
+              <span className='texts-table-cell-primary'>{fullName}</span>
+              <span className='texts-table-cell-secondary text-(--text-secondary)'>{tenant.email}</span>
+            </div>
           </div>
         )
       }
@@ -423,45 +423,45 @@ export default function TenantsTable ({
       >
         {/* Header: Avatar, Name, Status, Actions */}
         <div className='flex items-start justify-between'>
-          <div className='flex items-center gap-3'>
-            {tenant.profile_thumb ? (
-              <img
-                src={tenant.profile_thumb}
-                alt={fullName}
-                className='w-10 h-10 rounded-full object-cover'
-              />
-            ) : (
-              <UserAvatar name={fullName} size={40} className='text-sm!' />
-            )}
+          <div className='flex items-start gap-3'>
+            <UserAvatar
+              imgSrc={tenant.profile_thumb}
+              name={fullName}
+              size={40}
+              className='text-sm!'
+            />
+
             <div>
-              <div className='flex items-center gap-2 flex-wrap'>
+              <div className='flex flex-col gap-1 flex-wrap'>
                 <span className='texts-body-medium-semibold text-(--text-primary)'>
                   {fullName}
                 </span>
-                <div
-                  data-status={statusKey}
-                  className={cn(
-                    'px-2 py-0.5 rounded-full text-xs font-medium',
-                    'data-[status=activated]:bg-green-100 data-[status=activated]:text-green-800',
-                    'data-[status=pending]:bg-yellow-100 data-[status=pending]:text-yellow-800'
-                  )}
-                >
-                  {tenant.accountStatus || 'Pending'}
-                  {tenant.accountStatus === 'Pending' && (
-                    <span className='ml-1 opacity-70'>
-                      ({tenant.inviteSent ? 'Invited' : 'Not Invited'})
-                    </span>
-                  )}
-                </div>
-                <div
-                  className={cn(
-                    'px-2 py-0.5 rounded-full text-xs font-medium',
-                    isRenting
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-800'
-                  )}
-                >
-                  {rentalStatus}
+                <div className='flex gap-1 w-full h-fit'>
+                  <div
+                    data-status={statusKey}
+                    className={cn(
+                      'px-2 py-1 rounded-full text-xs font-medium',
+                      'data-[status=activated]:bg-green-100 data-[status=activated]:text-green-800',
+                      'data-[status=pending]:bg-yellow-100 data-[status=pending]:text-yellow-800'
+                    )}
+                  >
+                    {tenant.accountStatus || 'Pending'}
+                    {tenant.accountStatus === 'Pending' && (
+                      <span className='ml-1 opacity-70'>
+                        ({tenant.inviteSent ? 'Invited' : 'Not Invited'})
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className={cn(
+                      'px-2 py-1 rounded-full text-xs font-medium',
+                      isRenting
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                    )}
+                  >
+                    {rentalStatus}
+                  </div>
                 </div>
               </div>
             </div>

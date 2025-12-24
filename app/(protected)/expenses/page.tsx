@@ -1,12 +1,12 @@
 export const dynamic = 'force-dynamic'
 import { UnderDevelopment } from '@/components/costume-ui/under-development'
-// import { Suspense } from 'react'
-// import { cn } from '@/lib/utils'
-// import { prisma } from '@/lib/prisma'
-// import { createClient } from '@/utils/supabase/server'
-// import ExpensesSection from '@/components/sections/expenses-section'
-// import { transformExpense, ExpenseWithDetails } from '@/lib/expenses-utils'
-// import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
+import { Suspense } from 'react'
+import { cn } from '@/lib/utils'
+import { prisma } from '@/lib/prisma'
+import { createClient } from '@/utils/supabase/server'
+import ExpensesSection from '@/components/sections/expenses-section'
+import { transformExpense, ExpenseWithDetails } from '@/lib/expenses-utils'
+import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
 
 // const PAGE_SIZE = 10
 
@@ -99,12 +99,13 @@ import { UnderDevelopment } from '@/components/costume-ui/under-development'
 // }
 
 const Expenses = async () => {
+  
+  return <UnderDevelopment />
   // const { data: initialData, total: initialTotal } = await getExpenses()
 
   // return (
   //   <Suspense fallback={<TablePageSkeleton />}>
   //     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
-  //       Heading
   //       <div>
   //         <h1>Expenses</h1>
   //       </div>
@@ -115,8 +116,6 @@ const Expenses = async () => {
   //     </div>
   //   </Suspense>
   // )
-
-  return <UnderDevelopment />
 }
 
 export default Expenses

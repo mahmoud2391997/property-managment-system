@@ -91,6 +91,7 @@ type CardProps = {
   date_label: string
   date: string
   user_name: string
+  user_link?: string
   user_type: string
   user_avatar?: string | null
   menuItems?: React.ReactNode
@@ -105,37 +106,37 @@ const Card = ({
   date_label,
   date,
   user_name,
+  user_link,
   user_type,
   user_avatar,
   menuItems
 }: CardProps) => {
   const renderAvatar = (item: ComboBoxitemsType) => {
-    return (
-      <div className='flex items-center gap-2.5 select-none'>
-        {item.avatar ? (
-          <span className='w-10 h-10 relative rounded-full overflow-hidden'>
-            <Image
-              src={item.avatar as string}
-              alt='Profile pic'
-              fill
-              className='object-cover'
-            />
+    const content = (
+      <>
+        <span className='texts-body-large-medium'>{item.label}</span>
+        {item.subtitle && (
+          <span className='texts-caption-large text-(--text-secondary)'>
+            {item.subtitle}
           </span>
-        ) : (
-          <UserAvatar
-            name={item.label}
-            size={40}
-            className={'texts-body-large-medium'}
-          />
         )}
-        <div className='flex-1 flex flex-col'>
-          <span className='texts-body-large-medium'>{item.label}</span>
-          {item.subtitle && (
-            <span className='texts-caption-large text-(--text-secondary)'>
-              {item.subtitle}
-            </span>
-          )}
-        </div>
+      </>
+    )
+    return (
+      <div className='flex items-center gap-2.5 select-none '>
+        <UserAvatar
+          imgSrc={item.avatar as string}
+          name={item.label}
+          size={40}
+          className={'texts-body-large-medium'}
+        />
+        {user_link ? (
+          <Link href={user_link} className='flex-1 flex flex-col hover:underline'>
+            {content}
+          </Link>
+        ) : (
+          <div className='flex-1 flex flex-col'>{content}</div>
+        )}
       </div>
     )
   }
@@ -557,6 +558,7 @@ export default function OverviewContent ({ propertyId }: Props) {
             date_label='Due'
             date={formatDate(overviewData.lease.due_date)}
             user_name={overviewData.lease.tenant.name}
+            user_link={`/tenants/${overviewData.lease.tenant.id}/overview`}
             user_type='Tenant'
             user_avatar={overviewData.lease.tenant.profile_thumb}
             menuItems={
