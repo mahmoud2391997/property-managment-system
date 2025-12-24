@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
   MoreVertical,
-  Building2,
+  House,
   DoorOpen,
   Phone,
   Mail,
@@ -129,7 +129,7 @@ const RentalCard = ({ lease }: RentalCardProps) => {
             {isRoomLease ? (
               <DoorOpen size={20} strokeWidth={1.5} />
             ) : (
-              <Building2 size={20} strokeWidth={1.5} />
+              <House size={20} strokeWidth={1.5} />
             )}
           </div>
           <div className='flex flex-col'>
@@ -268,8 +268,8 @@ const TenantInfoCard = ({ tenant }: TenantInfoCardProps) => {
             <Building size={20} strokeWidth={1.5} />
           )}
         </div>
-        <div>
-          <h3 className='texts-body-large-medium'>Tenant Information</h3>
+        <div className='flex flex-col'>
+          <span className='texts-body-large-medium'>Tenant Information</span>
           <span className='texts-caption-large text-(--text-secondary)'>
             {isIndividual ? 'Individual' : 'Company'} Account
           </span>
@@ -407,7 +407,7 @@ const EmptyRentalsCard = () => {
       )}
     >
       <div className='flex items-center justify-center w-12 h-12 rounded-full bg-neutral-100'>
-        <Building2 className='w-6 h-6 text-neutral-400' />
+        <House className='w-6 h-6 text-neutral-400' />
       </div>
       <div className='text-center'>
         <h4 className='texts-body-medium-semibold text-(--text-primary)'>

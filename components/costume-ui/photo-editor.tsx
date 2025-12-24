@@ -275,22 +275,17 @@ function PhotoEditorModal ({ isOpen, onClose, onSave }: PhotoEditorModalProps) {
     outputCanvas.width = OUTPUT_SIZE
     outputCanvas.height = OUTPUT_SIZE
 
-    outputCtx.save()
-
-    const radius = OUTPUT_SIZE / 2
-    outputCtx.beginPath()
-    outputCtx.arc(radius, radius, radius, 0, 2 * Math.PI)
-    outputCtx.clip()
-
     // Scale up from 380 to 500
     const scale = OUTPUT_SIZE / CROP_SIZE
     const scaledWidth = image.width * imagePosition.scale * scale
     const scaledHeight = image.height * imagePosition.scale * scale
-    const drawX = radius - scaledWidth / 2 + (imagePosition.x * scale)
-    const drawY = radius - scaledHeight / 2 + (imagePosition.y * scale)
+    const centerX = OUTPUT_SIZE / 2
+    const centerY = OUTPUT_SIZE / 2
+    const drawX = centerX - scaledWidth / 2 + (imagePosition.x * scale)
+    const drawY = centerY - scaledHeight / 2 + (imagePosition.y * scale)
 
+    // Draw square image - let CSS handle circular display
     outputCtx.drawImage(image, drawX, drawY, scaledWidth, scaledHeight)
-    outputCtx.restore()
 
     outputCanvas.toBlob(blob => {
       if (blob) {

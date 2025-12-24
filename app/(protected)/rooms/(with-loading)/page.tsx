@@ -40,6 +40,7 @@ async function getRoomsWithTotal(): Promise<{ rooms: RoomWithDetails[], total: n
         status: true,
         properties: {
           select: {
+            id: true,
             code: true,
             status: true,
             projects: {

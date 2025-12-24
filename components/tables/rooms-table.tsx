@@ -22,6 +22,7 @@ import { toast } from 'sonner'
 type RoomTableData = {
   id: string
   title: string
+  propertyId: string | null
   property: string
   project?: string | null
   status:
@@ -80,14 +81,22 @@ export const columns: ColumnDef<RoomTableData>[] = [
     header: () => <div className='text-left'>Property</div>,
     cell: ({ row }) => {
       const room = row.original
-      return (
-        <div className='text-left'>
-          <div>{row.getValue('property')}</div>
+      const content = <>
+      <div>{row.getValue('property')}</div>
           {room.project && (
             <div className='text-xs text-(--text-secondary)'>
               {room.project}
             </div>
           )}
+      </>
+      return (
+        room.propertyId ? 
+        <Link href={`/properties/${room.propertyId}/overview`} className='text-left hover:underline'>
+          {content}
+        </Link>
+        : 
+        <div className='text-left'>
+          {content}
         </div>
       )
     }

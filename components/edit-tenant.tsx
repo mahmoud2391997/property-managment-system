@@ -30,23 +30,41 @@ type Props = {
   onHasChanges?: (hasChanges: boolean) => void
 }
 
-const EditTenant = ({ tenantId, initialData, onSuccess, onLoadingChange, onHasChanges }: Props) => {
+const EditTenant = ({
+  tenantId,
+  initialData,
+  onSuccess,
+  onLoadingChange,
+  onHasChanges
+}: Props) => {
   const router = useRouter()
   const identityTypes: string[] = ['mykad', 'passport']
 
   const [loading, setLoading] = useState<boolean>(false)
   const [fetching, setFetching] = useState<boolean>(!initialData)
   const [error, setError] = useState<string>('')
-  const [identityType, setIdentityType] = useState<string>(initialData?.identity_type || '')
-  const [identityNumber, setIdentityNumber] = useState<string>(initialData?.identity_number || '')
-  const [firstName, setFirstName] = useState<string>(initialData?.first_name || '')
+  const [identityType, setIdentityType] = useState<string>(
+    initialData?.identity_type || ''
+  )
+  const [identityNumber, setIdentityNumber] = useState<string>(
+    initialData?.identity_number || ''
+  )
+  const [firstName, setFirstName] = useState<string>(
+    initialData?.first_name || ''
+  )
   const [lastName, setLastName] = useState<string>(initialData?.last_name || '')
-  const [phoneNumber, setPhoneNumber] = useState<string>(initialData?.phone_number || '')
+  const [phoneNumber, setPhoneNumber] = useState<string>(
+    initialData?.phone_number || ''
+  )
   const [email, setEmail] = useState<string>(initialData?.email || '')
   const [profileImage, setProfileImage] = useState<Blob | null>(null)
   const [profileThumb, setProfileThumb] = useState<Blob | null>(null)
-  const [existingProfilePic, setExistingProfilePic] = useState<string | null>(initialData?.profile_pic || null)
-  const [accountStatus, setAccountStatus] = useState<'Activated' | 'Pending'>(initialData?.accountStatus || 'Activated')
+  const [existingProfilePic, setExistingProfilePic] = useState<string | null>(
+    initialData?.profile_pic || null
+  )
+  const [accountStatus, setAccountStatus] = useState<'Activated' | 'Pending'>(
+    initialData?.accountStatus || 'Activated'
+  )
 
   // Store original values to detect changes
   const [originalValues, setOriginalValues] = useState<{
@@ -56,17 +74,18 @@ const EditTenant = ({ tenantId, initialData, onSuccess, onLoadingChange, onHasCh
     lastName: string
     phoneNumber: string
     email: string
-  } | null>(initialData ? {
-    identityType: initialData.identity_type || '',
-    identityNumber: initialData.identity_number || '',
-    firstName: initialData.first_name || '',
-    lastName: initialData.last_name || '',
-    phoneNumber: initialData.phone_number || '',
-    email: initialData.email || ''
-  } : null)
-
-  // Email can only be edited if account is not activated (Pending)
-  const canEditEmail = accountStatus === 'Pending'
+  } | null>(
+    initialData
+      ? {
+          identityType: initialData.identity_type || '',
+          identityNumber: initialData.identity_number || '',
+          firstName: initialData.first_name || '',
+          lastName: initialData.last_name || '',
+          phoneNumber: initialData.phone_number || '',
+          email: initialData.email || ''
+        }
+      : null
+  )
 
   // Check if any field has changed
   const hasChanges = originalValues
@@ -75,7 +94,7 @@ const EditTenant = ({ tenantId, initialData, onSuccess, onLoadingChange, onHasCh
       firstName !== originalValues.firstName ||
       lastName !== originalValues.lastName ||
       phoneNumber !== originalValues.phoneNumber ||
-      (canEditEmail && email !== originalValues.email) ||
+      email !== originalValues.email ||
       profileImage !== null
     : false
 
@@ -153,11 +172,7 @@ const EditTenant = ({ tenantId, initialData, onSuccess, onLoadingChange, onHasCh
       formData.append('firstName', firstName)
       formData.append('lastName', lastName)
       formData.append('phoneNumber', phoneNumber)
-
-      // Only send email if it can be edited (account is pending)
-      if (canEditEmail) {
-        formData.append('email', email)
-      }
+      formData.append('email', email)
 
       if (profileImage && profileThumb) {
         formData.append('profileImage', profileImage, 'profile.jpg')
@@ -310,17 +325,16 @@ const EditTenant = ({ tenantId, initialData, onSuccess, onLoadingChange, onHasCh
               disabled={loading}
             />
           </InputGroup>
-          <InputGroup label='Email' isRequired={canEditEmail}>
+          <InputGroup label='Email' isRequired>
             <Input
               type='email'
               placeholder='E.g. example@email.com'
               value={email}
               onChange={e => setEmail(e.target.value)}
-              disabled={loading || !canEditEmail}
-              required={canEditEmail}
+              disabled={loading}
+              required
               minLength={5}
               maxLength={255}
-              note={canEditEmail ? undefined : 'Email cannot be changed after account activation'}
             />
           </InputGroup>
         </div>

@@ -41,14 +41,8 @@ export default function PhotoUploader({
         canvas.width = THUMB_SIZE
         canvas.height = THUMB_SIZE
 
-        ctx.save()
-        const radius = THUMB_SIZE / 2
-        ctx.beginPath()
-        ctx.arc(radius, radius, radius, 0, 2 * Math.PI)
-        ctx.clip()
-
+        // Draw square thumbnail - let CSS handle the circular display
         ctx.drawImage(img, 0, 0, THUMB_SIZE, THUMB_SIZE)
-        ctx.restore()
 
         canvas.toBlob(
           blob => {

@@ -19,6 +19,7 @@ import { UserAvatar } from '../costume-ui/name-avatar'
 import { cn } from '@/lib/utils'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 import { showFeedbackToast } from '../costume-ui/feedback-toast'
+import Link from 'next/link'
 
 // Calculate end date from start_date + number_of_months (end date has same day as start date)
 function calculateEndDate(
@@ -133,7 +134,7 @@ const createColumns = (
             size={25}
             className='text-[11px]!'
           />
-          <span className='texts-table-cell-primary'>{fullName}</span>
+          <Link href={`/tenants/${tenant.id}/overview`} className='texts-table-cell-primary hover:underline'>{fullName}</Link>
         </div>
       )
     }
