@@ -11,6 +11,7 @@ import Link from 'next/link'
 type RoomTableData = {
   id: string
   title: string
+  propertyId: string | null
   property: string
   status: 'Occupied' | 'Vacant' | 'Pending_Inspection' | 'Under_Preparation' | 'Property_Rented' | 'Property_Not_Ready'
   tenantPhone?: string | null
