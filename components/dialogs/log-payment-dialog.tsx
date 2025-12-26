@@ -10,6 +10,9 @@ type Props = {
   maxAmount: number
   trigger: React.ReactElement
   onSuccess?: () => void
+  // Controlled mode props
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export default function LogPaymentDialog({
@@ -17,10 +20,17 @@ export default function LogPaymentDialog({
   paymentReferenceId,
   maxAmount,
   trigger,
-  onSuccess
+  onSuccess,
+  open: controlledOpen,
+  onOpenChange
 }: Props) {
   const [loading, setLoading] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  // Use controlled or uncontrolled mode
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
+  const setOpen = isControlled ? (onOpenChange || (() => {})) : setInternalOpen
 
   const handleSuccess = () => {
     setOpen(false)
@@ -34,6 +44,8 @@ export default function LogPaymentDialog({
       saveButtonLabel={loading ? 'Saving...' : 'Save Payment'}
       loading={loading}
       className='max-w-150!'
+      open={open}
+      onOpenChange={setOpen}
     >
       <LogPayment
         paymentId={paymentId}

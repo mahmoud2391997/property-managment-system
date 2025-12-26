@@ -101,12 +101,12 @@ export default function WorkflowProgress({
 
   const getStatusIcon = (status: TaskStatus, isCurrent: boolean) => {
     if (status === 'completed') {
-      return <CheckCircle2 size={18} className='text-green-500' />
+      return <CheckCircle2 size={18} className={isCurrent ? 'text-blue-500' : 'text-green-500'} />
     }
-    if (isCurrent || status === 'in_progress') {
+    if (status === 'in_progress') {
       return <Clock size={18} className='text-blue-500' />
     }
-    return <Circle size={18} className='text-neutral-300' />
+    return <Circle size={18} className={isCurrent ? 'text-blue-500' : 'text-neutral-300'} />
   }
 
   const getTaskStyles = (task: TaskItem) => {

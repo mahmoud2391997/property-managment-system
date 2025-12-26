@@ -111,6 +111,14 @@ export default function PaymentsTable ({
   const [isDeletingPayment, setIsDeletingPayment] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
+  // Log payment dialog state (for staff - checking pending FPX before opening)
+  const [isCheckingForLogPayment, setIsCheckingForLogPayment] = useState<string | null>(null)
+  const [logPaymentDialogOpen, setLogPaymentDialogOpen] = useState(false)
+  const [logPaymentTarget, setLogPaymentTarget] = useState<{
+    paymentId: string
+    maxAmount: number
+  } | null>(null)
+
   // Mobile payment history bottom sheet state
   const [historySheetOpen, setHistorySheetOpen] = useState(false)
   const [historySheetPaymentId, setHistorySheetPaymentId] = useState<string | null>(null)
@@ -198,6 +206,74 @@ export default function PaymentsTable ({
       toast.error(`Failed to create payment`)
       setIsProcessingPayment(null)
       setLoadingState(null)
+    }
+  }
+
+  // Handler for staff "Log Payment" button - checks for pending FPX payments first
+  const handleLogPaymentClick = async (paymentId: string, maxAmount: number) => {
+    try {
+      setIsCheckingForLogPayment(paymentId)
+      setLoadingState('checking')
+
+      // Check if there are any pending FPX payments
+      const response = await fetch('/api/payments/check-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference_id: paymentId })
+      })
+
+      const result = await response.json()
+
+      setLoadingState(null)
+
+      // If payment was already made via FPX, show message and refresh
+      if (result.success && result.newly_recorded) {
+        await Swal.fire({
+          icon: 'success',
+          title: 'Payment Already Made',
+          text: `A payment of RM ${result.amount_paid} was already made via FPX and has been recorded.`,
+          confirmButtonColor: '#10b981'
+        })
+        setRefreshingPaymentId(paymentId)
+        window.location.reload()
+        return
+      }
+
+      // If payment was already recorded before
+      if (result.success && result.already_recorded) {
+        await Swal.fire({
+          icon: 'info',
+          title: 'Payment Already Recorded',
+          text: 'This FPX payment was already recorded.',
+          confirmButtonColor: '#3085d6'
+        })
+        setRefreshingPaymentId(paymentId)
+        window.location.reload()
+        return
+      }
+
+      // If there's a pending payment not yet completed, inform staff
+      if (result.payment_not_completed) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Pending FPX Payment',
+          text: 'There is a pending FPX payment that has not been completed yet. The tenant may still complete this payment.',
+          confirmButtonColor: '#f59e0b'
+        })
+        // Still allow opening the dialog after warning
+      }
+
+      // No pending FPX payment or it's not completed - open the dialog
+      setLogPaymentTarget({ paymentId, maxAmount })
+      setLogPaymentDialogOpen(true)
+    } catch (error: any) {
+      console.error('Error checking payment status:', error)
+      setLoadingState(null)
+      // On error, still allow opening the dialog
+      setLogPaymentTarget({ paymentId, maxAmount })
+      setLogPaymentDialogOpen(true)
+    } finally {
+      setIsCheckingForLogPayment(null)
     }
   }
 
@@ -667,23 +743,15 @@ export default function PaymentsTable ({
                   <DropdownMenuSeparator />
                   {userType === 'staff' ? (
                     <>
-                      <LogPaymentDialog
-                        paymentId={payment.id}
-                        paymentReferenceId={payment.id}
-                        maxAmount={payment.amount * (1 - payment.payment_percentage / 100)}
-                        trigger={
-                          <DropdownMenuItem
-                            disabled={!hasRemainingAmount}
-                            onSelect={(e) => e.preventDefault()}
-                          >
-                            Log payment
-                          </DropdownMenuItem>
-                        }
-                        onSuccess={() => {
-                          setRefreshingPaymentId(payment.id)
-                          window.location.reload()
-                        }}
-                      />
+                      <DropdownMenuItem
+                        disabled={!hasRemainingAmount || isCheckingForLogPayment === payment.id}
+                        onClick={() => handleLogPaymentClick(
+                          payment.id,
+                          payment.amount * (1 - payment.payment_percentage / 100)
+                        )}
+                      >
+                        {isCheckingForLogPayment === payment.id ? 'Checking...' : 'Log payment'}
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         disabled={!hasRemainingAmount || isCheckingStatus === payment.id}
                         onClick={() => handleCheckStatus(payment.id)}
@@ -806,23 +874,15 @@ export default function PaymentsTable ({
                   <DropdownMenuSeparator />
                   {userType === 'staff' ? (
                     <>
-                      <LogPaymentDialog
-                        paymentId={payment.id}
-                        paymentReferenceId={payment.id}
-                        maxAmount={payment.amount * (1 - payment.payment_percentage / 100)}
-                        trigger={
-                          <DropdownMenuItem
-                            disabled={!hasRemainingAmount}
-                            onSelect={(e) => e.preventDefault()}
-                          >
-                            Log payment
-                          </DropdownMenuItem>
-                        }
-                        onSuccess={() => {
-                          setRefreshingPaymentId(payment.id)
-                          window.location.reload()
-                        }}
-                      />
+                      <DropdownMenuItem
+                        disabled={!hasRemainingAmount || isCheckingForLogPayment === payment.id}
+                        onClick={() => handleLogPaymentClick(
+                          payment.id,
+                          payment.amount * (1 - payment.payment_percentage / 100)
+                        )}
+                      >
+                        {isCheckingForLogPayment === payment.id ? 'Checking...' : 'Log payment'}
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         disabled={!hasRemainingAmount || isCheckingStatus === payment.id}
                         onClick={() => handleCheckStatus(payment.id)}
@@ -1264,6 +1324,27 @@ export default function PaymentsTable ({
           </div>
         )}
       </div>
+
+      {/* Log Payment Dialog - Controlled by state after FPX check */}
+      {logPaymentTarget && (
+        <LogPaymentDialog
+          paymentId={logPaymentTarget.paymentId}
+          paymentReferenceId={logPaymentTarget.paymentId}
+          maxAmount={logPaymentTarget.maxAmount}
+          trigger={<span className='hidden' />}
+          open={logPaymentDialogOpen}
+          onOpenChange={(open) => {
+            setLogPaymentDialogOpen(open)
+            if (!open) {
+              setLogPaymentTarget(null)
+            }
+          }}
+          onSuccess={() => {
+            setRefreshingPaymentId(logPaymentTarget.paymentId)
+            window.location.reload()
+          }}
+        />
+      )}
     </>
   )
 }

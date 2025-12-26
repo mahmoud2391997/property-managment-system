@@ -2,14 +2,12 @@
 
 import { useState } from 'react'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
-import Combobox from '@/components/costume-ui/combobox'
 import Button from '@/components/costume-ui/button'
-import { X, Clock, CheckCircle2 } from 'lucide-react'
+import { Clock, CheckCircle2 } from 'lucide-react'
 import {
   StaffMember,
   LeaseEndingTask,
   PreparationTask,
-  Assignment,
   TaskStatus
 } from '../types'
 import { cn } from '@/lib/utils'
@@ -17,7 +15,8 @@ import {
   CloseTaskDialog,
   AssignStaffDialog,
   RefundDecisionDialog,
-  ReviewRefundDialog
+  ReviewRefundDialog,
+  UnassignDialog
 } from './task-actions'
 
 type Props = {
@@ -30,18 +29,20 @@ type Props = {
   }
   onAssign: (staffId: string, isSelfAssign: boolean) => void
   onCancelAssignment: () => void
-  onUnassign: () => void
+  onUnassign: (reason: string) => void
   onCloseTask: (
     finding: 'ready' | 'needs_preparation',
     report: string,
+    attachment: { name: string; url: string } | undefined,
     preparationTasks?: { title: string; description: string }[]
   ) => void
   onRefundDecision?: (
     decision: 'full' | 'partial' | 'burn',
     charges: { id: string; description: string; amount: number }[],
-    note: string
+    note: string,
+    attachment: { name: string; url: string } | undefined
   ) => void
-  onRefundApprove?: (report: string) => void
+  onRefundApprove?: (report: string, attachment: { name: string; url: string } | undefined) => void
   onRefundReject?: (reason: string) => void
 }
 
@@ -66,9 +67,11 @@ export default function TaskSidebar({
   const isUnassigned = !assignment || assignment.status === 'cancelled' || assignment.status === 'rejected'
 
   const isCurrentUserAssigned = assignment?.assigneeId === currentStaff.id
-  const isCurrentUserPending = isPending && assignment?.assigneeId === currentStaff.id
   const canCurrentUserCancel = isPending && assignment?.assignerId === currentStaff.id
-  const canCurrentUserUnassign = isAssigned && !isCurrentUserAssigned
+
+  // Can unassign: anyone can unassign (no role system yet)
+  const canUnassign = isAssigned
+  const isSelfUnassign = isAssigned && isCurrentUserAssigned
 
   const isTaskCompleted = task.status === 'completed'
   const isTaskInProgress = task.status === 'in_progress'
@@ -79,13 +82,6 @@ export default function TaskSidebar({
   const pendingStaff = isPending
     ? staffList.find(s => s.id === assignment?.assigneeId)
     : null
-
-  const staffItems = staffList.map(s => ({
-    id: s.id,
-    label: s.name,
-    subtitle: s.role,
-    avatar: s.avatar
-  }))
 
   const getStatusLabel = (status: TaskStatus) => {
     const labels: Record<TaskStatus, { text: string; color: string }> = {
@@ -107,12 +103,12 @@ export default function TaskSidebar({
   const isRefundRequest = task.type === 'refund_request'
   const isRefundFinalization = task.type === 'refund_finalization'
 
-  // Can close task (inspection or preparation)
+  // Can close task (inspection or preparation) - assigned staff can close their own task
   const canCloseTask = isCurrentUserAssigned && isTaskInProgress && (isInspection || isPreparation)
 
   // Can submit refund decision
   const leaseTask = task as LeaseEndingTask
-  const canSubmitRefundDecision = isCurrentUserAssigned && isTaskInProgress && isRefundRequest
+  const canSubmitRefundDecision = isCurrentUserAssigned && (isTaskInProgress || task.status === 'revision_requested') && isRefundRequest
 
   // Can review refund
   const canReviewRefund = isCurrentUserAssigned && isTaskInProgress && isRefundFinalization
@@ -144,14 +140,13 @@ export default function TaskSidebar({
                   </span>
                 </div>
               </div>
-              {canCurrentUserUnassign && !isTaskCompleted && (
-                <button
-                  onClick={onUnassign}
-                  disabled={loading}
-                  className='p-1.5 rounded-md hover:bg-red-50 text-(--text-muted) hover:text-red-500 transition-colors disabled:opacity-50'
-                >
-                  <X size={16} />
-                </button>
+              {canUnassign && !isTaskCompleted && (
+                <UnassignDialog
+                  staffName={assignedStaff.name}
+                  isSelf={isSelfUnassign}
+                  onUnassign={onUnassign}
+                  loading={loading}
+                />
               )}
             </div>
           )}

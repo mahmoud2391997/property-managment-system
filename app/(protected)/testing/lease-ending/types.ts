@@ -68,6 +68,8 @@ export type TaskTimelineEvent = {
     refundAmount?: number
     charges?: { description: string; amount: number }[]
     rejectionReason?: string
+    unassignReason?: string
+    isSelfUnassign?: boolean
   }
 }
 

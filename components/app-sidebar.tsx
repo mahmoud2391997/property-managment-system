@@ -218,18 +218,18 @@ export default function AppSidebar () {
       ? tenantMenuItems
       : staffMenuItems
 
-  const helpItemContent: menuItemContentType[] = [
-    // {
-    //   icon: SupportIcon,
-    //   label: 'Support',
-    //   width: 'w-5!'
-    // },
-    // {
-    //   icon: SettingsIcon,
-    //   label: 'Settings',
-    //   width: 'w-5!'
-    // }
-  ]
+  // const helpItemContent: menuItemContentType[] = [
+  //   {
+  //     icon: SupportIcon,
+  //     label: 'Support',
+  //     width: 'w-5!'
+  //   },
+  //   {
+  //     icon: SettingsIcon,
+  //     label: 'Settings',
+  //     width: 'w-5!'
+  //   }
+  // ]
 
   useEffect(() => {
     if (effectiveSidebarOpen) {
@@ -370,7 +370,7 @@ export default function AppSidebar () {
                             >
                               <span className='flex items-center gap-2'>
                                 <item.icon
-                                  className={cn(item.width, 'flex-shrink-0')}
+                                  className={cn(item.width, 'shrink-0')}
                                 />
                                 <span
                                   className={`${
@@ -577,7 +577,7 @@ export default function AppSidebar () {
 
       {/* Logout Loading Overlay */}
       {isLoggingOut && (
-        <div className='fixed inset-0 z-[9999] flex items-center justify-center bg-white/80 backdrop-blur-sm'>
+        <div className='fixed inset-0 z-9999 flex items-center justify-center bg-white/80 backdrop-blur-sm'>
           <div className='flex flex-col items-center gap-3'>
             <div className='w-8 h-8 border-3 border-primary-main border-t-transparent rounded-full animate-spin' />
             <span className='texts-body-medium-medium text-neutral-600'>Logging out...</span>

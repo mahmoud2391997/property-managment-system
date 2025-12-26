@@ -142,28 +142,38 @@ export function AssignmentAcceptedEvent({
 export function AssignmentRejectedEvent({
   performerName,
   assignerName,
-  date
+  date,
+  reason
 }: {
   performerName: string
   assignerName: string
   date: string
+  reason?: string
 }) {
   return (
-    <div className='flex items-start sm:items-center gap-2 sm:gap-4 py-2 sm:py-3'>
+    <div className='flex gap-2 sm:gap-4 py-2'>
       <div className='relative z-10 w-8 sm:w-10 flex justify-center shrink-0'>
         <div className='w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-red-50 border-2 border-white shadow-sm flex items-center justify-center'>
           <XCircle size={12} className='text-red-500 sm:hidden' />
           <XCircle size={13} className='text-red-500 hidden sm:block' />
         </div>
       </div>
-      <UserAvatar name={performerName} size={22} className='text-xs shrink-0 hidden sm:flex' />
-      <p className='texts-label-small sm:texts-body-small text-(--text-secondary) flex-1 min-w-0'>
-        <span className='texts-label-small sm:texts-body-small-medium text-(--text-primary)'>
-          {performerName}
-        </span>{' '}
-        rejected assignment from{' '}
-        <span className='text-blue-600'>{assignerName}</span> on {date}
-      </p>
+      <div className='flex-1 min-w-0'>
+        <p className='texts-label-small sm:texts-body-small text-(--text-secondary)'>
+          <span className='texts-label-small sm:texts-body-small-medium text-(--text-primary)'>
+            {performerName}
+          </span>{' '}
+          rejected assignment from{' '}
+          <span className='text-blue-600'>{assignerName}</span> on {date}
+        </p>
+        {reason && (
+          <div className='mt-2 p-2 bg-red-50 border border-red-100 rounded-lg'>
+            <p className='texts-body-small text-(--text-secondary)'>
+              <span className='texts-body-small-medium text-red-600'>Reason:</span> {reason}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -195,32 +205,59 @@ export function AssignmentSelfAssignedEvent({
   )
 }
 
-// Assignment Cancelled Event
+// Assignment Cancelled Event (also used for unassign)
 export function AssignmentCancelledEvent({
   performerName,
   assigneeName,
-  date
+  date,
+  unassignReason,
+  isSelfUnassign
 }: {
   performerName: string
   assigneeName: string
   date: string
+  unassignReason?: string
+  isSelfUnassign?: boolean
 }) {
+  // Determine if this is an unassign action (has reason) or cancel pending request
+  const isUnassign = !!unassignReason
+
   return (
-    <div className='flex items-start sm:items-center gap-2 sm:gap-4 py-2 sm:py-3'>
+    <div className='flex gap-2 sm:gap-4 py-2'>
       <div className='relative z-10 w-8 sm:w-10 flex justify-center shrink-0'>
         <div className='w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-neutral-100 border-2 border-white shadow-sm flex items-center justify-center'>
           <XCircle size={12} className='text-neutral-500 sm:hidden' />
           <XCircle size={13} className='text-neutral-500 hidden sm:block' />
         </div>
       </div>
-      <UserAvatar name={performerName} size={22} className='text-xs shrink-0 hidden sm:flex' />
-      <p className='texts-label-small sm:texts-body-small text-(--text-secondary) flex-1 min-w-0'>
-        <span className='texts-label-small sm:texts-body-small-medium text-(--text-primary)'>
-          {performerName}
-        </span>{' '}
-        cancelled assignment request to{' '}
-        <span className='text-blue-600'>{assigneeName}</span> on {date}
-      </p>
+      <div className='flex-1 min-w-0'>
+        <p className='texts-label-small sm:texts-body-small text-(--text-secondary)'>
+          <span className='texts-label-small sm:texts-body-small-medium text-(--text-primary)'>
+            {performerName}
+          </span>{' '}
+          {isUnassign ? (
+            isSelfUnassign ? (
+              <>unassigned themselves from this task</>
+            ) : (
+              <>
+                unassigned <span className='text-blue-600'>{assigneeName}</span> from this task
+              </>
+            )
+          ) : (
+            <>
+              cancelled assignment request to <span className='text-blue-600'>{assigneeName}</span>
+            </>
+          )}{' '}
+          on {date}
+        </p>
+        {unassignReason && (
+          <div className='mt-2 p-2 bg-neutral-50 border border-neutral-200 rounded-lg'>
+            <p className='texts-body-small text-(--text-secondary)'>
+              <span className='texts-body-small-medium text-neutral-600'>Reason:</span> {unassignReason}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -536,6 +573,7 @@ export default function TaskTimeline({ events }: Props) {
             performerName={event.performerName}
             assignerName={event.data?.assignerName || 'Unknown'}
             date={event.date}
+            reason={event.data?.rejectionReason}
           />
         )
       case 'assignment_self_assigned':
@@ -551,6 +589,8 @@ export default function TaskTimeline({ events }: Props) {
             performerName={event.performerName}
             assigneeName={event.data?.assigneeName || 'Unknown'}
             date={event.date}
+            unassignReason={event.data?.unassignReason}
+            isSelfUnassign={event.data?.isSelfUnassign}
           />
         )
       case 'status_changed':

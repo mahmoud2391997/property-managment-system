@@ -13,8 +13,20 @@ type Props = {
   className?: string
 }
 
-// Helper to get file extension
-function getFileExtension(url: string): string {
+// Helper to get file extension from URL or filename
+function getFileExtension(url: string, fileName?: string): string {
+  // First try to get extension from fileName if provided
+  if (fileName) {
+    const lastDotIndex = fileName.lastIndexOf('.')
+    if (lastDotIndex !== -1) {
+      const ext = fileName.slice(lastDotIndex + 1).toLowerCase()
+      if (ext && ext.length <= 5) { // Valid extension
+        return ext
+      }
+    }
+  }
+
+  // Fallback to URL
   try {
     const path = new URL(url).pathname
     const ext = path.split('.').pop()?.toLowerCase() || ''
@@ -98,9 +110,9 @@ export default function FileAttachment({ url, fileName, className = '' }: Props)
   const [cachedDataUrl, setCachedDataUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const extension = getFileExtension(url)
-  const fileType = getFileType(extension)
   const displayName = fileName || url.split('/').pop() || 'attachment'
+  const extension = getFileExtension(url, displayName)
+  const fileType = getFileType(extension)
   const truncatedName = truncateFilename(displayName, 20) // For mobile
 
   // Check cache on mount
