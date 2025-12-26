@@ -12,16 +12,17 @@ interface FileData {
 interface UploadFileProps {
   onFileChange?: (file: File | null) => void;
   maxSizeMB?: number;
+  disabled?: boolean;
 }
 
-export default function UploadFile({ onFileChange, maxSizeMB = 1 }: UploadFileProps) {
+export default function UploadFile({ onFileChange, maxSizeMB = 1, disabled = false }: UploadFileProps) {
   const [file, setFile] = useState<FileData | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setIsDragging(true);
+    if (!disabled) setIsDragging(true);
   };
 
   const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
@@ -32,7 +33,7 @@ export default function UploadFile({ onFileChange, maxSizeMB = 1 }: UploadFilePr
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files[0]) addFile(e.dataTransfer.files[0]);
+    if (!disabled && e.dataTransfer.files[0]) addFile(e.dataTransfer.files[0]);
   };
 
   const handleFileInput = (e: ChangeEvent<HTMLInputElement>) => {
@@ -77,9 +78,13 @@ export default function UploadFile({ onFileChange, maxSizeMB = 1 }: UploadFilePr
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center cursor-pointer transition-all duration-300 ease-out ${
-              isDragging ? 'border-teal-500 bg-teal-50 scale-[1.02]' : 'border-gray-300 hover:border-gray-400 bg-gray-50 hover:bg-gray-100'
+            onClick={() => !disabled && fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center transition-all duration-300 ease-out ${
+              disabled
+                ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-60'
+                : isDragging
+                  ? 'border-(--secondary-color) bg-(--secondary-color)/5 cursor-pointer'
+                  : 'border-gray-300 hover:border-gray-400 bg-gray-50 hover:bg-gray-100 cursor-pointer'
             }`}
           >
             <input
@@ -88,18 +93,19 @@ export default function UploadFile({ onFileChange, maxSizeMB = 1 }: UploadFilePr
               accept="image/*,.pdf"
               onChange={handleFileInput}
               className="hidden"
+              disabled={disabled}
             />
-            <div className="flex flex-col items-center space-y-2 sm:space-y-3">
-              <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
-                isDragging ? 'bg-teal-100 scale-110' : 'bg-gray-200 scale-100'
+            <div className="flex flex-col items-center space-y-2">
+              <div className={`w-10! h-10! sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
+                isDragging ? 'bg-(--secondary-color)/10' : 'bg-gray-200 scale-100'
               }`}>
-                <Upload className={`w-6 h-6 sm:w-8 sm:h-8 transition-colors duration-300 ${isDragging ? 'text-teal-600' : 'text-gray-500'}`} />
+                <Upload className={`w-5! h-5! sm:w-8 sm:h-8 transition-colors duration-300 ${isDragging ? 'text-(--secondary-color)' : 'text-gray-500'}`} />
               </div>
               <div className="px-2">
                 <p className="text-sm sm:text-base font-medium text-gray-700">
                   {isDragging ? 'Drop file here' : 'Tap to browse'}
                 </p>
-                <p className="text-xs sm:text-sm text-gray-500 mt-1">JPG, PNG, GIF, PDF (Max {maxSizeMB}MB)</p>
+                <p className="text-xs! text-gray-500 mt-1">JPG, PNG, GIF, PDF (Max {maxSizeMB}MB)</p>
               </div>
             </div>
           </div>

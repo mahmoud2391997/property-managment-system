@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { ArrowLeft, Home } from 'lucide-react'
-import Link from 'next/link'
 import {
   StaffMember,
   LeaseEndingWorkflow,
@@ -14,7 +12,6 @@ import {
 import {
   staffMembers,
   initialWorkflowData,
-  createTimelineEvent,
   createPreparationTask,
   createRefundRequestTask,
   createRefundFinalizationTask
@@ -23,8 +20,10 @@ import StaffSwitcher from './components/staff-switcher'
 import WorkflowProgress from './components/workflow-progress'
 import TaskTimeline from './components/task-timeline'
 import TaskSidebar from './components/task-sidebar'
+import AddCommentSection from './components/add-comment-section'
 import { PendingAssignmentBanner } from './components/task-actions'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
+import Breadcrumb from '@/components/costume-ui/breadcrumb'
 
 export default function LeaseEndingTestPage() {
   // Current staff (for testing different perspectives)
@@ -36,6 +35,9 @@ export default function LeaseEndingTestPage() {
   // Currently viewed task
   const [currentTaskId, setCurrentTaskId] = useState<string>(workflow.inspectionTask.id)
   const [currentTaskType, setCurrentTaskType] = useState<string>('inspection')
+
+  // Track who becomes the workflow manager (inspector who completes inspection)
+  const [workflowManagerId, setWorkflowManagerId] = useState<string | undefined>(undefined)
 
   // Get current task based on selection
   const currentTask = useMemo(() => {
@@ -300,6 +302,78 @@ export default function LeaseEndingTestPage() {
             }
           }
         })
+      } else if (currentTaskType === 'refund_finalization') {
+        setWorkflow(prev => {
+          if (!prev.refundFinalizationTask) return prev
+
+          const newEvents: TaskTimelineEvent[] = [...prev.refundFinalizationTask.timelineEvents]
+
+          if (isSelfAssign) {
+            newEvents.push({
+              id: `event-${Date.now()}`,
+              type: 'assignment_self_assigned',
+              performerId: currentStaff.id,
+              performerName: currentStaff.name,
+              date: dateStr,
+              timestamp: now.getTime()
+            })
+            newEvents.push({
+              id: `event-${Date.now() + 1}`,
+              type: 'status_changed',
+              performerId: 'system',
+              performerName: 'System',
+              date: dateStr,
+              timestamp: now.getTime() + 1,
+              data: { newStatus: 'In Progress' }
+            })
+
+            return {
+              ...prev,
+              refundFinalizationTask: {
+                ...prev.refundFinalizationTask,
+                status: 'in_progress',
+                assignment: {
+                  id: `assign-${Date.now()}`,
+                  assignerId: currentStaff.id,
+                  assigneeId: staffId,
+                  status: 'accepted',
+                  requestedAt: dateStr,
+                  respondedAt: dateStr
+                },
+                timelineEvents: newEvents
+              }
+            }
+          } else {
+            newEvents.push({
+              id: `event-${Date.now()}`,
+              type: 'assignment_sent',
+              performerId: currentStaff.id,
+              performerName: currentStaff.name,
+              date: dateStr,
+              timestamp: now.getTime(),
+              data: {
+                assigneeName: assignedStaff.name,
+                assigneeId: assignedStaff.id
+              }
+            })
+
+            return {
+              ...prev,
+              refundFinalizationTask: {
+                ...prev.refundFinalizationTask,
+                status: 'awaiting_response',
+                assignment: {
+                  id: `assign-${Date.now()}`,
+                  assignerId: currentStaff.id,
+                  assigneeId: staffId,
+                  status: 'pending',
+                  requestedAt: dateStr
+                },
+                timelineEvents: newEvents
+              }
+            }
+          }
+        })
       }
 
       FeedbackToasts.updated(
@@ -392,60 +466,70 @@ export default function LeaseEndingTestPage() {
 
         return { ...prev, preparationTasks: updatedTasks }
       })
-    }
-
-    FeedbackToasts.updated('Assignment', 'You accepted the assignment')
-  }, [currentStaff, currentTaskId, currentTaskType])
-
-  // Handle reject assignment
-  const handleRejectAssignment = useCallback(() => {
-    const now = new Date()
-    const dateStr = formatDate(now)
-    const assignerName =
-      staffMembers.find(
-        s =>
-          s.id ===
-          (currentTaskType === 'inspection'
-            ? workflow.inspectionTask.assignment?.assignerId
-            : workflow.preparationTasks.find(t => t.id === currentTaskId)?.assignment?.assignerId)
-      )?.name || 'Unknown'
-
-    if (currentTaskType === 'inspection') {
+    } else if (currentTaskType === 'refund_finalization') {
       setWorkflow(prev => {
+        if (!prev.refundFinalizationTask) return prev
+
         const newEvents: TaskTimelineEvent[] = [
-          ...prev.inspectionTask.timelineEvents,
+          ...prev.refundFinalizationTask.timelineEvents,
           {
             id: `event-${Date.now()}`,
-            type: 'assignment_rejected',
+            type: 'assignment_accepted',
             performerId: currentStaff.id,
             performerName: currentStaff.name,
             date: dateStr,
-            timestamp: now.getTime(),
-            data: { assignerName }
+            timestamp: now.getTime()
+          },
+          {
+            id: `event-${Date.now() + 1}`,
+            type: 'status_changed',
+            performerId: 'system',
+            performerName: 'System',
+            date: dateStr,
+            timestamp: now.getTime() + 1,
+            data: { newStatus: 'In Progress' }
           }
         ]
 
         return {
           ...prev,
-          inspectionTask: {
-            ...prev.inspectionTask,
-            status: 'pending',
+          refundFinalizationTask: {
+            ...prev.refundFinalizationTask,
+            status: 'in_progress',
             assignment: {
-              ...prev.inspectionTask.assignment!,
-              status: 'rejected',
+              ...prev.refundFinalizationTask.assignment!,
+              status: 'accepted',
               respondedAt: dateStr
             },
             timelineEvents: newEvents
           }
         }
       })
-    } else if (currentTaskType === 'preparation') {
-      setWorkflow(prev => {
-        const updatedTasks = prev.preparationTasks.map(task => {
-          if (task.id !== currentTaskId) return task
+    }
 
+    FeedbackToasts.updated('Assignment', 'You accepted the assignment')
+  }, [currentStaff, currentTaskId, currentTaskType])
+
+  // Handle reject assignment
+  const handleRejectAssignment = useCallback(
+    (reason: string) => {
+      const now = new Date()
+      const dateStr = formatDate(now)
+
+      // Get assigner name based on task type
+      let assignerName = 'Unknown'
+      if (currentTaskType === 'inspection') {
+        assignerName = staffMembers.find(s => s.id === workflow.inspectionTask.assignment?.assignerId)?.name || 'Unknown'
+      } else if (currentTaskType === 'preparation') {
+        assignerName = staffMembers.find(s => s.id === workflow.preparationTasks.find(t => t.id === currentTaskId)?.assignment?.assignerId)?.name || 'Unknown'
+      } else if (currentTaskType === 'refund_finalization') {
+        assignerName = staffMembers.find(s => s.id === workflow.refundFinalizationTask?.assignment?.assignerId)?.name || 'Unknown'
+      }
+
+      if (currentTaskType === 'inspection') {
+        setWorkflow(prev => {
           const newEvents: TaskTimelineEvent[] = [
-            ...task.timelineEvents,
+            ...prev.inspectionTask.timelineEvents,
             {
               id: `event-${Date.now()}`,
               type: 'assignment_rejected',
@@ -453,28 +537,93 @@ export default function LeaseEndingTestPage() {
               performerName: currentStaff.name,
               date: dateStr,
               timestamp: now.getTime(),
-              data: { assignerName }
+              data: { assignerName, rejectionReason: reason }
             }
           ]
 
           return {
-            ...task,
-            status: 'pending' as const,
-            assignment: {
-              ...task.assignment!,
-              status: 'rejected' as const,
-              respondedAt: dateStr
-            },
-            timelineEvents: newEvents
+            ...prev,
+            inspectionTask: {
+              ...prev.inspectionTask,
+              status: 'pending',
+              assignment: {
+                ...prev.inspectionTask.assignment!,
+                status: 'rejected',
+                respondedAt: dateStr
+              },
+              timelineEvents: newEvents
+            }
           }
         })
+      } else if (currentTaskType === 'preparation') {
+        setWorkflow(prev => {
+          const updatedTasks = prev.preparationTasks.map(task => {
+            if (task.id !== currentTaskId) return task
 
-        return { ...prev, preparationTasks: updatedTasks }
-      })
-    }
+            const newEvents: TaskTimelineEvent[] = [
+              ...task.timelineEvents,
+              {
+                id: `event-${Date.now()}`,
+                type: 'assignment_rejected',
+                performerId: currentStaff.id,
+                performerName: currentStaff.name,
+                date: dateStr,
+                timestamp: now.getTime(),
+                data: { assignerName, rejectionReason: reason }
+              }
+            ]
 
-    FeedbackToasts.info('Assignment', 'You rejected the assignment')
-  }, [currentStaff, currentTaskId, currentTaskType, workflow])
+            return {
+              ...task,
+              status: 'pending' as const,
+              assignment: {
+                ...task.assignment!,
+                status: 'rejected' as const,
+                respondedAt: dateStr
+              },
+              timelineEvents: newEvents
+            }
+          })
+
+          return { ...prev, preparationTasks: updatedTasks }
+        })
+      } else if (currentTaskType === 'refund_finalization') {
+        setWorkflow(prev => {
+          if (!prev.refundFinalizationTask) return prev
+
+          const newEvents: TaskTimelineEvent[] = [
+            ...prev.refundFinalizationTask.timelineEvents,
+            {
+              id: `event-${Date.now()}`,
+              type: 'assignment_rejected',
+              performerId: currentStaff.id,
+              performerName: currentStaff.name,
+              date: dateStr,
+              timestamp: now.getTime(),
+              data: { assignerName, rejectionReason: reason }
+            }
+          ]
+
+          return {
+            ...prev,
+            refundFinalizationTask: {
+              ...prev.refundFinalizationTask,
+              status: 'pending',
+              assignment: {
+                ...prev.refundFinalizationTask.assignment!,
+                status: 'rejected',
+                respondedAt: dateStr
+              },
+              timelineEvents: newEvents
+            }
+          }
+        })
+      }
+
+      FeedbackToasts.info('Assignment', 'You rejected the assignment')
+    },
+    [currentStaff, currentTaskId, currentTaskType, workflow]
+  )
 
   // Handle cancel assignment
   const handleCancelAssignment = useCallback(() => {
@@ -519,21 +668,177 @@ export default function LeaseEndingTestPage() {
   }, [currentStaff, currentTaskType, workflow])
 
   // Handle unassign
-  const handleUnassign = useCallback(() => {
-    FeedbackToasts.info('Unassign', 'Unassign functionality - implement similar to cancel')
-  }, [])
+  const handleUnassign = useCallback(
+    (reason: string) => {
+      const now = new Date()
+      const dateStr = formatDate(now)
+
+      if (currentTaskType === 'inspection') {
+        const assigneeName =
+          staffMembers.find(s => s.id === workflow.inspectionTask.assignment?.assigneeId)?.name || 'Unknown'
+        const isSelf = workflow.inspectionTask.assignment?.assigneeId === currentStaff.id
+
+        setWorkflow(prev => {
+          const newEvents: TaskTimelineEvent[] = [
+            ...prev.inspectionTask.timelineEvents,
+            {
+              id: `event-${Date.now()}`,
+              type: 'assignment_cancelled',
+              performerId: currentStaff.id,
+              performerName: currentStaff.name,
+              date: dateStr,
+              timestamp: now.getTime(),
+              data: {
+                assigneeName,
+                unassignReason: reason,
+                isSelfUnassign: isSelf
+              }
+            }
+          ]
+
+          return {
+            ...prev,
+            inspectionTask: {
+              ...prev.inspectionTask,
+              status: 'pending',
+              assignment: undefined,
+              timelineEvents: newEvents
+            }
+          }
+        })
+
+        FeedbackToasts.info('Unassign', isSelf ? 'You unassigned yourself' : `${assigneeName} has been unassigned`)
+      } else if (currentTaskType === 'preparation') {
+        setWorkflow(prev => {
+          const updatedTasks = prev.preparationTasks.map(task => {
+            if (task.id !== currentTaskId) return task
+
+            const assigneeName = staffMembers.find(s => s.id === task.assignment?.assigneeId)?.name || 'Unknown'
+            const isSelf = task.assignment?.assigneeId === currentStaff.id
+
+            const newEvents: TaskTimelineEvent[] = [
+              ...task.timelineEvents,
+              {
+                id: `event-${Date.now()}`,
+                type: 'assignment_cancelled',
+                performerId: currentStaff.id,
+                performerName: currentStaff.name,
+                date: dateStr,
+                timestamp: now.getTime(),
+                data: {
+                  assigneeName,
+                  unassignReason: reason,
+                  isSelfUnassign: isSelf
+                }
+              }
+            ]
+
+            return {
+              ...task,
+              status: 'pending' as const,
+              assignment: undefined,
+              timelineEvents: newEvents
+            }
+          })
+
+          return { ...prev, preparationTasks: updatedTasks }
+        })
+
+        FeedbackToasts.info('Unassign', 'Staff has been unassigned')
+      } else if (currentTaskType === 'refund_request') {
+        setWorkflow(prev => {
+          if (!prev.refundRequestTask) return prev
+
+          const assigneeName =
+            staffMembers.find(s => s.id === prev.refundRequestTask?.assignment?.assigneeId)?.name || 'Unknown'
+          const isSelf = prev.refundRequestTask.assignment?.assigneeId === currentStaff.id
+
+          const newEvents: TaskTimelineEvent[] = [
+            ...prev.refundRequestTask.timelineEvents,
+            {
+              id: `event-${Date.now()}`,
+              type: 'assignment_cancelled',
+              performerId: currentStaff.id,
+              performerName: currentStaff.name,
+              date: dateStr,
+              timestamp: now.getTime(),
+              data: {
+                assigneeName,
+                unassignReason: reason,
+                isSelfUnassign: isSelf
+              }
+            }
+          ]
+
+          return {
+            ...prev,
+            refundRequestTask: {
+              ...prev.refundRequestTask,
+              status: 'pending',
+              assignment: undefined,
+              timelineEvents: newEvents
+            }
+          }
+        })
+
+        FeedbackToasts.info('Unassign', 'Staff has been unassigned')
+      } else if (currentTaskType === 'refund_finalization') {
+        setWorkflow(prev => {
+          if (!prev.refundFinalizationTask) return prev
+
+          const assigneeName =
+            staffMembers.find(s => s.id === prev.refundFinalizationTask?.assignment?.assigneeId)?.name || 'Unknown'
+          const isSelf = prev.refundFinalizationTask.assignment?.assigneeId === currentStaff.id
+
+          const newEvents: TaskTimelineEvent[] = [
+            ...prev.refundFinalizationTask.timelineEvents,
+            {
+              id: `event-${Date.now()}`,
+              type: 'assignment_cancelled',
+              performerId: currentStaff.id,
+              performerName: currentStaff.name,
+              date: dateStr,
+              timestamp: now.getTime(),
+              data: {
+                assigneeName,
+                unassignReason: reason,
+                isSelfUnassign: isSelf
+              }
+            }
+          ]
+
+          return {
+            ...prev,
+            refundFinalizationTask: {
+              ...prev.refundFinalizationTask,
+              status: 'pending',
+              assignment: undefined,
+              timelineEvents: newEvents
+            }
+          }
+        })
+
+        FeedbackToasts.info('Unassign', 'Staff has been unassigned')
+      }
+    },
+    [currentStaff, currentTaskId, currentTaskType, workflow]
+  )
 
   // Handle close task (inspection or preparation)
   const handleCloseTask = useCallback(
     (
       finding: 'ready' | 'needs_preparation',
       report: string,
+      attachment: { name: string; url: string } | undefined,
       preparationTasksData?: { title: string; description: string }[]
     ) => {
       const now = new Date()
       const dateStr = formatDate(now)
 
       if (currentTaskType === 'inspection') {
+        // Set the current staff as workflow manager when completing inspection
+        setWorkflowManagerId(currentStaff.id)
+
         setWorkflow(prev => {
           const newEvents: TaskTimelineEvent[] = [
             ...prev.inspectionTask.timelineEvents,
@@ -545,7 +850,7 @@ export default function LeaseEndingTestPage() {
               performerAvatar: currentStaff.avatar,
               date: dateStr,
               timestamp: now.getTime(),
-              data: { message: report || 'Inspection completed.' }
+              data: { message: report || 'Inspection completed.', attachment }
             }
           ]
 
@@ -574,11 +879,11 @@ export default function LeaseEndingTestPage() {
               currentStaff.name,
               prev.depositAmount
             )
-            // Auto-assign to the inspection task creator
+            // Auto-assign to the inspector who completed inspection (the flow manager)
             newRefundRequestTask.assignment = {
               id: `assign-${Date.now()}`,
               assignerId: 'system',
-              assigneeId: prev.initiatedBy,
+              assigneeId: currentStaff.id,
               status: 'accepted',
               requestedAt: dateStr,
               respondedAt: dateStr
@@ -587,8 +892,8 @@ export default function LeaseEndingTestPage() {
             newRefundRequestTask.timelineEvents.push({
               id: `event-${Date.now() + 2}`,
               type: 'assignment_self_assigned',
-              performerId: prev.initiatedBy,
-              performerName: staffMembers.find(s => s.id === prev.initiatedBy)?.name || 'Unknown',
+              performerId: currentStaff.id,
+              performerName: currentStaff.name,
               date: dateStr,
               timestamp: now.getTime() + 2
             })
@@ -612,6 +917,7 @@ export default function LeaseEndingTestPage() {
               inspectionFinding: finding,
               inspectionReport: {
                 message: report || 'Inspection completed.',
+                attachment,
                 submittedAt: dateStr,
                 submittedBy: currentStaff.id
               },
@@ -649,7 +955,7 @@ export default function LeaseEndingTestPage() {
                 performerAvatar: currentStaff.avatar,
                 date: dateStr,
                 timestamp: now.getTime(),
-                data: { message: report || 'Task completed.' }
+                data: { message: report || 'Task completed.', attachment }
               },
               {
                 id: `event-${Date.now() + 1}`,
@@ -667,6 +973,7 @@ export default function LeaseEndingTestPage() {
               status: 'completed' as const,
               report: {
                 message: report || 'Task completed.',
+                attachment,
                 submittedAt: dateStr,
                 submittedBy: currentStaff.id
               },
@@ -680,18 +987,27 @@ export default function LeaseEndingTestPage() {
 
           let newRefundRequestTask = prev.refundRequestTask
 
-          if (allCompleted && !prev.refundRequestTask) {
-            // All prep tasks done, create refund request
+          if (allCompleted && !prev.refundRequestTask && workflowManagerId) {
+            // All prep tasks done, create refund request - assign to flow manager
+            const flowManager = staffMembers.find(s => s.id === workflowManagerId)
             newRefundRequestTask = createRefundRequestTask(currentStaff.id, currentStaff.name, prev.depositAmount)
             newRefundRequestTask.assignment = {
               id: `assign-${Date.now()}`,
               assignerId: 'system',
-              assigneeId: prev.initiatedBy,
+              assigneeId: workflowManagerId,
               status: 'accepted',
               requestedAt: dateStr,
               respondedAt: dateStr
             }
             newRefundRequestTask.status = 'in_progress'
+            newRefundRequestTask.timelineEvents.push({
+              id: `event-${Date.now() + 2}`,
+              type: 'assignment_self_assigned',
+              performerId: workflowManagerId,
+              performerName: flowManager?.name || 'Unknown',
+              date: dateStr,
+              timestamp: now.getTime() + 2
+            })
           }
 
           return {
@@ -706,12 +1022,17 @@ export default function LeaseEndingTestPage() {
         FeedbackToasts.updated('Preparation', 'Task completed successfully')
       }
     },
-    [currentStaff, currentTaskId, currentTaskType]
+    [currentStaff, currentTaskId, currentTaskType, workflowManagerId]
   )
 
   // Handle refund decision
   const handleRefundDecision = useCallback(
-    (decision: 'full' | 'partial' | 'burn', charges: RefundCharge[], note: string) => {
+    (
+      decision: 'full' | 'partial' | 'burn',
+      charges: RefundCharge[],
+      note: string,
+      attachment: { name: string; url: string } | undefined
+    ) => {
       const now = new Date()
       const dateStr = formatDate(now)
 
@@ -745,7 +1066,8 @@ export default function LeaseEndingTestPage() {
             date: dateStr,
             timestamp: now.getTime() + 1,
             data: {
-              message: note || `Refund decision: ${decision === 'full' ? 'Full refund' : decision === 'partial' ? 'Partial refund' : 'Deposit forfeited'}. Amount: RM ${finalAmount.toFixed(2)}`
+              message: note || `Refund decision: ${decision === 'full' ? 'Full refund' : decision === 'partial' ? 'Partial refund' : 'Deposit forfeited'}. Amount: RM ${finalAmount.toFixed(2)}`,
+              attachment
             }
           },
           {
@@ -787,7 +1109,7 @@ export default function LeaseEndingTestPage() {
 
   // Handle refund approval
   const handleRefundApprove = useCallback(
-    (report: string) => {
+    (report: string, attachment: { name: string; url: string } | undefined) => {
       const now = new Date()
       const dateStr = formatDate(now)
 
@@ -804,7 +1126,7 @@ export default function LeaseEndingTestPage() {
             performerAvatar: currentStaff.avatar,
             date: dateStr,
             timestamp: now.getTime(),
-            data: { message: report || 'Refund approved.' }
+            data: { message: report || 'Refund approved.', attachment }
           },
           {
             id: `event-${Date.now() + 1}`,
@@ -824,6 +1146,7 @@ export default function LeaseEndingTestPage() {
             status: 'completed',
             reviewReport: {
               message: report || 'Refund approved.',
+              attachment,
               submittedAt: dateStr,
               submittedBy: currentStaff.id,
               approved: true
@@ -913,6 +1236,45 @@ export default function LeaseEndingTestPage() {
     [currentStaff, workflow]
   )
 
+  // Handle add comment
+  const handleAddComment = useCallback(
+    (event: TaskTimelineEvent) => {
+      if (currentTaskType === 'inspection') {
+        setWorkflow(prev => ({
+          ...prev,
+          inspectionTask: {
+            ...prev.inspectionTask,
+            timelineEvents: [...prev.inspectionTask.timelineEvents, event]
+          }
+        }))
+      } else if (currentTaskType === 'preparation') {
+        setWorkflow(prev => ({
+          ...prev,
+          preparationTasks: prev.preparationTasks.map(task =>
+            task.id === currentTaskId
+              ? { ...task, timelineEvents: [...task.timelineEvents, event] }
+              : task
+          )
+        }))
+      } else if (currentTaskType === 'refund_request') {
+        setWorkflow(prev => ({
+          ...prev,
+          refundRequestTask: prev.refundRequestTask
+            ? { ...prev.refundRequestTask, timelineEvents: [...prev.refundRequestTask.timelineEvents, event] }
+            : prev.refundRequestTask
+        }))
+      } else if (currentTaskType === 'refund_finalization') {
+        setWorkflow(prev => ({
+          ...prev,
+          refundFinalizationTask: prev.refundFinalizationTask
+            ? { ...prev.refundFinalizationTask, timelineEvents: [...prev.refundFinalizationTask.timelineEvents, event] }
+            : prev.refundFinalizationTask
+        }))
+      }
+    },
+    [currentTaskId, currentTaskType]
+  )
+
   // Check if current user has pending assignment for current task
   const hasPendingAssignment = useMemo(() => {
     if (!currentTask) return false
@@ -932,28 +1294,20 @@ export default function LeaseEndingTestPage() {
     return <div>Task not found</div>
   }
 
+  // Check if task is completed (disable comments)
+  const isTaskCompleted = currentTask.status === 'completed'
+
   return (
     <div className='min-h-screen bg-(--background-secondary)'>
       {/* Header */}
       <div className='bg-white border-b border-(--border-default) px-6 py-4'>
         <div className='max-w-7xl mx-auto'>
-          <div className='flex items-center gap-4'>
-            <Link
-              href='/testing'
-              className='p-2 hover:bg-neutral-100 rounded-lg transition-colors'
-            >
-              <ArrowLeft size={20} className='text-(--text-secondary)' />
-            </Link>
-            <div className='flex items-center gap-2 text-(--text-secondary)'>
-              <Home size={16} />
-              <span className='texts-body-small'>/</span>
-              <span className='texts-body-small'>Testing</span>
-              <span className='texts-body-small'>/</span>
-              <span className='texts-body-small-medium text-(--text-primary)'>
-                Lease Ending Workflow
-              </span>
-            </div>
-          </div>
+          <Breadcrumb
+            items={[
+              { label: 'Testing', href: '/testing' },
+              { label: 'Lease Ending Workflow' }
+            ]}
+          />
         </div>
       </div>
 
@@ -985,6 +1339,13 @@ export default function LeaseEndingTestPage() {
                 {currentTask.title}
               </h3>
               <TaskTimeline events={currentTask.timelineEvents} />
+
+              {/* Add Comment Section */}
+              <AddCommentSection
+                currentStaff={currentStaff}
+                disabled={isTaskCompleted}
+                onCommentAdded={handleAddComment}
+              />
             </div>
           </div>
 

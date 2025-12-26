@@ -167,19 +167,34 @@ export type Ticket = {
 }
 
 export type Task = {
-  id: string
-  type: 'Maintenance' | 'Cleaning' | 'Property Turnover' | 'Others'
+  id: string // reference_id (e.g., TSK-20250000001)
+  task_id: string // actual UUID for linking
+  type:
+    | 'Maintenance'
+    | 'Renovation'
+    | 'Cleaning'
+    | 'Administrative'
+    | 'Documentation'
+    | 'Data Entry'
+    | 'Accounting'
+    | 'Legal'
+    | 'IT Support'
+    | 'Follow Up'
+    | 'Complaint Handling'
+    | 'Miscellaneous/Others'
+  priority: 'Low' | 'Medium' | 'High' | 'Urgent'
   title: string
   description: string
-  property: string
-  room: string | 'Whole unit'
-  issued_by: string
-  issuer_picture: string
-  issue_timestamp: string // ISO Timestamp
-  assignee_name?: string
-  assignee_picture?: string
-  assignment_timestamp: string // ISO Timestamp
-  status: 'Resolved' | 'Open' | 'Closed' | 'In Progress' | 'Pending Review'
+  property?: string
+  room?: string
+  due_date?: string // ISO Timestamp
+  created_by_name: string
+  created_by_picture?: string
+  created_at: string // ISO Timestamp
+  staff_name?: string
+  staff_picture?: string
+  assignment_timestamp?: string // ISO Timestamp
+  status: 'Open' | 'In Progress' | 'Resolved'
 }
 
 export type Notice = {

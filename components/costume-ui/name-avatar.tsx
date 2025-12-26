@@ -6,23 +6,32 @@ import React, { useState } from 'react'
 type UserAvatarProps = {
   name: string
   imgSrc?: string | null
-  size?: number // width & height
+  size?: number
   className?: string
 }
 
-// A simple palette of 5 colors
-const COLORS = ['#3B82F6', '#22C55E', '#FACC15', '#A855F7', '#EC4899']
+const COLORS = [
+  '#3B82F6', // blue
+  '#22C55E', // green
+  '#FACC15', // yellow
+  '#A855F7', // purple
+  '#EC4899', // pink
+  '#F97316', // orange
+  '#14B8A6', // teal
+  '#EF4444', // red
+  '#6366F1', // indigo
+  '#06B6D4', // cyan
+  '#F43F5E', // rose
+]
 
-// Get a consistent color based on the tenant name
-function getColorFromName (name: string) {
+function getColorFromName(name: string) {
   const charSum = name
     .split('')
     .reduce((acc, char) => acc + char.charCodeAt(0), 0)
   return COLORS[charSum % COLORS.length]
 }
 
-// Get initials from a full name
-function getInitials (name: string) {
+function getInitials(name: string) {
   const parts = name.split(' ').filter(Boolean)
   if (parts.length === 0) return '?'
   if (parts.length === 1) return parts[0][0].toUpperCase()
@@ -43,13 +52,12 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
 
   return (
     <div
-      className={`flex shrink-0 items-center justify-center rounded-full text-white font-semibold overflow-hidden shadow-sm ${className}`}
+      className={`relative flex shrink-0 items-center justify-center rounded-full text-white font-semibold overflow-hidden ${className}`}
       style={{
         width: size,
         height: size,
         minWidth: size,
         minHeight: size,
-        backgroundColor: showImage ? undefined : bgColor
       }}
     >
       {showImage ? (
@@ -62,7 +70,31 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
           onError={() => setImgError(true)}
         />
       ) : (
-        initials
+        <>
+          {/* Base color */}
+          <div
+            className="absolute inset-0"
+            style={{ backgroundColor: bgColor }}
+          />
+          {/* Subtle gradient overlay */}
+<div
+  className="absolute inset-0"
+  style={{
+    background: `linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%)`,
+  }}
+/>
+{/* Inner shadow for depth */}
+<div
+  className="absolute inset-0 rounded-full"
+  style={{
+    boxShadow: 'inset 0 -1px 2px rgba(0,0,0,0.08)',
+  }}
+/>
+          {/* Initials */}
+          <span className="relative z-10" style={{ fontSize: size * 0.4 }}>
+            {initials}
+          </span>
+        </>
       )}
     </div>
   )

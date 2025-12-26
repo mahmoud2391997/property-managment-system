@@ -3,7 +3,6 @@ import { FileKey2 } from 'lucide-react'
 import UnderDevelopment from '../under-development/page'
 
 const Testing = () => {
-  return <h1>Not Found</h1>
   return (
     <div className='p-6'>
       <h1 className='texts-heading-medium mb-6'>Testing Pages</h1>

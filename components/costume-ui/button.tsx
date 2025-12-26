@@ -15,7 +15,7 @@ type Props = {
 
 const buttonStyles = cva(
   [
-    'h-10 w-fit px-3',
+    'h-9 w-fit px-3.5',
     'transition-colors transition-opacity duration-100 active:duration-0',
     'flex items-center justify-center gap-1.5 lg:gap-2.5',
     'rounded-md cursor-pointer'
@@ -49,12 +49,12 @@ const buttonStyles = cva(
   }
 )
 
-const labelStylesCVA = cva('', {
+const labelStylesCVA = cva('texts-button-primary', {
   variants: {
     variant: {
-      primary: 'texts-button-primary text-(--text-inverse)',
-      secondary: 'texts-button-primary text-(--text-primary)',
-      info: 'texts-button-primary text-white'
+      primary: 'text-(--text-inverse)',
+      secondary: 'text-(--text-primary)',
+      info: 'text-white'
     }
   }
 })
@@ -65,7 +65,7 @@ const Button = ({
   icon,
   label,
   variant = 'primary',
-  isResponsive = true,
+  isResponsive = false,
   loading = false,
   ...props
 }: Props) => {
@@ -80,7 +80,7 @@ const Button = ({
       {...props}
     >
       {icon && (
-        <div className='w-5 h-auto p-0.5 flex items-center justify-center'>
+        <div className={cn('w-4.5 h-auto p-0.5 flex items-center justify-center', variant === 'primary' && 'text-(--text-inverse)')}>
           {icon}
         </div>
       )}

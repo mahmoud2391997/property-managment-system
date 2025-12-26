@@ -1,0 +1,556 @@
+'use client'
+
+import { useState } from 'react'
+import Select from '@/components/costume-ui/select'
+import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
+import { Calendar, Building2, DoorOpen, MapPin, Home, Pencil, X } from 'lucide-react'
+import { UserAvatar } from '@/components/costume-ui/name-avatar'
+import StaffAssignedSection from './staff-assigned-section'
+import { ResolveTaskDialog } from './task-actions'
+import type { Task, StaffMember, TaskType, PriorityLevel, TimelineEvent } from '../types'
+import { TASK_TYPES, PRIORITY_LEVELS, getStatusColor, formatDateTime } from '../types'
+import { cn } from '@/lib/utils'
+
+type Props = {
+  task: Task
+  staffList: StaffMember[]
+  currentStaff: StaffMember
+  onTypeChange: (newType: TaskType, event: TimelineEvent) => void
+  onPriorityChange: (newPriority: PriorityLevel, event: TimelineEvent) => void
+  onAssign: (staffId: string, isSelfAssign: boolean) => void
+  onUnassign: (reason: string) => void
+  onCancelAssignment: (reason: string) => void
+  onResolve: (report: string, attachment?: { name: string; url: string }) => void
+  onDueDateSet: (dueDate: string, event: TimelineEvent) => void
+  onDueDateChange: (newDueDate: string, reason: string, event: TimelineEvent) => void
+  onDueDateRemove: (reason: string, event: TimelineEvent) => void
+}
+
+export default function TaskSidebar({
+  task,
+  staffList,
+  currentStaff,
+  onTypeChange,
+  onPriorityChange,
+  onAssign,
+  onUnassign,
+  onCancelAssignment,
+  onResolve,
+  onDueDateSet,
+  onDueDateChange,
+  onDueDateRemove
+}: Props) {
+  const [pendingType, setPendingType] = useState<TaskType | null>(null)
+  const [selectedType, setSelectedType] = useState<TaskType>(task.type)
+  const [pendingPriority, setPendingPriority] = useState<PriorityLevel | null>(null)
+  const [selectedPriority, setSelectedPriority] = useState<PriorityLevel>(task.priority)
+  const [statusLoading, setStatusLoading] = useState(false)
+
+  // Due date state
+  const [showDueDateEdit, setShowDueDateEdit] = useState(false)
+  const [showDueDateRemove, setShowDueDateRemove] = useState(false)
+  const [newDueDate, setNewDueDate] = useState('')
+  const [dueDateReason, setDueDateReason] = useState('')
+  const [showAddDueDate, setShowAddDueDate] = useState(false)
+
+  const isResolved = task.status === 'Resolved'
+  const isAssignee = task.assignment?.staffId === currentStaff.id
+  const isInProgress = task.status === 'In Progress'
+
+  // Can resolve: only assignee when In Progress
+  const canResolve = isAssignee && isInProgress
+
+  // Type change handlers
+  const handleTypeSelect = (newType: string) => {
+    if (!newType || newType === task.type) return
+    setSelectedType(newType as TaskType)
+    setPendingType(newType as TaskType)
+  }
+
+  const handleConfirmTypeChange = () => {
+    if (!pendingType) return
+    const event: TimelineEvent = {
+      id: `evt-${Date.now()}`,
+      type: 'type_changed',
+      performerId: currentStaff.id,
+      performerName: currentStaff.name,
+      performerAvatar: currentStaff.avatar,
+      timestamp: new Date().toISOString(),
+      oldValue: task.type,
+      newValue: pendingType
+    }
+    onTypeChange(pendingType, event)
+    FeedbackToasts.updated('Task type', `Type changed to ${pendingType}`)
+    setPendingType(null)
+  }
+
+  const handleCancelTypeChange = () => {
+    setPendingType(null)
+    setSelectedType(task.type)
+  }
+
+  // Priority change handlers
+  const handlePrioritySelect = (newPriority: string) => {
+    if (!newPriority || newPriority === task.priority) return
+    setSelectedPriority(newPriority as PriorityLevel)
+    setPendingPriority(newPriority as PriorityLevel)
+  }
+
+  const handleConfirmPriorityChange = () => {
+    if (!pendingPriority) return
+    const event: TimelineEvent = {
+      id: `evt-${Date.now()}`,
+      type: 'priority_changed',
+      performerId: currentStaff.id,
+      performerName: currentStaff.name,
+      performerAvatar: currentStaff.avatar,
+      timestamp: new Date().toISOString(),
+      oldValue: task.priority,
+      newValue: pendingPriority
+    }
+    onPriorityChange(pendingPriority, event)
+    FeedbackToasts.updated('Task priority', `Priority changed to ${pendingPriority}`)
+    setPendingPriority(null)
+  }
+
+  const handleCancelPriorityChange = () => {
+    setPendingPriority(null)
+    setSelectedPriority(task.priority)
+  }
+
+  // Due date handlers
+  const handleSetDueDate = () => {
+    if (!newDueDate) return
+    const event: TimelineEvent = {
+      id: `evt-${Date.now()}`,
+      type: 'due_date_set',
+      performerId: currentStaff.id,
+      performerName: currentStaff.name,
+      performerAvatar: currentStaff.avatar,
+      timestamp: new Date().toISOString(),
+      dueDate: newDueDate
+    }
+    onDueDateSet(newDueDate, event)
+    FeedbackToasts.updated('Due date', 'Due date has been set')
+    setNewDueDate('')
+    setShowAddDueDate(false)
+  }
+
+  const handleChangeDueDate = () => {
+    if (!newDueDate || !dueDateReason.trim()) return
+    const event: TimelineEvent = {
+      id: `evt-${Date.now()}`,
+      type: 'due_date_changed',
+      performerId: currentStaff.id,
+      performerName: currentStaff.name,
+      performerAvatar: currentStaff.avatar,
+      timestamp: new Date().toISOString(),
+      oldDueDate: task.dueDate,
+      dueDate: newDueDate,
+      dueDateReason: dueDateReason.trim()
+    }
+    onDueDateChange(newDueDate, dueDateReason.trim(), event)
+    FeedbackToasts.updated('Due date', 'Due date has been changed')
+    setNewDueDate('')
+    setDueDateReason('')
+    setShowDueDateEdit(false)
+  }
+
+  const handleRemoveDueDate = () => {
+    if (!dueDateReason.trim()) return
+    const event: TimelineEvent = {
+      id: `evt-${Date.now()}`,
+      type: 'due_date_removed',
+      performerId: currentStaff.id,
+      performerName: currentStaff.name,
+      performerAvatar: currentStaff.avatar,
+      timestamp: new Date().toISOString(),
+      oldDueDate: task.dueDate,
+      dueDateReason: dueDateReason.trim()
+    }
+    onDueDateRemove(dueDateReason.trim(), event)
+    FeedbackToasts.updated('Due date', 'Due date has been removed')
+    setDueDateReason('')
+    setShowDueDateRemove(false)
+  }
+
+  const handleCancelDueDateEdit = () => {
+    setShowDueDateEdit(false)
+    setNewDueDate('')
+    setDueDateReason('')
+  }
+
+  const handleCancelDueDateRemove = () => {
+    setShowDueDateRemove(false)
+    setDueDateReason('')
+  }
+
+  const handleCancelAddDueDate = () => {
+    setShowAddDueDate(false)
+    setNewDueDate('')
+  }
+
+  const typeItems = TASK_TYPES.map(t => ({ value: t, label: t }))
+  const priorityItems = PRIORITY_LEVELS.map(p => ({ value: p, label: p }))
+
+  return (
+    <div className='w-full lg:w-[260px] lg:shrink-0 order-first lg:order-last'>
+      <div className='lg:sticky lg:top-6 space-y-4 lg:space-y-6 p-4 lg:p-0 bg-(--background-secondary) lg:bg-transparent rounded-xl lg:rounded-none mb-4 lg:mb-0'>
+        {/* Staff Assigned Section */}
+        <StaffAssignedSection
+          assignedStaff={task.assignment ? {
+            id: task.assignment.staffId,
+            name: task.assignment.staffName,
+            avatar: task.assignment.staffAvatar
+          } : null}
+          pendingStaff={task.pendingAssignment ? {
+            id: task.pendingAssignment.staffId,
+            name: task.pendingAssignment.staffName,
+            avatar: task.pendingAssignment.staffAvatar
+          } : null}
+          staffList={staffList}
+          currentStaffId={currentStaff.id}
+          onAssign={onAssign}
+          onUnassign={onUnassign}
+          onCancelAssignment={onCancelAssignment}
+          disabled={isResolved}
+        />
+
+        {/* Type */}
+        <div className='pb-5 border-b border-(--border-light)'>
+          <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
+            Type
+          </span>
+          <Select
+            label='Type'
+            items={typeItems}
+            placeholder='Select type'
+            value={selectedType}
+            className='w-full'
+            onChange={handleTypeSelect}
+            disabled={isResolved || !!pendingType}
+          />
+          {/* Confirm type change UI */}
+          {pendingType && (
+            <div className='mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg'>
+              <p className='texts-body-small text-(--text-secondary) mb-2'>
+                Change type to{' '}
+                <span className='texts-body-small-medium text-(--text-primary)'>
+                  {pendingType}
+                </span>
+                ?
+              </p>
+              <div className='flex gap-2'>
+                <button
+                  onClick={handleConfirmTypeChange}
+                  className='flex-1 px-3 py-1.5 bg-blue-600 text-white texts-body-small-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50'
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={handleCancelTypeChange}
+                  className='flex-1 px-3 py-1.5 bg-white border border-(--border-default) text-(--text-primary) texts-body-small-medium rounded-md hover:bg-neutral-50 transition-colors disabled:opacity-50'
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Priority */}
+        <div className='pb-5 border-b border-(--border-light)'>
+          <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
+            Priority
+          </span>
+          <Select
+            label='Priority'
+            items={priorityItems}
+            placeholder='Select priority'
+            value={selectedPriority}
+            className='w-full'
+            onChange={handlePrioritySelect}
+            disabled={isResolved || !!pendingPriority}
+          />
+          {/* Confirm priority change UI */}
+          {pendingPriority && (
+            <div className='mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg'>
+              <p className='texts-body-small text-(--text-secondary) mb-2'>
+                Change priority to{' '}
+                <span className='texts-body-small-medium text-(--text-primary)'>
+                  {pendingPriority}
+                </span>
+                ?
+              </p>
+              <div className='flex gap-2'>
+                <button
+                  onClick={handleConfirmPriorityChange}
+                  className='flex-1 px-3 py-1.5 bg-blue-600 text-white texts-body-small-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50'
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={handleCancelPriorityChange}
+                  className='flex-1 px-3 py-1.5 bg-white border border-(--border-default) text-(--text-primary) texts-body-small-medium rounded-md hover:bg-neutral-50 transition-colors disabled:opacity-50'
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Status Section */}
+        <div className='pb-5 border-b border-(--border-light)'>
+          <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
+            Status
+          </span>
+
+          {/* Current status display */}
+          <div className='mb-4'>
+            <span
+              className={cn(
+                'inline-block px-3 py-1 rounded-full texts-body-small-medium',
+                getStatusColor(task.status)
+              )}
+            >
+              {task.status}
+            </span>
+          </div>
+
+          {/* Status Actions */}
+          <div className='space-y-2'>
+            {/* Resolve Task - Only for assigned staff when In Progress */}
+            {canResolve && (
+              <ResolveTaskDialog
+                onSubmit={onResolve}
+                loading={statusLoading}
+                disabled={statusLoading}
+              />
+            )}
+
+            {/* Info when task is resolved */}
+            {isResolved && (
+              <p className='texts-body-small text-(--text-secondary)'>
+                This task has been resolved and cannot be modified.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Due Date */}
+        <div className='pb-5 border-b border-(--border-light)'>
+          <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
+            Due Date
+          </span>
+
+          {/* Has due date - show it with edit/remove options */}
+          {task.dueDate && !showDueDateEdit && !showDueDateRemove && (
+            <div className='flex items-center justify-between p-2 rounded-lg bg-(--background-secondary) border border-(--border-default)'>
+              <div className='flex items-center gap-2'>
+                <Calendar size={16} className='text-(--text-secondary)' />
+                <span className='texts-body-small text-(--text-primary)'>
+                  {formatDateTime(task.dueDate)}
+                </span>
+              </div>
+              {!isResolved && (
+                <div className='flex items-center gap-1'>
+                  <button
+                    onClick={() => setShowDueDateEdit(true)}
+                    className='p-1.5 rounded-md hover:bg-blue-50 text-(--text-muted) hover:text-blue-500 transition-colors'
+                    title='Change due date'
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => setShowDueDateRemove(true)}
+                    className='p-1.5 rounded-md hover:bg-red-50 text-(--text-muted) hover:text-red-500 transition-colors'
+                    title='Remove due date'
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Edit due date form */}
+          {task.dueDate && showDueDateEdit && (
+            <div className='p-3 rounded-lg bg-blue-50 border border-blue-200'>
+              <p className='texts-body-small text-(--text-primary) mb-3'>
+                Change due date
+              </p>
+              <input
+                type='datetime-local'
+                value={newDueDate}
+                onChange={e => setNewDueDate(e.target.value)}
+                className='w-full p-2 mb-3 texts-body-small bg-white border border-blue-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-300'
+              />
+              <textarea
+                value={dueDateReason}
+                onChange={e => setDueDateReason(e.target.value)}
+                placeholder='Reason for changing due date...'
+                className='w-full p-2 mb-3 texts-body-small bg-white border border-blue-200 rounded-md resize-none min-h-[60px] focus:outline-none focus:ring-1 focus:ring-blue-300'
+              />
+              <div className='flex items-center gap-2'>
+                <button
+                  onClick={handleChangeDueDate}
+                  disabled={!newDueDate || !dueDateReason.trim()}
+                  className='px-3 py-1.5 bg-blue-600 text-white texts-body-small-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50'
+                >
+                  Change
+                </button>
+                <button
+                  onClick={handleCancelDueDateEdit}
+                  className='px-3 py-1.5 texts-body-small-medium text-(--text-secondary) hover:text-(--text-primary) rounded-md hover:bg-blue-100 transition-colors'
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Remove due date confirmation */}
+          {task.dueDate && showDueDateRemove && (
+            <div className='p-3 rounded-lg bg-red-50 border border-red-200'>
+              <p className='texts-body-small text-(--text-primary) mb-3'>
+                Remove due date?
+              </p>
+              <textarea
+                value={dueDateReason}
+                onChange={e => setDueDateReason(e.target.value)}
+                placeholder='Reason for removing due date...'
+                className='w-full p-2 mb-3 texts-body-small bg-white border border-red-200 rounded-md resize-none min-h-[60px] focus:outline-none focus:ring-1 focus:ring-red-300'
+              />
+              <div className='flex items-center gap-2'>
+                <button
+                  onClick={handleRemoveDueDate}
+                  disabled={!dueDateReason.trim()}
+                  className='px-3 py-1.5 bg-red-600 text-white texts-body-small-medium rounded-md hover:bg-red-700 transition-colors disabled:opacity-50'
+                >
+                  Remove
+                </button>
+                <button
+                  onClick={handleCancelDueDateRemove}
+                  className='px-3 py-1.5 texts-body-small-medium text-(--text-secondary) hover:text-(--text-primary) rounded-md hover:bg-red-100 transition-colors'
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* No due date - show add button */}
+          {!task.dueDate && !showAddDueDate && !isResolved && (
+            <button
+              onClick={() => setShowAddDueDate(true)}
+              className='w-full p-2 texts-body-small text-(--text-secondary) border border-dashed border-(--border-default) rounded-lg hover:border-(--border-strong) hover:text-(--text-primary) transition-colors'
+            >
+              + Add due date
+            </button>
+          )}
+
+          {/* Add due date form */}
+          {!task.dueDate && showAddDueDate && (
+            <div className='p-3 rounded-lg bg-blue-50 border border-blue-200'>
+              <p className='texts-body-small text-(--text-primary) mb-3'>
+                Set due date
+              </p>
+              <input
+                type='datetime-local'
+                value={newDueDate}
+                onChange={e => setNewDueDate(e.target.value)}
+                className='w-full p-2 mb-3 texts-body-small bg-white border border-blue-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-300'
+              />
+              <div className='flex items-center gap-2'>
+                <button
+                  onClick={handleSetDueDate}
+                  disabled={!newDueDate}
+                  className='px-3 py-1.5 bg-blue-600 text-white texts-body-small-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50'
+                >
+                  Set
+                </button>
+                <button
+                  onClick={handleCancelAddDueDate}
+                  className='px-3 py-1.5 texts-body-small-medium text-(--text-secondary) hover:text-(--text-primary) rounded-md hover:bg-blue-100 transition-colors'
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Resolved state - no due date */}
+          {!task.dueDate && isResolved && (
+            <p className='texts-body-small text-(--text-secondary)'>No due date set</p>
+          )}
+        </div>
+
+        {/* Location Info */}
+        {task.location && (
+          <div className='pb-5 border-b border-(--border-light)'>
+            <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
+              Location
+            </span>
+            <div className='space-y-2'>
+              {/* Row 1: Project Name */}
+              {task.location.projectName && (
+                <div className='flex items-center gap-2'>
+                  <Building2 size={16} className='text-(--text-secondary)' />
+                  <span className='texts-body-small text-(--text-primary)'>
+                    {task.location.projectName}
+                  </span>
+                </div>
+              )}
+              {/* Row 2: Location (city, state, Malaysia) */}
+              {(task.location.propertyCity || task.location.projectState) && (
+                <div className='flex items-center gap-2'>
+                  <MapPin size={16} className='text-(--text-secondary)' />
+                  <span className='texts-body-small text-(--text-primary)'>
+                    {[task.location.propertyCity, task.location.projectState, 'Malaysia']
+                      .filter(Boolean)
+                      .join(', ')}
+                  </span>
+                </div>
+              )}
+              {/* Row 3: Property or Property (Room) */}
+              {task.location.propertyCode && (
+                <div className='flex items-center gap-2'>
+                  {task.location.roomId ? (
+                    <DoorOpen size={16} className='text-(--text-secondary)' />
+                  ) : (
+                    <Home size={16} className='text-(--text-secondary)' />
+                  )}
+                  <span className='texts-body-small text-(--text-primary)'>
+                    {task.location.propertyCode}
+                    {task.location.roomTitle && ` (${task.location.roomTitle})`}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Created Info */}
+        <div>
+          <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
+            Created By
+          </span>
+          <div className='flex items-center gap-3'>
+            <UserAvatar
+              name={task.createdByName}
+              imgSrc={task.createdByAvatar}
+              size={32}
+            />
+            <div>
+              <p className='texts-body-small-medium text-(--text-primary)'>{task.createdByName}</p>
+              <p className='texts-label-small text-(--text-secondary)'>
+                {formatDateTime(task.createdAt)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
