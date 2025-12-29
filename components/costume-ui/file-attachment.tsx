@@ -77,9 +77,16 @@ function truncateFilename(filename: string, maxLength: number): string {
   return nameWithoutExt.slice(0, maxNameLength) + '...' + extension
 }
 
-// Helper to generate storage key
+// Helper to generate storage key using a proper hash of the full URL
 function getStorageKey(url: string): string {
-  return `file_cache_${btoa(url).slice(0, 50)}`
+  // Create a hash of the URL to ensure uniqueness
+  let hash = 0
+  for (let i = 0; i < url.length; i++) {
+    const char = url.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32-bit integer
+  }
+  return `file_cache_${Math.abs(hash).toString(36)}_${url.length}`
 }
 
 // Helper to check if file is cached

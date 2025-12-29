@@ -311,26 +311,39 @@ export default function TaskDetailsPage() {
   }
 
   // Handle add comment
-  const handleAddComment = (message: string, attachment?: { name: string; url: string }) => {
-    const now = new Date().toISOString()
+  const handleCommentAdded = (comment: { id: string; message: string; attachment: string | null; createdAt: string; senderName: string; senderAvatar?: string }) => {
+    // Build attachment object if present
+    const attachment: { name: string; url: string } | undefined = comment.attachment
+      ? {
+          name: getFileNameFromUrl(comment.attachment),
+          url: comment.attachment
+        }
+      : undefined
 
-    const event: TimelineEvent = {
-      id: generateId('evt'),
+    // Add new comment to timeline
+    const newEvent: TimelineEvent = {
+      id: `evt-comment-${comment.id}`,
       type: 'comment',
       performerId: currentStaff.id,
-      performerName: currentStaff.name,
-      performerAvatar: currentStaff.avatar,
-      message,
+      performerName: comment.senderName,
+      performerAvatar: comment.senderAvatar,
+      message: comment.message,
       attachment,
-      timestamp: now
+      timestamp: comment.createdAt
     }
-
     setTask(prev => ({
       ...prev,
-      timeline: [...prev.timeline, event]
+      timeline: [...prev.timeline, newEvent]
     }))
+  }
 
-    FeedbackToasts.created('Comment')
+  function getFileNameFromUrl(url: string): string {
+    try {
+      const parts = url.split('/')
+      return parts[parts.length - 1] || 'attachment'
+    } catch {
+      return 'attachment'
+    }
   }
 
   // Handle set due date (when task has no due date)
@@ -438,7 +451,7 @@ export default function TaskDetailsPage() {
             currentUserName={currentStaff.name}
             currentUserAvatar={currentStaff.avatar}
             disabled={task.status === 'Resolved'}
-            onAddComment={handleAddComment}
+            onAddComment={handleCommentAdded}
           />
         </div>
 
