@@ -1121,7 +1121,7 @@ export const malaysiaStates: string[] = [
 
 export const taskTypes: string[] = ['Maintenance', 'Cleaning', 'Others']
 
-export const ticketTypes: string[] = ['Maintenance', 'Complaint', 'Billing', 'Other']
+export const ticketTypes: string[] = ['Maintenance', 'Complaint', 'Billing & Payments', 'Aircon Top-Up', 'Others']
 
 export const noticeTypes: string[] = [
   'General Announcement',
