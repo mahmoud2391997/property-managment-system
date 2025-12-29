@@ -516,9 +516,32 @@ export async function GET(
 
 function getFileNameFromUrl(url: string): string {
   try {
-    const parts = url.split('/')
-    return parts[parts.length - 1] || 'attachment'
+    // Parse URL to handle query parameters properly
+    const urlObj = new URL(url)
+    // Get the pathname and extract the last segment
+    const pathname = urlObj.pathname
+    const parts = pathname.split('/')
+    let fileName = parts[parts.length - 1] || 'attachment'
+
+    // Decode URL-encoded characters
+    fileName = decodeURIComponent(fileName)
+
+    // If the filename doesn't have an extension, try to infer from content-type or default
+    if (!fileName.includes('.') || fileName.endsWith('.')) {
+      fileName = 'attachment'
+    }
+
+    return fileName
   } catch {
-    return 'attachment'
+    // Fallback to simple split if URL parsing fails
+    try {
+      const parts = url.split('/')
+      let fileName = parts[parts.length - 1] || 'attachment'
+      // Remove query parameters if any
+      fileName = fileName.split('?')[0]
+      return decodeURIComponent(fileName)
+    } catch {
+      return 'attachment'
+    }
   }
 }

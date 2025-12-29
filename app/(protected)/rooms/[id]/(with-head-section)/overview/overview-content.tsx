@@ -19,7 +19,6 @@ import {
   Wrench
 } from 'lucide-react'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
-import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import PaymentsSection from '@/components/payments-section'

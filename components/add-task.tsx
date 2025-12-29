@@ -116,7 +116,7 @@ const AddTask = ({ onSuccess, onLoadingChange }: Props) => {
       setLoadingRooms(true)
       try {
         const response = await fetch(
-          `/api/properties/${selectedPropertyId}/overview`
+          `/api/rooms?propertyId=${selectedPropertyId}`
         )
         if (response.ok) {
           const data = await response.json()

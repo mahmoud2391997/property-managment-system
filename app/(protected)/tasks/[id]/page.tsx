@@ -6,7 +6,8 @@ import Breadcrumb from '@/components/costume-ui/breadcrumb'
 import { FeedbackToasts, showFeedbackToast } from '@/components/costume-ui/feedback-toast'
 import TaskTimeline from '@/components/task-ui/task-timeline'
 import TaskSidebar from '@/components/task-ui/task-sidebar'
-import { PendingAssignmentBanner, AddCommentSection } from '@/components/task-ui/task-actions'
+import { PendingAssignmentBanner } from '@/components/task-ui/task-actions'
+import AddCommentSection from '@/components/task-ui/add-comment-section'
 import type { TaskDetail, StaffMember, TaskType, PriorityLevel, TimelineEvent } from '@/components/task-ui/types'
 import { getPriorityColor, getStatusColor, formatDate } from '@/components/task-ui/types'
 import { cn } from '@/lib/utils'
@@ -361,32 +362,41 @@ export default function TaskDetailsPage() {
   }
 
   // Handle add comment
-  const handleAddComment = async (message: string, attachment?: { name: string; url: string }) => {
-    if (!task || !currentStaff) return
+  const handleCommentAdded = (comment: { id: string; message: string; attachment: string | null; createdAt: string; senderName: string; senderAvatar?: string }) => {
+    if (!task) return
 
-    setActionLoading('commenting')
+    // Build attachment object if present
+    const attachment: { name: string; url: string } | undefined = comment.attachment
+      ? {
+          name: getFileNameFromUrl(comment.attachment),
+          url: comment.attachment
+        }
+      : undefined
+
+    // Add new comment to timeline
+    const newEvent = {
+      id: `evt-comment-${comment.id}`,
+      type: 'comment' as const,
+      performerId: currentStaff?.id || '',
+      performerName: comment.senderName,
+      performerAvatar: comment.senderAvatar,
+      message: comment.message,
+      attachment,
+      timestamp: comment.createdAt
+    }
+
+    setTask(prev => prev ? {
+      ...prev,
+      timeline: [...prev.timeline, newEvent]
+    } : null)
+  }
+
+  function getFileNameFromUrl(url: string): string {
     try {
-      const response = await fetch(`/api/tasks/${taskId}/comment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, attachment })
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to add comment')
-      }
-      const data = await response.json()
-
-      setTask(prev => prev ? {
-        ...prev,
-        timeline: [...prev.timeline, data.event]
-      } : null)
-
-      FeedbackToasts.created('Comment')
-    } catch (err: any) {
-      showFeedbackToast({ title: 'Error', description: err.message, type: 'error' })
-    } finally {
-      setActionLoading(null)
+      const parts = url.split('/')
+      return parts[parts.length - 1] || 'attachment'
+    } catch {
+      return 'attachment'
     }
   }
 
@@ -577,9 +587,9 @@ export default function TaskDetailsPage() {
           <AddCommentSection
             currentUserName={currentStaff.name}
             currentUserAvatar={currentStaff.avatar}
+            taskId={taskId}
             disabled={task.status === 'Resolved'}
-            onAddComment={handleAddComment}
-            actionLoading={actionLoading}
+            onCommentAdded={handleCommentAdded}
           />
         </div>
 

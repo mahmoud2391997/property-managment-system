@@ -56,24 +56,22 @@ export async function POST(
       data: {
         task_id: taskId,
         message: message,
-        attachment: attachment?.url || null,
+        attachment: attachment || null,
         sender_id: currentStaff.id
       }
     })
 
     return NextResponse.json({
       success: true,
-      event: {
-        id: `evt-comment-${comment.id}`,
-        type: 'comment',
-        performerId: currentStaff.id,
-        performerName: currentStaffName,
-        performerAvatar: currentStaff.profile_pic,
-        message: message,
-        attachment: attachment ? { name: attachment.name, url: attachment.url } : undefined,
-        timestamp: comment.created_at.toISOString()
+      comment: {
+        id: comment.id,
+        message: comment.message,
+        attachment: comment.attachment,
+        createdAt: comment.created_at.toISOString(),
+        senderName: currentStaffName,
+        senderAvatar: currentStaff.profile_pic
       }
-    })
+    }, { status: 201 })
   } catch (error: any) {
     console.error('Error adding comment:', error)
     return NextResponse.json(

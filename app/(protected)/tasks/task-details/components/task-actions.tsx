@@ -159,10 +159,7 @@ type AddCommentSectionProps = {
   currentUserName: string
   currentUserAvatar?: string
   disabled?: boolean
-  onAddComment: (
-    message: string,
-    attachment?: { name: string; url: string }
-  ) => void
+  onAddComment: (comment: { id: string; message: string; attachment: string | null; createdAt: string; senderName: string; senderAvatar?: string }) => void
 }
 
 export function AddCommentSection ({
@@ -223,28 +220,67 @@ export function AddCommentSection ({
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!message.trim() && !attachmentFile) return
 
     setLoading(true)
 
-    const attachment = attachmentFile
-      ? {
-          name: attachmentFile.name,
-          url: attachmentPreview || `https://example.com/${attachmentFile.name}`
+    try {
+      let attachmentUrl: string | null = null
+
+      // Upload file to Supabase if there's an attachment
+      if (attachmentFile) {
+        const formData = new FormData()
+        formData.append('file', attachmentFile)
+        formData.append('bucket', 'tasks')
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload attachment')
         }
-      : undefined
 
-    onAddComment(message.trim() || 'Attached a file', attachment)
+        const uploadData = await uploadResponse.json()
+        attachmentUrl = uploadData.url
+      }
 
-    // Reset form
-    setMessage('')
-    setAttachmentFile(null)
-    setAttachmentPreview(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+      // Call the comment API (get taskId from URL)
+      const taskId = window.location.pathname.split('/').pop()
+
+      const response = await fetch(`/api/tasks/${taskId}/comment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: message.trim() || 'Attached a file',
+          attachment: attachmentUrl
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to add comment')
+      }
+
+      const data = await response.json()
+      onAddComment(data.comment)
+
+      // Reset form
+      setMessage('')
+      setAttachmentFile(null)
+      setAttachmentPreview(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+
+      FeedbackToasts.created('Comment')
+    } catch (error: any) {
+      console.error('Error submitting comment:', error)
+      FeedbackToasts.operationFailed('Comment', error.message || 'Failed to submit comment')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const canSubmit = (message.trim() || attachmentFile) && !loading && !disabled
