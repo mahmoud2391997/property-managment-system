@@ -65,7 +65,6 @@ export async function updateSession (request: NextRequest) {
 
 const RESTRICTED_STAFF_ALLOWED_PATHS = [
   '/tasks',
-  '/tickets',
   '/notifications',
   '/api',
   '/unauthorized',
