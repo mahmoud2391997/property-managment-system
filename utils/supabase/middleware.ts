@@ -59,19 +59,19 @@ export async function updateSession (request: NextRequest) {
   const isUnauthorizedPage = request.nextUrl.pathname === '/unauthorized'
 
   const RESTRICTED_STAFF_EMAILS: String[] = [
-  'majidrafique777@gmail.com',
-  'mickyiyke745@gmail.com'
-]
+    'majidrafique777@gmail.com',
+    'mickyiyke745@gmail.com'
+  ]
 
-const RESTRICTED_STAFF_ALLOWED_PATHS = [
-  '/tasks',
-  '/notifications',
-  '/api',
-  '/unauthorized',
-  '/setup-password',
-]
+  const RESTRICTED_STAFF_ALLOWED_PATHS = [
+    '/tasks',
+    '/notifications',
+    '/api',
+    '/unauthorized',
+    '/setup-password'
+  ]
 
-  if (!user && !isPublicPath && !isRootPath) {
+  if (!user && !isPublicPath) {
     // no user, redirect to login page
     const url = request.nextUrl.clone()
     url.pathname = '/login'
@@ -108,21 +108,23 @@ const RESTRICTED_STAFF_ALLOWED_PATHS = [
       }
 
       // Check if staff email is restricted
-if (hasOrganization) {
-  const isRestrictedStaff = RESTRICTED_STAFF_EMAILS.includes(user.email ?? '')
-  
-  if (isRestrictedStaff) {
-    const isAllowedPath = RESTRICTED_STAFF_ALLOWED_PATHS.some(path =>
-      request.nextUrl.pathname.startsWith(path)
-    )
-    
-    if (!isAllowedPath) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/tasks'
-      return NextResponse.redirect(url)
-    }
-  }
-}
+      if (hasOrganization) {
+        const isRestrictedStaff = RESTRICTED_STAFF_EMAILS.includes(
+          user.email ?? ''
+        )
+
+        if (isRestrictedStaff) {
+          const isAllowedPath = RESTRICTED_STAFF_ALLOWED_PATHS.some(path =>
+            request.nextUrl.pathname.startsWith(path)
+          )
+
+          if (!isAllowedPath) {
+            const url = request.nextUrl.clone()
+            url.pathname = '/tasks'
+            return NextResponse.redirect(url)
+          }
+        }
+      }
 
       // Staff cannot access tenant-only pages
       const tenantOnlyPaths = ['/rentals']
@@ -179,7 +181,12 @@ if (hasOrganization) {
       return NextResponse.redirect(url)
     } else if (userType === 'tenant') {
       const url = request.nextUrl.clone()
-      url.pathname = '/rentals'
+      url.pathname = '/payments'
+      return NextResponse.redirect(url)
+    } else {
+      // No valid user type detected, redirect to login
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
       return NextResponse.redirect(url)
     }
   }

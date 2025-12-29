@@ -11,7 +11,6 @@ import AddCommentSection from '@/components/task-ui/add-comment-section'
 import type { TaskDetail, StaffMember, TaskType, PriorityLevel, TimelineEvent } from '@/components/task-ui/types'
 import { getPriorityColor, getStatusColor, formatDate } from '@/components/task-ui/types'
 import { cn } from '@/lib/utils'
-import { Loader2 } from 'lucide-react'
 import TaskDetailsSkeleton from '@/components/loading-ui/task-details-skeleton'
 
 export default function TaskDetailsPage() {
