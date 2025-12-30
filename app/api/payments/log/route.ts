@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { parseLocalDateTime } from '@/utils/formatTime'
 
 /**
  * Log a manual payment (Cash or Bank Transfer) - Staff only
@@ -120,8 +121,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Parse payment date and time
-    const paymentDateTime = new Date(`${payment_date}T${payment_time}`)
+    // Parse payment date and time using utility that preserves local timezone
+    const paymentDateTime = parseLocalDateTime(payment_date, payment_time)
 
     // Validate date is not in the future
     if (paymentDateTime > new Date()) {

@@ -63,7 +63,7 @@ export type PaymentWithDetails = {
   recurring_pattern: 'Recurring' | 'One-time'
   recurring_pattern_description: string
   amount: number
-  status: 'Paid' | 'Paid Late' | 'Pending' | 'Overdue' | 'Cancelled'
+  status: 'Paid' | 'Paid Late' | 'Pending' | 'Partially Paid' | 'Overdue' | 'Cancelled'
   payment_percentage: number
   has_pending_payments: boolean
   tenant_name: string
@@ -95,7 +95,7 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
   const hasPendingPayments = payment.payment_history.some(h => h.status === 'Pending')
 
   // Get status
-  const status = payment.status as 'Paid' | 'Paid Late' | 'Pending' | 'Overdue' | 'Cancelled'
+  const status = payment.status as 'Paid' | 'Paid Late' | 'Pending' | 'Partially Paid' | 'Overdue' | 'Cancelled'
 
   // Get recurring pattern info
   const recurringConfig = payment.recurring_configs

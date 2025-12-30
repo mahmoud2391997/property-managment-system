@@ -8,6 +8,8 @@ import PaymentsTable from '@/components/tables/pyaments-table'
 import Link from 'next/link'
 import { PaymentWithDetails } from '@/lib/payments-utils'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
+import { useSingleSelectOption } from '@/hooks/useSingleSelectOption'
+import { Tab, TabGroup } from '../costume-ui/tab'
 
 interface PaymentsSectionProps {
   initialData: PaymentWithDetails[]
@@ -38,6 +40,33 @@ export default function PaymentsSection ({
     initialTotal,
     pageSize: 10
   })
+
+  const {
+    options: filterTabs,
+    selectByIndex: selectFilterByIndex,
+    selectedIndex: selectedFilterIndex
+  } = useSingleSelectOption([
+    {
+      label: 'All',
+      isSelected: true
+    },
+    {
+      label: 'Paid',
+      isSelected: false
+    },
+    {
+      label: 'Paid Late',
+      isSelected: false
+    },
+    {
+      label: 'Overdue',
+      isSelected: false
+    },
+    {
+      label: 'Pending',
+      isSelected: false
+    }
+  ])
 
   return (
     <>
@@ -72,6 +101,20 @@ export default function PaymentsSection ({
           </div>
         )}
       </div>
+
+      {/* Filters */}
+      <TabGroup showButton={true} className='-mx-5 px-5 mb-3'>
+        {filterTabs.map((tab, index) => (
+          <Tab
+            key={index}
+            label={tab.label}
+            isSelected={tab.isSelected}
+            onClick={() => selectFilterByIndex(index)}
+            className='texts-tab-secondary'
+          />
+        ))}
+      </TabGroup>
+
       {/* Table */}
       <div>
         <PaymentsTable

@@ -23,7 +23,6 @@ function TabGroup ({ className = '', children, showButton }: TabGroupProps) {
           icon={<Funnel className='text-neutral-400' />}
           variant='secondary'
           label='Filter'
-
         />
       )}
     </div>
