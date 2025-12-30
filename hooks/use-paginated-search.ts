@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import { useSearchParams, usePathname } from 'next/navigation'
+import { useSearchParams, usePathname, useRouter } from 'next/navigation'
 
 interface UsePaginatedSearchOptions<T> {
   /** API route for fetching data (e.g., '/api/properties') */
@@ -14,6 +14,8 @@ interface UsePaginatedSearchOptions<T> {
   pageSize?: number
   /** Debounce delay in milliseconds */
   debounceMs?: number
+  /** Default filter values (e.g., { status: 'all', type: 'all' }) */
+  defaultFilters?: Record<string, string>
 }
 
 interface UsePaginatedSearchReturn<T> {
@@ -41,6 +43,10 @@ interface UsePaginatedSearchReturn<T> {
   pageSize: number
   /** Update a single item by id */
   updateItem: (id: string, updates: Partial<T>) => void
+  /** Update filters (updates URL, which triggers refetch) */
+  updateFilters: (newFilters: Record<string, string>) => void
+  /** Current active filters (derived from URL) */
+  activeFilters: Record<string, string>
 }
 
 export function usePaginatedSearch<T>({
@@ -48,151 +54,222 @@ export function usePaginatedSearch<T>({
   initialData,
   initialTotal,
   pageSize = 10,
-  debounceMs = 1000
+  debounceMs = 1000,
+  defaultFilters = {}
 }: UsePaginatedSearchOptions<T>): UsePaginatedSearchReturn<T> {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const router = useRouter()
 
-  // Read initial values from URL
-  const urlList = parseInt(searchParams.get('list') || '1')
+  // ============================================
+  // URL IS THE SOURCE OF TRUTH
+  // ============================================
+  
+  // Read current state from URL
+  const urlPage = Math.max(1, parseInt(searchParams.get('list') || '1'))
   const urlSearch = searchParams.get('search') || ''
+  
+  // Read filters from URL, falling back to defaults
+  const urlFilters: Record<string, string> = { ...defaultFilters }
+  Object.keys(defaultFilters).forEach(key => {
+    const urlValue = searchParams.get(key)
+    if (urlValue) {
+      urlFilters[key] = urlValue
+    }
+  })
 
-  // Calculate max pages from total
-  const maxPages = Math.max(1, Math.ceil(initialTotal / pageSize))
-
-  // Validate list param - default to 1 if invalid or exceeds max pages
-  const initialList = (urlList > 0 && urlList <= maxPages) ? urlList : 1
-
-  // Check if URL params require fetching different data than initialData
-  const needsInitialFetch = initialList > 1 || urlSearch !== ''
-
-  // Pagination state - if URL needs different data, start empty
-  const [paginatedData, setPaginatedData] = useState<T[]>(needsInitialFetch ? [] : initialData)
+  // ============================================
+  // LOCAL STATE (for UI and caching only)
+  // ============================================
+  
+  // Data state
+  const [data, setData] = useState<T[]>(initialData)
   const [total, setTotal] = useState(initialTotal)
-  const [page, setPage] = useState(initialList)
+  const [isLoading, setIsLoading] = useState(false)
 
-  // Page cache - stores visited pages to avoid refetching
-  const pageCacheRef = useRef<Map<number, T[]>>(
-    new Map([[1, initialData]])
-  )
-
-  // Search state
-  const [searchTerm, setSearchTerm] = useState(urlSearch)
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
-  const [searchResults, setSearchResults] = useState<T[]>([])
-  const [searchTotal, setSearchTotal] = useState(0)
-  const [searchPage, setSearchPage] = useState(1)
-
-  // Loading state - start loading if URL needs different data
-  const [isLoading, setIsLoading] = useState(needsInitialFetch)
-
-  // Search page cache - key is "term:page"
-  const searchCacheRef = useRef<Map<string, T[]>>(new Map())
+  // Search input state (for controlled input + debounce)
+  const [searchInputValue, setSearchInputValue] = useState(urlSearch)
 
   // Debounce timer ref
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Track last searched term to avoid duplicate searches
-  const lastSearchedTermRef = useRef<string>('')
+  // Cache refs
+  const pageCacheRef = useRef<Map<string, { data: T[]; total: number }>>(new Map())
+  
+  // Track if this is initial mount
+  const isInitialMount = useRef(true)
+  
+  // Track last fetched params to avoid duplicate fetches
+  const lastFetchedParams = useRef<string>('')
 
-  // Track if initial URL load has been processed
-  const initialLoadRef = useRef(false)
-
-  // Determine if we should use server-side search (total > pageSize)
+  // Determine if we should use server-side search
   const useServerSearch = initialTotal > pageSize
 
-  // Update URL without causing navigation (instant, synchronous)
-  const updateUrl = useCallback((list: number, search: string) => {
-    const params = new URLSearchParams()
-    if (list > 1) {
-      params.set('list', list.toString())
+  // ============================================
+  // URL UPDATE FUNCTION
+  // ============================================
+  
+  const updateUrl = useCallback((updates: {
+    page?: number
+    search?: string
+    filters?: Record<string, string>
+  }) => {
+    const params = new URLSearchParams(searchParams.toString())
+    
+    // Update page
+    if (updates.page !== undefined) {
+      if (updates.page > 1) {
+        params.set('list', updates.page.toString())
+      } else {
+        params.delete('list')
+      }
     }
-    if (search) {
-      params.set('search', search)
+    
+    // Update search
+    if (updates.search !== undefined) {
+      if (updates.search) {
+        params.set('search', updates.search)
+      } else {
+        params.delete('search')
+      }
     }
+    
+    // Update filters
+    if (updates.filters !== undefined) {
+      Object.entries(updates.filters).forEach(([key, value]) => {
+        if (value && value !== defaultFilters[key]) {
+          params.set(key, value)
+        } else {
+          params.delete(key)
+        }
+      })
+    }
+    
     const queryString = params.toString()
     const newUrl = queryString ? `${pathname}?${queryString}` : pathname
-    // Use native history API for instant URL update
+    
+    // Use replaceState for instant URL update without navigation
     window.history.replaceState(null, '', newUrl)
-  }, [pathname])
+    
+    // Also update Next.js router state (for searchParams to update)
+    router.replace(newUrl, { scroll: false })
+  }, [searchParams, pathname, router, defaultFilters])
 
-  // Fetch paginated data from API (with caching)
-  const fetchPage = useCallback(async (pageNum: number, updateUrlParam = true) => {
+  // ============================================
+  // BUILD CACHE KEY FROM URL PARAMS
+  // ============================================
+  
+  const buildCacheKey = useCallback((page: number, search: string, filters: Record<string, string>) => {
+    const filterStr = Object.entries(filters)
+      .filter(([_, v]) => v && v !== 'all')
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${k}=${v}`)
+      .join('&')
+    return `page=${page}&search=${search}&${filterStr}`
+  }, [])
+
+  // ============================================
+  // FETCH DATA FUNCTION
+  // ============================================
+  
+  const fetchData = useCallback(async (page: number, search: string, filters: Record<string, string>) => {
+    const cacheKey = buildCacheKey(page, search, filters)
+    
+    // Skip if we just fetched these exact params
+    if (lastFetchedParams.current === cacheKey) {
+      return
+    }
+    
     // Check cache first
-    const cached = pageCacheRef.current.get(pageNum)
+    const cached = pageCacheRef.current.get(cacheKey)
     if (cached) {
-      setPaginatedData(cached)
-      setPage(pageNum)
-      if (updateUrlParam) updateUrl(pageNum, '')
+      setData(cached.data)
+      setTotal(cached.total)
+      lastFetchedParams.current = cacheKey
       return
     }
 
     setIsLoading(true)
+    lastFetchedParams.current = cacheKey
+    
     try {
-      const response = await fetch(
-        `${apiRoute}?paginate=true&page=${pageNum}&limit=${pageSize}`
-      )
+      // Build query string
+      const params = new URLSearchParams()
+      params.set('paginate', 'true')
+      params.set('page', page.toString())
+      params.set('limit', pageSize.toString())
+      
+      if (search) {
+        params.set('search', search)
+      }
+      
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && value !== 'all') {
+          params.set(key, value)
+        }
+      })
+      
+      const response = await fetch(`${apiRoute}?${params.toString()}`)
       const result = await response.json()
+      
       if (result.success) {
         // Cache the result
-        pageCacheRef.current.set(pageNum, result.data)
-        setPaginatedData(result.data)
+        pageCacheRef.current.set(cacheKey, { data: result.data, total: result.total })
+        setData(result.data)
         setTotal(result.total)
-        setPage(pageNum)
-        if (updateUrlParam) updateUrl(pageNum, '')
       }
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
       setIsLoading(false)
     }
-  }, [apiRoute, pageSize, updateUrl])
+  }, [apiRoute, pageSize, buildCacheKey])
 
-  // Fetch search results from API (with caching)
-  const fetchSearchResults = useCallback(async (term: string, pageNum: number, updateUrlParam = true) => {
-    // Check cache first - key is "term:page"
-    const cacheKey = `${term}:${pageNum}`
-    const cached = searchCacheRef.current.get(cacheKey)
-    if (cached) {
-      // Only update if this term is still the latest searched term
-      if (lastSearchedTermRef.current !== term) return
-      setSearchResults(cached)
-      setSearchPage(pageNum)
-      setDebouncedSearchTerm(term)
-      if (updateUrlParam) updateUrl(pageNum, term)
-      return
-    }
-
-    setIsLoading(true)
-    try {
-      const response = await fetch(
-        `${apiRoute}?paginate=true&page=${pageNum}&limit=${pageSize}&search=${encodeURIComponent(term)}`
+  // ============================================
+  // EFFECT: FETCH WHEN URL CHANGES
+  // ============================================
+  
+  useEffect(() => {
+    // On initial mount, check if URL params match initial data
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      
+      // Check if URL has non-default params that need fetching
+      const hasNonDefaultPage = urlPage > 1
+      const hasSearch = urlSearch !== ''
+      const hasNonDefaultFilters = Object.entries(urlFilters).some(
+        ([key, value]) => value && value !== defaultFilters[key]
       )
-      const result = await response.json()
-      // Only update state if this term is still the latest searched term (user didn't clear/change input)
-      if (result.success && lastSearchedTermRef.current === term) {
-        // Cache the result
-        searchCacheRef.current.set(cacheKey, result.data)
-        setSearchResults(result.data)
-        setSearchTotal(result.total)
-        setSearchPage(pageNum)
-        // Set debounced term AFTER data is ready
-        setDebouncedSearchTerm(term)
-        if (updateUrlParam) updateUrl(pageNum, term)
-      }
-    } catch (error) {
-      console.error('Error searching data:', error)
-    } finally {
-      // Only clear loading if this is still the active search
-      if (lastSearchedTermRef.current === term || lastSearchedTermRef.current === '') {
-        setIsLoading(false)
+      
+      // If URL matches initial data conditions (page 1, no search, default filters), use initial data
+      if (!hasNonDefaultPage && !hasSearch && !hasNonDefaultFilters) {
+        // Cache the initial data
+        const cacheKey = buildCacheKey(1, '', urlFilters)
+        pageCacheRef.current.set(cacheKey, { data: initialData, total: initialTotal })
+        lastFetchedParams.current = cacheKey
+        return
       }
     }
-  }, [apiRoute, pageSize, updateUrl])
+    
+    // Fetch data based on URL params
+    fetchData(urlPage, urlSearch, urlFilters)
+  }, [urlPage, urlSearch, JSON.stringify(urlFilters)]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Handle search input change with debounce
+  // ============================================
+  // SYNC SEARCH INPUT WITH URL
+  // ============================================
+  
+  // When URL search changes externally, sync input value
+  useEffect(() => {
+    setSearchInputValue(urlSearch)
+  }, [urlSearch])
+
+  // ============================================
+  // HANDLERS
+  // ============================================
+  
   const handleSearchChange = useCallback((value: string) => {
-    setSearchTerm(value)
+    setSearchInputValue(value)
 
     // Clear previous debounce timer
     if (debounceTimerRef.current) {
@@ -201,46 +278,44 @@ export function usePaginatedSearch<T>({
 
     const trimmedValue = value.trim()
 
-    // If search is cleared, reset immediately
-    if (!trimmedValue) {
-      setDebouncedSearchTerm('')
-      setSearchResults([])
-      setSearchTotal(0)
-      setSearchPage(1)
-      searchCacheRef.current.clear()
-      lastSearchedTermRef.current = ''
+    // If not using server search, update URL immediately for client-side filtering
+    if (!useServerSearch) {
+      updateUrl({ search: trimmedValue, page: 1 })
       return
     }
 
-    // Only use server search if total > pageSize
-    if (useServerSearch) {
-      // Debounce the search term update
-      debounceTimerRef.current = setTimeout(() => {
-        // Skip if same as last searched term
-        if (trimmedValue === lastSearchedTermRef.current) {
-          return
-        }
+    // Debounce server search
+    debounceTimerRef.current = setTimeout(() => {
+      updateUrl({ search: trimmedValue, page: 1 })
+    }, debounceMs)
+  }, [useServerSearch, updateUrl, debounceMs])
 
-        lastSearchedTermRef.current = trimmedValue
-        setDebouncedSearchTerm(trimmedValue)
-        fetchSearchResults(trimmedValue, 1, false)
-      }, debounceMs)
-    } else {
-      // Client-side search: update debounced term immediately for instant filtering
-      setDebouncedSearchTerm(trimmedValue)
+  const updateFilters = useCallback((newFilters: Record<string, string>) => {
+    // Merge with current URL filters and update URL
+    const mergedFilters = { ...urlFilters, ...newFilters }
+    updateUrl({ filters: mergedFilters, page: 1 })
+  }, [urlFilters, updateUrl])
+
+  const goToNextPage = useCallback(() => {
+    updateUrl({ page: urlPage + 1 })
+  }, [urlPage, updateUrl])
+
+  const goToPreviousPage = useCallback(() => {
+    updateUrl({ page: Math.max(1, urlPage - 1) })
+  }, [urlPage, updateUrl])
+
+  // ============================================
+  // CLIENT-SIDE FILTERING (when total <= pageSize)
+  // ============================================
+  
+  const displayData = useMemo(() => {
+    if (!urlSearch || useServerSearch) {
+      return data
     }
-  }, [useServerSearch, fetchSearchResults, debounceMs])
 
-  // Client-side filtering for when total <= pageSize
-  const clientFilteredData = useMemo(() => {
-    if (!debouncedSearchTerm || useServerSearch) {
-      return paginatedData
-    }
-
-    const lowerSearch = debouncedSearchTerm.toLowerCase()
-
-    // Generic filtering - searches all string properties
-    return paginatedData.filter(item => {
+    // Client-side search
+    const lowerSearch = urlSearch.toLowerCase()
+    return data.filter(item => {
       return Object.values(item as object).some(value => {
         if (typeof value === 'string') {
           return value.toLowerCase().includes(lowerSearch)
@@ -248,100 +323,31 @@ export function usePaginatedSearch<T>({
         return false
       })
     })
-  }, [paginatedData, debouncedSearchTerm, useServerSearch])
+  }, [data, urlSearch, useServerSearch])
 
-  // Determine what data to display
-  const displayData = useMemo(() => {
-    // If searching and using server search, show search results
-    if (debouncedSearchTerm && useServerSearch) {
-      return searchResults
-    }
-    // If searching but using client search, show filtered data
-    if (debouncedSearchTerm && !useServerSearch) {
-      return clientFilteredData
-    }
-    // No search, show paginated data
-    return paginatedData
-  }, [debouncedSearchTerm, useServerSearch, searchResults, clientFilteredData, paginatedData])
-
-  // Determine current page info for pagination controls
-  const currentPage = debouncedSearchTerm && useServerSearch ? searchPage : page
-  const currentTotal = debouncedSearchTerm && useServerSearch ? searchTotal : total
-
-  // Pagination handlers
-  const goToNextPage = useCallback(() => {
-    if (debouncedSearchTerm && useServerSearch) {
-      fetchSearchResults(debouncedSearchTerm, searchPage + 1)
-    } else {
-      fetchPage(page + 1)
-    }
-  }, [debouncedSearchTerm, useServerSearch, searchPage, page, fetchSearchResults, fetchPage])
-
-  const goToPreviousPage = useCallback(() => {
-    if (debouncedSearchTerm && useServerSearch) {
-      fetchSearchResults(debouncedSearchTerm, searchPage - 1)
-    } else {
-      fetchPage(page - 1)
-    }
-  }, [debouncedSearchTerm, useServerSearch, searchPage, page, fetchSearchResults, fetchPage])
-
-  const canGoNext = currentPage * pageSize < currentTotal
-  const canGoPrevious = currentPage > 1
-
-  // Update a single item by id (for optimistic updates)
+  // ============================================
+  // UPDATE ITEM (for optimistic updates)
+  // ============================================
+  
   const updateItem = useCallback((id: string, updates: Partial<T>) => {
     const updateInArray = (arr: T[]) =>
       arr.map(item => ((item as any).id === id ? { ...item, ...updates } : item))
 
-    // Update paginated data
-    setPaginatedData(prev => updateInArray(prev))
+    setData(prev => updateInArray(prev))
 
-    // Update search results if in search mode
-    if (debouncedSearchTerm) {
-      setSearchResults(prev => updateInArray(prev))
-    }
-
-    // Update page cache
-    pageCacheRef.current.forEach((data, pageNum) => {
-      pageCacheRef.current.set(pageNum, updateInArray(data))
+    // Update cache
+    pageCacheRef.current.forEach((cached, key) => {
+      pageCacheRef.current.set(key, {
+        ...cached,
+        data: updateInArray(cached.data)
+      })
     })
+  }, [])
 
-    // Update search cache
-    searchCacheRef.current.forEach((data, key) => {
-      searchCacheRef.current.set(key, updateInArray(data))
-    })
-  }, [debouncedSearchTerm])
-
-  // Handle initial URL params on mount
-  useEffect(() => {
-    if (initialLoadRef.current) return
-    initialLoadRef.current = true
-
-    // If URL list exceeds max pages, redirect to list 1
-    if (urlList > maxPages && urlList > 0) {
-      updateUrl(1, urlSearch)
-    }
-
-    // If URL has search param, trigger search
-    if (urlSearch && useServerSearch) {
-      lastSearchedTermRef.current = urlSearch
-      fetchSearchResults(urlSearch, 1, false)
-    }
-    // If URL has list param > 1 and no search, fetch that page
-    else if (initialList > 1 && !urlSearch) {
-      fetchPage(initialList, false)
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Sync URL when debouncedSearchTerm changes
-  useEffect(() => {
-    // Skip on initial mount (handled by initial URL effect)
-    if (!initialLoadRef.current) return
-
-    updateUrl(debouncedSearchTerm ? 1 : page, debouncedSearchTerm)
-  }, [debouncedSearchTerm, page, updateUrl])
-
-  // Cleanup debounce timer on unmount
+  // ============================================
+  // CLEANUP
+  // ============================================
+  
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
@@ -350,18 +356,27 @@ export function usePaginatedSearch<T>({
     }
   }, [])
 
+  // ============================================
+  // COMPUTED VALUES
+  // ============================================
+  
+  const canGoNext = urlPage * pageSize < total
+  const canGoPrevious = urlPage > 1
+
   return {
     data: displayData,
     isLoading,
-    searchTerm,
+    searchTerm: searchInputValue,
     handleSearchChange,
-    currentPage,
-    total: currentTotal,
+    currentPage: urlPage,
+    total,
     canGoNext,
     canGoPrevious,
     goToNextPage,
     goToPreviousPage,
     pageSize,
-    updateItem
+    updateItem,
+    updateFilters,
+    activeFilters: urlFilters
   }
 }

@@ -8,7 +8,6 @@ import PaymentsTable from '@/components/tables/pyaments-table'
 import Link from 'next/link'
 import { PaymentWithDetails } from '@/lib/payments-utils'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
-import { useSingleSelectOption } from '@/hooks/useSingleSelectOption'
 import { Tab, TabGroup } from '../costume-ui/tab'
 
 interface PaymentsSectionProps {
@@ -33,40 +32,26 @@ export default function PaymentsSection ({
     canGoPrevious,
     goToNextPage,
     goToPreviousPage,
-    pageSize
+    pageSize,
+    updateFilters,
+    activeFilters
   } = usePaginatedSearch<PaymentWithDetails>({
     apiRoute: '/api/payments',
     initialData,
     initialTotal,
-    pageSize: 10
+    pageSize: 10,
+    defaultFilters: { status: 'all' } // Changed from filters to defaultFilters
   })
 
-  const {
-    options: filterTabs,
-    selectByIndex: selectFilterByIndex,
-    selectedIndex: selectedFilterIndex
-  } = useSingleSelectOption([
-    {
-      label: 'All',
-      isSelected: true
-    },
-    {
-      label: 'Paid',
-      isSelected: false
-    },
-    {
-      label: 'Paid Late',
-      isSelected: false
-    },
-    {
-      label: 'Overdue',
-      isSelected: false
-    },
-    {
-      label: 'Pending',
-      isSelected: false
-    }
-  ])
+  const statusOptions = ['all', 'Paid', 'Paid Late', 'Partially Paid', 'Overdue', 'Pending', 'Cancelled']
+
+  // Current status from URL (via activeFilters)
+  const currentStatus = activeFilters.status || 'all'
+
+  // Handle tab selection - updates URL which triggers refetch
+  const handleTabClick = (status: string) => {
+    updateFilters({ status })
+  }
 
   return (
     <>
@@ -104,12 +89,12 @@ export default function PaymentsSection ({
 
       {/* Filters */}
       <TabGroup showButton={true} className='-mx-5 px-5 mb-3'>
-        {filterTabs.map((tab, index) => (
+        {statusOptions.map((status) => (
           <Tab
-            key={index}
-            label={tab.label}
-            isSelected={tab.isSelected}
-            onClick={() => selectFilterByIndex(index)}
+            key={status}
+            label={status === 'all' ? 'All' : status}
+            isSelected={currentStatus === status}
+            onClick={() => handleTabClick(status)}
             className='texts-tab-secondary'
           />
         ))}

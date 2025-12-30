@@ -94,8 +94,34 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
   // Check if there are any Pending payment_history records
   const hasPendingPayments = payment.payment_history.some(h => h.status === 'Pending')
 
-  // Get status
-  const status = payment.status as 'Paid' | 'Paid Late' | 'Pending' | 'Partially Paid' | 'Overdue' | 'Cancelled'
+  // Calculate display status (same logic as frontend)
+  let status: 'Paid' | 'Paid Late' | 'Pending' | 'Partially Paid' | 'Overdue' | 'Cancelled'
+
+  // Check if cancelled first
+  if (payment.status === 'Cancelled') {
+    status = 'Cancelled'
+  } else {
+    const now = new Date()
+    const dueDate = payment.due_payment_timestamp
+    const isFullyPaid = paymentPercentage >= 100
+    const isPartiallyPaid = paymentPercentage > 0 && paymentPercentage < 100
+    const isOverdue = dueDate ? now > dueDate : false
+    const latestPaymentDate = successfulPayments[0]?.paid_at
+
+    if (isFullyPaid) {
+      // Check if last payment was after due date
+      status = (dueDate && latestPaymentDate && latestPaymentDate > dueDate) ? 'Paid Late' : 'Paid'
+    } else {
+      // Not fully paid - check priority: Overdue > Partially Paid > Pending
+      if (isOverdue) {
+        status = 'Overdue'
+      } else if (isPartiallyPaid) {
+        status = 'Partially Paid'
+      } else {
+        status = 'Pending'
+      }
+    }
+  }
 
   // Get recurring pattern info
   const recurringConfig = payment.recurring_configs

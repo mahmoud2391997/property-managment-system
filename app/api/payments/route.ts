@@ -103,10 +103,11 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const search = searchParams.get('search')?.trim() || ''
     const skipCount = searchParams.get('skipCount') === 'true'
+    const statusFilter = searchParams.get('status')?.trim() || ''
 
     // If paginate mode is enabled, use pagination/search logic
     if (paginate) {
-      // Build where clause with search
+      // Build where clause with search and filters
       // Note: leases is optional (payments can be for bookings instead)
       // Using 'is' wrapper for optional relation filtering
       const whereClause: any = {
@@ -119,23 +120,51 @@ export async function GET(request: NextRequest) {
             { leases: { is: { tenants: { individual_tenants: { last_name: { contains: search, mode: 'insensitive' } } } } } },
             { leases: { is: { tenants: { company_tenants: { company_name: { contains: search, mode: 'insensitive' } } } } } }
           ]
+        }),
+        // Filter by DB status (Paid, Pending, Cancelled) if provided and not 'all'
+        ...(statusFilter && statusFilter !== 'all' && ['Paid', 'Pending', 'Cancelled'].includes(statusFilter) && {
+          status: statusFilter
         })
       }
 
-      // Fetch payments and optionally total count in parallel
+      // Fetch payments - for calculated statuses (Paid Late, Partially Paid, Overdue),
+      // we need to fetch more data and filter on frontend after transformation
+      const needsFrontendFiltering = statusFilter && !['Paid', 'Pending', 'Cancelled', 'all'].includes(statusFilter)
+
+      // If we need frontend filtering, fetch all matching records (without pagination)
+      // Then apply pagination after filtering
       const [payments, total] = await Promise.all([
         prisma.payments.findMany({
           where: whereClause,
           select: paymentSelect,
           orderBy: { created_at: 'desc' },
-          skip: (page - 1) * limit,
-          take: limit
+          ...(needsFrontendFiltering ? {} : {
+            skip: (page - 1) * limit,
+            take: limit
+          })
         }),
         skipCount ? Promise.resolve(-1) : prisma.payments.count({ where: whereClause })
       ])
 
       // Transform payments for display
-      const transformedPayments = payments.map(transformPayment)
+      let transformedPayments = payments.map(transformPayment)
+
+      // Apply frontend filtering for calculated statuses
+      if (needsFrontendFiltering) {
+        transformedPayments = transformedPayments.filter(payment => payment.status === statusFilter)
+
+        // Apply pagination after filtering
+        const startIndex = (page - 1) * limit
+        const paginatedPayments = transformedPayments.slice(startIndex, startIndex + limit)
+
+        return NextResponse.json({
+          success: true,
+          data: paginatedPayments,
+          total: transformedPayments.length,
+          page,
+          pageSize: limit
+        })
+      }
 
       return NextResponse.json({
         success: true,
