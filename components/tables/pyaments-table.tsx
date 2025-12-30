@@ -165,12 +165,19 @@ export default function PaymentsTable ({
         method: 'POST'
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create payment bill')
-      }
-
       const data = await response.json()
+
+      if (!response.ok) {
+        // Handle specific error: payment already fully paid
+        if (data.error === 'Payment is already fully paid') {
+          toast.info('This payment has already been fully paid')
+          setRefreshingPaymentId(paymentId)
+          window.location.reload()
+          return
+        }
+        // For other errors, throw to be caught by catch block
+        throw new Error(data.error || 'Failed to create payment bill')
+      }
 
       // Check if API wants us to check payment status instead
       if (data.redirect_to_check) {
@@ -251,18 +258,6 @@ export default function PaymentsTable ({
         window.location.reload()
         return
       }
-
-      // If there's a pending payment not yet completed, inform staff
-      if (result.payment_not_completed) {
-        await Swal.fire({
-          icon: 'warning',
-          title: 'Pending FPX Payment',
-          text: 'There is a pending FPX payment that has not been completed yet. The tenant may still complete this payment.',
-          confirmButtonColor: '#f59e0b'
-        })
-        // Still allow opening the dialog after warning
-      }
-
       // No pending FPX payment or it's not completed - open the dialog
       setLogPaymentTarget({ paymentId, maxAmount })
       setLogPaymentDialogOpen(true)
@@ -645,6 +640,7 @@ export default function PaymentsTable ({
         const now = new Date()
         const dueDate = due_date ? new Date(due_date) : null
         const isFullyPaid = payment_percentage >= 100
+        const isPartiallyPaid = payment_percentage > 0 && payment_percentage < 100
         const isOverdue = dueDate ? now > dueDate : false
         const latestPaymentDate = latest_payment_timestamp ? new Date(latest_payment_timestamp) : null
 
@@ -653,7 +649,14 @@ export default function PaymentsTable ({
           // Check if last payment was after due date
           displayStatus = (dueDate && latestPaymentDate && latestPaymentDate > dueDate) ? 'Paid Late' : 'Paid'
         } else {
-          displayStatus = isOverdue ? 'Overdue' : 'Pending'
+          // Not fully paid - check priority: Overdue > Partially Paid > Pending
+          if (isOverdue) {
+            displayStatus = 'Overdue'
+          } else if (isPartiallyPaid) {
+            displayStatus = 'Partially Paid'
+          } else {
+            displayStatus = 'Pending'
+          }
         }
 
         const statusKey = displayStatus.toLowerCase().replace(/\s/g, '-')
@@ -671,6 +674,7 @@ export default function PaymentsTable ({
                   'data-[status=paid]:bg-green-100 data-[status=paid]:text-green-800',
                   'data-[status=paid-late]:bg-yellow-100 data-[status=paid-late]:text-yellow-800',
                   'data-[status=pending]:bg-gray-100 data-[status=pending]:text-gray-800',
+                  'data-[status=partially-paid]:bg-orange-100 data-[status=partially-paid]:text-orange-800',
                   'data-[status=overdue]:bg-red-100 data-[status=overdue]:text-red-800'
                 )}
               >
@@ -810,13 +814,21 @@ export default function PaymentsTable ({
     const now = new Date()
     const dueDate = payment.due_date ? new Date(payment.due_date) : null
     const isFullyPaid = payment.payment_percentage >= 100
+    const isPartiallyPaid = payment.payment_percentage > 0 && payment.payment_percentage < 100
     const isOverdue = dueDate ? now > dueDate : false
     const latestPaymentDate = payment.latest_payment_timestamp ? new Date(payment.latest_payment_timestamp) : null
 
     if (isFullyPaid) {
       return (dueDate && latestPaymentDate && latestPaymentDate > dueDate) ? 'Paid Late' : 'Paid'
     }
-    return isOverdue ? 'Overdue' : 'Pending'
+    // Not fully paid - check priority: Overdue > Partially Paid > Pending
+    if (isOverdue) {
+      return 'Overdue'
+    } else if (isPartiallyPaid) {
+      return 'Partially Paid'
+    } else {
+      return 'Pending'
+    }
   }
 
   // Mobile Card Component
@@ -847,6 +859,7 @@ export default function PaymentsTable ({
                   'data-[status=paid]:bg-green-100 data-[status=paid]:text-green-800',
                   'data-[status=paid-late]:bg-yellow-100 data-[status=paid-late]:text-yellow-800',
                   'data-[status=pending]:bg-gray-100 data-[status=pending]:text-gray-800',
+                  'data-[status=partially-paid]:bg-orange-100 data-[status=partially-paid]:text-orange-800',
                   'data-[status=overdue]:bg-red-100 data-[status=overdue]:text-red-800',
                   'data-[status=cancelled]:bg-neutral-200 data-[status=cancelled]:text-neutral-600'
                 )}
