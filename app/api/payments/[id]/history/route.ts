@@ -56,6 +56,9 @@ export async function GET(
               }
             },
             payment_history: {
+              where: {
+                status: 'Success'
+              },
               orderBy: {
                 paid_at: 'asc'
               },
@@ -88,6 +91,9 @@ export async function GET(
               }
             },
             payment_history: {
+              where: {
+                status: 'Success'
+              },
               orderBy: {
                 paid_at: 'asc'
               },
