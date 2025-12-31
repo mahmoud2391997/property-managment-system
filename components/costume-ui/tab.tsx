@@ -17,14 +17,22 @@ function TabGroup ({ className = '', children, showButton }: TabGroupProps) {
         className
       )}
     >
-      <div className={`flex md:gap-2.5 w-full`}>{children}</div>
-      {showButton && (
+      <div
+        className={cn(
+          'flex md:gap-2.5 w-full',
+          'overflow-x-auto hide-scrollbar',
+          '*:shrink-0'
+        )}
+      >
+        {children}
+      </div>
+      {/* {showButton && (
         <Button
           icon={<Funnel className='text-neutral-400' />}
           variant='secondary'
           label='Filter'
         />
-      )}
+      )} */}
     </div>
   )
 }

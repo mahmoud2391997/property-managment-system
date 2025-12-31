@@ -153,7 +153,6 @@ export async function GET(
         },
         // Reports
         task_reports: {
-          orderBy: { created_at: 'desc' },
           include: {
             staff: {
               select: {
@@ -407,7 +406,8 @@ export async function GET(
     }
 
     // 8. Reports
-    for (const report of task.task_reports) {
+    if (task.task_reports) {
+      const report = task.task_reports
       timelineEvents.push({
         id: `evt-report-${report.id}`,
         type: 'report_submitted',
@@ -436,7 +436,7 @@ export async function GET(
     const pendingAssignment = task.task_assignments.find(a => a.status === 'Pending')
 
     // Get report
-    const report = task.task_reports[0]
+    const report = task.task_reports
 
     // Build location
     const location = task.properties ? {
