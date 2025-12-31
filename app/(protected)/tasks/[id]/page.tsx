@@ -6,6 +6,7 @@ import Breadcrumb from '@/components/costume-ui/breadcrumb'
 import { FeedbackToasts, showFeedbackToast } from '@/components/costume-ui/feedback-toast'
 import TaskTimeline from '@/components/task-ui/task-timeline'
 import TaskSidebar from '@/components/task-ui/task-sidebar'
+import TaskNavigation from '@/components/task-ui/task-navigation'
 import { PendingAssignmentBanner } from '@/components/task-ui/task-actions'
 import AddCommentSection from '@/components/task-ui/add-comment-section'
 import type { TaskDetail, StaffMember, TaskType, PriorityLevel, TimelineEvent } from '@/components/task-ui/types'
@@ -390,6 +391,7 @@ export default function TaskDetailsPage() {
     } : null)
   }
 
+  // Get and show file name
   function getFileNameFromUrl(url: string): string {
     try {
       const parts = url.split('/')
@@ -524,6 +526,23 @@ export default function TaskDetailsPage() {
           { label: `#${task.referenceId}` }
         ]}
       />
+
+      {/* Task Navigation */}
+      <div className='mt-4'>
+        <TaskNavigation
+          currentTask={{
+            id: task.id,
+            title: task.title,
+            status: task.status,
+            referenceId: task.referenceId,
+            isCurrent: true
+          }}
+          onTaskSelect={(taskId) => {
+            // Navigate to task
+            window.location.href = `/tasks/${taskId}`
+          }}
+        />
+      </div>
 
       {/* Header */}
       <div className='mt-4 mb-2'>

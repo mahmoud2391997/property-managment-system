@@ -556,6 +556,7 @@ model leases {
   tenants                     tenants                @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   payments                    payments[]
   recurring_configs           recurring_configs[]
+  task_flow_instances         task_flow_instances[]
   tickets                     tickets[]
 
   @@unique([organization_id, reference_id], map: "unique_reference_id_per_organization")
@@ -583,6 +584,7 @@ model organizations {
   reminders             reminders[]
   roles                 roles[]
   staff                 staff[]
+  task_flow_instances   task_flow_instances[]
   tasks                 tasks[]
   tickets               tickets[]
 
@@ -708,6 +710,7 @@ model properties {
   property_default_lease_config    property_default_lease_config?
   recurring_configs                recurring_configs[]
   rooms                            rooms[]
+  task_flow_instances              task_flow_instances[]
   tasks                            tasks[]
   views                            views[]
 
@@ -760,6 +763,7 @@ model rooms {
   property_default_lease_config    property_default_lease_config?
   staff                            staff?                             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
   properties                       properties?                        @relation(fields: [property_id], references: [id], onUpdate: NoAction)
+  task_flow_instances              task_flow_instances[]
   tasks                            tasks[]
   views                            views[]
 
@@ -809,6 +813,7 @@ model staff {
   task_assignments_task_assignments_unassigned_byTostaff     task_assignments[]                 @relation("task_assignments_unassigned_byTostaff")
   task_comments                                              task_comments[]
   task_due_dates                                             task_due_dates[]
+  task_flow_instances                                        task_flow_instances[]
   task_priorities                                            task_priorities[]
   task_reports                                               task_reports[]
   task_types                                                 task_types[]
@@ -1249,32 +1254,71 @@ model task_types {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model tasks {
-  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title            String
-  description      String
-  attachment       String?
-  reference_id     String
-  property_id      String?            @db.Uuid
-  room_id          String?            @db.Uuid
-  created_at       DateTime           @default(now()) @db.Timestamptz(6)
-  created_by       String?            @db.Uuid
-  organization_id  String             @db.Uuid
-  task_assignments task_assignments[]
-  task_comments    task_comments[]
-  task_due_dates   task_due_dates[]
-  task_priorities  task_priorities[]
-  task_reports     task_reports?
-  task_statuses    task_statuses[]
-  task_types       task_types[]
-  staff            staff?             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations    organizations      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  properties       properties?        @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  rooms            rooms?             @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                                                                         String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                                                                      String
+  description                                                                String
+  attachment                                                                 String?
+  reference_id                                                               String
+  property_id                                                                String?               @db.Uuid
+  room_id                                                                    String?               @db.Uuid
+  created_at                                                                 DateTime              @default(now()) @db.Timestamptz(6)
+  created_by                                                                 String?               @db.Uuid
+  organization_id                                                            String                @db.Uuid
+  flow_instance_id                                                           String?               @db.Uuid
+  task_assignments                                                           task_assignments[]
+  task_comments                                                              task_comments[]
+  task_due_dates                                                             task_due_dates[]
+  task_flow_instances_task_flow_instances_inspection_task_idTotasks          task_flow_instances[] @relation("task_flow_instances_inspection_task_idTotasks")
+  task_flow_instances_task_flow_instances_refund_finalization_task_idTotasks task_flow_instances[] @relation("task_flow_instances_refund_finalization_task_idTotasks")
+  task_flow_instances_task_flow_instances_refund_request_task_idTotasks      task_flow_instances[] @relation("task_flow_instances_refund_request_task_idTotasks")
+  task_priorities                                                            task_priorities[]
+  task_reports                                                               task_reports?
+  task_statuses                                                              task_statuses[]
+  task_types                                                                 task_types[]
+  staff                                                                      staff?                @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  task_flow_instances_tasks_flow_instance_idTotask_flow_instances            task_flow_instances?  @relation("tasks_flow_instance_idTotask_flow_instances", fields: [flow_instance_id], references: [id], onUpdate: NoAction)
+  organizations                                                              organizations         @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties                                                                 properties?           @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rooms                                                                      rooms?                @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([reference_id, organization_id], map: "tasks_reference_id_organization_id_unique")
   @@index([organization_id], map: "idx_tasks_org")
   @@index([property_id], map: "idx_tasks_property")
   @@index([room_id], map: "idx_tasks_room")
+  @@index([flow_instance_id], map: "idx_tasks_flow_instance")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model task_flow_instances {
+  id                                                           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  flow_type                                                    task_flow_type
+  lease_id                                                     String?        @db.Uuid
+  property_id                                                  String?        @db.Uuid
+  room_id                                                      String?        @db.Uuid
+  status                                                       String         @default("In Progress")
+  inspection_task_id                                           String?        @db.Uuid
+  refund_request_task_id                                       String?        @db.Uuid
+  refund_finalization_task_id                                  String?        @db.Uuid
+  created_at                                                   DateTime       @default(now()) @db.Timestamptz(6)
+  created_by                                                   String?        @db.Uuid
+  organization_id                                              String         @db.Uuid
+  staff                                                        staff?         @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  tasks_task_flow_instances_inspection_task_idTotasks          tasks?         @relation("task_flow_instances_inspection_task_idTotasks", fields: [inspection_task_id], references: [id], onUpdate: NoAction)
+  leases                                                       leases?        @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  organizations                                                organizations  @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties                                                   properties?    @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tasks_task_flow_instances_refund_finalization_task_idTotasks tasks?         @relation("task_flow_instances_refund_finalization_task_idTotasks", fields: [refund_finalization_task_id], references: [id], onUpdate: NoAction)
+  tasks_task_flow_instances_refund_request_task_idTotasks      tasks?         @relation("task_flow_instances_refund_request_task_idTotasks", fields: [refund_request_task_id], references: [id], onUpdate: NoAction)
+  rooms                                                        rooms?         @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tasks_tasks_flow_instance_idTotask_flow_instances            tasks[]        @relation("tasks_flow_instance_idTotask_flow_instances")
+
+  @@index([lease_id], map: "idx_task_flow_instances_lease")
+  @@index([organization_id], map: "idx_task_flow_instances_org")
+  @@index([property_id], map: "idx_task_flow_instances_property")
+  @@index([room_id], map: "idx_task_flow_instances_room")
+  @@index([flow_type], map: "idx_task_flow_instances_type")
   @@schema("public")
 }
 
@@ -1567,8 +1611,9 @@ enum task_priority {
 
 enum task_state {
   Open
-  In_Progress @map("In Progress")
+  In_Progress        @map("In Progress")
   Resolved
+  Needs_Modification @map("Needs Modification")
 
   @@schema("public")
 }
@@ -1590,6 +1635,13 @@ enum task_type {
   Follow_Up            @map("Follow Up")
   Complaint_Handling   @map("Complaint Handling")
   Miscellaneous_Others @map("Miscellaneous/Others")
+
+  @@schema("public")
+}
+
+enum task_flow_type {
+  Lease_Ending       @map("Lease Ending")
+  Property_Not_Ready @map("Property Not Ready")
 
   @@schema("public")
 }

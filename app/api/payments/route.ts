@@ -85,14 +85,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get current staff organization
+    // Check if user is staff
     const staff = await prisma.staff.findUnique({
       where: { id: user.id },
       select: { organization_id: true }
     })
 
-    if (!staff) {
-      return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
+    // Check if user is tenant
+    const tenant = await prisma.tenants.findUnique({
+      where: { id: user.id },
+      select: { id: true }
+    })
+
+    if (!staff && !tenant) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     const { searchParams } = new URL(request.url)
@@ -110,22 +116,37 @@ export async function GET(request: NextRequest) {
       // Build where clause with search and filters
       // Note: leases is optional (payments can be for bookings instead)
       // Using 'is' wrapper for optional relation filtering
-      const whereClause: any = {
-        organization_id: staff.organization_id,
-        ...(search && {
-          OR: [
-            { reference_id: { contains: search, mode: 'insensitive' } },
-            { leases: { is: { properties: { code: { contains: search, mode: 'insensitive' } } } } },
-            { leases: { is: { tenants: { individual_tenants: { first_name: { contains: search, mode: 'insensitive' } } } } } },
-            { leases: { is: { tenants: { individual_tenants: { last_name: { contains: search, mode: 'insensitive' } } } } } },
-            { leases: { is: { tenants: { company_tenants: { company_name: { contains: search, mode: 'insensitive' } } } } } }
-          ]
-        }),
-        // Filter by DB status (Paid, Pending, Cancelled) if provided and not 'all'
-        ...(statusFilter && statusFilter !== 'all' && ['Paid', 'Pending', 'Cancelled'].includes(statusFilter) && {
-          status: statusFilter
-        })
-      }
+      const whereClause: any = staff
+        ? {
+            organization_id: staff.organization_id,
+            ...(search && {
+              OR: [
+                { reference_id: { contains: search, mode: 'insensitive' } },
+                { leases: { is: { properties: { code: { contains: search, mode: 'insensitive' } } } } },
+                { leases: { is: { tenants: { individual_tenants: { first_name: { contains: search, mode: 'insensitive' } } } } } },
+                { leases: { is: { tenants: { individual_tenants: { last_name: { contains: search, mode: 'insensitive' } } } } } },
+                { leases: { is: { tenants: { company_tenants: { company_name: { contains: search, mode: 'insensitive' } } } } } }
+              ]
+            }),
+            // Filter by DB status (Paid, Pending, Cancelled) if provided and not 'all'
+            ...(statusFilter && statusFilter !== 'all' && ['Paid', 'Pending', 'Cancelled'].includes(statusFilter) && {
+              status: statusFilter
+            })
+          }
+        : {
+            leases: { tenant_id: tenant!.id },
+            ...(search && {
+              OR: [
+                { reference_id: { contains: search, mode: 'insensitive' } },
+                { leases: { properties: { code: { contains: search, mode: 'insensitive' } } } },
+                { leases: { rooms: { title: { contains: search, mode: 'insensitive' } } } }
+              ]
+            }),
+            // Filter by DB status (Paid, Pending, Cancelled) if provided and not 'all'
+            ...(statusFilter && statusFilter !== 'all' && ['Paid', 'Pending', 'Cancelled'].includes(statusFilter) && {
+              status: statusFilter
+            })
+          }
 
       // Fetch payments - for calculated statuses (Paid Late, Partially Paid, Overdue),
       // we need to fetch more data and filter on frontend after transformation
@@ -180,13 +201,14 @@ export async function GET(request: NextRequest) {
     const roomId = searchParams.get('roomId')
 
     // Build where clause - filter by property/room through leases relation
-    const whereClause: any = {
-      organization_id: staff.organization_id
-    }
+    const whereClause: any = staff
+      ? { organization_id: staff.organization_id }
+      : { leases: { tenant_id: tenant!.id } }
 
     // If propertyId provided, filter payments through leases -> property_id
     if (propertyId) {
       whereClause.leases = {
+        ...whereClause.leases,
         property_id: propertyId
       }
     }
