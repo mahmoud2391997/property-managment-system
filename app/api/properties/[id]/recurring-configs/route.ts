@@ -202,7 +202,7 @@ export async function GET(
       let amount: number | null = null
       if (config.is_payment_fixed && latestPayment) {
         amount = latestPayment.charges.reduce((sum, charge) => {
-          const chargeAmount = charge.amount
+          const chargeAmount = charge.amount.toNumber()
           const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
           return sum + chargeAmount + tax
         }, 0)
@@ -273,8 +273,8 @@ export async function GET(
       // Calculate amount from charges if fixed
       let amount: number | null = null
       if (config.is_payment_fixed && latestExpense) {
-        amount = latestExpense.charges.reduce((sum: number, charge: { amount: number; is_taxed: boolean }) => {
-          const chargeAmount = charge.amount
+        amount = latestExpense.charges.reduce((sum, charge) => {
+          const chargeAmount = charge.amount.toNumber()
           const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
           return sum + chargeAmount + tax
         }, 0)

@@ -6,7 +6,7 @@ import { CheckCircle2, Circle, Clock } from 'lucide-react'
 type TaskNavigationItem = {
   id: string
   title: string
-  status: 'Open' | 'In Progress' | 'Resolved'
+  status: 'Open' | 'In Progress' | 'Resolved' | 'Needs Modification'
   referenceId: string
   isCurrent: boolean
 }

@@ -15,7 +15,7 @@ import Button from '@/components/costume-ui/button'
 
 type props = {
   children: React.ReactNode
-  openDialogButton: React.ReactNode
+  openDialogButton?: React.ReactNode
   title: string | React.ReactNode
   sub_title?: string
   // hasFooter?: boolean
@@ -44,7 +44,7 @@ export default function Dialog ({
 }: props) {
   return (
     <ShadcnDialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>{openDialogButton}</DialogTrigger>
+      {openDialogButton && <DialogTrigger asChild>{openDialogButton}</DialogTrigger>}
       <DialogContent
         className={`py-0! px-0! overflow-auto! sm:max-w-[425px] max-h-[calc(100vh-5rem)] flex flex-col ${className}`}
       >

@@ -266,7 +266,7 @@ export async function POST (request: Request) {
                 title: charge.type,
                 amount: parseFloat(charge.amount) || 0,
                 is_taxed: charge.isTaxableChecked || false,
-                is_refunded: false,
+                is_refunded: charge.isRefundableChecked || false,
                 created_by: staff.id
               }))
             }
@@ -317,7 +317,7 @@ export async function POST (request: Request) {
                 title: 'Monthly Rental',
                 amount: firstMonthRentalAmount,
                 is_taxed: false,
-                is_refunded: false,
+                is_refunded: firstMonthRentalCharge?.isRefundableChecked || false,
                 created_by: staff.id
               }
             }

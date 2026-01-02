@@ -158,7 +158,7 @@ export async function POST(
 
     // Calculate total amount including tax
     const totalAmount = payment.charges.reduce((sum, charge) => {
-      const amount = charge.amount
+      const amount = charge.amount.toNumber()
       const tax = charge.is_taxed ? amount * 0.08 : 0
       return sum + amount + tax
     }, 0)
@@ -173,7 +173,7 @@ export async function POST(
       select: { amount: true }
     })
 
-    const totalPaid = existingHistory.reduce((sum, h) => sum + h.amount, 0)
+    const totalPaid = existingHistory.reduce((sum, h) => sum + h.amount.toNumber(), 0)
     const remainingAmount = totalAmount - totalPaid
 
     if (remainingAmount <= 0) {

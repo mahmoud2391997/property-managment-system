@@ -71,6 +71,12 @@ export type LeaseWithDetails = {
     last_name: string | null
     profile_thumb: string | null
   }
+  property?: {
+    code: string
+  }
+  room?: {
+    title: string
+  }
 }
 
 export type PaymentHistory = {
@@ -170,6 +176,10 @@ export type Task = {
   id: string // reference_id (e.g., TSK-20250000001)
   task_id: string // actual UUID for linking
   type:
+    | 'Inspection'
+    | 'Preparation'
+    | 'Refund Request'
+    | 'Refund Finalizatoin'
     | 'Maintenance'
     | 'Renovation'
     | 'Cleaning'

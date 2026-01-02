@@ -85,6 +85,10 @@ async function getTasks(): Promise<Task[]> {
 
     // Map enum values to display format (underscores to spaces)
     const typeMap: Record<string, Task['type']> = {
+      Inspection: 'Inspection',
+      Preparation: 'Preparation',
+      Refund_Request: 'Refund Request',
+      Refund_Finalization: 'Refund Finalizatoin', 
       Maintenance: 'Maintenance',
       Renovation: 'Renovation',
       Cleaning: 'Cleaning',

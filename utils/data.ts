@@ -1161,7 +1161,7 @@ export const propertyExpenseTypes: PaymentType[] = [
   { type: 'Sewerage_Bill', isRecurrable: true, isFixedByDefault: false },
   { type: 'Management_Fees', isRecurrable: true, isFixedByDefault: true },
   { type: 'Renovation', isRecurrable: true, isFixedByDefault: false },
-  { type: 'Furniture___Appliances', isRecurrable: true, isFixedByDefault: false },
+  { type: 'Furniture_Appliances', isRecurrable: true, isFixedByDefault: false },
   { type: 'Miscellaneous_Others', isRecurrable: true, isFixedByDefault: false }
 ]
 

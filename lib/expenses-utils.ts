@@ -1,10 +1,12 @@
+import { Decimal } from '@prisma/client/runtime/library'
+
 type RawCharge = {
-  amount: number
+  amount: Decimal
   is_taxed: boolean
 }
 
 type RawPaymentHistory = {
-  amount: number
+  amount: Decimal
   paid_at: Date
   status: string
 }
@@ -27,6 +29,9 @@ type RawExpense = {
     projects: {
       title: string
     } | null
+  } | null
+  leases: {
+    reference_id: string
   } | null
   charges: RawCharge[]
   payment_history: RawPaymentHistory[]
@@ -53,7 +58,7 @@ export type ExpenseWithDetails = {
 export function transformExpense(expense: RawExpense): ExpenseWithDetails {
   // Calculate total amount from charges
   const totalAmount = expense.charges.reduce((sum, charge) => {
-    const amount = charge.amount
+    const amount = charge.amount.toNumber()
     const tax = charge.is_taxed ? amount * 0.08 : 0
     return sum + amount + tax
   }, 0)
@@ -63,7 +68,7 @@ export function transformExpense(expense: RawExpense): ExpenseWithDetails {
     h => h.status === 'Success'
   )
   const totalPaid = successfulPayments.reduce(
-    (sum, history) => sum + history.amount,
+    (sum, history) => sum + history.amount.toNumber(),
     0
   )
   const paymentPercentage = totalAmount > 0 ? Math.round((totalPaid / totalAmount) * 100) : 0
@@ -95,10 +100,16 @@ export function transformExpense(expense: RawExpense): ExpenseWithDetails {
   // Get latest payment timestamp
   const latestPaymentTimestamp = successfulPayments[0]?.paid_at?.toISOString() || expense.created_at.toISOString()
 
+  // For Refund type, show lease reference_id instead of property
+  const isRefund = expense.type === 'Refund'
+  const displayProperty = isRefund
+    ? expense.leases?.reference_id || 'N/A'
+    : expense.properties?.code || 'N/A'
+
   return {
     id: expense.reference_id,
     type: expense.type,
-    property: expense.properties?.code || 'N/A',
+    property: displayProperty,
     property_id: expense.properties?.id || null,
     project: expense.properties?.projects?.title || 'No project',
     due_date: expense.due_payment_date,

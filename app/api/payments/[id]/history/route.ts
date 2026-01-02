@@ -115,7 +115,7 @@ export async function GET(
 
     // Calculate total amount
     const totalAmount = payment.charges.reduce((sum, charge) => {
-      const amount = charge.amount
+      const amount = charge.amount.toNumber()
       const tax = charge.is_taxed ? amount * 0.08 : 0
       return sum + amount + tax
     }, 0)
@@ -123,7 +123,7 @@ export async function GET(
     // Transform payment history with running totals (oldest to newest)
     let runningTotal = 0
     const transformedHistory = payment.payment_history.map((history, index) => {
-      runningTotal += history.amount
+      runningTotal += history.amount.toNumber()
       const remaining = totalAmount - runningTotal
 
       return {

@@ -1,554 +1,84 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'next/navigation'
-import Breadcrumb from '@/components/costume-ui/breadcrumb'
-import { FeedbackToasts, showFeedbackToast } from '@/components/costume-ui/feedback-toast'
+import { useTask } from '@/contexts/tasks-context'
 import TaskTimeline from '@/components/task-ui/task-timeline'
 import TaskSidebar from '@/components/task-ui/task-sidebar'
-import TaskNavigation from '@/components/task-ui/task-navigation'
+import FlowTaskSidebar from '@/components/task-ui/flow-task-sidebar'
 import { PendingAssignmentBanner } from '@/components/task-ui/task-actions'
 import AddCommentSection from '@/components/task-ui/add-comment-section'
-import type { TaskDetail, StaffMember, TaskType, PriorityLevel, TimelineEvent } from '@/components/task-ui/types'
-import { getPriorityColor, getStatusColor, formatDate } from '@/components/task-ui/types'
+import {
+  CompleteInspectionDialog,
+  CompletePreparationDialog,
+  SubmitRefundDecisionDialog,
+  ReviewRefundDialog
+} from '@/components/task-ui/dialogs'
+import {
+  getPriorityColor,
+  getStatusColor,
+  formatDate
+} from '@/components/task-ui/types'
 import { cn } from '@/lib/utils'
-import TaskDetailsSkeleton from '@/components/loading-ui/task-details-skeleton'
 
-export default function TaskDetailsPage() {
-  const params = useParams()
-  const taskId = params.id as string
+export default function TaskDetailsPage () {
+  const {
+    // Core state
+    task,
+    taskId,
+    staffList,
+    currentStaff,
+    actionLoading,
 
-  // Loading and error states
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+    // Computed values
+    isFlowTask,
+    hasPendingForMe,
 
-  // Action loading states for UX
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
+    // Core task handlers
+    handleTypeChange,
+    handlePriorityChange,
+    handleAssign,
+    handleAcceptAssignment,
+    handleRejectAssignment,
+    handleUnassign,
+    handleCancelAssignment,
+    handleResolve,
+    handleCommentAdded,
 
-  // Task and staff data
-  const [task, setTask] = useState<TaskDetail | null>(null)
-  const [staffList, setStaffList] = useState<StaffMember[]>([])
-  const [currentStaff, setCurrentStaff] = useState<StaffMember | null>(null)
+    // Due date handlers
+    handleDueDateSet,
+    handleDueDateChange,
+    handleDueDateRemove,
 
-  // Fetch task data
-  const fetchTask = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/tasks/${taskId}`)
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to fetch task')
-      }
-      const data = await response.json()
-      setTask(data)
-      if (data.currentStaff) {
-        setCurrentStaff(data.currentStaff)
-      }
-    } catch (err: any) {
-      setError(err.message)
-      console.error('Error fetching task:', err)
-    }
-  }, [taskId])
+    // Flow task handlers
+    handleCompleteInspection,
+    handleCompletePreparation,
+    handleSubmitRefundDecision,
+    handleReviewRefund,
 
-  // Fetch staff list
-  const fetchStaffList = useCallback(async () => {
-    try {
-      const response = await fetch('/api/tasks/staff')
-      if (response.ok) {
-        const data = await response.json()
-        setStaffList(data)
-      }
-    } catch (err) {
-      console.error('Error fetching staff list:', err)
-    }
-  }, [])
+    // Dialog states
+    showInspectionDialog,
+    setShowInspectionDialog,
+    showPreparationDialog,
+    setShowPreparationDialog,
+    showRefundDecisionDialog,
+    setShowRefundDecisionDialog,
+    showReviewRefundDialog,
+    setShowReviewRefundDialog
+  } = useTask()
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true)
-      await Promise.all([fetchTask(), fetchStaffList()])
-      setLoading(false)
-    }
-    loadData()
-  }, [fetchTask, fetchStaffList])
+  // Task and currentStaff are guaranteed by layout, but TypeScript doesn't know
+  if (!task || !currentStaff) return null
 
-  // Check if current user has pending assignment
-  const hasPendingForMe = task?.pendingAssignment?.staffId === currentStaff?.id
-
-  // Handle type change
-  const handleTypeChange = async (newType: TaskType, _event: TimelineEvent) => {
-    if (!task) return
-    setActionLoading('type')
-    try {
-      const response = await fetch(`/api/tasks/${taskId}/type`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: newType })
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update type')
-      }
-      const data = await response.json()
-      setTask(prev => prev ? {
-        ...prev,
-        type: newType,
-        timeline: [...prev.timeline, data.event]
-      } : null)
-      FeedbackToasts.updated('Task type', `Type changed to ${newType}`)
-    } catch (err: any) {
-      showFeedbackToast({ title: 'Error', description: err.message, type: 'error' })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  // Handle priority change
-  const handlePriorityChange = async (newPriority: PriorityLevel, _event: TimelineEvent) => {
-    if (!task) return
-    setActionLoading('priority')
-    try {
-      const response = await fetch(`/api/tasks/${taskId}/priority`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priority: newPriority })
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update priority')
-      }
-      const data = await response.json()
-      setTask(prev => prev ? {
-        ...prev,
-        priority: newPriority,
-        timeline: [...prev.timeline, data.event]
-      } : null)
-      FeedbackToasts.updated('Task priority', `Priority changed to ${newPriority}`)
-    } catch (err: any) {
-      showFeedbackToast({ title: 'Error', description: err.message, type: 'error' })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  // Handle assignment
-  const handleAssign = async (staffId: string, isSelfAssign: boolean) => {
-    if (!task || !currentStaff) return
-    const staff = staffList.find(s => s.id === staffId)
-    if (!staff) return
-
-    setActionLoading(isSelfAssign ? 'assigning' : 'sending_request')
-    try {
-      const response = await fetch(`/api/tasks/${taskId}/assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ staffId, isSelfAssign })
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to assign task')
-      }
-      const data = await response.json()
-
-      if (isSelfAssign) {
-        setTask(prev => prev ? {
-          ...prev,
-          assignment: data.assignment,
-          pendingAssignment: undefined,
-          status: data.newStatus,
-          timeline: [...prev.timeline, ...data.events]
-        } : null)
-        showFeedbackToast({ title: 'Assignment', description: 'You assigned yourself to this task', type: 'success' })
-      } else {
-        setTask(prev => prev ? {
-          ...prev,
-          pendingAssignment: data.pendingAssignment,
-          timeline: [...prev.timeline, ...data.events]
-        } : null)
-        showFeedbackToast({ title: 'Assignment', description: `Assignment request sent to ${staff.name}`, type: 'success' })
-      }
-    } catch (err: any) {
-      showFeedbackToast({ title: 'Error', description: err.message, type: 'error' })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  // Handle accept assignment
-  const handleAcceptAssignment = async () => {
-    if (!task?.pendingAssignment || !currentStaff) return
-
-    setActionLoading('accepting')
-    try {
-      const response = await fetch(`/api/tasks/${taskId}/accept`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to accept assignment')
-      }
-      const data = await response.json()
-
-      setTask(prev => prev ? {
-        ...prev,
-        assignment: {
-          ...prev.pendingAssignment!,
-          ...data.assignment
-        },
-        pendingAssignment: undefined,
-        status: data.newStatus,
-        timeline: [...prev.timeline, ...data.events]
-      } : null)
-
-      showFeedbackToast({ title: 'Assignment', description: 'You accepted the assignment', type: 'success' })
-    } catch (err: any) {
-      showFeedbackToast({ title: 'Error', description: err.message, type: 'error' })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  // Handle reject assignment
-  const handleRejectAssignment = async (reason: string) => {
-    if (!task?.pendingAssignment || !currentStaff) return
-
-    setActionLoading('rejecting')
-    try {
-      const response = await fetch(`/api/tasks/${taskId}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason })
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to reject assignment')
-      }
-      const data = await response.json()
-
-      setTask(prev => prev ? {
-        ...prev,
-        pendingAssignment: undefined,
-        timeline: [...prev.timeline, ...data.events]
-      } : null)
-
-      showFeedbackToast({ title: 'Assignment', description: 'You rejected the assignment', type: 'success' })
-    } catch (err: any) {
-      showFeedbackToast({ title: 'Error', description: err.message, type: 'error' })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  // Handle unassign
-  const handleUnassign = async (reason: string) => {
-    if (!task?.assignment || !currentStaff) return
-
-    const isUnassigningSelf = task.assignment.staffId === currentStaff.id
-
-    setActionLoading('unassigning')
-    try {
-      const response = await fetch(`/api/tasks/${taskId}/unassign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason })
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to unassign')
-      }
-      const data = await response.json()
-
-      setTask(prev => prev ? {
-        ...prev,
-        assignment: undefined,
-        status: data.newStatus,
-        timeline: [...prev.timeline, ...data.events]
-      } : null)
-
-      showFeedbackToast({
-        title: 'Unassignment',
-        description: isUnassigningSelf ? 'You unassigned yourself' : `${task.assignment.staffName} has been unassigned`,
-        type: 'success'
-      })
-    } catch (err: any) {
-      showFeedbackToast({ title: 'Error', description: err.message, type: 'error' })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  // Handle cancel assignment request
-  const handleCancelAssignment = async (reason: string) => {
-    if (!task?.pendingAssignment || !currentStaff) return
-
-    setActionLoading('cancelling')
-    try {
-      const response = await fetch(`/api/tasks/${taskId}/cancel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason })
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to cancel assignment')
-      }
-      const data = await response.json()
-
-      setTask(prev => prev ? {
-        ...prev,
-        pendingAssignment: undefined,
-        timeline: [...prev.timeline, ...data.events]
-      } : null)
-
-      showFeedbackToast({ title: 'Assignment', description: 'Assignment request cancelled', type: 'success' })
-    } catch (err: any) {
-      showFeedbackToast({ title: 'Error', description: err.message, type: 'error' })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  // Handle resolve task
-  const handleResolve = async (report: string, attachmentFile?: File) => {
-    if (!task || !currentStaff) return
-
-    setActionLoading('resolving')
-    try {
-      // Upload attachment if present
-      let attachment: { name: string; url: string } | undefined
-      if (attachmentFile) {
-        const formData = new FormData()
-        formData.append('file', attachmentFile)
-        formData.append('bucket', 'tasks')
-
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData
-        })
-
-        if (!uploadResponse.ok) {
-          throw new Error('Failed to upload attachment')
-        }
-
-        const uploadData = await uploadResponse.json()
-        attachment = { name: attachmentFile.name, url: uploadData.url }
-      }
-
-      const response = await fetch(`/api/tasks/${taskId}/resolve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ report, attachment })
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to resolve task')
-      }
-      const data = await response.json()
-
-      setTask(prev => prev ? {
-        ...prev,
-        status: data.newStatus,
-        report: data.report,
-        timeline: [...prev.timeline, ...data.events]
-      } : null)
-
-      showFeedbackToast({ title: 'Task', description: 'Task has been resolved', type: 'success' })
-    } catch (err: any) {
-      showFeedbackToast({ title: 'Error', description: err.message, type: 'error' })
-      throw err // Re-throw so the dialog knows it failed and stays open
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  // Handle add comment
-  const handleCommentAdded = (comment: { id: string; message: string; attachment: string | null; createdAt: string; senderName: string; senderAvatar?: string }) => {
-    if (!task) return
-
-    // Build attachment object if present
-    const attachment: { name: string; url: string } | undefined = comment.attachment
-      ? {
-          name: getFileNameFromUrl(comment.attachment),
-          url: comment.attachment
-        }
-      : undefined
-
-    // Add new comment to timeline
-    const newEvent = {
-      id: `evt-comment-${comment.id}`,
-      type: 'comment' as const,
-      performerId: currentStaff?.id || '',
-      performerName: comment.senderName,
-      performerAvatar: comment.senderAvatar,
-      message: comment.message,
-      attachment,
-      timestamp: comment.createdAt
-    }
-
-    setTask(prev => prev ? {
-      ...prev,
-      timeline: [...prev.timeline, newEvent]
-    } : null)
-  }
-
-  // Get and show file name
-  function getFileNameFromUrl(url: string): string {
-    try {
-      const parts = url.split('/')
-      return parts[parts.length - 1] || 'attachment'
-    } catch {
-      return 'attachment'
-    }
-  }
-
-  // Handle set due date (when task has no due date)
-  const handleDueDateSet = async (dueDate: string, _event: TimelineEvent) => {
-    if (!task) return
-    setActionLoading('due_date')
-    try {
-      const response = await fetch(`/api/tasks/${taskId}/due-date`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dueDate })
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to set due date')
-      }
-      const data = await response.json()
-
-      setTask(prev => prev ? {
-        ...prev,
-        dueDate: data.dueDate,
-        timeline: [...prev.timeline, data.event]
-      } : null)
-
-      FeedbackToasts.updated('Due date', 'Due date has been set')
-    } catch (err: any) {
-      showFeedbackToast({ title: 'Error', description: err.message, type: 'error' })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  // Handle change due date
-  const handleDueDateChange = async (newDueDate: string, reason: string, _event: TimelineEvent) => {
-    if (!task) return
-    setActionLoading('due_date')
-    try {
-      const response = await fetch(`/api/tasks/${taskId}/due-date`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dueDate: newDueDate, reason })
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to change due date')
-      }
-      const data = await response.json()
-
-      setTask(prev => prev ? {
-        ...prev,
-        dueDate: data.dueDate,
-        timeline: [...prev.timeline, data.event]
-      } : null)
-
-      FeedbackToasts.updated('Due date', 'Due date has been changed')
-    } catch (err: any) {
-      showFeedbackToast({ title: 'Error', description: err.message, type: 'error' })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  // Handle remove due date
-  const handleDueDateRemove = async (reason: string, _event: TimelineEvent) => {
-    if (!task) return
-    setActionLoading('due_date')
-    try {
-      const response = await fetch(`/api/tasks/${taskId}/due-date`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason })
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to remove due date')
-      }
-      const data = await response.json()
-
-      setTask(prev => prev ? {
-        ...prev,
-        dueDate: undefined,
-        timeline: [...prev.timeline, data.event]
-      } : null)
-
-      FeedbackToasts.updated('Due date', 'Due date has been removed')
-    } catch (err: any) {
-      showFeedbackToast({ title: 'Error', description: err.message, type: 'error' })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  if (loading) {
-    return (
-      <TaskDetailsSkeleton />
-    )
-  }
-
-  if (error) {
-    return (
-      <div className='p-6'>
-        <div className='bg-red-50 border border-red-200 rounded-lg p-6 text-center'>
-          <p className='texts-body-medium text-red-600'>{error}</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!task || !currentStaff) {
-    return (
-      <div className='p-6'>
-        <div className='bg-neutral-50 border border-neutral-200 rounded-lg p-6 text-center'>
-          <p className='texts-body-medium text-(--text-secondary)'>Task not found</p>
-        </div>
-      </div>
-    )
-  }
+  const flowInfo = task.flowInfo
 
   return (
-    <div>
-      {/* Breadcrumb */}
-      <Breadcrumb
-        items={[
-          { label: 'Tasks', href: '/tasks' },
-          { label: `#${task.referenceId}` }
-        ]}
-      />
-
-      {/* Task Navigation */}
-      <div className='mt-4'>
-        <TaskNavigation
-          currentTask={{
-            id: task.id,
-            title: task.title,
-            status: task.status,
-            referenceId: task.referenceId,
-            isCurrent: true
-          }}
-          onTaskSelect={(taskId) => {
-            // Navigate to task
-            window.location.href = `/tasks/${taskId}`
-          }}
-        />
-      </div>
-
+    <>
       {/* Header */}
-      <div className='mt-4 mb-2'>
+      <div className='mb-2'>
         <h1 className='texts-heading-h2 text-(--text-primary)'>
           {task.title}{' '}
-          <span className='text-(--text-secondary) font-normal'>#{task.referenceId}</span>
+          <span className='text-(--text-secondary) font-normal'>
+            #{task.referenceId}
+          </span>
         </h1>
       </div>
 
@@ -611,23 +141,91 @@ export default function TaskDetailsPage() {
           />
         </div>
 
-        {/* Sidebar */}
-        <TaskSidebar
-          task={task}
-          staffList={staffList}
-          currentStaff={currentStaff}
-          onTypeChange={handleTypeChange}
-          onPriorityChange={handlePriorityChange}
-          onAssign={handleAssign}
-          onUnassign={handleUnassign}
-          onCancelAssignment={handleCancelAssignment}
-          onResolve={handleResolve}
-          onDueDateSet={handleDueDateSet}
-          onDueDateChange={handleDueDateChange}
-          onDueDateRemove={handleDueDateRemove}
-          actionLoading={actionLoading}
-        />
+        {/* Sidebar - Use flow sidebar for flow tasks */}
+        {isFlowTask && flowInfo ? (
+          <FlowTaskSidebar
+            task={task}
+            staffList={staffList}
+            currentStaff={currentStaff}
+            flowInfo={flowInfo}
+            onAssign={handleAssign}
+            onUnassign={handleUnassign}
+            onCancelAssignment={handleCancelAssignment}
+            onCompleteInspection={() => setShowInspectionDialog(true)}
+            onCompletePreparation={() => setShowPreparationDialog(true)}
+            onSubmitRefundDecision={() => setShowRefundDecisionDialog(true)}
+            onReviewRefund={() => setShowReviewRefundDialog(true)}
+            actionLoading={actionLoading}
+          />
+        ) : (
+          <TaskSidebar
+            task={task}
+            staffList={staffList}
+            currentStaff={currentStaff}
+            onTypeChange={handleTypeChange}
+            onPriorityChange={handlePriorityChange}
+            onAssign={handleAssign}
+            onUnassign={handleUnassign}
+            onCancelAssignment={handleCancelAssignment}
+            onResolve={handleResolve}
+            onDueDateSet={handleDueDateSet}
+            onDueDateChange={handleDueDateChange}
+            onDueDateRemove={handleDueDateRemove}
+            actionLoading={actionLoading}
+          />
+        )}
       </div>
-    </div>
+
+      {/* Flow Task Dialogs */}
+      {isFlowTask && (
+        <>
+          {/* Complete Inspection Dialog */}
+          <CompleteInspectionDialog
+            open={showInspectionDialog}
+            onOpenChange={setShowInspectionDialog}
+            onSubmit={handleCompleteInspection}
+            loading={actionLoading === 'completing_inspection'}
+          />
+
+          {/* Complete Preparation Dialog */}
+          <CompletePreparationDialog
+            open={showPreparationDialog}
+            onOpenChange={setShowPreparationDialog}
+            onSubmit={handleCompletePreparation}
+            loading={actionLoading === 'completing_preparation'}
+            taskTitle={task.title}
+          />
+
+          {/* Submit Refund Decision Dialog */}
+          <SubmitRefundDecisionDialog
+            open={showRefundDecisionDialog}
+            onOpenChange={setShowRefundDecisionDialog}
+            onSubmit={handleSubmitRefundDecision}
+            loading={actionLoading === 'submitting_refund_decision'}
+            depositAmount={flowInfo?.leaseInfo?.depositAmount || 0}
+            isResubmit={task.status === 'Needs Modification'}
+          />
+
+          {/* Review Refund Dialog - needs refund decision data */}
+          {flowInfo?.leaseInfo && (
+            <ReviewRefundDialog
+              open={showReviewRefundDialog}
+              onOpenChange={setShowReviewRefundDialog}
+              onSubmit={handleReviewRefund}
+              loading={actionLoading === 'reviewing_refund'}
+              depositAmount={flowInfo.leaseInfo.depositAmount}
+              refundDecision={{
+                decision: 'full',
+                originalDeposit: flowInfo.leaseInfo.depositAmount,
+                charges: [],
+                totalCharges: 0,
+                finalRefundAmount: flowInfo.leaseInfo.depositAmount
+              }}
+              submitterName={task.createdByName}
+            />
+          )}
+        </>
+      )}
+    </>
   )
 }

@@ -18,6 +18,7 @@ import { LeaseWithDetails } from '@/types'
 import { UserAvatar } from '../costume-ui/name-avatar'
 import { cn } from '@/lib/utils'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
+import InitiateLeaseEndingDrawer from '../dialogs/initiate-lease-ending-drawer'
 import { showFeedbackToast } from '../costume-ui/feedback-toast'
 import Link from 'next/link'
 
@@ -212,60 +213,19 @@ const createColumns = (
             {canEndLease && (
               <>
                 <DropdownMenuSeparator />
-                <ConfirmationDialog
-                  openDialogButton={
+                <InitiateLeaseEndingDrawer
+                  leaseId={lease.id}
+                  propertyName={lease.property?.code || 'Property'}
+                  unitName={lease.room?.title}
+                  tenantName={lease.tenant.last_name
+                    ? `${lease.tenant.first_name} ${lease.tenant.last_name}`
+                    : lease.tenant.first_name}
+                  onSuccess={onDataRefresh}
+                  trigger={
                     <button type='button' className='delete-dropdown-button'>
                       End Lease
                     </button>
                   }
-                  title='End Lease'
-                  description={
-                    <div className='space-y-3'>
-                      <p>
-                        You are about to{' '}
-                        <strong>permanently end this lease</strong>. This action
-                        is <strong>irreversible</strong> and will:
-                      </p>
-                      <ul className='list-disc list-inside space-y-1 text-sm'>
-                        <li>
-                          Change the lease status to <strong>Ended</strong>
-                        </li>
-                        <li>Cancel all pending payments linked to this lease</li>
-                        <li>Stop any recurring payment schedules</li>
-                        <li>Close all tickets linked to this lease</li>
-                      </ul>
-                      <p className='text-sm text-neutral-500'>
-                        This cannot be undone. Please make sure all outstanding
-                        payments have been collected before proceeding.
-                      </p>
-                    </div>
-                  }
-                  confirmationText='END'
-                  confirmButtonLabel='End Lease'
-                  confirmButtonLoadingLabel='Ending...'
-                  confirmButtonClassName='bg-amber-600! hover:bg-amber-700!'
-                  inputLabel='Type END to confirm'
-                  variant='warning'
-                  onConfirm={async () => {
-                    const response = await fetch(`/api/leases/end/${lease.id}`, {
-                      method: 'POST'
-                    })
-                    if (!response.ok) {
-                      const data = await response.json()
-                      showFeedbackToast({
-                        title: 'Failed to end lease',
-                        description: data.error || 'Please try again.',
-                        type: 'error'
-                      })
-                      throw new Error(data.error)
-                    }
-                    showFeedbackToast({
-                      title: 'Lease ended successfully',
-                      description: 'All pending payments have been cancelled.',
-                      type: 'success'
-                    })
-                    onDataRefresh?.()
-                  }}
                 />
               </>
             )}

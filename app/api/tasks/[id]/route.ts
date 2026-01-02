@@ -231,7 +231,8 @@ export async function GET(
     const statusMap: Record<string, string> = {
       Open: 'Open',
       In_Progress: 'In Progress',
-      Resolved: 'Resolved'
+      Resolved: 'Resolved',
+      Needs_Modification: 'Needs Modification'
     }
     for (let i = 1; i < statusChanges.length; i++) {
       const change = statusChanges[i]
@@ -438,6 +439,192 @@ export async function GET(
     // Get report
     const report = task.task_reports
 
+    // Determine if this is a flow task and get flow info
+    const FLOW_TASK_TYPES = ['Inspection', 'Preparation', 'Refund_Request', 'Refund_Finalization']
+    const isFlowTask = FLOW_TASK_TYPES.includes(currentType)
+    let flowInfo: any = undefined
+
+    if (isFlowTask) {
+      // Find the flow instance this task belongs to
+      let flowInstance = null
+
+      // Check if task is directly linked via flow_instance_id (preparation tasks)
+      if (task.flow_instance_id) {
+        flowInstance = await prisma.task_flow_instances.findUnique({
+          where: { id: task.flow_instance_id }
+        })
+      } else {
+        // Check if task is referenced in a flow instance
+        flowInstance = await prisma.task_flow_instances.findFirst({
+          where: {
+            OR: [
+              { inspection_task_id: taskId },
+              { refund_request_task_id: taskId },
+              { refund_finalization_task_id: taskId }
+            ]
+          }
+        })
+      }
+
+      if (flowInstance) {
+        // Get all related tasks for navigation
+        const relatedTasks: any[] = []
+
+        // Get inspection task
+        if (flowInstance.inspection_task_id) {
+          const inspectionTask = await prisma.tasks.findUnique({
+            where: { id: flowInstance.inspection_task_id },
+            select: {
+              id: true,
+              reference_id: true,
+              title: true,
+              task_statuses: { orderBy: { created_at: 'desc' }, take: 1 }
+            }
+          })
+          if (inspectionTask) {
+            relatedTasks.push({
+              id: inspectionTask.id,
+              referenceId: inspectionTask.reference_id,
+              title: inspectionTask.title,
+              type: 'Inspection',
+              status: statusMap[inspectionTask.task_statuses[0]?.state || 'Open'] || 'Open',
+              isCurrent: inspectionTask.id === taskId
+            })
+          }
+        }
+
+        // Get preparation tasks
+        const preparationTasks = await prisma.tasks.findMany({
+          where: { flow_instance_id: flowInstance.id },
+          select: {
+            id: true,
+            reference_id: true,
+            title: true,
+            task_statuses: { orderBy: { created_at: 'desc' }, take: 1 },
+            task_types: { orderBy: { created_at: 'desc' }, take: 1 }
+          }
+        })
+        for (const prepTask of preparationTasks) {
+          const taskType = prepTask.task_types[0]?.type || 'Preparation'
+
+          // Skip Refund Request and Finalization tasks - they're fetched separately below
+          if (taskType === 'Refund_Request' || taskType === 'Refund_Finalization') {
+            continue
+          }
+
+          relatedTasks.push({
+            id: prepTask.id,
+            referenceId: prepTask.reference_id,
+            title: prepTask.title,
+            type: 'Preparation',
+            status: statusMap[prepTask.task_statuses[0]?.state || 'Open'] || 'Open',
+            isCurrent: prepTask.id === taskId
+          })
+        }
+
+        // Get refund request task
+        if (flowInstance.refund_request_task_id) {
+          const refundRequestTask = await prisma.tasks.findUnique({
+            where: { id: flowInstance.refund_request_task_id },
+            select: {
+              id: true,
+              reference_id: true,
+              title: true,
+              task_statuses: { orderBy: { created_at: 'desc' }, take: 1 }
+            }
+          })
+          if (refundRequestTask) {
+            relatedTasks.push({
+              id: refundRequestTask.id,
+              referenceId: refundRequestTask.reference_id,
+              title: refundRequestTask.title,
+              type: 'Refund Request',
+              status: statusMap[refundRequestTask.task_statuses[0]?.state || 'Open'] || 'Open',
+              isCurrent: refundRequestTask.id === taskId
+            })
+          }
+        }
+
+        // Get refund finalization task
+        if (flowInstance.refund_finalization_task_id) {
+          const finalizationTask = await prisma.tasks.findUnique({
+            where: { id: flowInstance.refund_finalization_task_id },
+            select: {
+              id: true,
+              reference_id: true,
+              title: true,
+              task_statuses: { orderBy: { created_at: 'desc' }, take: 1 }
+            }
+          })
+          if (finalizationTask) {
+            relatedTasks.push({
+              id: finalizationTask.id,
+              referenceId: finalizationTask.reference_id,
+              title: finalizationTask.title,
+              type: 'Refund Finalization',
+              status: statusMap[finalizationTask.task_statuses[0]?.state || 'Open'] || 'Open',
+              isCurrent: finalizationTask.id === taskId
+            })
+          }
+        }
+
+        // Get lease info for refund amount
+        let leaseInfo = null
+        if (flowInstance.lease_id) {
+          const lease = await prisma.leases.findUnique({
+            where: { id: flowInstance.lease_id },
+            include: {
+              properties: { select: { code: true } },
+              rooms: { select: { title: true } },
+              tenants: {
+                include: {
+                  individual_tenants: { select: { first_name: true, last_name: true } },
+                  company_tenants: { select: { company_name: true } }
+                }
+              }
+            }
+          })
+          if (lease) {
+            // Get refundable amount from initial charges (is_refunded = true means these ARE refundable)
+            const refundableCharges = await prisma.charges.findMany({
+              where: {
+                payments: {
+                  lease_id: lease.id,
+                  type: 'Lease_Initial_Charges',
+                  status: 'Paid',
+                },
+                is_refunded: true
+              },
+              select: {
+                amount: true
+              }
+            })
+
+            const depositAmount = refundableCharges.reduce((sum, charge) => sum + charge.amount.toNumber(), 0)
+
+            const tenantName = lease.tenants?.individual_tenants
+              ? `${lease.tenants.individual_tenants.first_name} ${lease.tenants.individual_tenants.last_name || ''}`.trim()
+              : lease.tenants?.company_tenants?.company_name || 'Unknown'
+            leaseInfo = {
+              id: lease.id,
+              depositAmount,
+              propertyCode: lease.properties?.code,
+              roomTitle: lease.rooms?.title,
+              tenantName
+            }
+          }
+        }
+
+        flowInfo = {
+          flowInstanceId: flowInstance.id,
+          flowType: flowInstance.flow_type === 'Lease_Ending' ? 'Lease Ending' : flowInstance.flow_type,
+          flowStatus: flowInstance.status,
+          relatedTasks,
+          leaseInfo
+        }
+      }
+    }
+
     // Build location
     const location = task.properties ? {
       projectId: task.properties.projects?.id,
@@ -494,14 +681,18 @@ export async function GET(
         attachment: report.attachment ? { name: getFileNameFromUrl(report.attachment), url: report.attachment } : undefined,
         submittedAt: report.created_at.toISOString(),
         submittedById: report.staff?.id || '',
-        submittedByName: getStaffName(report.staff)
+        submittedByName: getStaffName(report.staff),
+        isResolved: report.is_resolved
       } : undefined,
       // Current staff info for the page
       currentStaff: {
         id: currentStaff.id,
         name: getStaffName(currentStaff),
         avatar: currentStaff.profile_pic
-      }
+      },
+      // Flow task info
+      isFlowTask,
+      flowInfo
     }
 
     return NextResponse.json(response)

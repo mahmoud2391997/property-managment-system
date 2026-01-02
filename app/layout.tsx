@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
 
 export const metadata: Metadata = {
   title: {
@@ -46,7 +47,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-darkreader-mode="disabled" style={{ colorScheme: 'light only' }}>
       <body className="md:bg-(--background-secondary) h-screen overflow-hidden" suppressHydrationWarning>
-        {children}
+        <NuqsAdapter>{children}</NuqsAdapter>
         <Toaster position="top-right" richColors />
       </body>
     </html>

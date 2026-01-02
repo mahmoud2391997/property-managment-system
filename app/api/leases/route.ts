@@ -94,6 +94,16 @@ export async function GET(request: Request) {
               }
             }
           }
+        },
+        properties: {
+          select: {
+            code: true
+          }
+        },
+        rooms: {
+          select: {
+            title: true
+          }
         }
       },
       orderBy: {
@@ -135,7 +145,9 @@ export async function GET(request: Request) {
             first_name: firstName,
             last_name: lastName,
             profile_thumb: tenant.profile_thumb
-          }
+          },
+          property: lease.properties ? { code: lease.properties.code } : undefined,
+          room: lease.rooms ? { title: lease.rooms.title } : undefined
         }
       })
     })

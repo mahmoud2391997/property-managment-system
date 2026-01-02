@@ -7,7 +7,7 @@ import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import TaskStaffAssignedSection from './task-staff-assigned-section'
 import { ResolveTaskDialog } from './task-actions'
 import type { TaskDetail, StaffMember, TaskType, PriorityLevel, TimelineEvent } from './types'
-import { TASK_TYPES, PRIORITY_LEVELS, getStatusColor, formatDateTime } from './types'
+import { TASK_TYPES, REGULAR_TASK_TYPES, PRIORITY_LEVELS, getStatusColor, formatDateTime } from './types'
 import { cn } from '@/lib/utils'
 
 type Props = {
@@ -211,7 +211,8 @@ export default function TaskSidebar({
     setNewDueDate('')
   }
 
-  const typeItems = TASK_TYPES.map(t => ({ value: t, label: t }))
+  // Only show regular task types (not flow types) in the type selector
+  const typeItems = REGULAR_TASK_TYPES.map(t => ({ value: t, label: t }))
   const priorityItems = PRIORITY_LEVELS.map(p => ({ value: p, label: p }))
 
   return (

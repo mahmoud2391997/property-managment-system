@@ -5,6 +5,15 @@ import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { task_type } from '@prisma/client'
 
+// Flow task types (cannot be set or changed via this API)
+const flowTaskTypes: task_type[] = [
+  'Inspection',
+  'Preparation',
+  'Refund_Request',
+  'Refund_Finalization'
+]
+
+// Regular task types (can be set/changed via this API)
 const validTypes: task_type[] = [
   'Maintenance',
   'Renovation',
@@ -28,6 +37,14 @@ export async function PUT(
     const { id: taskId } = await params
     const body = await request.json()
     const { type } = body
+
+    // Block flow task types
+    if (flowTaskTypes.includes(type)) {
+      return NextResponse.json(
+        { error: 'Flow task types cannot be set directly' },
+        { status: 400 }
+      )
+    }
 
     if (!type || !validTypes.includes(type)) {
       return NextResponse.json(
@@ -72,6 +89,14 @@ export async function PUT(
     }
 
     const oldType = task.task_types[0]?.type
+
+    // Prevent changing type of flow tasks
+    if (oldType && flowTaskTypes.includes(oldType)) {
+      return NextResponse.json(
+        { error: 'Cannot change type of flow tasks' },
+        { status: 400 }
+      )
+    }
 
     // Create new type entry
     const newTypeEntry = await prisma.task_types.create({

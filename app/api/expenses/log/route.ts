@@ -72,13 +72,13 @@ export async function POST(request: NextRequest) {
 
     // Calculate total amount and already paid amount
     const totalAmount = expense.charges.reduce((sum, charge) => {
-      const chargeAmount = charge.amount
+      const chargeAmount = charge.amount.toNumber()
       const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
       return sum + chargeAmount + tax
     }, 0)
 
     const totalPaid = expense.payment_history.reduce(
-      (sum, h) => sum + h.amount,
+      (sum, h) => sum + h.amount.toNumber(),
       0
     )
 
