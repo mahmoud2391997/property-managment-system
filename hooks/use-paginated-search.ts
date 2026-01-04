@@ -146,15 +146,17 @@ export function usePaginatedSearch<T> ({
 
       if (lastFetchedParams.current === cacheKey) return
 
+      setIsLoading(true)
+
       const cached = pageCacheRef.current.get(cacheKey)
       if (cached) {
         setData(cached.data)
         setTotal(cached.total)
         lastFetchedParams.current = cacheKey
+        setIsLoading(false)
         return
       }
 
-      setIsLoading(true)
       lastFetchedParams.current = cacheKey
 
       try {

@@ -77,6 +77,9 @@ export type TimelineEventType =
   | 'due_date_set'
   | 'due_date_changed'
   | 'due_date_removed'
+  | 'refund_decision_submitted'
+  | 'refund_approved'
+  | 'refund_rejected'
 
 // Timeline event
 export type TimelineEvent = {
@@ -109,6 +112,16 @@ export type TimelineEvent = {
   dueDate?: string
   oldDueDate?: string
   dueDateReason?: string
+  // For refund decisions
+  refundData?: {
+    decision: string
+    originalDeposit: number
+    totalCharges: number
+    finalRefundAmount: number
+    charges: Array<{ title: string; amount: number }>
+  }
+  // For report_submitted events
+  isRejection?: boolean
 }
 
 // Location info (matches schema: project -> property -> room)
@@ -155,6 +168,18 @@ export type TaskFlowInfo = {
   flowStatus: 'In Progress' | 'Completed'
   relatedTasks: FlowTaskSummaryForNav[]
   leaseInfo?: FlowLeaseInfoForTask
+  latestRefundDecision?: {
+    decision: 'full' | 'partial' | 'forfeit'
+    originalDeposit: number
+    totalCharges: number
+    finalRefundAmount: number
+    charges: Array<{ title: string; amount: number }>
+    report: string
+    attachment?: string
+    submitterId: string
+    submitterName: string
+    submitterAvatar?: string
+  }
 }
 
 // Task

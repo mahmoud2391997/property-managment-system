@@ -598,7 +598,7 @@ export function MobileHeader () {
         'md:hidden flex items-center justify-between',
         'h-[60px] px-4',
         'bg-(--background-primary) border-b border-(--border-default)',
-        'sticky top-0 z-40'
+        'fixed top-0 left-0 right-0 z-40'
       )}
     >
       <div className='flex items-center gap-2'>

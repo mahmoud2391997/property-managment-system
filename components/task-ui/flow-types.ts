@@ -56,7 +56,7 @@ export type PreparationTaskInput = {
 export type RefundCharge = {
   id: string
   description: string
-  amount: number
+  amount: string
 }
 
 // Refund decision types
@@ -72,7 +72,8 @@ export type RefundRequestReportData = {
   charges: RefundCharge[]
   totalCharges: number
   finalRefundAmount: number
-  tenantNote?: string
+  report?: string
+  attachment?: string
 }
 
 // Props for initiate lease ending drawer

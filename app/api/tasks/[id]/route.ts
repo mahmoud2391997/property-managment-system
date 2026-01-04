@@ -151,7 +151,7 @@ export async function GET(
             }
           }
         },
-        // Reports
+        // Reports - singular relation in schema but can have multiple via separate query
         task_reports: {
           include: {
             staff: {
@@ -176,6 +176,9 @@ export async function GET(
       if (!s) return 'Unknown'
       return `${s.first_name} ${s.last_name || ''}`.trim()
     }
+
+    // Get current task type (needed for timeline logic)
+    const currentType = task.task_types[0]?.type || 'Miscellaneous_Others'
 
     // Build timeline events
     const timelineEvents: any[] = []
@@ -406,9 +409,23 @@ export async function GET(
       })
     }
 
-    // 8. Reports
-    if (task.task_reports) {
-      const report = task.task_reports
+    // 8. Reports (fetch all reports for this task - can be multiple)
+    const allReports = await prisma.task_reports.findMany({
+      where: { task_id: taskId },
+      include: {
+        staff: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            profile_pic: true
+          }
+        }
+      },
+      orderBy: { created_at: 'asc' }
+    })
+
+    for (const report of allReports) {
       timelineEvents.push({
         id: `evt-report-${report.id}`,
         type: 'report_submitted',
@@ -417,15 +434,77 @@ export async function GET(
         performerAvatar: report.staff?.profile_pic,
         message: report.content,
         attachment: report.attachment ? { name: getFileNameFromUrl(report.attachment), url: report.attachment } : undefined,
-        timestamp: report.created_at.toISOString()
+        timestamp: report.created_at.toISOString(),
+        isRejection: !report.is_resolved // Rejection if is_resolved is false
       })
+    }
+
+    // 9. Refund Decisions (for Refund Request tasks)
+    const refundDecisions = await prisma.refund_decisions.findMany({
+      where: { task_id: taskId },
+      include: {
+        refunded_charges: true,
+        staff_refund_decisions_submitted_byTostaff: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            profile_pic: true
+          }
+        },
+        staff_refund_decisions_reviewed_byTostaff: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            profile_pic: true
+          }
+        }
+      },
+      orderBy: { submitted_at: 'asc' }
+    })
+
+    for (const refundDecision of refundDecisions) {
+      const submitter = refundDecision.staff_refund_decisions_submitted_byTostaff
+      const reviewer = refundDecision.staff_refund_decisions_reviewed_byTostaff
+
+      // Submission event
+      timelineEvents.push({
+        id: `evt-refund-decision-${refundDecision.id}`,
+        type: 'refund_decision_submitted',
+        performerId: submitter?.id || '',
+        performerName: getStaffName(submitter),
+        performerAvatar: submitter?.profile_pic,
+        timestamp: refundDecision.submitted_at.toISOString(),
+        refundData: {
+          decision: refundDecision.decision,
+          originalDeposit: refundDecision.original_deposit.toNumber(),
+          totalCharges: refundDecision.total_charges.toNumber(),
+          finalRefundAmount: refundDecision.final_refund_amount.toNumber(),
+          charges: refundDecision.refunded_charges.map(charge => ({
+            title: charge.title,
+            amount: charge.amount.toNumber()
+          }))
+        }
+      })
+
+      // Review event (if reviewed)
+      if (refundDecision.reviewed_at && reviewer) {
+        timelineEvents.push({
+          id: `evt-refund-review-${refundDecision.id}`,
+          type: refundDecision.status === 'approved' ? 'refund_approved' : 'refund_rejected',
+          performerId: reviewer.id,
+          performerName: getStaffName(reviewer),
+          performerAvatar: reviewer.profile_pic,
+          timestamp: refundDecision.reviewed_at.toISOString()
+        })
+      }
     }
 
     // Sort timeline by timestamp
     timelineEvents.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
     // Get current values
-    const currentType = task.task_types[0]?.type || 'Miscellaneous_Others'
     const currentPriority = task.task_priorities[0]?.priority || 'Medium'
     const rawStatus = task.task_statuses[0]?.state || 'Open'
     const currentStatus = statusMap[rawStatus] || rawStatus
@@ -615,12 +694,58 @@ export async function GET(
           }
         }
 
+        // Get latest refund decision (for Refund Finalization task)
+        let latestRefundDecision = null
+        if (currentType === 'Refund_Finalization' && flowInstance.refund_request_task_id) {
+          const refundDecision = await prisma.refund_decisions.findFirst({
+            where: { task_id: flowInstance.refund_request_task_id },
+            orderBy: { submitted_at: 'desc' },
+            include: {
+              refunded_charges: true,
+              staff_refund_decisions_submitted_byTostaff: {
+                select: {
+                  id: true,
+                  first_name: true,
+                  last_name: true,
+                  profile_pic: true
+                }
+              }
+            }
+          })
+
+          // Get the refund decision report from task_reports
+          const refundDecisionReport = await prisma.task_reports.findFirst({
+            where: { task_id: flowInstance.refund_request_task_id },
+            orderBy: { created_at: 'desc' }
+          })
+
+          if (refundDecision) {
+            const submitter = refundDecision.staff_refund_decisions_submitted_byTostaff
+            latestRefundDecision = {
+              decision: refundDecision.decision,
+              originalDeposit: refundDecision.original_deposit.toNumber(),
+              totalCharges: refundDecision.total_charges.toNumber(),
+              finalRefundAmount: refundDecision.final_refund_amount.toNumber(),
+              charges: refundDecision.refunded_charges.map(charge => ({
+                title: charge.title,
+                amount: charge.amount.toNumber()
+              })),
+              report: refundDecisionReport?.content || '',
+              attachment: refundDecisionReport?.attachment || undefined,
+              submitterId: submitter?.id || '',
+              submitterName: getStaffName(submitter),
+              submitterAvatar: submitter?.profile_pic
+            }
+          }
+        }
+
         flowInfo = {
           flowInstanceId: flowInstance.id,
           flowType: flowInstance.flow_type === 'Lease_Ending' ? 'Lease Ending' : flowInstance.flow_type,
           flowStatus: flowInstance.status,
           relatedTasks,
-          leaseInfo
+          leaseInfo,
+          latestRefundDecision
         }
       }
     }

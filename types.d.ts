@@ -205,6 +205,7 @@ export type Task = {
   staff_picture?: string
   assignment_timestamp?: string // ISO Timestamp
   status: 'Open' | 'In Progress' | 'Resolved'
+  has_pending_assignment?: boolean // True if current user has pending assignment for this task
 }
 
 export type Notice = {

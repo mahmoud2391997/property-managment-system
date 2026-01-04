@@ -3,29 +3,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
-import { RefundCharge } from '@/components/task-ui/flow-types'
+import {
+  ReviewRefundRequestBody,
+  ReviewRefundResponse
+} from '@/types/api/task-flow-api.types'
 
 export async function POST (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse<ReviewRefundResponse>> {
   try {
     const { staff, error } = await getUserAndStaff()
     if (error) return error
 
     const { id: taskId } = await params
-    const body = await request.json()
-    const {
-      approved,
-      report,
-      attachment,
-      decision,
-      charges,
-      totalCharges,
-      finalRefundAmount,
-      tenantNote,
-      paymentMethod
-    } = body
+    const body: ReviewRefundRequestBody = await request.json()
+    const { approved, report, attachment, paymentMethod } = body
 
     // Validation
     if (typeof approved !== 'boolean') {
@@ -49,7 +42,11 @@ export async function POST (
       )
     }
 
-    if (approved && !['Cash', 'Bank Transfer'].includes(paymentMethod)) {
+    if (
+      approved &&
+      paymentMethod &&
+      !['Cash', 'Bank Transfer'].includes(paymentMethod)
+    ) {
       return NextResponse.json(
         { error: 'Payment method must be Cash or Bank Transfer' },
         { status: 400 }
@@ -130,11 +127,31 @@ export async function POST (
       return NextResponse.json({ error: 'Lease not found' }, { status: 400 })
     }
 
-    const is_refunded = await prisma.refunded_charges.findFirst({
-      where: { lease_id: flowInstance.lease_id }
+    // Get the latest refund decision for this refund request task
+    const latestRefundDecision = await prisma.refund_decisions.findFirst({
+      where: { task_id: flowInstance.refund_request_task_id },
+      orderBy: { submitted_at: 'desc' },
+      include: {
+        refunded_charges: true
+      }
     })
 
-    if (is_refunded) {
+    if (!latestRefundDecision) {
+      return NextResponse.json(
+        { error: 'No refund decision found for this refund request' },
+        { status: 400 }
+      )
+    }
+
+    // Check if already approved
+    const alreadyApproved = await prisma.refund_decisions.findFirst({
+      where: {
+        task_id: flowInstance.refund_request_task_id,
+        status: 'approved'
+      }
+    })
+
+    if (alreadyApproved) {
       return NextResponse.json(
         { error: 'Lease has already been refunded' },
         { status: 400 }
@@ -143,8 +160,6 @@ export async function POST (
 
     const result = await prisma.$transaction(async tx => {
       if (approved) {
-
-        const total = charges.reduce((sum: number, charge: RefundCharge) => sum + charge.amount, 0);
         // Generate expense reference_id
         const currentYear = new Date().getFullYear()
         const yearPrefix = `XP-${currentYear}`
@@ -178,7 +193,15 @@ export async function POST (
           .padStart(8, '0')}`
         // APPROVED: Complete the flow
 
-        // 1. Create review report (approved)
+        // 1. Set finalization task status to Resolved
+        await tx.task_statuses.create({
+          data: {
+            task_id: taskId,
+            state: 'Resolved'
+          }
+        })
+
+        // 2. Create review report (approved)
         await tx.task_reports.create({
           data: {
             task_id: taskId,
@@ -189,21 +212,24 @@ export async function POST (
           }
         })
 
-        // 2. Set finalization task status to Resolved
-        await tx.task_statuses.create({
-          data: {
-            task_id: taskId,
-            state: 'Resolved'
-          }
-        })
-
         // 3. Update flow status to Completed
         await tx.task_flow_instances.update({
           where: { id: flowInstance.id },
           data: { status: 'Completed' }
         })
 
-        // 4. Create expense & payment history
+        // 4. Update refund decision status to approved
+        await tx.refund_decisions.update({
+          where: { id: latestRefundDecision.id },
+          data: {
+            status: 'approved',
+            reviewed_by: staff.id,
+            reviewed_at: new Date()
+          }
+        })
+
+        // 5. Create expense & payment history
+        // Create single charge for the refund amount (not the deductions)
         await tx.expenses.create({
           data: {
             reference_id: expense_reference_id,
@@ -215,14 +241,15 @@ export async function POST (
             organization_id: staff.organization_id,
             created_by: staff.id,
             charges: {
-              create: charges.map((charge: RefundCharge) => ({
-                title: charge.description,
-                amount: Math.round((charge.amount || 0) * 100) / 100
-              }))
+              create: {
+                title: 'Deposit Refund',
+                amount: latestRefundDecision.final_refund_amount.toNumber(),
+                is_refunded: false
+              }
             },
             payment_history: {
               create: {
-                amount: finalRefundAmount,
+                amount: latestRefundDecision.final_refund_amount.toNumber(),
                 payment_method:
                   paymentMethod === 'Bank Transfer' ? 'Bank_Transfer' : 'Cash',
                 paid_at: new Date(),
@@ -248,15 +275,25 @@ export async function POST (
           }
         })
 
-        // 2. Set finalization task status to Resolved (this task is done, but rejected)
+        // 2. Set finalization task status to Needs Modification
         await tx.task_statuses.create({
           data: {
             task_id: taskId,
-            state: 'Resolved'
+            state: 'Needs_Modification'
           }
         })
 
-        // 3. Set Refund Request task status to Needs Modification
+        // 3. Update refund decision status to rejected
+        await tx.refund_decisions.update({
+          where: { id: latestRefundDecision.id },
+          data: {
+            status: 'rejected',
+            reviewed_by: staff.id,
+            reviewed_at: new Date()
+          }
+        })
+
+        // 4. Set Refund Request task status to Needs Modification
         await tx.task_statuses.create({
           data: {
             task_id: flowInstance.refund_request_task_id || '',

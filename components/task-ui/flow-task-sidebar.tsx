@@ -218,7 +218,7 @@ export default function FlowTaskSidebar({
         {(taskType === 'Refund_Request' || taskType === 'Refund_Finalization') && flowInfo.leaseInfo && (
           <div className='pb-5 border-b border-(--border-light)'>
             <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
-              Security Deposit
+              Refundable Amount
             </span>
             <div className='p-3 rounded-lg bg-blue-50 border border-blue-200'>
               <p className='texts-body-large-medium text-blue-700'>

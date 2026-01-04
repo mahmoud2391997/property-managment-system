@@ -3,22 +3,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import {
+  SubmitRefundDecisionRequestBody,
+  SubmitRefundDecisionResponse
+} from '@/types/api/task-flow-api.types'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse<SubmitRefundDecisionResponse>> {
   try {
     const { staff, error } = await getUserAndStaff()
     if (error) return error
 
     const { id: taskId } = await params
-    const body = await request.json()
-    const { decision, charges, tenantNote, attachment } = body
+    const body: SubmitRefundDecisionRequestBody = await request.json()
+    const { decision, charges, report, attachment } = body
 
     // Validation
     if (!decision || !['full', 'partial', 'forfeit'].includes(decision)) {
       return NextResponse.json({ error: 'Invalid decision' }, { status: 400 })
+    }
+
+    if (!report || report.trim().length < 10) {
+      return NextResponse.json({ error: 'Report is required (min 10 characters)' }, { status: 400 })
     }
 
     if (decision === 'partial') {
@@ -111,33 +119,47 @@ export async function POST(
 
     const finalRefundAmount = Math.max(0, depositAmount - totalCharges)
 
-    // Prepare report data
-    const reportData = {
-      decision,
-      originalDeposit: depositAmount,
-      charges: decision === 'partial' ? charges : [],
-      totalCharges,
-      finalRefundAmount,
-      tenantNote: tenantNote || null,
-      attachment: attachment || null
-    }
-
     const organizationId = staff.organization_id
-    const priority = task.task_priorities[0]?.priority || 'Medium'
+    const priority: 'Low' | 'Medium' | 'High' | 'Urgent' =
+      (task.task_priorities[0]?.priority as 'Low' | 'Medium' | 'High' | 'Urgent') || 'Medium'
 
     const result = await prisma.$transaction(async tx => {
-      // 1. Create refund decision report
+      // 1. Create refund decision record
+      const refundDecision = await tx.refund_decisions.create({
+        data: {
+          task_id: taskId,
+          flow_instance_id: flowInstance.id,
+          lease_id: flowInstance.lease_id || '',
+          decision,
+          original_deposit: depositAmount,
+          total_charges: totalCharges,
+          final_refund_amount: finalRefundAmount,
+          status: 'pending',
+          submitted_by: staff.id,
+          organization_id: organizationId,
+          refunded_charges: decision === 'partial' && charges ? {
+            createMany: {
+              data: charges.map((c) => ({
+                title: c.description,
+                amount: c.amount
+              }))
+            }
+          } : undefined
+        }
+      })
+
+      // 2. Create task report (clean text only)
       await tx.task_reports.create({
         data: {
           task_id: taskId,
-          content: JSON.stringify(reportData),
+          content: report.trim(),
           attachment: attachment || null,
           is_resolved: true,
           submitted_by: staff.id
         }
       })
 
-      // 2. Set refund request task status to Resolved
+      // 3. Set refund request task status to Resolved
       await tx.task_statuses.create({
         data: {
           task_id: taskId,
@@ -147,29 +169,17 @@ export async function POST(
 
       let refundFinalizationTaskId: string | null = null
 
-      // 3. Check if Refund Finalization task already exists (resubmission case)
-      const existingFinalization = await tx.tasks.findFirst({
-        where: {
-          flow_instance_id: flowInstance.id,
-          organization_id: organizationId
-        },
-        include: {
-          task_types: { orderBy: { created_at: 'desc' }, take: 1 }
-        }
-      })
-
-      const hasFinalizationTask = existingFinalization &&
-        existingFinalization.task_types[0]?.type === 'Refund_Finalization'
-
-      if (hasFinalizationTask) {
+      // 4. Check if Refund Finalization task already exists (resubmission case)
+      // The refund_finalization_task_id in flow instance tells us if it exists
+      if (flowInstance.refund_finalization_task_id) {
         // Resubmission case - just update existing finalization task to In_Progress
         await tx.task_statuses.create({
           data: {
-            task_id: existingFinalization.id,
+            task_id: flowInstance.refund_finalization_task_id,
             state: 'In_Progress'
           }
         })
-        refundFinalizationTaskId = existingFinalization.id
+        refundFinalizationTaskId = flowInstance.refund_finalization_task_id
       } else {
         // First submission - create new Refund Finalization task
         const currentYear = new Date().getFullYear()
@@ -217,7 +227,7 @@ export async function POST(
 
         // Create priority (same as refund request)
         await tx.task_priorities.create({
-          data: { task_id: refundFinalizationTask.id, priority: priority as any, created_by: staff.id }
+          data: { task_id: refundFinalizationTask.id, priority, created_by: staff.id }
         })
 
         // Update flow instance with refund finalization task
@@ -230,6 +240,8 @@ export async function POST(
       }
 
       return { refundFinalizationTaskId }
+    }, {
+      timeout: 10000 // 10 seconds timeout instead of default 5 seconds
     })
 
     return NextResponse.json({

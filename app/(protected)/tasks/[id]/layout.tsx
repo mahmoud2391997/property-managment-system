@@ -760,8 +760,11 @@ export default function TaskDetailsLayout ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             decision: data.decision,
-            charges: data.charges,
-            tenantNote: data.tenantNote,
+            charges: data.charges?.map(c => ({
+              ...c,
+              amount: parseFloat(c.amount)
+            })),
+            report: data.report,
             attachment: attachmentUrl
           })
         }
@@ -817,7 +820,8 @@ export default function TaskDetailsLayout ({
         body: JSON.stringify({
           approved: data.approved,
           report: data.report,
-          attachment: attachmentUrl
+          attachment: attachmentUrl,
+          paymentMethod: data.paymentMethod
         })
       })
 

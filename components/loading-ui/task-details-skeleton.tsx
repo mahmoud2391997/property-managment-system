@@ -21,7 +21,7 @@ export default function TaskDetailsSkeleton () {
 
         {/* Task Groups */}
         <div className='space-y-4'>
-          {[1, 2, 3].map(group => (
+          {[1, 2].map(group => (
             <fieldset
               key={group}
               className='border border-dashed border-neutral-300 rounded-lg p-3 pt-0'
@@ -31,7 +31,7 @@ export default function TaskDetailsSkeleton () {
               </legend>
 
               <div className='flex flex-wrap gap-2 mt-3'>
-                {[1, 2, 3, 4].map(task => (
+                {[1, 2].map(task => (
                   <div
                     key={task}
                     className='flex items-center gap-2 px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50'

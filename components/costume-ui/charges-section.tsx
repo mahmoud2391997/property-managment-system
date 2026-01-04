@@ -89,7 +89,7 @@ const ChargesSection = ({
               taxable: firstType.taxable,
               isRemovable: false,
               isTaxableChecked: false,
-              isRefundableChecked: firstType.type === 'Earnest Deposit'
+              isRefundableChecked: firstType.type === 'Security Deposit'
             }
           ])
         }
@@ -117,8 +117,8 @@ const ChargesSection = ({
     if (defaultCharges && defaultCharges.length > 0 && !chargesApplied) {
       const mappedCharges: Charge[] = defaultCharges.map((charge, index) => {
         const config = chargeTypes.find(t => t.type === charge.type)
-        // Use is_refundable from database config, fallback to true only for Earnest Deposit
-        const isRefundableChecked = charge.is_refundable ?? (charge.type === 'Earnest Deposit')
+        // Use is_refundable from database config, fallback to true only for Security Deposit
+        const isRefundableChecked = charge.is_refundable ?? (charge.type === 'Security Deposit')
         return {
           type: charge.type,
           amount: String(charge.amount),
@@ -169,7 +169,7 @@ const ChargesSection = ({
               taxable: firstType.taxable,
               isRemovable: false,
               isTaxableChecked: false,
-              isRefundableChecked: firstType.type === 'Earnest Deposit'
+              isRefundableChecked: firstType.type === 'Security Deposit'
             }
           ]
         }
@@ -200,7 +200,7 @@ const ChargesSection = ({
           taxable: config.taxable,
           refundable: config.refundable,
           isTaxableChecked: false,
-          isRefundableChecked: selectedType === 'Earnest Deposit'
+          isRefundableChecked: selectedType === 'Security Deposit'
         }
       } else {
         // For non-selectable charges (free text input), just update the type/title
@@ -269,7 +269,7 @@ const ChargesSection = ({
           refundable: nextAvailableType.refundable,
           isRemovable: true,
           isTaxableChecked: false,
-          isRefundableChecked: nextAvailableType.type === 'Earnest Deposit'
+          isRefundableChecked: nextAvailableType.type === 'Security Deposit'
         }
       ])
     } else {
@@ -422,7 +422,7 @@ const ChargesSection = ({
               {(selectable ? config?.refundable : charge.refundable) && flowType === 'income' && (
                 <CheckAddon
                   label='Refundable'
-                  checked={charge.isRefundableChecked ?? (charge.type === 'Earnest Deposit')}
+                  checked={charge.isRefundableChecked ?? (charge.type === 'Security Deposit')}
                   onCheckedChange={checked => handleRefundableChange(index, checked)}
                 />
               )}

@@ -1039,7 +1039,7 @@ export default function LeaseEndingTestPage() {
       setWorkflow(prev => {
         if (!prev.refundRequestTask) return prev
 
-        const totalCharges = charges.reduce((sum, c) => sum + c.amount, 0)
+        const totalCharges = charges.reduce((sum, c) => sum + parseFloat(c.amount), 0)
         const finalAmount = decision === 'burn' ? 0 : prev.depositAmount - totalCharges
 
         const newEvents: TaskTimelineEvent[] = [
@@ -1054,7 +1054,7 @@ export default function LeaseEndingTestPage() {
             data: {
               refundDecision: decision,
               refundAmount: finalAmount,
-              charges
+              charges: charges.map(c => ({ description: c.description, amount: parseFloat(c.amount) }))
             }
           },
           {

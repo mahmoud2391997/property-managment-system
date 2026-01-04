@@ -11,9 +11,12 @@ import type {
 import type {
   InspectionFinding,
   PreparationTaskInput,
-  RefundDecision,
   RefundCharge
 } from '@/components/task-ui/flow-types'
+import type {
+  SubmitRefundDecisionRequestBody,
+  ReviewRefundRequestBody
+} from '@/types/api/task-flow-api.types'
 
 // Flow task submission types
 export interface InspectionSubmitData {
@@ -28,10 +31,11 @@ export interface PreparationSubmitData {
   attachment?: File
 }
 
+// Client-side types with File objects (before conversion to URLs)
 export interface RefundDecisionSubmitData {
-  decision: RefundDecision
+  decision: SubmitRefundDecisionRequestBody['decision']
   charges?: RefundCharge[]
-  tenantNote?: string
+  report: string
   attachment?: File
 }
 
@@ -39,6 +43,7 @@ export interface RefundReviewSubmitData {
   approved: boolean
   report: string
   attachment?: File
+  paymentMethod?: ReviewRefundRequestBody['paymentMethod']
 }
 
 export interface CommentData {

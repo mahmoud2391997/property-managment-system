@@ -8,7 +8,9 @@ import {
   StaffMember,
   LeaseEndingTask,
   PreparationTask,
-  TaskStatus
+  TaskStatus,
+  RefundCharge,
+  RefundDecision
 } from '../types'
 import { cn } from '@/lib/utils'
 import {
@@ -37,8 +39,8 @@ type Props = {
     preparationTasks?: { title: string; description: string }[]
   ) => void
   onRefundDecision?: (
-    decision: 'full' | 'partial' | 'burn',
-    charges: { id: string; description: string; amount: number }[],
+    decision: RefundDecision,
+    charges: RefundCharge[],
     note: string,
     attachment: { name: string; url: string } | undefined
   ) => void

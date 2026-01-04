@@ -293,7 +293,7 @@ export default function CompleteInspectionDialog({
         <div className='p-3 bg-blue-50 border border-blue-200 rounded-lg'>
           <p className='texts-body-small text-blue-700'>
             {finding === 'ready' ? (
-              <>After completion, a <strong>Refund Request</strong> task will be automatically created for you to process the security deposit.</>
+              <>After completion, a <strong>Refund Request</strong> task will be automatically created for you to process the refundable deposits.</>
             ) : finding === 'needs_preparation' ? (
               <>After completion, the preparation tasks will be created and the property status will be set to "Under Preparation".</>
             ) : (

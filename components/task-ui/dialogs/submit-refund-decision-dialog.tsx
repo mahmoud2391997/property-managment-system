@@ -8,9 +8,17 @@ import Input from '@/components/costume-ui/input'
 import UploadFile from '@/components/costume-ui/upload-file'
 import Textarea from '@/components/costume-ui/text-area'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
-import { Send, Plus, X, CheckCircle, AlertTriangle, XCircle } from 'lucide-react'
+import {
+  Send,
+  Plus,
+  X,
+  CheckCircle,
+  AlertTriangle,
+  XCircle
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { RefundDecision, RefundCharge } from '../flow-types'
+import { formatCurrency } from '@/utils/formatCurrency'
 
 type Props = {
   open: boolean
@@ -18,7 +26,7 @@ type Props = {
   onSubmit: (data: {
     decision: RefundDecision
     charges?: RefundCharge[]
-    tenantNote?: string
+    report: string
     attachment?: File
   }) => Promise<void>
   loading?: boolean
@@ -30,12 +38,7 @@ type Props = {
   previousNote?: string
 }
 
-// Format currency for Malaysia
-const formatCurrency = (amount: number): string => {
-  return `RM ${amount.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-export default function SubmitRefundDecisionDialog({
+export default function SubmitRefundDecisionDialog ({
   open,
   onOpenChange,
   onSubmit,
@@ -46,19 +49,27 @@ export default function SubmitRefundDecisionDialog({
   previousCharges,
   previousNote
 }: Props) {
-  const [decision, setDecision] = useState<RefundDecision | RefundDecision>(previousDecision || 'full')
-  const [charges, setCharges] = useState<RefundCharge[]>(
-    previousCharges || [{ id: crypto.randomUUID(), description: '', amount: 0 }]
+  const [decision, setDecision] = useState<RefundDecision | RefundDecision>(
+    previousDecision || 'full'
   )
-  const [tenantNote, setTenantNote] = useState(previousNote || '')
+  const [charges, setCharges] = useState<RefundCharge[]>(
+    previousCharges || [{ id: crypto.randomUUID(), description: '', amount: '0' }]
+  )
+  const [report, setReport] = useState(previousNote || '')
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
 
   // Calculate totals
-  const totalCharges = charges.reduce((sum, c) => sum + (c.amount || 0), 0)
+  const totalCharges = charges.reduce(
+  (sum, c) => sum + (parseFloat(c.amount) || 0),
+  0
+)
   const refundAmount = Math.max(0, depositAmount - totalCharges)
 
   const handleAddCharge = () => {
-    setCharges([...charges, { id: crypto.randomUUID(), description: '', amount: 0 }])
+    setCharges([
+      ...charges,
+      { id: crypto.randomUUID(), description: '', amount: '0' }
+    ])
   }
 
   const handleRemoveCharge = (id: string) => {
@@ -66,10 +77,18 @@ export default function SubmitRefundDecisionDialog({
     setCharges(charges.filter(c => c.id !== id))
   }
 
-  const handleUpdateCharge = (id: string, field: 'description' | 'amount', value: string | number) => {
-    setCharges(charges.map(c =>
-      c.id === id ? { ...c, [field]: field === 'amount' ? Number(value) || 0 : value } : c
-    ))
+  const handleUpdateCharge = (
+    id: string,
+    field: 'description' | 'amount',
+    value: string
+  ) => {
+    setCharges(
+      charges.map(c =>
+        c.id === id
+          ? { ...c, [field]: value }
+          : c
+      )
+    )
   }
 
   const validateCharges = (): boolean => {
@@ -77,26 +96,43 @@ export default function SubmitRefundDecisionDialog({
 
     for (const charge of charges) {
       if (!charge.description.trim()) {
-        FeedbackToasts.warning('Validation', 'Each charge must have a description')
+        FeedbackToasts.warning(
+          'Validation',
+          'Each charge must have a description'
+        )
         return false
       }
-      if (charge.amount <= 0) {
-        FeedbackToasts.warning('Validation', 'Each charge must have a positive amount')
+      const chargeAmount = parseFloat(charge.amount)
+      if (isNaN(chargeAmount) || chargeAmount <= 0) {
+        FeedbackToasts.warning(
+          'Validation',
+          'Each charge must have a positive amount'
+        )
         return false
       }
     }
 
     if (totalCharges >= depositAmount) {
-      FeedbackToasts.warning('Validation', 'Total charges cannot exceed or equal the deposit amount for partial refund')
+      FeedbackToasts.warning(
+        'Validation',
+        'Total charges cannot exceed or equal the deposit amount for partial refund'
+      )
       return false
     }
 
     return true
   }
 
+  const MIN_REPORT_LENGTH = 10
+
   const handleSubmit = async () => {
     if (!decision) {
       FeedbackToasts.warning('Validation', 'Please select a refund decision')
+      return
+    }
+
+    if (!report.trim() || report.trim().length < MIN_REPORT_LENGTH) {
+      FeedbackToasts.warning('Validation', `Report must be at least ${MIN_REPORT_LENGTH} characters`)
       return
     }
 
@@ -105,12 +141,15 @@ export default function SubmitRefundDecisionDialog({
     try {
       await onSubmit({
         decision,
-        charges: decision === 'partial' ? charges.map(c => ({
-          id: c.id,
-          description: c.description.trim(),
-          amount: c.amount
-        })) : undefined,
-        tenantNote: tenantNote.trim() || undefined,
+        charges:
+          decision === 'partial'
+            ? charges.map(c => ({
+                id: c.id,
+                description: c.description.trim(),
+                amount: c.amount
+              }))
+            : undefined,
+        report: report.trim(),
         attachment: attachmentFile || undefined
       })
 
@@ -123,8 +162,8 @@ export default function SubmitRefundDecisionDialog({
 
   const resetForm = () => {
     setDecision('full')
-    setCharges([{ id: crypto.randomUUID(), description: '', amount: 0 }])
-    setTenantNote('')
+    setCharges([{ id: crypto.randomUUID(), description: '', amount: '0' }])
+    setReport('')
     setAttachmentFile(null)
   }
 
@@ -151,7 +190,13 @@ export default function SubmitRefundDecisionDialog({
           />
           <Button
             variant='primary'
-            label={loading ? 'Submitting...' : isResubmit ? 'Resubmit Decision' : 'Submit Decision'}
+            label={
+              loading
+                ? 'Submitting...'
+                : isResubmit
+                ? 'Resubmit Decision'
+                : 'Submit Decision'
+            }
             icon={<Send size={16} />}
             onClick={handleSubmit}
             loading={loading}
@@ -169,7 +214,8 @@ export default function SubmitRefundDecisionDialog({
             <div className='flex items-start gap-2'>
               <AlertTriangle size={18} className='text-amber-600 mt-0.5' />
               <p className='texts-body-small text-amber-700'>
-                Your previous refund decision was rejected. Please review and resubmit with any necessary modifications.
+                Your previous refund decision was rejected. Please review and
+                resubmit with any necessary modifications.
               </p>
             </div>
           </div>
@@ -177,8 +223,10 @@ export default function SubmitRefundDecisionDialog({
 
         {/* Deposit Amount */}
         <div className='p-4 bg-blue-50 border border-blue-200 rounded-lg'>
-          <p className='texts-body-small text-blue-600'>Security Deposit</p>
-          <p className='texts-heading-large text-blue-700'>{formatCurrency(depositAmount)}</p>
+          <p className='texts-body-small text-blue-600'>Refundable Amount</p>
+          <p className='texts-heading-large text-blue-700'>
+            {formatCurrency(depositAmount)}
+          </p>
         </div>
 
         {/* Decision Selection */}
@@ -201,7 +249,9 @@ export default function SubmitRefundDecisionDialog({
               <div className='flex flex-col items-center text-center gap-2'>
                 <CheckCircle
                   size={28}
-                  className={decision === 'full' ? 'text-green-600' : 'text-green-400'}
+                  className={
+                    decision === 'full' ? 'text-green-600' : 'text-green-400'
+                  }
                 />
                 <div>
                   <p className='texts-body-medium-medium text-(--text-primary)'>
@@ -228,7 +278,9 @@ export default function SubmitRefundDecisionDialog({
               <div className='flex flex-col items-center text-center gap-2'>
                 <AlertTriangle
                   size={28}
-                  className={decision === 'partial' ? 'text-amber-600' : 'text-amber-400'}
+                  className={
+                    decision === 'partial' ? 'text-amber-600' : 'text-amber-400'
+                  }
                 />
                 <div>
                   <p className='texts-body-medium-medium text-(--text-primary)'>
@@ -255,7 +307,9 @@ export default function SubmitRefundDecisionDialog({
               <div className='flex flex-col items-center text-center gap-2'>
                 <XCircle
                   size={28}
-                  className={decision === 'forfeit' ? 'text-red-600' : 'text-red-400'}
+                  className={
+                    decision === 'forfeit' ? 'text-red-600' : 'text-red-400'
+                  }
                 />
                 <div>
                   <p className='texts-body-medium-medium text-(--text-primary)'>
@@ -298,19 +352,45 @@ export default function SubmitRefundDecisionDialog({
                     <Input
                       placeholder='Charge description (e.g., Wall damage repair)'
                       value={charge.description}
-                      onChange={e => handleUpdateCharge(charge.id, 'description', e.target.value)}
+                      onChange={e =>
+                        handleUpdateCharge(
+                          charge.id,
+                          'description',
+                          e.target.value
+                        )
+                      }
                       disabled={loading}
                     />
                     <div className='flex items-center gap-2'>
-                      <span className='texts-body-small text-(--text-secondary)'>RM</span>
                       <Input
-                        type='number'
-                        placeholder='0.00'
-                        value={charge.amount || ''}
-                        onChange={e => handleUpdateCharge(charge.id, 'amount', e.target.value)}
+                        currency
+                        placeholder='RM 0.00'
+                        value={charge.amount}
+                        onValueChange={value => {
+                          const numValue = parseFloat(value || '0')
+                          // Calculate total charges excluding current charge
+                          const otherChargesTotal = charges
+                            .filter(c => c.id !== charge.id)
+                            .reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0)
+
+                          // Max allowed for this charge is depositAmount minus other charges
+                          const maxAllowed = depositAmount - otherChargesTotal
+
+                          if (numValue > maxAllowed) {
+                            handleUpdateCharge(
+                              charge.id,
+                              'amount',
+                              maxAllowed > 0 ? maxAllowed.toFixed(2) : '0'
+                            )
+                          } else {
+                            handleUpdateCharge(
+                              charge.id,
+                              'amount',
+                              value || ''
+                            )
+                          }
+                        }}
                         disabled={loading}
-                        min={0}
-                        step={0.01}
                         className='w-32'
                       />
                     </div>
@@ -332,13 +412,17 @@ export default function SubmitRefundDecisionDialog({
             {/* Calculation Summary */}
             <div className='mt-4 pt-4 border-t border-amber-200'>
               <div className='flex justify-between items-center mb-2'>
-                <span className='texts-body-small text-amber-700'>Total Charges:</span>
+                <span className='texts-body-small text-amber-700'>
+                  Total Charges:
+                </span>
                 <span className='texts-body-small-medium text-amber-800'>
                   {formatCurrency(totalCharges)}
                 </span>
               </div>
               <div className='flex justify-between items-center'>
-                <span className='texts-body-medium-medium text-amber-800'>Refund Amount:</span>
+                <span className='texts-body-medium-medium text-amber-800'>
+                  Refund Amount:
+                </span>
                 <span className='texts-body-large-medium text-green-700'>
                   {formatCurrency(refundAmount)}
                 </span>
@@ -351,7 +435,9 @@ export default function SubmitRefundDecisionDialog({
         {decision === 'full' && (
           <div className='p-4 bg-green-50 border border-green-200 rounded-lg'>
             <div className='flex justify-between items-center'>
-              <span className='texts-body-medium-medium text-green-800'>Refund Amount:</span>
+              <span className='texts-body-medium-medium text-green-800'>
+                Refund Amount:
+              </span>
               <span className='texts-body-large-medium text-green-700'>
                 {formatCurrency(depositAmount)}
               </span>
@@ -362,23 +448,26 @@ export default function SubmitRefundDecisionDialog({
         {decision === 'forfeit' && (
           <div className='p-4 bg-red-50 border border-red-200 rounded-lg'>
             <div className='flex justify-between items-center'>
-              <span className='texts-body-medium-medium text-red-800'>Refund Amount:</span>
+              <span className='texts-body-medium-medium text-red-800'>
+                Refund Amount:
+              </span>
               <span className='texts-body-large-medium text-red-700'>
                 {formatCurrency(0)}
               </span>
             </div>
             <p className='texts-body-small text-red-600 mt-2'>
-              The entire deposit will be forfeited. This decision must be justified.
+              The entire deposit will be forfeited. This decision must be
+              justified.
             </p>
           </div>
         )}
 
-        {/* Note to Tenant */}
-        <InputGroup label='Note to Tenant (Optional)'>
+        {/* Report */}
+        <InputGroup label='Report' isRequired>
           <Textarea
-            value={tenantNote}
-            onChange={e => setTenantNote(e.target.value)}
-            placeholder='Add any notes or explanations for the tenant...'
+            value={report}
+            onChange={e => setReport(e.target.value)}
+            placeholder='Provide details about your refund decision (min 10 characters)...'
             className='min-h-20'
             disabled={loading}
           />
@@ -386,13 +475,19 @@ export default function SubmitRefundDecisionDialog({
 
         {/* Attachment */}
         <InputGroup label='Supporting Document (Optional)'>
-          <UploadFile onFileChange={setAttachmentFile} maxSizeMB={2} disabled={loading} />
+          <UploadFile
+            onFileChange={setAttachmentFile}
+            maxSizeMB={2}
+            disabled={loading}
+          />
         </InputGroup>
 
         {/* Info */}
         <div className='p-3 bg-blue-50 border border-blue-200 rounded-lg'>
           <p className='texts-body-small text-blue-700'>
-            After submission, a <strong>Refund Finalization</strong> task will be created for another staff member to review and approve your decision.
+            After submission, a <strong>Refund Finalization</strong> task will
+            be created for another staff member to review and approve your
+            decision.
           </p>
         </div>
       </div>

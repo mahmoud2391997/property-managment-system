@@ -116,7 +116,7 @@ export default function CompletePreparationDialog({
         {/* Info */}
         <div className='p-3 bg-blue-50 border border-blue-200 rounded-lg'>
           <p className='texts-body-small text-blue-700'>
-            When all preparation tasks are completed, a <strong>Refund Request</strong> task will be automatically created for processing the security deposit.
+            When all preparation tasks are completed, a <strong>Refund Request</strong> task will be automatically created for processing the refundable deposits.
           </p>
         </div>
       </div>

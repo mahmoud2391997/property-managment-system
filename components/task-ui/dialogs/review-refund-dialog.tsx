@@ -6,6 +6,7 @@ import Dialog from '@/components/costume-ui/dialog'
 import InputGroup from '@/components/costume-ui/input-group'
 import UploadFile from '@/components/costume-ui/upload-file'
 import Textarea from '@/components/costume-ui/text-area'
+import FileAttachment from '@/components/costume-ui/file-attachment'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { CheckCircle2, XCircle, AlertTriangle, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -14,6 +15,31 @@ import type {
   RefundCharge,
   RefundRequestReportData
 } from '../flow-types'
+import type { ReviewRefundRequestBody } from '@/types/api/task-flow-api.types'
+
+// Helper function to extract filename from URL
+function getFileNameFromUrl(url: string): string {
+  try {
+    const urlObj = new URL(url)
+    const pathname = urlObj.pathname
+    const parts = pathname.split('/')
+    let fileName = parts[parts.length - 1] || 'attachment'
+    fileName = decodeURIComponent(fileName)
+    if (!fileName.includes('.') || fileName.endsWith('.')) {
+      fileName = 'attachment'
+    }
+    return fileName
+  } catch {
+    try {
+      const parts = url.split('/')
+      let fileName = parts[parts.length - 1] || 'attachment'
+      fileName = fileName.split('?')[0]
+      return decodeURIComponent(fileName)
+    } catch {
+      return 'attachment'
+    }
+  }
+}
 
 type Props = {
   open: boolean
@@ -22,25 +48,12 @@ type Props = {
     approved: boolean
     report: string
     attachment?: File
-    decision: RefundDecision
-    charges?: RefundCharge[]
-    totalCharges: number
-    finalRefundAmount: number
-    tenantNote?: string
-    paymentMethod?: string
+    paymentMethod?: ReviewRefundRequestBody['paymentMethod']
   }) => Promise<void>
   loading?: boolean
   depositAmount: number
   refundDecision: RefundRequestReportData
   submitterName: string
-}
-
-// Format currency for Malaysia
-const formatCurrency = (amount: number): string => {
-  return `RM ${amount.toLocaleString('en-MY', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}`
 }
 
 // Get decision display
@@ -71,7 +84,7 @@ export default function ReviewRefundDialog ({
   const [approved, setApproved] = useState<boolean | null>(null)
   const [report, setReport] = useState('')
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
-  const [paymentMethod, setPaymentMethod] = useState<string>('Bank Transfer')
+  const [paymentMethod, setPaymentMethod] = useState<ReviewRefundRequestBody['paymentMethod']>('Bank Transfer')
 
   const MIN_REPORT_LENGTH = 10
   const decisionInfo = getDecisionDisplay(refundDecision.decision)
@@ -107,12 +120,6 @@ export default function ReviewRefundDialog ({
         approved,
         report: report.trim(),
         attachment: attachmentFile || undefined,
-        // Include the refund decision data
-        decision: refundDecision.decision,
-        charges: refundDecision.charges,
-        totalCharges: refundDecision.totalCharges,
-        finalRefundAmount: refundDecision.finalRefundAmount,
-        tenantNote: refundDecision.tenantNote,
         paymentMethod: approved ? paymentMethod : undefined
       })
 
@@ -152,13 +159,6 @@ export default function ReviewRefundDialog ({
             disabled={loading}
           />
           <Button
-            variant={
-              approved === true
-                ? 'primary'
-                : approved === false
-                ? 'secondary'
-                : 'primary'
-            }
             label={
               loading
                 ? 'Submitting...'
@@ -185,7 +185,7 @@ export default function ReviewRefundDialog ({
             }
             className={
               approved === false
-                ? 'bg-red-600 hover:bg-red-700 text-white border-red-600!'
+                ? 'bg-red-600! hover:bg-red-700! text-white! border-red-600!'
                 : ''
             }
           />
@@ -253,7 +253,7 @@ export default function ReviewRefundDialog ({
                         {charge.description}
                       </span>
                       <span className='text-amber-800 font-medium'>
-                        {formatCurrency(charge.amount)}
+                        RM {parseFloat(charge.amount).toFixed(2)}
                       </span>
                     </div>
                   ))}
@@ -262,7 +262,7 @@ export default function ReviewRefundDialog ({
                       Total Charges:
                     </span>
                     <span className='text-amber-800 font-medium'>
-                      {formatCurrency(refundDecision.totalCharges)}
+                      RM {refundDecision.totalCharges.toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -276,7 +276,7 @@ export default function ReviewRefundDialog ({
                 Original Deposit:
               </span>
               <span className='texts-body-small-medium text-(--text-primary)'>
-                {formatCurrency(refundDecision.originalDeposit)}
+                RM {refundDecision.originalDeposit.toFixed(2)}
               </span>
             </div>
             <div className='flex justify-between items-center pt-2 border-t border-current/10'>
@@ -291,21 +291,29 @@ export default function ReviewRefundDialog ({
                     : 'text-red-700'
                 )}
               >
-                {formatCurrency(refundDecision.finalRefundAmount)}
+                RM {refundDecision.finalRefundAmount.toFixed(2)}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Tenant Note (if any) */}
-        {refundDecision.tenantNote && (
-          <div className='p-3 bg-neutral-50 border border-(--border-default) rounded-lg'>
-            <p className='texts-body-small-medium text-(--text-secondary) mb-1'>
-              Note to Tenant:
+        {/* Refund Decision Report */}
+        {refundDecision.report && (
+          <div className='p-4 bg-blue-50 border border-blue-200 rounded-lg'>
+            <p className='texts-body-small-medium text-blue-700 mb-2'>
+              Refund Decision Report:
             </p>
-            <p className='texts-body-small text-(--text-primary)'>
-              {refundDecision.tenantNote}
+            <p className='texts-body-small text-blue-900 leading-relaxed whitespace-pre-wrap'>
+              {refundDecision.report}
             </p>
+            {refundDecision.attachment && (
+              <div className='mt-3 pt-3 border-t border-blue-200'>
+                <FileAttachment
+                  url={refundDecision.attachment}
+                  fileName={getFileNameFromUrl(refundDecision.attachment)}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -430,13 +438,14 @@ export default function ReviewRefundDialog ({
         </InputGroup>
 
         {/* Attachment */}
-        <InputGroup label='Attachment (Optional)'>
+        {paymentMethod === 'Bank Transfer' &&
+          <InputGroup label='Attachment (Optional)'>
           <UploadFile
             onFileChange={setAttachmentFile}
             maxSizeMB={2}
             disabled={loading}
           />
-        </InputGroup>
+        </InputGroup>}
 
         {/* Info about what happens */}
         <div

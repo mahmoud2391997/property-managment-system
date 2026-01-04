@@ -206,8 +206,8 @@ export default function TaskDetailsPage () {
             isResubmit={task.status === 'Needs Modification'}
           />
 
-          {/* Review Refund Dialog - needs refund decision data */}
-          {flowInfo?.leaseInfo && (
+          {/* Review Refund Dialog - uses latest refund decision */}
+          {flowInfo?.leaseInfo && flowInfo?.latestRefundDecision && (
             <ReviewRefundDialog
               open={showReviewRefundDialog}
               onOpenChange={setShowReviewRefundDialog}
@@ -215,13 +215,19 @@ export default function TaskDetailsPage () {
               loading={actionLoading === 'reviewing_refund'}
               depositAmount={flowInfo.leaseInfo.depositAmount}
               refundDecision={{
-                decision: 'full',
-                originalDeposit: flowInfo.leaseInfo.depositAmount,
-                charges: [],
-                totalCharges: 0,
-                finalRefundAmount: flowInfo.leaseInfo.depositAmount
+                decision: flowInfo.latestRefundDecision.decision,
+                originalDeposit: flowInfo.latestRefundDecision.originalDeposit,
+                totalCharges: flowInfo.latestRefundDecision.totalCharges,
+                finalRefundAmount: flowInfo.latestRefundDecision.finalRefundAmount,
+                charges: flowInfo.latestRefundDecision.charges.map((charge, idx) => ({
+                  id: `charge-${idx}`,
+                  description: charge.title,
+                  amount: charge.amount.toString()
+                })),
+                report: flowInfo.latestRefundDecision.report,
+                attachment: flowInfo.latestRefundDecision.attachment
               }}
-              submitterName={task.createdByName}
+              submitterName={flowInfo.latestRefundDecision.submitterName}
             />
           )}
         </>

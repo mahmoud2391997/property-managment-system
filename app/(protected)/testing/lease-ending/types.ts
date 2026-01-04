@@ -98,7 +98,7 @@ export type PreparationTask = {
 export type RefundCharge = {
   id: string
   description: string
-  amount: number
+  amount: string
 }
 
 export type LeaseEndingTask = {

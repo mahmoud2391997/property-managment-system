@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
 
-export async function POST(
+export async function POST (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -22,19 +22,38 @@ export async function POST(
     }
 
     if (!report || report.trim().length < 10) {
-      return NextResponse.json({ error: 'Report must be at least 10 characters' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Report must be at least 10 characters' },
+        { status: 400 }
+      )
     }
 
     if (finding === 'needs_preparation') {
-      if (!preparationTasks || !Array.isArray(preparationTasks) || preparationTasks.length === 0) {
-        return NextResponse.json({ error: 'At least one preparation task is required' }, { status: 400 })
+      if (
+        !preparationTasks ||
+        !Array.isArray(preparationTasks) ||
+        preparationTasks.length === 0
+      ) {
+        return NextResponse.json(
+          { error: 'At least one preparation task is required' },
+          { status: 400 }
+        )
       }
       for (const task of preparationTasks) {
         if (!task.title || task.title.trim().length < 5) {
-          return NextResponse.json({ error: 'Each preparation task must have a title (min 5 chars)' }, { status: 400 })
+          return NextResponse.json(
+            { error: 'Each preparation task must have a title (min 5 chars)' },
+            { status: 400 }
+          )
         }
         if (!task.description || task.description.trim().length < 10) {
-          return NextResponse.json({ error: 'Each preparation task must have a description (min 10 chars)' }, { status: 400 })
+          return NextResponse.json(
+            {
+              error:
+                'Each preparation task must have a description (min 10 chars)'
+            },
+            { status: 400 }
+          )
         }
       }
     }
@@ -62,26 +81,47 @@ export async function POST(
 
     const currentType = task.task_types[0]?.type
     if (currentType !== 'Inspection') {
-      return NextResponse.json({ error: 'This is not an inspection task' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'This is not an inspection task' },
+        { status: 400 }
+      )
     }
 
     const currentStatus = task.task_statuses[0]?.state
     if (currentStatus !== 'In_Progress') {
-      return NextResponse.json({ error: 'Task must be In Progress to complete' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Task must be In Progress to complete' },
+        { status: 400 }
+      )
     }
 
     const assignment = task.task_assignments[0]
     if (!assignment || assignment.assigned_id !== staff.id) {
-      return NextResponse.json({ error: 'Only the assigned staff can complete this task' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Only the assigned staff can complete this task' },
+        { status: 400 }
+      )
     }
 
     // Find the flow instance
     const flowInstance = await prisma.task_flow_instances.findFirst({
-      where: { inspection_task_id: taskId }
+      where: { inspection_task_id: taskId },
+      select: {
+        id: true,
+        leases: {
+          select: {
+            id: true,
+            reference_id: true
+          }
+        }
+      }
     })
 
     if (!flowInstance) {
-      return NextResponse.json({ error: 'Flow instance not found' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Flow instance not found' },
+        { status: 400 }
+      )
     }
 
     const organizationId = staff.organization_id
@@ -91,14 +131,16 @@ export async function POST(
     const refundableCharges = await prisma.charges.findMany({
       where: {
         payments: {
-          lease_id: flowInstance.lease_id || '',
+          lease_id: flowInstance.leases?.id || '',
           type: 'Lease_Initial_Charges'
         },
         is_refunded: true
       },
       select: { amount: true }
     })
-    const hasRefundableDeposit = refundableCharges.length > 0 && refundableCharges.reduce((sum, c) => sum + c.amount.toNumber(), 0) > 0
+    const hasRefundableDeposit =
+      refundableCharges.length > 0 &&
+      refundableCharges.reduce((sum, c) => sum + c.amount.toNumber(), 0) > 0
 
     // Generate reference IDs for new tasks
     const currentYear = new Date().getFullYear()
@@ -147,7 +189,9 @@ export async function POST(
 
         for (let i = 0; i < preparationTasks.length; i++) {
           const prepTask = preparationTasks[i]
-          const refId = `${yearPrefix}${(nextSequence + i).toString().padStart(7, '0')}`
+          const refId = `${yearPrefix}${(nextSequence + i)
+            .toString()
+            .padStart(7, '0')}`
 
           const newTask = await tx.tasks.create({
             data: {
@@ -169,12 +213,20 @@ export async function POST(
 
           // Create type (Preparation)
           await tx.task_types.create({
-            data: { task_id: newTask.id, type: 'Preparation', created_by: staff.id }
+            data: {
+              task_id: newTask.id,
+              type: 'Preparation',
+              created_by: staff.id
+            }
           })
 
           // Create priority (same as inspection)
           await tx.task_priorities.create({
-            data: { task_id: newTask.id, priority: priority as any, created_by: staff.id }
+            data: {
+              task_id: newTask.id,
+              priority: priority as any,
+              created_by: staff.id
+            }
           })
 
           createdPrepTasks.push(newTask.id)
@@ -197,13 +249,16 @@ export async function POST(
       } else {
         // Property is ready - create Refund Request task only if there are refundable deposits
         if (hasRefundableDeposit) {
-          const refId = `${yearPrefix}${nextSequence.toString().padStart(7, '0')}`
+          const refId = `${yearPrefix}${nextSequence
+            .toString()
+            .padStart(7, '0')}`
 
           const refundRequestTask = await tx.tasks.create({
             data: {
               reference_id: refId,
-              title: `Refund Request - ${flowInstance.lease_id}`,
-              description: 'Review inspection report and determine security deposit refund amount.',
+              title: `Refund Request - ${flowInstance.leases?.reference_id}`,
+              description:
+                'Review inspection report and determine refundable deposits refund amount.',
               organization_id: organizationId,
               property_id: task.property_id,
               room_id: task.room_id,
@@ -218,11 +273,19 @@ export async function POST(
           })
 
           await tx.task_types.create({
-            data: { task_id: refundRequestTask.id, type: 'Refund_Request', created_by: staff.id }
+            data: {
+              task_id: refundRequestTask.id,
+              type: 'Refund_Request',
+              created_by: staff.id
+            }
           })
 
           await tx.task_priorities.create({
-            data: { task_id: refundRequestTask.id, priority: priority as any, created_by: staff.id }
+            data: {
+              task_id: refundRequestTask.id,
+              priority: priority as any,
+              created_by: staff.id
+            }
           })
 
           await tx.task_assignments.create({
@@ -274,6 +337,9 @@ export async function POST(
     })
   } catch (error: any) {
     console.error('Error completing inspection:', error)
-    return NextResponse.json({ error: 'Failed to complete inspection' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to complete inspection' },
+      { status: 500 }
+    )
   }
 }
