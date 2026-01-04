@@ -64,7 +64,7 @@ async function fetchRentals(): Promise<RentalWithDetails[]> {
         unit: lease.rooms?.title || 'Whole unit',
         start_date: lease.start_date.toISOString(),
         number_of_months: lease.number_of_months,
-        monthly_rent: lease.monthly_rent,
+        monthly_rent: lease.monthly_rent.toNumber(),
         status
       }
     })

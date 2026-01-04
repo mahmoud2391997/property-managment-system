@@ -15,9 +15,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   CalendarCheck2,
-  Plus,
-  Check,
-  Wrench
+  Plus
 } from 'lucide-react'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import Image from 'next/image'
@@ -26,6 +24,7 @@ import { Button } from '@/components/ui/button'
 import PaymentsSection from '@/components/payments-section'
 import RecurringSection from '@/components/recurring-section'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
+import InitiateLeaseEndingDrawer from '@/components/dialogs/initiate-lease-ending-drawer'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { showFeedbackToast } from '@/components/costume-ui/feedback-toast'
 import { formatCurrency } from '@/utils/formatCurrency'
@@ -75,6 +74,7 @@ type BookingOverview = {
 }
 
 type OverviewData = {
+  propertyCode: string
   propertyStatus: string
   lease: LeaseOverview | null
   contract: ContractOverview | null
@@ -306,9 +306,7 @@ type StatusCardProps = {
   title: string
   subtitle: string
   status: string
-  onMarkReady: () => void
-  onNeedsPreparation?: () => void
-  isLoading?: boolean
+  propertyId: string
 }
 
 const StatusCard = ({
@@ -317,12 +315,30 @@ const StatusCard = ({
   title,
   subtitle,
   status,
-  onMarkReady,
-  onNeedsPreparation,
-  isLoading
+  propertyId
 }: StatusCardProps) => {
+  const [inspectionTaskId, setInspectionTaskId] = useState<string | null>(null)
   const isPendingInspection = status === 'Pending_Inspection'
   const isUnderPreparation = status === 'Under_Preparation'
+
+  // Fetch the inspection task ID for this property
+  useEffect(() => {
+    const fetchInspectionTask = async () => {
+      try {
+        const response = await fetch(`/api/properties/${propertyId}/inspection-task`)
+        if (response.ok) {
+          const data = await response.json()
+          setInspectionTaskId(data.inspectionTaskId)
+        }
+      } catch (error) {
+        console.error('Error fetching inspection task:', error)
+      }
+    }
+
+    if (isPendingInspection || isUnderPreparation) {
+      fetchInspectionTask()
+    }
+  }, [propertyId, isPendingInspection, isUnderPreparation])
 
   return (
     <div
@@ -367,41 +383,21 @@ const StatusCard = ({
         </span>
       </div>
 
-      {/* Action Buttons */}
-      <div className='flex flex-1 flex-col items-center justify-center gap-3 mt-2'>
-        {isPendingInspection ? (
-          <>
-            <Button
-              variant='outline'
-              className='w-full gap-2'
-              onClick={onMarkReady}
-              disabled={isLoading}
-            >
-              <Check size={16} />
-              Property is Ready
+      {/* Status Information */}
+      <div className='flex flex-1 flex-col items-center justify-center gap-3 mt-2 px-3'>
+        <p className='text-sm text-center text-(--text-secondary)'>
+          {isPendingInspection
+            ? 'An inspection task is in progress for this property.'
+            : isUnderPreparation
+            ? 'Preparation tasks are in progress for this property.'
+            : 'Property is not ready for lease.'}
+        </p>
+        {inspectionTaskId && (
+          <Link href={`/tasks/${inspectionTaskId}`}>
+            <Button variant='outline' size='sm' className='gap-2'>
+              View Tasks
             </Button>
-            {onNeedsPreparation && (
-              <Button
-                variant='ghost'
-                className='w-full gap-2 text-neutral-600'
-                onClick={onNeedsPreparation}
-                disabled={isLoading}
-              >
-                <Wrench size={16} />
-                Needs Preparation
-              </Button>
-            )}
-          </>
-        ) : (
-          <Button
-            variant='outline'
-            className='w-full gap-2'
-            onClick={onMarkReady}
-            disabled={isLoading}
-          >
-            <Check size={16} />
-            Mark as Ready
-          </Button>
+          </Link>
         )}
       </div>
     </div>
@@ -457,7 +453,6 @@ export default function OverviewContent ({ propertyId }: Props) {
   const router = useRouter()
   const [overviewData, setOverviewData] = useState<OverviewData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [statusLoading, setStatusLoading] = useState(false)
   const { showUnderDevelopment, ActionUnderDevelopmentOverlay } =
     useActionUnderDevelopment()
 
@@ -479,47 +474,6 @@ export default function OverviewContent ({ propertyId }: Props) {
     fetchOverviewData()
   }, [fetchOverviewData])
 
-  // Handle property status update
-  const handleStatusUpdate = async (
-    newStatus: 'Ready' | 'Under_Preparation'
-  ) => {
-    setStatusLoading(true)
-    try {
-      const response = await fetch(`/api/properties/${propertyId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      })
-
-      if (response.ok) {
-        showFeedbackToast({
-          title: 'Status updated',
-          description: `Property is now ${
-            newStatus === 'Ready' ? 'ready for leasing' : 'under preparation'
-          }.`,
-          type: 'success'
-        })
-        fetchOverviewData()
-      } else {
-        const data = await response.json()
-        showFeedbackToast({
-          title: 'Failed to update status',
-          description: data.error || 'Please try again.',
-          type: 'error'
-        })
-      }
-    } catch (error) {
-      console.error('Error updating property status:', error)
-      showFeedbackToast({
-        title: 'Error',
-        description: 'Failed to update property status.',
-        type: 'error'
-      })
-    } finally {
-      setStatusLoading(false)
-    }
-  }
-
   // Handle add lease - navigate directly, trigger handles conflict checking
   const handleAddLease = () => {
     router.push(`/properties/${propertyId}/leases/add-lease`)
@@ -540,13 +494,7 @@ export default function OverviewContent ({ propertyId }: Props) {
             title='Lease Overview'
             subtitle='Income from tenant'
             status={overviewData.propertyStatus}
-            onMarkReady={() => handleStatusUpdate('Ready')}
-            onNeedsPreparation={
-              overviewData.propertyStatus === 'Pending_Inspection'
-                ? () => handleStatusUpdate('Under_Preparation')
-                : undefined
-            }
-            isLoading={statusLoading}
+            propertyId={propertyId}
           />
         ) : overviewData?.lease ? (
           <Card
@@ -587,63 +535,16 @@ export default function OverviewContent ({ propertyId }: Props) {
                 <DropdownMenuItem>Edit lease</DropdownMenuItem>
                 <DropdownMenuItem>Schedule rental change</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <ConfirmationDialog
-                  openDialogButton={
+                <InitiateLeaseEndingDrawer
+                  leaseId={overviewData.lease!.id}
+                  propertyName={overviewData.propertyCode}
+                  tenantName={overviewData.lease!.tenant.name}
+                  onSuccess={fetchOverviewData}
+                  trigger={
                     <button type='button' className='delete-dropdown-button'>
                       End Lease
                     </button>
                   }
-                  title='End Lease'
-                  description={
-                    <div className='space-y-3'>
-                      <p>
-                        You are about to{' '}
-                        <strong>permanently end this lease</strong>. This action
-                        is <strong>irreversible</strong> and will:
-                      </p>
-                      <ul className='list-disc list-inside space-y-1 text-sm'>
-                        <li>
-                          Change the lease status to <strong>Ended</strong>
-                        </li>
-                        <li>
-                          Cancel all pending payments linked to this lease
-                        </li>
-                        <li>Stop any recurring payment schedules</li>
-                        <li>Close all tickets linked to this lease</li>
-                      </ul>
-                      <p className='text-sm text-neutral-500'>
-                        This cannot be undone. Please make sure all outstanding
-                        payments have been collected before proceeding.
-                      </p>
-                    </div>
-                  }
-                  confirmationText='END'
-                  confirmButtonLabel='End Lease'
-                  confirmButtonLoadingLabel='Ending...'
-                  confirmButtonClassName='bg-amber-600! hover:bg-amber-700!'
-                  inputLabel='Type END to confirm'
-                  variant='warning'
-                  onConfirm={async () => {
-                    const response = await fetch(
-                      `/api/leases/end/${overviewData.lease!.id}`,
-                      { method: 'POST' }
-                    )
-                    if (!response.ok) {
-                      const data = await response.json()
-                      showFeedbackToast({
-                        title: 'Failed to end lease',
-                        description: data.error || 'Please try again.',
-                        type: 'error'
-                      })
-                      throw new Error(data.error)
-                    }
-                    showFeedbackToast({
-                      title: 'Lease ended successfully',
-                      description: 'All pending payments have been cancelled.',
-                      type: 'success'
-                    })
-                    fetchOverviewData()
-                  }}
                 />
               </>
             }

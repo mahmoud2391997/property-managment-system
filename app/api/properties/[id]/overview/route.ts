@@ -21,6 +21,7 @@ export async function GET(
       },
       select: {
         id: true,
+        code: true,
         status: true
       }
     })
@@ -208,7 +209,7 @@ export async function GET(
       let dueDate = null
       if (nextExpense) {
         amount = nextExpense.charges.reduce((sum, charge) => {
-          const chargeAmount = charge.amount
+          const chargeAmount = charge.amount.toNumber()
           const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
           return sum + chargeAmount + tax
         }, 0)
@@ -238,7 +239,7 @@ export async function GET(
       let amount = 0
       if (booking.payments[0]) {
         amount = booking.payments[0].charges.reduce((sum, charge) => {
-          const chargeAmount = charge.amount
+          const chargeAmount = charge.amount.toNumber()
           const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
           return sum + chargeAmount + tax
         }, 0)
@@ -257,6 +258,7 @@ export async function GET(
     }
 
     return NextResponse.json({
+      propertyCode: property.code,
       propertyStatus: property.status,
       lease: leaseData,
       contract: contractData,

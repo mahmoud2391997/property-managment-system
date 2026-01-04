@@ -36,6 +36,7 @@ export default function AddTicketDrawer({ onSuccess }: Props) {
         type='button'
         onClick={() => setOpen(true)}
         isResponsive={false}
+        className='w-full'
       />
 
       <Drawer open={open} onOpenChange={setOpen}>

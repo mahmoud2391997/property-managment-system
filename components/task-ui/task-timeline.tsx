@@ -555,20 +555,42 @@ function CommentEventCard ({
   )
 }
 
-// Report Submitted Event (card style like comment but green)
+// Report Submitted Event (card style - green for resolution, red for rejection)
 function ReportSubmittedEvent ({
   performerName,
   performerAvatar,
   date,
   message,
-  attachment
+  attachment,
+  isRejection = false
 }: {
   performerName: string
   performerAvatar?: string
   date: string
   message?: string
   attachment?: { name: string; url: string }
+  isRejection?: boolean
 }) {
+  const colors = isRejection
+    ? {
+        border: 'border-red-200',
+        bg: 'bg-red-50',
+        borderBottom: 'border-red-200',
+        iconColor: 'text-red-600',
+        textPrimary: 'text-red-700',
+        textSecondary: 'text-red-600'
+      }
+    : {
+        border: 'border-green-200',
+        bg: 'bg-green-50',
+        borderBottom: 'border-green-200',
+        iconColor: 'text-green-600',
+        textPrimary: 'text-green-700',
+        textSecondary: 'text-green-600'
+      }
+
+  const Icon = isRejection ? XCircle : FileText
+
   return (
     <div className='flex gap-2 sm:gap-4 py-2'>
       <div className='relative z-10 shrink-0 hidden sm:block'>
@@ -579,14 +601,14 @@ function ReportSubmittedEvent ({
           className='text-md'
         />
       </div>
-      <div className='flex-1 min-w-0 border border-green-200 rounded-lg overflow-hidden bg-white'>
-        <div className='bg-green-50 border-b border-green-200 px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-1 sm:gap-2'>
-          <FileText size={14} className='text-green-600' />
-          <span className='texts-body-small-medium sm:texts-body-medium-medium text-green-700'>
+      <div className={`flex-1 min-w-0 border ${colors.border} rounded-lg overflow-hidden bg-white`}>
+        <div className={`${colors.bg} border-b ${colors.borderBottom} px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-1 sm:gap-2`}>
+          <Icon size={14} className={colors.iconColor} />
+          <span className={`texts-body-small-medium sm:texts-body-medium-medium ${colors.textPrimary}`}>
             {performerName}
           </span>
-          <span className='texts-label-small sm:texts-body-small text-green-600'>
-            submitted resolution report on {date}
+          <span className={`texts-label-small sm:texts-body-small ${colors.textSecondary}`}>
+            submitted {isRejection ? 'rejection' : 'resolution'} report on {date}
           </span>
         </div>
         <div className='px-3 sm:px-4 py-3 sm:py-4'>
@@ -775,6 +797,179 @@ function DueDateRemovedEvent ({
   )
 }
 
+// Refund Decision Submitted Event
+function RefundDecisionSubmittedEvent ({
+  performerName,
+  performerAvatar,
+  date,
+  refundData
+}: {
+  performerName: string
+  performerAvatar?: string
+  date: string
+  refundData: {
+    decision: string
+    originalDeposit: number
+    totalCharges: number
+    finalRefundAmount: number
+    charges: Array<{ title: string; amount: number }>
+  }
+}) {
+  const getDecisionDisplay = (decision: string) => {
+    switch (decision) {
+      case 'full':
+        return { label: 'Full Refund', color: 'green', icon: CheckCircle2 }
+      case 'partial':
+        return { label: 'Partial Refund', color: 'amber', icon: AlertTriangle }
+      case 'forfeit':
+        return { label: 'Forfeit Deposit', color: 'red', icon: XCircle }
+      default:
+        return { label: 'Unknown', color: 'gray', icon: Info }
+    }
+  }
+
+  const decisionInfo = getDecisionDisplay(refundData.decision)
+  const DecisionIcon = decisionInfo.icon
+
+  return (
+    <div className='flex gap-2 sm:gap-4 pb-2'>
+      <div className='relative z-10 shrink-0 hidden sm:block'>
+        <UserAvatar
+          name={performerName}
+          imgSrc={performerAvatar}
+          size={40}
+          className='text-md'
+        />
+      </div>
+      <div className='flex-1 min-w-0 border border-(--border-default) rounded-lg overflow-hidden bg-white'>
+        <div className={`bg-${decisionInfo.color}-50/80 border-b border-${decisionInfo.color}-200/60 px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-1 sm:gap-2`}>
+          <span className='texts-body-small-medium sm:texts-body-medium-medium text-(--text-primary)'>
+            {performerName}
+          </span>
+          <span className='texts-label-small sm:texts-body-small text-(--text-secondary)'>
+            submitted refund decision on {date}
+          </span>
+        </div>
+        <div className='px-3 sm:px-4 py-3 sm:py-4 space-y-3'>
+          {/* Decision Badge */}
+          <div className='flex items-center gap-2'>
+            <DecisionIcon className={`h-5 w-5 text-${decisionInfo.color}-600`} />
+            <span className={`texts-body-medium-medium text-${decisionInfo.color}-700`}>
+              {decisionInfo.label}
+            </span>
+          </div>
+
+          {/* Amount Summary */}
+          <div className='space-y-2 texts-body-small'>
+            <div className='flex justify-between'>
+              <span className='text-(--text-secondary)'>Original Deposit:</span>
+              <span className='texts-body-small-medium text-(--text-primary)'>
+                ${refundData.originalDeposit.toFixed(2)}
+              </span>
+            </div>
+            {refundData.totalCharges > 0 && (
+              <>
+                <div className='flex justify-between'>
+                  <span className='text-(--text-secondary)'>Total Charges:</span>
+                  <span className='texts-body-small-medium text-red-600'>
+                    -${refundData.totalCharges.toFixed(2)}
+                  </span>
+                </div>
+                <div className='border-t border-neutral-200 pt-2'>
+                  {refundData.charges.map((charge, idx) => (
+                    <div key={idx} className='flex justify-between py-1 texts-label-medium'>
+                      <span className='text-(--text-secondary)'>{charge.title}</span>
+                      <span className='text-red-600'>-${charge.amount.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            <div className='flex justify-between border-t border-neutral-300 pt-2'>
+              <span className='texts-body-medium-medium text-(--text-primary)'>Final Refund Amount:</span>
+              <span className='texts-body-medium-medium text-green-600'>
+                ${refundData.finalRefundAmount.toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Refund Approved Event
+function RefundApprovedEvent ({
+  performerName,
+  performerAvatar,
+  date
+}: {
+  performerName: string
+  performerAvatar?: string
+  date: string
+}) {
+  return (
+    <div className='flex items-start sm:items-center gap-2 sm:gap-4 py-2 sm:py-3'>
+      <div className='relative z-10 w-8 sm:w-10 flex justify-center shrink-0'>
+        <div className='w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-green-50 border-2 border-white shadow-sm flex items-center justify-center'>
+          <CheckCircle2 size={12} className='text-green-500 sm:hidden' />
+          <CheckCircle2 size={13} className='text-green-500 hidden sm:block' />
+        </div>
+      </div>
+      <div className='flex items-center gap-1.5'>
+        <UserAvatar
+          name={performerName}
+          imgSrc={performerAvatar}
+          size={23}
+          className='text-[10px] shrink-0 hidden sm:flex'
+        />
+        <p className='texts-label-small sm:texts-body-small text-(--text-secondary) flex-1 min-w-0'>
+          <span className='texts-label-small sm:texts-body-small-medium text-(--text-primary)'>
+            {performerName}
+          </span>{' '}
+          approved the refund on {date}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// Refund Rejected Event
+function RefundRejectedEvent ({
+  performerName,
+  performerAvatar,
+  date
+}: {
+  performerName: string
+  performerAvatar?: string
+  date: string
+}) {
+  return (
+    <div className='flex items-start sm:items-center gap-2 sm:gap-4 py-2 sm:py-3'>
+      <div className='relative z-10 w-8 sm:w-10 flex justify-center shrink-0'>
+        <div className='w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-red-50 border-2 border-white shadow-sm flex items-center justify-center'>
+          <XCircle size={12} className='text-red-500 sm:hidden' />
+          <XCircle size={13} className='text-red-500 hidden sm:block' />
+        </div>
+      </div>
+      <div className='flex items-center gap-1.5'>
+        <UserAvatar
+          name={performerName}
+          imgSrc={performerAvatar}
+          size={23}
+          className='text-[10px] shrink-0 hidden sm:flex'
+        />
+        <p className='texts-label-small sm:texts-body-small text-(--text-secondary) flex-1 min-w-0'>
+          <span className='texts-label-small sm:texts-body-small-medium text-(--text-primary)'>
+            {performerName}
+          </span>{' '}
+          rejected the refund on {date}
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export default function TaskTimeline ({ events }: Props) {
   const totalEvents = events.length
 
@@ -895,6 +1090,7 @@ export default function TaskTimeline ({ events }: Props) {
             date={date}
             message={event.message}
             attachment={event.attachment}
+            isRejection={event.isRejection}
           />
         )
 
@@ -929,6 +1125,34 @@ export default function TaskTimeline ({ events }: Props) {
           />
         )
 
+      case 'refund_decision_submitted':
+        return event.refundData ? (
+          <RefundDecisionSubmittedEvent
+            performerName={event.performerName}
+            performerAvatar={event.performerAvatar}
+            date={date}
+            refundData={event.refundData}
+          />
+        ) : null
+
+      case 'refund_approved':
+        return (
+          <RefundApprovedEvent
+            performerName={event.performerName}
+            performerAvatar={event.performerAvatar}
+            date={date}
+          />
+        )
+
+      case 'refund_rejected':
+        return (
+          <RefundRejectedEvent
+            performerName={event.performerName}
+            performerAvatar={event.performerAvatar}
+            date={date}
+          />
+        )
+
       default:
         return null
     }
@@ -939,11 +1163,12 @@ export default function TaskTimeline ({ events }: Props) {
       <div>
         {events.map((event, index) => {
           const isLast = index === totalEvents - 1
-          // Card-style events (task_created, comment, report_submitted) don't have left icons on mobile
+          // Card-style events (task_created, comment, report_submitted, refund_decision_submitted) don't have left icons on mobile
           const hasLeftElement =
             event.type !== 'task_created' &&
             event.type !== 'comment' &&
-            event.type !== 'report_submitted'
+            event.type !== 'report_submitted' &&
+            event.type !== 'refund_decision_submitted'
 
           return (
             <TimelineEventWrapper

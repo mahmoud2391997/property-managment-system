@@ -1,5 +1,5 @@
-// Task types
-export const TASK_TYPES = [
+// Regular task types (can be created/selected normally)
+export const REGULAR_TASK_TYPES = [
   'Maintenance',
   'Renovation',
   'Cleaning',
@@ -14,6 +14,19 @@ export const TASK_TYPES = [
   'Miscellaneous/Others'
 ] as const
 
+// Flow task types (auto-generated, not selectable in normal task creation)
+export const FLOW_TASK_TYPES = [
+  'Inspection',
+  'Preparation',
+  'Refund_Request',
+  'Refund_Finalization'
+] as const
+
+// All task types combined
+export const TASK_TYPES = [...REGULAR_TASK_TYPES, ...FLOW_TASK_TYPES] as const
+
+export type RegularTaskType = (typeof REGULAR_TASK_TYPES)[number]
+export type FlowTaskType = (typeof FLOW_TASK_TYPES)[number]
 export type TaskType = (typeof TASK_TYPES)[number]
 
 // Priority levels
@@ -21,7 +34,7 @@ export const PRIORITY_LEVELS = ['Low', 'Medium', 'High', 'Urgent'] as const
 export type PriorityLevel = (typeof PRIORITY_LEVELS)[number]
 
 // Task status
-export const TASK_STATUSES = ['Open', 'In Progress', 'Resolved'] as const
+export const TASK_STATUSES = ['Open', 'In Progress', 'Resolved', 'Needs Modification'] as const
 export type TaskStatus = (typeof TASK_STATUSES)[number]
 
 // Staff member
@@ -64,6 +77,9 @@ export type TimelineEventType =
   | 'due_date_set'
   | 'due_date_changed'
   | 'due_date_removed'
+  | 'refund_decision_submitted'
+  | 'refund_approved'
+  | 'refund_rejected'
 
 // Timeline event
 export type TimelineEvent = {
@@ -96,6 +112,16 @@ export type TimelineEvent = {
   dueDate?: string
   oldDueDate?: string
   dueDateReason?: string
+  // For refund decisions
+  refundData?: {
+    decision: string
+    originalDeposit: number
+    totalCharges: number
+    finalRefundAmount: number
+    charges: Array<{ title: string; amount: number }>
+  }
+  // For report_submitted events
+  isRejection?: boolean
 }
 
 // Location info (matches schema: project -> property -> room)
@@ -111,6 +137,49 @@ export type TaskLocation = {
   // Room level (optional - only if task is room-specific)
   roomId?: string
   roomTitle?: string
+}
+
+// Flow types
+export type TaskFlowType = 'Lease Ending' | 'Property Not Ready'
+
+// Flow task summary for navigation
+export type FlowTaskSummaryForNav = {
+  id: string
+  referenceId: string
+  title: string
+  status: TaskStatus
+  type: FlowTaskType | string
+  isCurrent?: boolean
+}
+
+// Flow lease info
+export type FlowLeaseInfoForTask = {
+  id: string
+  depositAmount: number
+  propertyCode?: string
+  roomTitle?: string
+  tenantName: string
+}
+
+// Flow info attached to task
+export type TaskFlowInfo = {
+  flowInstanceId: string
+  flowType: string
+  flowStatus: 'In Progress' | 'Completed'
+  relatedTasks: FlowTaskSummaryForNav[]
+  leaseInfo?: FlowLeaseInfoForTask
+  latestRefundDecision?: {
+    decision: 'full' | 'partial' | 'forfeit'
+    originalDeposit: number
+    totalCharges: number
+    finalRefundAmount: number
+    charges: Array<{ title: string; amount: number }>
+    report: string
+    attachment?: string
+    submitterId: string
+    submitterName: string
+    submitterAvatar?: string
+  }
 }
 
 // Task
@@ -144,9 +213,15 @@ export type TaskDetail = {
     submittedAt: string
     submittedById: string
     submittedByName: string
+    isResolved?: boolean
   }
   // Current staff viewing
   currentStaff?: StaffMember
+  // Flow task fields
+  flowInstanceId?: string
+  flowType?: TaskFlowType
+  isFlowTask?: boolean
+  flowInfo?: TaskFlowInfo
 }
 
 // Helper functions
@@ -173,6 +248,8 @@ export function getStatusColor(status: TaskStatus): string {
       return 'bg-blue-100 text-blue-700'
     case 'Resolved':
       return 'bg-green-100 text-green-700'
+    case 'Needs Modification':
+      return 'bg-amber-100 text-amber-700'
     default:
       return 'bg-neutral-100 text-neutral-700'
   }

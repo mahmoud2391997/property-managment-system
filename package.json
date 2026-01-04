@@ -36,6 +36,7 @@
     "lucide-react": "^0.553.0",
     "next": "^16.0.8",
     "nextjs-toploader": "^3.9.17",
+    "nuqs": "^2.8.6",
     "prisma": "^5.22.0",
     "react": "19.2.0",
     "react-currency-input-field": "^4.0.3",

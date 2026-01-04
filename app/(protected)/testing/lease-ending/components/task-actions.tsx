@@ -742,7 +742,7 @@ export function RefundDecisionDialog({
       : undefined
     // Convert charges to proper format (validation already passed)
     const validCharges: RefundCharge[] = decision === 'partial'
-      ? charges.map(c => ({ id: c.id, description: c.description, amount: parseFloat(c.amount) }))
+      ? charges.map(c => ({ id: c.id, description: c.description, amount: c.amount }))
       : []
     onSubmit(decision, validCharges, note, attachment)
     setShowConfirmation(false)
@@ -996,7 +996,7 @@ export function ReviewRefundDialog({
                 {charges.map(charge => (
                   <div key={charge.id} className='flex justify-between texts-body-small text-red-600'>
                     <span>{charge.description}</span>
-                    <span>- RM {charge.amount.toFixed(2)}</span>
+                    <span>- RM {parseFloat(charge.amount).toFixed(2)}</span>
                   </div>
                 ))}
               </>

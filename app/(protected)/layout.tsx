@@ -27,7 +27,8 @@ export default async function ProtectedLayout ({
           <main
             className={cn(
               'flex gap-2.5',
-              'md:h-screen h-[calc(100dvh-60px)] w-full md:py-[15] py-0'
+              'md:h-screen h-[calc(100dvh)] w-full md:py-[15] py-0',
+              'md:pt-0 pt-[60px]'
             )}
           >
             <Sidebar />

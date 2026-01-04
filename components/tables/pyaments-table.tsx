@@ -39,6 +39,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import TimestampWithTooltip from '../costume-ui/timestamp-with-tooltip'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import MobileCardSkeleton from '../loading-ui/mobile-card-skeleton'
 
 type Props = {
   data: PaymentWithDetails[]
@@ -1288,20 +1289,7 @@ export default function PaymentsTable ({
       {/* Mobile Card View */}
       <div className='md:hidden space-y-3'>
         {isLoading ? (
-          // Loading skeleton for mobile
-          Array.from({ length: pageSize }).map((_, i) => (
-            <div key={i} className='bg-white rounded-lg border border-(--border-default) p-4 animate-pulse'>
-              <div className='flex justify-between items-start mb-3'>
-                <div className='h-5 w-24 bg-gray-200 rounded' />
-                <div className='h-6 w-16 bg-gray-200 rounded-full' />
-              </div>
-              <div className='space-y-2'>
-                <div className='h-4 w-32 bg-gray-200 rounded' />
-                <div className='h-4 w-40 bg-gray-200 rounded' />
-                <div className='h-4 w-28 bg-gray-200 rounded' />
-              </div>
-            </div>
-          ))
+          <MobileCardSkeleton count={pageSize} />
         ) : data.length > 0 ? (
           data.map((payment) => (
             <PaymentCard key={payment.id} payment={payment} />

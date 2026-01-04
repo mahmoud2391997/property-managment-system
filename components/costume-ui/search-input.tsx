@@ -12,7 +12,7 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
     return (
       <InputGroup
         className={cn(
-          'w-80 h-10',
+          'w-full sm:w-80 h-10',
           isFocus ? 'ring-2! ring-neutral-300' : '',
           'bg-(--background-primary) border-(--border-default)'
         )}

@@ -23,8 +23,14 @@ export async function GET(
       },
       select: {
         id: true,
+        title: true,
         status: true,
-        property_id: true
+        property_id: true,
+        properties: {
+          select: {
+            code: true
+          }
+        }
       }
     })
 
@@ -168,7 +174,7 @@ export async function GET(
       let amount = 0
       if (booking.payments[0]) {
         amount = booking.payments[0].charges.reduce((sum, charge) => {
-          const chargeAmount = charge.amount
+          const chargeAmount = charge.amount.toNumber()
           const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
           return sum + chargeAmount + tax
         }, 0)
@@ -187,6 +193,8 @@ export async function GET(
     }
 
     return NextResponse.json({
+      roomTitle: room.title,
+      propertyCode: room.properties?.code || null,
       roomStatus: room.status,
       lease: leaseData,
       booking: bookingData,

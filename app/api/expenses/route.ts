@@ -23,6 +23,11 @@ const expenseSelect = {
       }
     }
   },
+  leases: {
+    select: {
+      reference_id: true
+    }
+  },
   charges: {
     select: {
       amount: true,
@@ -87,6 +92,7 @@ export async function GET(request: NextRequest) {
           OR: [
             { reference_id: { contains: search, mode: 'insensitive' } },
             { properties: { is: { code: { contains: search, mode: 'insensitive' } } } },
+            { leases: { is: { reference_id: { contains: search, mode: 'insensitive' } } } },
             { type: { contains: search, mode: 'insensitive' } }
           ]
         })

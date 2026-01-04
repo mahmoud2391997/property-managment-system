@@ -1121,7 +1121,13 @@ export const malaysiaStates: string[] = [
 
 export const taskTypes: string[] = ['Maintenance', 'Cleaning', 'Others']
 
-export const ticketTypes: string[] = ['Maintenance', 'Complaint', 'Billing & Payments', 'Aircon Top-Up', 'Others']
+export const ticketTypes: string[] = [
+  'Maintenance',
+  'Complaint',
+  'Billing & Payments',
+  'Aircon Top-Up',
+  'Others'
+]
 
 export const noticeTypes: string[] = [
   'General Announcement',
@@ -1146,8 +1152,8 @@ export const paymentTypes: PaymentType[] = [
 
 export const chargeTypes: ChargeTypeType[] = [
   { type: 'First Month Rental', taxable: false, refundable: false },
-  { type: 'Earnest Deposit', taxable: false, refundable: true },
   { type: 'Security Deposit', taxable: false, refundable: true },
+  { type: 'Earnest Deposit', taxable: false, refundable: true },
   { type: 'Utility Deposit', taxable: false, refundable: true },
   { type: 'Legal Fees', taxable: false, refundable: false }
 ]
@@ -1161,7 +1167,7 @@ export const propertyExpenseTypes: PaymentType[] = [
   { type: 'Sewerage_Bill', isRecurrable: true, isFixedByDefault: false },
   { type: 'Management_Fees', isRecurrable: true, isFixedByDefault: true },
   { type: 'Renovation', isRecurrable: true, isFixedByDefault: false },
-  { type: 'Furniture___Appliances', isRecurrable: true, isFixedByDefault: false },
+  { type: 'Furniture_Appliances', isRecurrable: true, isFixedByDefault: false },
   { type: 'Miscellaneous_Others', isRecurrable: true, isFixedByDefault: false }
 ]
 

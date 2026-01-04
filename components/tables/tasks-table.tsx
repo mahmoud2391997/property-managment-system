@@ -2,7 +2,16 @@
 
 import * as React from 'react'
 import { ColumnDef } from '@tanstack/react-table'
-import { MoreHorizontal, Building2, Calendar, User, Clock } from 'lucide-react'
+import {
+  MoreHorizontal,
+  Building2,
+  Calendar,
+  User,
+  Clock,
+  Check,
+  X,
+  AlertCircle
+} from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -20,6 +29,9 @@ import { cn } from '@/lib/utils'
 import { UserAvatar } from '../costume-ui/name-avatar'
 import Tooltip from '../costume-ui/tooltip'
 import TimestampWithTooltip from '../costume-ui/timestamp-with-tooltip'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import MobileCardSkeleton from '../loading-ui/mobile-card-skeleton'
 
 // Priority badge colors
 const getPriorityStyles = (priority: string) => {
@@ -37,7 +49,84 @@ const getPriorityStyles = (priority: string) => {
   }
 }
 
-export const columns: ColumnDef<Task>[] = [
+// // Component for pending assignment actions
+// const PendingAssignmentActions = ({
+//   taskId,
+//   onAccept,
+//   onReject
+// }: {
+//   taskId: string
+//   onAccept: () => Promise<void>
+//   onReject: () => Promise<void>
+// }) => {
+//   const [isAccepting, setIsAccepting] = useState(false)
+//   const [isRejecting, setIsRejecting] = useState(false)
+
+//   const handleAccept = async () => {
+//     setIsAccepting(true)
+//     try {
+//       await onAccept()
+//       toast.success('Assignment accepted successfully')
+//     } catch (error) {
+//       toast.error('Failed to accept assignment')
+//     } finally {
+//       setIsAccepting(false)
+//     }
+//   }
+
+//   const handleReject = async () => {
+//     setIsRejecting(true)
+//     try {
+//       await onReject()
+//       toast.success('Assignment rejected')
+//     } catch (error) {
+//       toast.error('Failed to reject assignment')
+//     } finally {
+//       setIsRejecting(false)
+//     }
+//   }
+
+//   return (
+//     <div className='flex items-center gap-2'>
+//       <Button
+//         size='sm'
+//         onClick={handleAccept}
+//         disabled={isAccepting || isRejecting}
+//         className='h-7 px-2 text-xs bg-green-600 hover:bg-green-700'
+//       >
+//         {isAccepting ? (
+//           'Accepting...'
+//         ) : (
+//           <>
+//             <Check className='w-3 h-3 mr-1' />
+//             Accept
+//           </>
+//         )}
+//       </Button>
+//       <Button
+//         size='sm'
+//         variant='outline'
+//         onClick={handleReject}
+//         disabled={isAccepting || isRejecting}
+//         className='h-7 px-2 text-xs border-red-300 text-red-600 hover:bg-red-50'
+//       >
+//         {isRejecting ? (
+//           'Rejecting...'
+//         ) : (
+//           <>
+//             <X className='w-3 h-3 mr-1' />
+//             Reject
+//           </>
+//         )}
+//       </Button>
+//     </div>
+//   )
+// }
+
+const createColumns = (
+  onAcceptAssignment?: (taskId: string) => Promise<void>,
+  onRejectAssignment?: (taskId: string) => Promise<void>
+): ColumnDef<Task>[] => [
   // Checkbox
   {
     id: 'select',
@@ -162,9 +251,15 @@ export const columns: ColumnDef<Task>[] = [
       return (
         <div className='flex items-end mt-2'>
           <div className={cn('flex items-center gap-[5]', 'text-left')}>
-            <UserAvatar name={created_by_name} imgSrc={created_by_picture} size={30} />
+            <UserAvatar
+              name={created_by_name}
+              imgSrc={created_by_picture}
+              size={30}
+            />
             <div className='flex flex-col'>
-              <span className='texts-table-cell-primary'>{created_by_name}</span>
+              <span className='texts-table-cell-primary'>
+                {created_by_name}
+              </span>
               <TimestampWithTooltip
                 timestamp={created_at}
                 className='texts-caption-large text-(--text-secondary)'
@@ -176,14 +271,50 @@ export const columns: ColumnDef<Task>[] = [
     }
   },
 
-  // Assigned To
+  // Assigned To / Pending Assignment
   {
     accessorKey: 'staff_name',
     header: () => <div className='text-left'>Assigned to</div>,
     cell: ({ row }) => {
-      const { staff_name, staff_picture, assignment_timestamp } = row.original
+      const {
+        staff_name,
+        staff_picture,
+        assignment_timestamp,
+        has_pending_assignment,
+        task_id
+      } = row.original
 
-      if (!staff_name) return <span className='text-left text-(--text-secondary)'>—</span>
+      // Show pending assignment with accept/reject buttons
+      if (has_pending_assignment && onAcceptAssignment && onRejectAssignment) {
+  return (
+    <div className='flex flex-col gap-2 rounded-lg border border-orange-200 bg-orange-50 p-2'>
+      <div className='flex items-center gap-2'>
+        <AlertCircle className='w-4 h-4 text-orange-600 shrink-0' />
+        <span className='texts-table-cell-primary font-medium text-orange-700'>
+          Pending Assignment
+        </span>
+      </div>
+
+      <Link href={`/tasks/${task_id}`} className='w-full'>
+        <Button
+          variant='outline'
+          size='sm'
+          className={cn(
+            'h-7 w-full px-3 text-xs',
+            'border-orange-300 text-orange-700',
+            'hover:bg-orange-100 hover:text-orange-800'
+          )}
+        >
+          View task details
+        </Button>
+      </Link>
+    </div>
+  )
+}
+
+      // Show assigned staff
+      if (!staff_name)
+        return <span className='text-left text-(--text-secondary)'>—</span>
       return (
         <div className='flex items-end mt-2'>
           <div className={cn('flex items-center gap-[5]', 'text-left')}>
@@ -266,17 +397,35 @@ export const columns: ColumnDef<Task>[] = [
 type Props = {
   data: Task[]
   onDataRefresh?: () => void
+  isLoading?: boolean
+  currentPage?: number
+  totalItems?: number
+  pageSize?: number
+  canGoNext?: boolean
+  canGoPrevious?: boolean
+  onNextPage?: () => void
+  onPreviousPage?: () => void
+  updateItem?: (id: string, updates: Partial<Task>) => void
 }
 
 // Mobile Card Component
-const TaskCard = ({ task }: { task: Task }) => {
+const TaskCard = ({
+  task,
+  onAcceptAssignment,
+  onRejectAssignment
+}: {
+  task: Task
+  onAcceptAssignment?: (taskId: string) => Promise<void>
+  onRejectAssignment?: (taskId: string) => Promise<void>
+}) => {
   const statusKey = task.status.toLowerCase().replace(/\s/g, '-')
 
   return (
     <div
       className={cn(
         'bg-(--background-primary) rounded-xl border border-(--border-default)',
-        'p-4 space-y-3'
+        'p-4 space-y-3',
+        task.has_pending_assignment && 'border-orange-300 border-2'
       )}
     >
       {/* Header: ID, Priority, Status, Actions */}
@@ -423,7 +572,7 @@ const TaskCard = ({ task }: { task: Task }) => {
           </div>
 
           {/* Assigned To */}
-          {task.staff_name && (
+          {task.staff_name && !task.has_pending_assignment && (
             <div className='flex items-center gap-1.5'>
               <span className='texts-caption-small text-(--text-secondary)'>
                 →
@@ -441,6 +590,33 @@ const TaskCard = ({ task }: { task: Task }) => {
         </div>
       </div>
 
+      {/* Pending Assignment Banner */}
+      {task.has_pending_assignment && onAcceptAssignment && onRejectAssignment && (
+  <div className='rounded-lg border border-orange-200 bg-orange-50 p-3'>
+    <div className='flex items-center gap-2 mb-2'>
+      <AlertCircle className='w-4 h-4 text-orange-600 shrink-0' />
+      <span className='texts-body-small-semibold text-orange-800'>
+        Pending Assignment
+      </span>
+    </div>
+
+    <Link href={`/tasks/${task.task_id}`} className='block'>
+      <Button
+        variant='outline'
+        size='sm'
+        className={cn(
+          'h-8 w-full text-xs',
+          'border-orange-300 text-orange-700',
+          'hover:bg-orange-100 hover:text-orange-800'
+        )}
+      >
+        View task details
+      </Button>
+    </Link>
+  </div>
+)}
+
+
       {/* View Details Button */}
       <Link
         href={`/tasks/${task.task_id}`}
@@ -457,28 +633,144 @@ const TaskCard = ({ task }: { task: Task }) => {
   )
 }
 
-export default function TasksTable({ data, onDataRefresh }: Props) {
+export default function TasksTable ({
+  data,
+  onDataRefresh,
+  isLoading = false,
+  currentPage = 1,
+  totalItems = 0,
+  pageSize = 10,
+  canGoNext = false,
+  canGoPrevious = false,
+  onNextPage,
+  onPreviousPage,
+  updateItem
+}: Props) {
+  const hasServerPagination = totalItems > pageSize
+
+  // Handle accepting assignment
+  const handleAcceptAssignment = async (taskId: string) => {
+    const response = await fetch(`/api/tasks/${taskId}/accept`, {
+      method: 'POST'
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to accept assignment')
+    }
+
+    // Refresh the data
+    if (onDataRefresh) {
+      onDataRefresh()
+    }
+  }
+
+  // Handle rejecting assignment
+  const handleRejectAssignment = async (taskId: string) => {
+    const response = await fetch(`/api/tasks/${taskId}/reject`, {
+      method: 'POST'
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to reject assignment')
+    }
+
+    // Refresh the data
+    if (onDataRefresh) {
+      onDataRefresh()
+    }
+  }
+
+  // Create columns with handlers
+  const columns = createColumns(handleAcceptAssignment, handleRejectAssignment)
+
   return (
     <>
       {/* Desktop Table View */}
       <div className='hidden md:block'>
-        <Table columns={columns} data={data} />
+        <Table
+          columns={columns}
+          data={data}
+          noPagnitation={hasServerPagination}
+          isLoadingRows={isLoading}
+          loadingRowsCount={pageSize}
+          getRowId={row => row.id}
+        />
+
+        {/* Server-side Pagination Controls */}
+        {hasServerPagination && (
+          <div className='flex items-center justify-between mt-4'>
+            <div className='texts-caption-large text-(--text-secondary)'>
+              Page {currentPage} of {Math.ceil(totalItems / pageSize)} (
+              {totalItems} total)
+            </div>
+            <div className='flex gap-2'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={onPreviousPage}
+                disabled={!canGoPrevious || isLoading}
+              >
+                Previous
+              </Button>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={onNextPage}
+                disabled={!canGoNext || isLoading}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile Card View */}
       <div className='md:hidden space-y-3'>
-        {data.length > 0 ? (
-          data.map(task => <TaskCard key={task.id} task={task} />)
+        {isLoading ? (
+          <MobileCardSkeleton count={pageSize} />
+        ) : data.length > 0 ? (
+          data.map(task => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              onAcceptAssignment={handleAcceptAssignment}
+              onRejectAssignment={handleRejectAssignment}
+            />
+          ))
         ) : (
           <div className='text-center py-12 text-(--text-secondary)'>
             No tasks found.
           </div>
         )}
 
-        {/* Pagination info for mobile */}
-        {data.length > 0 && (
-          <div className='text-center py-4 texts-caption-large text-(--text-secondary)'>
-            Showing {data.length} task{data.length !== 1 ? 's' : ''}
+        {/* Server-side Pagination Controls for Mobile */}
+        {hasServerPagination && data.length > 0 && (
+          <div className='flex flex-col gap-3 mt-4'>
+            <div className='text-center texts-caption-large text-(--text-secondary)'>
+              Page {currentPage} of {Math.ceil(totalItems / pageSize)} (
+              {totalItems} total)
+            </div>
+            <div className='flex gap-2 justify-center'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={onPreviousPage}
+                disabled={!canGoPrevious || isLoading}
+                className='flex-1 max-w-[140px]'
+              >
+                Previous
+              </Button>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={onNextPage}
+                disabled={!canGoNext || isLoading}
+                className='flex-1 max-w-[140px]'
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </div>

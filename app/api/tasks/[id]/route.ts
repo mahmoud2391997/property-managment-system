@@ -151,7 +151,7 @@ export async function GET(
             }
           }
         },
-        // Reports
+        // Reports - singular relation in schema but can have multiple via separate query
         task_reports: {
           include: {
             staff: {
@@ -176,6 +176,9 @@ export async function GET(
       if (!s) return 'Unknown'
       return `${s.first_name} ${s.last_name || ''}`.trim()
     }
+
+    // Get current task type (needed for timeline logic)
+    const currentType = task.task_types[0]?.type || 'Miscellaneous_Others'
 
     // Build timeline events
     const timelineEvents: any[] = []
@@ -231,7 +234,8 @@ export async function GET(
     const statusMap: Record<string, string> = {
       Open: 'Open',
       In_Progress: 'In Progress',
-      Resolved: 'Resolved'
+      Resolved: 'Resolved',
+      Needs_Modification: 'Needs Modification'
     }
     for (let i = 1; i < statusChanges.length; i++) {
       const change = statusChanges[i]
@@ -405,9 +409,23 @@ export async function GET(
       })
     }
 
-    // 8. Reports
-    if (task.task_reports) {
-      const report = task.task_reports
+    // 8. Reports (fetch all reports for this task - can be multiple)
+    const allReports = await prisma.task_reports.findMany({
+      where: { task_id: taskId },
+      include: {
+        staff: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            profile_pic: true
+          }
+        }
+      },
+      orderBy: { created_at: 'asc' }
+    })
+
+    for (const report of allReports) {
       timelineEvents.push({
         id: `evt-report-${report.id}`,
         type: 'report_submitted',
@@ -416,15 +434,77 @@ export async function GET(
         performerAvatar: report.staff?.profile_pic,
         message: report.content,
         attachment: report.attachment ? { name: getFileNameFromUrl(report.attachment), url: report.attachment } : undefined,
-        timestamp: report.created_at.toISOString()
+        timestamp: report.created_at.toISOString(),
+        isRejection: !report.is_resolved // Rejection if is_resolved is false
       })
+    }
+
+    // 9. Refund Decisions (for Refund Request tasks)
+    const refundDecisions = await prisma.refund_decisions.findMany({
+      where: { task_id: taskId },
+      include: {
+        refunded_charges: true,
+        staff_refund_decisions_submitted_byTostaff: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            profile_pic: true
+          }
+        },
+        staff_refund_decisions_reviewed_byTostaff: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            profile_pic: true
+          }
+        }
+      },
+      orderBy: { submitted_at: 'asc' }
+    })
+
+    for (const refundDecision of refundDecisions) {
+      const submitter = refundDecision.staff_refund_decisions_submitted_byTostaff
+      const reviewer = refundDecision.staff_refund_decisions_reviewed_byTostaff
+
+      // Submission event
+      timelineEvents.push({
+        id: `evt-refund-decision-${refundDecision.id}`,
+        type: 'refund_decision_submitted',
+        performerId: submitter?.id || '',
+        performerName: getStaffName(submitter),
+        performerAvatar: submitter?.profile_pic,
+        timestamp: refundDecision.submitted_at.toISOString(),
+        refundData: {
+          decision: refundDecision.decision,
+          originalDeposit: refundDecision.original_deposit.toNumber(),
+          totalCharges: refundDecision.total_charges.toNumber(),
+          finalRefundAmount: refundDecision.final_refund_amount.toNumber(),
+          charges: refundDecision.refunded_charges.map(charge => ({
+            title: charge.title,
+            amount: charge.amount.toNumber()
+          }))
+        }
+      })
+
+      // Review event (if reviewed)
+      if (refundDecision.reviewed_at && reviewer) {
+        timelineEvents.push({
+          id: `evt-refund-review-${refundDecision.id}`,
+          type: refundDecision.status === 'approved' ? 'refund_approved' : 'refund_rejected',
+          performerId: reviewer.id,
+          performerName: getStaffName(reviewer),
+          performerAvatar: reviewer.profile_pic,
+          timestamp: refundDecision.reviewed_at.toISOString()
+        })
+      }
     }
 
     // Sort timeline by timestamp
     timelineEvents.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
     // Get current values
-    const currentType = task.task_types[0]?.type || 'Miscellaneous_Others'
     const currentPriority = task.task_priorities[0]?.priority || 'Medium'
     const rawStatus = task.task_statuses[0]?.state || 'Open'
     const currentStatus = statusMap[rawStatus] || rawStatus
@@ -437,6 +517,238 @@ export async function GET(
 
     // Get report
     const report = task.task_reports
+
+    // Determine if this is a flow task and get flow info
+    const FLOW_TASK_TYPES = ['Inspection', 'Preparation', 'Refund_Request', 'Refund_Finalization']
+    const isFlowTask = FLOW_TASK_TYPES.includes(currentType)
+    let flowInfo: any = undefined
+
+    if (isFlowTask) {
+      // Find the flow instance this task belongs to
+      let flowInstance = null
+
+      // Check if task is directly linked via flow_instance_id (preparation tasks)
+      if (task.flow_instance_id) {
+        flowInstance = await prisma.task_flow_instances.findUnique({
+          where: { id: task.flow_instance_id }
+        })
+      } else {
+        // Check if task is referenced in a flow instance
+        flowInstance = await prisma.task_flow_instances.findFirst({
+          where: {
+            OR: [
+              { inspection_task_id: taskId },
+              { refund_request_task_id: taskId },
+              { refund_finalization_task_id: taskId }
+            ]
+          }
+        })
+      }
+
+      if (flowInstance) {
+        // Get all related tasks for navigation
+        const relatedTasks: any[] = []
+
+        // Get inspection task
+        if (flowInstance.inspection_task_id) {
+          const inspectionTask = await prisma.tasks.findUnique({
+            where: { id: flowInstance.inspection_task_id },
+            select: {
+              id: true,
+              reference_id: true,
+              title: true,
+              task_statuses: { orderBy: { created_at: 'desc' }, take: 1 }
+            }
+          })
+          if (inspectionTask) {
+            relatedTasks.push({
+              id: inspectionTask.id,
+              referenceId: inspectionTask.reference_id,
+              title: inspectionTask.title,
+              type: 'Inspection',
+              status: statusMap[inspectionTask.task_statuses[0]?.state || 'Open'] || 'Open',
+              isCurrent: inspectionTask.id === taskId
+            })
+          }
+        }
+
+        // Get preparation tasks
+        const preparationTasks = await prisma.tasks.findMany({
+          where: { flow_instance_id: flowInstance.id },
+          select: {
+            id: true,
+            reference_id: true,
+            title: true,
+            task_statuses: { orderBy: { created_at: 'desc' }, take: 1 },
+            task_types: { orderBy: { created_at: 'desc' }, take: 1 }
+          }
+        })
+        for (const prepTask of preparationTasks) {
+          const taskType = prepTask.task_types[0]?.type || 'Preparation'
+
+          // Skip Refund Request and Finalization tasks - they're fetched separately below
+          if (taskType === 'Refund_Request' || taskType === 'Refund_Finalization') {
+            continue
+          }
+
+          relatedTasks.push({
+            id: prepTask.id,
+            referenceId: prepTask.reference_id,
+            title: prepTask.title,
+            type: 'Preparation',
+            status: statusMap[prepTask.task_statuses[0]?.state || 'Open'] || 'Open',
+            isCurrent: prepTask.id === taskId
+          })
+        }
+
+        // Get refund request task
+        if (flowInstance.refund_request_task_id) {
+          const refundRequestTask = await prisma.tasks.findUnique({
+            where: { id: flowInstance.refund_request_task_id },
+            select: {
+              id: true,
+              reference_id: true,
+              title: true,
+              task_statuses: { orderBy: { created_at: 'desc' }, take: 1 }
+            }
+          })
+          if (refundRequestTask) {
+            relatedTasks.push({
+              id: refundRequestTask.id,
+              referenceId: refundRequestTask.reference_id,
+              title: refundRequestTask.title,
+              type: 'Refund Request',
+              status: statusMap[refundRequestTask.task_statuses[0]?.state || 'Open'] || 'Open',
+              isCurrent: refundRequestTask.id === taskId
+            })
+          }
+        }
+
+        // Get refund finalization task
+        if (flowInstance.refund_finalization_task_id) {
+          const finalizationTask = await prisma.tasks.findUnique({
+            where: { id: flowInstance.refund_finalization_task_id },
+            select: {
+              id: true,
+              reference_id: true,
+              title: true,
+              task_statuses: { orderBy: { created_at: 'desc' }, take: 1 }
+            }
+          })
+          if (finalizationTask) {
+            relatedTasks.push({
+              id: finalizationTask.id,
+              referenceId: finalizationTask.reference_id,
+              title: finalizationTask.title,
+              type: 'Refund Finalization',
+              status: statusMap[finalizationTask.task_statuses[0]?.state || 'Open'] || 'Open',
+              isCurrent: finalizationTask.id === taskId
+            })
+          }
+        }
+
+        // Get lease info for refund amount
+        let leaseInfo = null
+        if (flowInstance.lease_id) {
+          const lease = await prisma.leases.findUnique({
+            where: { id: flowInstance.lease_id },
+            include: {
+              properties: { select: { code: true } },
+              rooms: { select: { title: true } },
+              tenants: {
+                include: {
+                  individual_tenants: { select: { first_name: true, last_name: true } },
+                  company_tenants: { select: { company_name: true } }
+                }
+              }
+            }
+          })
+          if (lease) {
+            // Get refundable amount from initial charges (is_refunded = true means these ARE refundable)
+            const refundableCharges = await prisma.charges.findMany({
+              where: {
+                payments: {
+                  lease_id: lease.id,
+                  type: 'Lease_Initial_Charges',
+                  status: 'Paid',
+                },
+                is_refunded: true
+              },
+              select: {
+                amount: true
+              }
+            })
+
+            const depositAmount = refundableCharges.reduce((sum, charge) => sum + charge.amount.toNumber(), 0)
+
+            const tenantName = lease.tenants?.individual_tenants
+              ? `${lease.tenants.individual_tenants.first_name} ${lease.tenants.individual_tenants.last_name || ''}`.trim()
+              : lease.tenants?.company_tenants?.company_name || 'Unknown'
+            leaseInfo = {
+              id: lease.id,
+              depositAmount,
+              propertyCode: lease.properties?.code,
+              roomTitle: lease.rooms?.title,
+              tenantName
+            }
+          }
+        }
+
+        // Get latest refund decision (for Refund Finalization task)
+        let latestRefundDecision = null
+        if (currentType === 'Refund_Finalization' && flowInstance.refund_request_task_id) {
+          const refundDecision = await prisma.refund_decisions.findFirst({
+            where: { task_id: flowInstance.refund_request_task_id },
+            orderBy: { submitted_at: 'desc' },
+            include: {
+              refunded_charges: true,
+              staff_refund_decisions_submitted_byTostaff: {
+                select: {
+                  id: true,
+                  first_name: true,
+                  last_name: true,
+                  profile_pic: true
+                }
+              }
+            }
+          })
+
+          // Get the refund decision report from task_reports
+          const refundDecisionReport = await prisma.task_reports.findFirst({
+            where: { task_id: flowInstance.refund_request_task_id },
+            orderBy: { created_at: 'desc' }
+          })
+
+          if (refundDecision) {
+            const submitter = refundDecision.staff_refund_decisions_submitted_byTostaff
+            latestRefundDecision = {
+              decision: refundDecision.decision,
+              originalDeposit: refundDecision.original_deposit.toNumber(),
+              totalCharges: refundDecision.total_charges.toNumber(),
+              finalRefundAmount: refundDecision.final_refund_amount.toNumber(),
+              charges: refundDecision.refunded_charges.map(charge => ({
+                title: charge.title,
+                amount: charge.amount.toNumber()
+              })),
+              report: refundDecisionReport?.content || '',
+              attachment: refundDecisionReport?.attachment || undefined,
+              submitterId: submitter?.id || '',
+              submitterName: getStaffName(submitter),
+              submitterAvatar: submitter?.profile_pic
+            }
+          }
+        }
+
+        flowInfo = {
+          flowInstanceId: flowInstance.id,
+          flowType: flowInstance.flow_type === 'Lease_Ending' ? 'Lease Ending' : flowInstance.flow_type,
+          flowStatus: flowInstance.status,
+          relatedTasks,
+          leaseInfo,
+          latestRefundDecision
+        }
+      }
+    }
 
     // Build location
     const location = task.properties ? {
@@ -494,14 +806,18 @@ export async function GET(
         attachment: report.attachment ? { name: getFileNameFromUrl(report.attachment), url: report.attachment } : undefined,
         submittedAt: report.created_at.toISOString(),
         submittedById: report.staff?.id || '',
-        submittedByName: getStaffName(report.staff)
+        submittedByName: getStaffName(report.staff),
+        isResolved: report.is_resolved
       } : undefined,
       // Current staff info for the page
       currentStaff: {
         id: currentStaff.id,
         name: getStaffName(currentStaff),
         avatar: currentStaff.profile_pic
-      }
+      },
+      // Flow task info
+      isFlowTask,
+      flowInfo
     }
 
     return NextResponse.json(response)

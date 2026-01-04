@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate total amount
     const totalAmount = payment.charges.reduce((sum, charge) => {
-      const amount = charge.amount
+      const amount = charge.amount.toNumber()
       const tax = charge.is_taxed ? amount * 0.08 : 0
       return sum + amount + tax
     }, 0)
@@ -270,7 +270,7 @@ export async function POST(request: NextRequest) {
     })
 
     const totalPreviouslyPaid = previousPayments.reduce(
-      (sum, h) => sum + h.amount,
+      (sum, h) => sum + h.amount.toNumber(),
       0
     )
 

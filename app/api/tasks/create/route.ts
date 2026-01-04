@@ -60,7 +60,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate type enum
+    // Block flow task types (can only be created via flow APIs)
+    const flowTaskTypes = ['Inspection', 'Preparation', 'Refund_Request', 'Refund_Finalization']
+    if (flowTaskTypes.includes(type)) {
+      return NextResponse.json({ error: 'Flow task types cannot be created directly' }, { status: 400 })
+    }
+
+    // Validate type enum (regular tasks only)
     const validTypes = [
       'Maintenance',
       'Renovation',

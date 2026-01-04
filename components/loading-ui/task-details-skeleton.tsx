@@ -1,11 +1,51 @@
 import { Skeleton } from '../ui/skeleton'
 
-export default function TaskDetailsSkeleton() {
+export default function TaskDetailsSkeleton () {
   return (
     <div>
       {/* Breadcrumb */}
       <Skeleton className='h-5 w-32 mb-4 bg-neutral-200' />
 
+      <div className='bg-white border border-(--border-default) rounded-xl p-5 mb-6'>
+        {/* Header */}
+        <div className='flex items-center justify-between mb-4'>
+          <div>
+            <Skeleton className='h-5 w-40 mb-2 bg-neutral-200' />
+            <Skeleton className='h-4 w-56 bg-neutral-200' />
+          </div>
+          <div className='flex items-center gap-2'>
+            <Skeleton className='h-4 w-20 bg-neutral-200' />
+            <Skeleton className='h-6 w-20 rounded-full bg-neutral-200' />
+          </div>
+        </div>
+
+        {/* Task Groups */}
+        <div className='space-y-4'>
+          {[1, 2].map(group => (
+            <fieldset
+              key={group}
+              className='border border-dashed border-neutral-300 rounded-lg p-3 pt-0'
+            >
+              <legend className='px-2'>
+                <Skeleton className='h-4 w-32 bg-neutral-200' />
+              </legend>
+
+              <div className='flex flex-wrap gap-2 mt-3'>
+                {[1, 2].map(task => (
+                  <div
+                    key={task}
+                    className='flex items-center gap-2 px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50'
+                  >
+                    <Skeleton className='w-[18px] h-[18px] rounded-full bg-neutral-200' />
+                    <Skeleton className='h-4 w-28 bg-neutral-200' />
+                  </div>
+                ))}
+              </div>
+            </fieldset>
+          ))}
+        </div>
+      </div>
+      
       {/* Header */}
       <Skeleton className='h-8 w-96 mb-2 bg-neutral-200' />
 

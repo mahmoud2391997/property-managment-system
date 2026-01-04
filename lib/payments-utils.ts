@@ -1,10 +1,12 @@
+import { Decimal } from '@prisma/client/runtime/library'
+
 type RawCharge = {
-  amount: number
+  amount: Decimal
   is_taxed: boolean
 }
 
 type RawPaymentHistory = {
-  amount: number
+  amount: Decimal
   paid_at: Date
   status: string
 }
@@ -76,7 +78,7 @@ export type PaymentWithDetails = {
 export function transformPayment(payment: RawPayment): PaymentWithDetails {
   // Calculate total amount from charges
   const totalAmount = payment.charges.reduce((sum, charge) => {
-    const amount = charge.amount
+    const amount = charge.amount.toNumber()
     const tax = charge.is_taxed ? amount * 0.08 : 0
     return sum + amount + tax
   }, 0)
@@ -86,7 +88,7 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
     h => h.status === 'Success'
   )
   const totalPaid = successfulPayments.reduce(
-    (sum, history) => sum + history.amount,
+    (sum, history) => sum + history.amount.toNumber(),
     0
   )
   const paymentPercentage = totalAmount > 0 ? Math.round((totalPaid / totalAmount) * 100) : 0

@@ -1,10 +1,115 @@
 'use server'
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 
-export async function GET() {
+// Shared select for task queries
+const taskSelect = {
+  id: true,
+  reference_id: true,
+  title: true,
+  description: true,
+  created_at: true,
+  properties: {
+    select: { id: true, code: true }
+  },
+  rooms: {
+    select: { id: true, title: true }
+  },
+  staff: {
+    select: {
+      id: true,
+      first_name: true,
+      last_name: true,
+      profile_pic: true
+    }
+  },
+  task_types: {
+    orderBy: { created_at: 'desc' as const },
+    take: 1
+  },
+  task_priorities: {
+    orderBy: { created_at: 'desc' as const },
+    take: 1
+  },
+  task_statuses: {
+    orderBy: { created_at: 'desc' as const },
+    take: 1
+  },
+  task_due_dates: {
+    orderBy: { created_at: 'desc' as const },
+    take: 1
+  },
+  task_assignments: {
+    orderBy: { requested_at: 'desc' as const },
+    take: 1,
+    include: {
+      staff_task_assignments_assigned_idTostaff: {
+        select: {
+          id: true,
+          first_name: true,
+          last_name: true,
+          profile_pic: true
+        }
+      }
+    }
+  }
+}
+
+// Transform task data to match Task type
+function transformTask(task: any, currentUserId: string) {
+  const creatorName = task.staff
+    ? `${task.staff.first_name} ${task.staff.last_name || ''}`.trim()
+    : 'Unknown'
+
+  const property = task.properties?.code
+  const room = task.rooms?.title
+  const type = task.task_types[0]?.type || 'Miscellaneous/Others'
+  const priority = task.task_priorities[0]?.priority || 'Medium'
+
+  const rawStatus = task.task_statuses[0]?.state || 'Open'
+  const statusMap: Record<string, string> = {
+    Open: 'Open',
+    In_Progress: 'In Progress',
+    Resolved: 'Resolved'
+  }
+  const status = statusMap[rawStatus] || rawStatus
+
+  const dueDate = task.task_due_dates[0]?.due_date
+
+  // Get assignment info
+  const assignment = task.task_assignments[0]
+  const assignedStaff = assignment?.staff_task_assignments_assigned_idTostaff
+  const staffName = assignedStaff && assignment?.status === 'Accepted'
+    ? `${assignedStaff.first_name} ${assignedStaff.last_name || ''}`.trim()
+    : undefined
+
+  // Check if current user has a pending assignment
+  const hasPendingAssignment = assignment?.assigned_id === currentUserId && assignment?.status === 'Pending'
+
+  return {
+    id: task.reference_id,
+    task_id: task.id,
+    type,
+    priority,
+    title: task.title,
+    description: task.description,
+    property,
+    room,
+    due_date: dueDate?.toISOString(),
+    created_by_name: creatorName,
+    created_by_picture: task.staff?.profile_pic || undefined,
+    created_at: task.created_at.toISOString(),
+    staff_name: staffName,
+    staff_picture: assignedStaff?.profile_pic || undefined,
+    assignment_timestamp: assignment?.responded_at?.toISOString(),
+    status,
+    has_pending_assignment: hasPendingAssignment
+  }
+}
+
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
     const {
@@ -25,122 +130,111 @@ export async function GET() {
       return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
     }
 
-    const organizationId = staff.organization_id
+    const { searchParams } = new URL(request.url)
 
-    // Fetch tasks with related data
-    const tasks = await prisma.tasks.findMany({
-      where: {
-        organization_id: organizationId
-      },
-      include: {
-        properties: {
-          select: { id: true, code: true }
-        },
-        rooms: {
-          select: { id: true, title: true }
-        },
-        staff: {
-          select: {
-            id: true,
-            first_name: true,
-            last_name: true,
-            profile_pic: true
-          }
-        },
-        task_types: {
-          orderBy: { created_at: 'desc' },
-          take: 1
-        },
-        task_priorities: {
-          orderBy: { created_at: 'desc' },
-          take: 1
-        },
-        task_statuses: {
-          orderBy: { created_at: 'desc' },
-          take: 1
-        },
-        task_due_dates: {
-          orderBy: { created_at: 'desc' },
-          take: 1
-        },
-        task_assignments: {
-          where: {
-            status: 'Accepted'
-          },
-          orderBy: { requested_at: 'desc' },
-          take: 1,
-          include: {
-            staff_task_assignments_assigned_idTostaff: {
-              select: {
-                id: true,
-                first_name: true,
-                last_name: true,
-                profile_pic: true
-              }
+    // Pagination and search params
+    const paginate = searchParams.get('paginate') === 'true'
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const search = searchParams.get('search')?.trim() || ''
+    const skipCount = searchParams.get('skipCount') === 'true'
+    const statusFilter = searchParams.get('status')?.trim() || ''
+
+    // If paginate mode is enabled, use pagination/search logic
+    if (paginate) {
+      // Build base where clause
+      const baseWhere: any = {
+        organization_id: staff.organization_id
+      }
+
+      // Add search conditions
+      if (search) {
+        baseWhere.OR = [
+          { reference_id: { contains: search, mode: 'insensitive' } },
+          { title: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          { properties: { code: { contains: search, mode: 'insensitive' } } },
+          { rooms: { title: { contains: search, mode: 'insensitive' } } },
+          { staff: { first_name: { contains: search, mode: 'insensitive' } } },
+          { staff: { last_name: { contains: search, mode: 'insensitive' } } }
+        ]
+      }
+
+      // Check if we need frontend filtering (for latest status)
+      const needsFrontendFiltering = statusFilter && statusFilter !== 'all' && statusFilter !== 'Pending My Assignment'
+
+      // Add status filter
+      if (statusFilter && statusFilter !== 'all') {
+        if (statusFilter === 'Pending My Assignment') {
+          // Special handling for "Pending My Assignment" filter - can filter in DB
+          baseWhere.task_assignments = {
+            some: {
+              assigned_id: user.id,
+              status: 'Pending'
             }
           }
         }
+        // For Open/In Progress/Resolved: We can't filter by LATEST status in Prisma WHERE clause
+        // So we fetch all tasks and filter after transformation
+      }
+
+      // Fetch tasks - if filtering by latest status, fetch all matching tasks
+      const [tasks, totalBeforeFilter] = await Promise.all([
+        prisma.tasks.findMany({
+          where: baseWhere,
+          select: taskSelect,
+          orderBy: { created_at: 'desc' },
+          // Only paginate if NOT filtering by latest status
+          ...(needsFrontendFiltering ? {} : {
+            skip: (page - 1) * limit,
+            take: limit
+          })
+        }),
+        skipCount ? Promise.resolve(-1) : prisma.tasks.count({ where: baseWhere })
+      ])
+
+      // Transform tasks
+      let transformedTasks = tasks.map(task => transformTask(task, user.id))
+
+      // Apply frontend filtering for latest status (Open, In Progress, Resolved)
+      if (needsFrontendFiltering) {
+        transformedTasks = transformedTasks.filter(task => task.status === statusFilter)
+
+        // Apply pagination after filtering
+        const startIndex = (page - 1) * limit
+        const paginatedTasks = transformedTasks.slice(startIndex, startIndex + limit)
+
+        return NextResponse.json({
+          success: true,
+          data: paginatedTasks,
+          total: transformedTasks.length,
+          page,
+          pageSize: limit
+        })
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: transformedTasks,
+        total: totalBeforeFilter,
+        page,
+        pageSize: limit
+      })
+    }
+
+    // Legacy mode: Fetch all tasks
+    const tasks = await prisma.tasks.findMany({
+      where: {
+        organization_id: staff.organization_id
       },
+      select: taskSelect,
       orderBy: {
         created_at: 'desc'
       }
     })
 
-    // Transform data to match Task type
-    const transformedTasks = tasks.map(task => {
-      // Get creator name
-      const creatorName = task.staff
-        ? `${task.staff.first_name} ${task.staff.last_name || ''}`.trim()
-        : 'Unknown'
-
-      // Get property and room
-      const property = task.properties?.code
-      const room = task.rooms?.title
-
-      // Get latest type
-      const type = task.task_types[0]?.type || 'Miscellaneous/Others'
-
-      // Get latest priority
-      const priority = task.task_priorities[0]?.priority || 'Medium'
-
-      // Get latest status and map to display format
-      const rawStatus = task.task_statuses[0]?.state || 'Open'
-      const statusMap: Record<string, string> = {
-        Open: 'Open',
-        In_Progress: 'In Progress',
-        Resolved: 'Resolved'
-      }
-      const status = statusMap[rawStatus] || rawStatus
-
-      // Get latest due date
-      const dueDate = task.task_due_dates[0]?.due_date
-
-      // Get assigned staff
-      const assignment = task.task_assignments[0]
-      const assignedStaff = assignment?.staff_task_assignments_assigned_idTostaff
-      const staffName = assignedStaff
-        ? `${assignedStaff.first_name} ${assignedStaff.last_name || ''}`.trim()
-        : undefined
-
-      return {
-        id: task.reference_id,
-        task_id: task.id,
-        type,
-        priority,
-        title: task.title,
-        description: task.description,
-        property,
-        room,
-        due_date: dueDate?.toISOString(),
-        created_by_name: creatorName,
-        created_by_picture: task.staff?.profile_pic || undefined,
-        created_at: task.created_at.toISOString(),
-        staff_name: staffName,
-        staff_picture: assignedStaff?.profile_pic || undefined,
-        assignment_timestamp: assignment?.responded_at?.toISOString(),
-        status
-      }
-    })
+    // Transform tasks
+    const transformedTasks = tasks.map(task => transformTask(task, user.id))
 
     return NextResponse.json(transformedTasks)
   } catch (error: any) {
