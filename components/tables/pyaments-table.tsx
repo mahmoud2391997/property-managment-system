@@ -40,6 +40,7 @@ import TimestampWithTooltip from '../costume-ui/timestamp-with-tooltip'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import MobileCardSkeleton from '../loading-ui/mobile-card-skeleton'
+import { formatPaymentTypeLabel } from '@/utils/functions'
 
 type Props = {
   data: PaymentWithDetails[]
@@ -498,7 +499,7 @@ export default function PaymentsTable ({
           <div>
             <div className='text-left texts-table-cell-primary'>{id}</div>
             <div className='text-left texts-table-cell-secondary text-(--text-secondary)'>
-              {type}
+              {formatPaymentTypeLabel(type)}
             </div>
           </div>
         )
