@@ -10,3 +10,11 @@ export const buildEmailLink = (email: string, subject?: string, body?: string) =
   const queryString = params.toString();
   return `mailto:${email}${queryString ? `?${queryString}` : ''}`;
 };
+
+
+
+export const formatPaymentTypeLabel = (type: string) =>
+    type
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, c => c.toUpperCase())

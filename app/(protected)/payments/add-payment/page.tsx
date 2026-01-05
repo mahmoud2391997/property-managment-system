@@ -19,6 +19,7 @@ import { useState, useEffect } from 'react'
 import { Info } from 'lucide-react'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { formatDateForAPI } from '@/utils/formatTime'
+import { formatPaymentTypeLabel } from '@/utils/functions'
 
 const AddPayment = () => {
   const [tenantItems, setTenantItems] = useState<ComboBoxitemsType[]>([])
@@ -34,7 +35,10 @@ const AddPayment = () => {
   const [loadingTenants, setLoadingTenants] = useState<boolean>(true)
   const [loadingProperties, setLoadingProperties] = useState<boolean>(false)
   const [loadingRooms, setLoadingRooms] = useState<boolean>(false)
-  const typesOfPayment = paymentTypes.map(pt => pt.type)
+  const typesOfPayment: {label: string; value: string}[] = paymentTypes.map(pt => ({
+    label: formatPaymentTypeLabel(pt.type), // UI
+    value: pt.type // API / Prisma
+  }))
   const [paymentType, setPaymentType] = useState<PaymentType>(paymentTypes[0])
   const selectable: boolean = paymentType === paymentTypes[0]
   const [isPaid, setIsPaid] = useState<boolean>(false)
@@ -48,7 +52,6 @@ const AddPayment = () => {
   const [recurringConfig, setRecurringConfig] = useState<any>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [excludedChargeTypes, setExcludedChargeTypes] = useState<string[]>([])
-  const [loadingUsedCharges, setLoadingUsedCharges] = useState(false)
 
   // Alert state
   const [alertOpen, setAlertOpen] = useState(false)
@@ -73,16 +76,19 @@ const AddPayment = () => {
 
   // Helper to translate week day codes to full names
   const weekDayFullNames: Record<string, string> = {
-    'Su': 'Sunday',
-    'Mo': 'Monday',
-    'Tu': 'Tuesday',
-    'We': 'Wednesday',
-    'Th': 'Thursday',
-    'Fr': 'Friday',
-    'Sa': 'Saturday'
+    Su: 'Sunday',
+    Mo: 'Monday',
+    Tu: 'Tuesday',
+    We: 'Wednesday',
+    Th: 'Thursday',
+    Fr: 'Friday',
+    Sa: 'Saturday'
   }
   const translateWeekDays = (codes: string) => {
-    return codes.split(',').map(code => weekDayFullNames[code] || code).join(', ')
+    return codes
+      .split(',')
+      .map(code => weekDayFullNames[code] || code)
+      .join(', ')
   }
 
   // Helper to calculate next payment date based on recurring config
@@ -97,23 +103,39 @@ const AddPayment = () => {
       case 'Week':
         // Find next occurrence of selected weekday
         if (event_on) {
-          const weekDayMap: Record<string, number> = { 'Su': 0, 'Mo': 1, 'Tu': 2, 'We': 3, 'Th': 4, 'Fr': 5, 'Sa': 6 }
-          const selectedDays = event_on.split(',').map((d: string) => weekDayMap[d]).sort((a: number, b: number) => a - b)
+          const weekDayMap: Record<string, number> = {
+            Su: 0,
+            Mo: 1,
+            Tu: 2,
+            We: 3,
+            Th: 4,
+            Fr: 5,
+            Sa: 6
+          }
+          const selectedDays = event_on
+            .split(',')
+            .map((d: string) => weekDayMap[d])
+            .sort((a: number, b: number) => a - b)
           // Add weeks first
-          next.setDate(next.getDate() + (every * 7))
+          next.setDate(next.getDate() + every * 7)
           // Find the first selected day in that week
-          const daysUntilNext = selectedDays.find((d: number) => d >= next.getDay()) ?? selectedDays[0]
+          const daysUntilNext =
+            selectedDays.find((d: number) => d >= next.getDay()) ??
+            selectedDays[0]
           const diff = daysUntilNext - next.getDay()
           next.setDate(next.getDate() + (diff >= 0 ? diff : 7 + diff))
         } else {
-          next.setDate(next.getDate() + (every * 7))
+          next.setDate(next.getDate() + every * 7)
         }
         break
       case 'Month':
         next.setMonth(next.getMonth() + every)
         // If specific days are selected, use the first one
         if (event_on) {
-          const selectedDays = event_on.split(',').map(Number).sort((a: number, b: number) => a - b)
+          const selectedDays = event_on
+            .split(',')
+            .map(Number)
+            .sort((a: number, b: number) => a - b)
           next.setDate(selectedDays[0])
         }
         break
@@ -349,7 +371,6 @@ const AddPayment = () => {
 
     // Fetch used charge types for this lease
     const fetchUsedChargeTypes = async () => {
-      setLoadingUsedCharges(true)
       try {
         const response = await fetch(
           `/api/payments/lease-initial-charges?lease_reference_id=${selectedLeaseReferenceId}`
@@ -366,8 +387,6 @@ const AddPayment = () => {
         console.error('Error fetching used charge types:', error)
         // On error, at least exclude First Month Rental
         setExcludedChargeTypes(baseExclusions)
-      } finally {
-        setLoadingUsedCharges(false)
       }
     }
 
@@ -606,27 +625,61 @@ const AddPayment = () => {
                 <div className='flex flex-col gap-1'>
                   <p className='font-medium'>Recurring Payment Schedule</p>
                   <p>
-                    Starting from the {isPaid ? 'payment' : 'due'} date ({paymentDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}),
-                    this payment titled "<span className='font-semibold'>{recurringConfig.title || 'Untitled'}</span>" will generate every{' '}
+                    Starting from the {isPaid ? 'payment' : 'due'} date (
+                    {paymentDate.toLocaleDateString('en-GB', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric'
+                    })}
+                    ), this payment titled "
                     <span className='font-semibold'>
-                      {recurringConfig.every} {recurringConfig.time_unit.toLowerCase()}{recurringConfig.every > 1 ? 's' : ''}
+                      {recurringConfig.title || 'Untitled'}
                     </span>
-                    {recurringConfig.event_on && recurringConfig.time_unit === 'Week' && (
-                      <> on <span className='font-semibold'>{translateWeekDays(recurringConfig.event_on)}</span></>
-                    )}
-                    {recurringConfig.event_on && recurringConfig.time_unit === 'Month' && (
-                      <> on day <span className='font-semibold'>{recurringConfig.event_on.split(',').join(', ')}</span> of each month</>
-                    )}
+                    " will generate every{' '}
+                    <span className='font-semibold'>
+                      {recurringConfig.every}{' '}
+                      {recurringConfig.time_unit.toLowerCase()}
+                      {recurringConfig.every > 1 ? 's' : ''}
+                    </span>
+                    {recurringConfig.event_on &&
+                      recurringConfig.time_unit === 'Week' && (
+                        <>
+                          {' '}
+                          on{' '}
+                          <span className='font-semibold'>
+                            {translateWeekDays(recurringConfig.event_on)}
+                          </span>
+                        </>
+                      )}
+                    {recurringConfig.event_on &&
+                      recurringConfig.time_unit === 'Month' && (
+                        <>
+                          {' '}
+                          on day{' '}
+                          <span className='font-semibold'>
+                            {recurringConfig.event_on.split(',').join(', ')}
+                          </span>{' '}
+                          of each month
+                        </>
+                      )}
                     .
                   </p>
                   <p>
                     <span className='font-medium'>Next payment:</span>{' '}
                     <span className='font-semibold'>
-                      {calculateNextPaymentDate(paymentDate, recurringConfig).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {calculateNextPaymentDate(
+                        paymentDate,
+                        recurringConfig
+                      ).toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
                     </span>
                   </p>
                   <p className='text-blue-600 mt-1'>
-                    This recurring payment will continue until the lease ends or is manually stopped by staff.
+                    This recurring payment will continue until the lease ends or
+                    is manually stopped by staff.
                   </p>
                 </div>
               </div>
