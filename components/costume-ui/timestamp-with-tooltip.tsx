@@ -1,15 +1,16 @@
 import Tooltip from './tooltip'
-import { formatTimestamp, formatTimestampLong } from '@/utils/formatTime'
+import { formatDate, formatTimestamp, formatTimestampLong } from '@/utils/formatTime'
 
 type Props = {
   timestamp: string
   className?: string
+  variant?: 'time' | 'date'
 }
 
-export default function TimestampWithTooltip({ timestamp, className }: Props) {
+export default function TimestampWithTooltip({ variant = 'time', timestamp, className }: Props) {
   return (
     <Tooltip variant='description' content={formatTimestampLong(timestamp)} className='w-fit!'>
-      <span className={className}>{formatTimestamp(timestamp)}</span>
+      <span className={className}>{variant === 'time' ? formatTimestamp(timestamp) : formatDate(timestamp)}</span>
     </Tooltip>
   )
 }

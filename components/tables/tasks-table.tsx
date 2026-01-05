@@ -10,7 +10,8 @@ import {
   Clock,
   Check,
   X,
-  AlertCircle
+  AlertCircle,
+  ChevronRight
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -286,31 +287,31 @@ const createColumns = (
 
       // Show pending assignment with accept/reject buttons
       if (has_pending_assignment && onAcceptAssignment && onRejectAssignment) {
-  return (
-    <div className='flex flex-col gap-2 rounded-lg border border-orange-200 bg-orange-50 p-2'>
-      <div className='flex items-center gap-2'>
-        <AlertCircle className='w-4 h-4 text-orange-600 shrink-0' />
-        <span className='texts-table-cell-primary font-medium text-orange-700'>
-          Pending Assignment
-        </span>
-      </div>
+        return (
+          <div className='flex flex-col gap-2 rounded-lg border border-orange-200 bg-orange-50 p-2'>
+            <div className='flex items-center gap-2'>
+              <AlertCircle className='w-4 h-4 text-orange-600 shrink-0' />
+              <span className='texts-table-cell-primary font-medium text-orange-700'>
+                Pending Assignment
+              </span>
+            </div>
 
-      <Link href={`/tasks/${task_id}`} className='w-full'>
-        <Button
-          variant='outline'
-          size='sm'
-          className={cn(
-            'h-7 w-full px-3 text-xs',
-            'border-orange-300 text-orange-700',
-            'hover:bg-orange-100 hover:text-orange-800'
-          )}
-        >
-          View task details
-        </Button>
-      </Link>
-    </div>
-  )
-}
+            <Link href={`/tasks/${task_id}`} className='w-full'>
+              <Button
+                variant='outline'
+                size='sm'
+                className={cn(
+                  'h-7 w-full px-3 text-xs',
+                  'border-orange-300 text-orange-700',
+                  'hover:bg-orange-100 hover:text-orange-800'
+                )}
+              >
+                View task details
+              </Button>
+            </Link>
+          </div>
+        )
+      }
 
       // Show assigned staff
       if (!staff_name)
@@ -496,7 +497,7 @@ const TaskCard = ({
       </div>
 
       {/* Info Grid */}
-      <div className='grid grid-cols-2 gap-3'>
+      <div className='grid grid-cols-2'>
         {/* Location */}
         <div className='flex items-start gap-2'>
           <Building2 className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
@@ -531,6 +532,7 @@ const TaskCard = ({
                   Due
                 </div>
                 <TimestampWithTooltip
+                  variant='date'
                   timestamp={task.due_date}
                   className='texts-body-small-medium text-(--text-primary)'
                 />
@@ -574,15 +576,17 @@ const TaskCard = ({
           {/* Assigned To */}
           {task.staff_name && !task.has_pending_assignment && (
             <div className='flex items-center gap-1.5'>
-              <span className='texts-caption-small text-(--text-secondary)'>
-                →
-              </span>
+              {/* Clean, low-opacity chevron instead of text arrow */}
+              <ChevronRight
+                strokeWidth={2}
+                className='w-3.5 h-3.5 text-(--text-secondary) opacity-40'
+              />
               <UserAvatar
                 name={task.staff_name}
                 imgSrc={task.staff_picture}
                 size={24}
               />
-              <span className='texts-caption-large text-(--text-primary)'>
+              <span className='texts-caption-large text-(--text-primary) font-medium'>
                 {task.staff_name}
               </span>
             </div>
@@ -592,30 +596,29 @@ const TaskCard = ({
 
       {/* Pending Assignment Banner */}
       {task.has_pending_assignment && onAcceptAssignment && onRejectAssignment && (
-  <div className='rounded-lg border border-orange-200 bg-orange-50 p-3'>
-    <div className='flex items-center gap-2 mb-2'>
-      <AlertCircle className='w-4 h-4 text-orange-600 shrink-0' />
-      <span className='texts-body-small-semibold text-orange-800'>
-        Pending Assignment
-      </span>
-    </div>
+        <div className='rounded-lg border border-orange-200 bg-orange-50 p-3'>
+          <div className='flex items-center gap-2 mb-2'>
+            <AlertCircle className='w-4 h-4 text-orange-600 shrink-0' />
+            <span className='texts-body-small-semibold text-orange-800'>
+              Pending Assignment
+            </span>
+          </div>
 
-    <Link href={`/tasks/${task.task_id}`} className='block'>
-      <Button
-        variant='outline'
-        size='sm'
-        className={cn(
-          'h-8 w-full text-xs',
-          'border-orange-300 text-orange-700',
-          'hover:bg-orange-100 hover:text-orange-800'
-        )}
-      >
-        View task details
-      </Button>
-    </Link>
-  </div>
-)}
-
+          <Link href={`/tasks/${task.task_id}`} className='block'>
+            <Button
+              variant='outline'
+              size='sm'
+              className={cn(
+                'h-8 w-full text-xs',
+                'border-orange-300 text-orange-700',
+                'hover:bg-orange-100 hover:text-orange-800'
+              )}
+            >
+              View task details
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {/* View Details Button */}
       <Link
