@@ -233,12 +233,14 @@ const PaymentSection = ({
         <InputGroup
           label='Subsequent Monthly Rental Payment'
           className='w-40 sm:w-75'
+          isRequired
         >
           <Input
             maxLength={20}
             currency
             value={monthlyRent}
             onValueChange={value => handleMonthlyRentChange(value || '')}
+            required
           />
         </InputGroup>
 
