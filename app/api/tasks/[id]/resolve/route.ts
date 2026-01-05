@@ -76,12 +76,6 @@ export async function POST(
 
     // Create status first, then report (to avoid trigger blocking status creation after report exists)
     const [statusEntry, reportEntry] = await prisma.$transaction([
-      prisma.task_statuses.create({
-        data: {
-          task_id: taskId,
-          state: 'Resolved'
-        }
-      }),
       prisma.task_reports.create({
         data: {
           task_id: taskId,
@@ -89,7 +83,14 @@ export async function POST(
           attachment: attachment?.url || null,
           submitted_by: currentStaff.id
         }
-      })
+      }),
+      
+      prisma.task_statuses.create({
+        data: {
+          task_id: taskId,
+          state: 'Resolved'
+        }
+      }),
     ])
 
     const statusMap: Record<string, string> = {
