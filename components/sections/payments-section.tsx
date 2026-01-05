@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { PaymentWithDetails } from '@/lib/payments-utils'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import { Tab, TabGroup } from '../costume-ui/tab'
+import { useEffect } from 'react'
 
 interface PaymentsSectionProps {
   initialData: PaymentWithDetails[]
@@ -33,6 +34,7 @@ export default function PaymentsSection ({
     goToNextPage,
     goToPreviousPage,
     pageSize,
+    updateItem,
     updateFilters,
     activeFilters
   } = usePaginatedSearch<PaymentWithDetails>({
@@ -52,6 +54,22 @@ export default function PaymentsSection ({
   const handleTabClick = (status: string) => {
     updateFilters({ status })
   }
+
+  // Listen for payment updates from the payment gateway return flow
+  useEffect(() => {
+    const handlePaymentUpdate = (event: CustomEvent) => {
+      const updatedPayment = event.detail
+      if (updatedPayment?.id) {
+        updateItem(updatedPayment.id, updatedPayment)
+      }
+    }
+
+    window.addEventListener('payment-updated', handlePaymentUpdate as EventListener)
+
+    return () => {
+      window.removeEventListener('payment-updated', handlePaymentUpdate as EventListener)
+    }
+  }, [updateItem])
 
   return (
     <>

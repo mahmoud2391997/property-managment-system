@@ -180,13 +180,45 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // If already marked as Success, return early
+    // If already marked as Success, return early with updated payment data
     if (existingHistory && existingHistory.status === 'Success') {
+      // Calculate payment percentage
+      const totalAmount = payment.charges.reduce((sum, charge) => {
+        const amount = charge.amount.toNumber()
+        const tax = charge.is_taxed ? amount * 0.08 : 0
+        return sum + amount + tax
+      }, 0)
+
+      const previousPayments = await prisma.payment_history.findMany({
+        where: {
+          payment_id: actualPaymentId,
+          status: 'Success'
+        },
+        select: { amount: true, paid_at: true },
+        orderBy: { paid_at: 'desc' }
+      })
+
+      const totalPaid = previousPayments.reduce(
+        (sum, h) => sum + h.amount.toNumber(),
+        0
+      )
+
+      const paymentPercentage = Math.min(
+        Math.round((totalPaid / totalAmount) * 100),
+        100
+      )
+
       return NextResponse.json({
         success: true,
         already_recorded: true,
         message: 'Payment already recorded',
-        payment_history_id: existingHistory.id
+        payment_history_id: existingHistory.id,
+        updated_payment: {
+          id: payment.reference_id,
+          payment_percentage: paymentPercentage,
+          latest_payment_timestamp: previousPayments[0]?.paid_at || new Date(),
+          status: paymentPercentage >= 100 ? 'Paid' : 'Partially Paid'
+        }
       })
     }
 
@@ -320,13 +352,29 @@ export async function POST(request: NextRequest) {
 
     console.log(`Payment status checked and recorded: ${actualPaymentId} - ${paidAmount} RM`)
 
+    // Get the latest payment timestamp for UI update
+    const latestPayment = await prisma.payment_history.findFirst({
+      where: {
+        payment_id: actualPaymentId,
+        status: 'Success'
+      },
+      orderBy: { paid_at: 'desc' },
+      select: { paid_at: true }
+    })
+
     return NextResponse.json({
       success: true,
       message: 'Payment verified and recorded',
       payment_history_id: paymentHistory.id,
       amount_paid: paidAmount,
       payment_percentage: paymentPercentage,
-      newly_recorded: true
+      newly_recorded: true,
+      updated_payment: {
+        id: payment.reference_id,
+        payment_percentage: paymentPercentage,
+        latest_payment_timestamp: latestPayment?.paid_at || new Date(),
+        status: paymentPercentage >= 100 ? 'Paid' : 'Partially Paid'
+      }
     })
   } catch (error: any) {
     console.error('Error checking payment status:', error)
