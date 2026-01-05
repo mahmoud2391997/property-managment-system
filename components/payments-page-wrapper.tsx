@@ -50,11 +50,11 @@ export function PaymentsPageWrapper({ children }: Props) {
 
       const result = await response.json()
 
-      // Clear URL params immediately to prevent re-checking on reload
-      clearUrlParams()
-
       // Handle payment failed (Billplz marked payment as failed)
       if (!response.ok && result.payment_failed) {
+        setIsProcessing(false)
+        // Clear URL params immediately to prevent re-checking on reload
+        clearUrlParams()
         await Swal.fire({
           icon: 'error',
           title: 'Payment Failed',
@@ -65,12 +65,14 @@ export function PaymentsPageWrapper({ children }: Props) {
         localStorage.removeItem(`pending_bill_${paymentUuid}`)
         // Refresh to show current status
         router.refresh()
-        setIsProcessing(false)
         return
       }
 
       // Handle payment not completed (Pending or no payment made yet)
       if (!response.ok && result.payment_not_completed) {
+        setIsProcessing(false)
+        // Clear URL params immediately to prevent re-checking on reload
+        clearUrlParams()
         await Swal.fire({
           icon: 'info',
           title: 'Payment Not Completed',
@@ -81,7 +83,6 @@ export function PaymentsPageWrapper({ children }: Props) {
         localStorage.removeItem(`pending_bill_${paymentUuid}`)
         // Refresh to show current status
         router.refresh()
-        setIsProcessing(false)
         return
       }
 
@@ -90,6 +91,10 @@ export function PaymentsPageWrapper({ children }: Props) {
       }
 
       if (result.success) {
+        setIsProcessing(false)
+        // Clear URL params immediately to prevent re-checking on reload
+        clearUrlParams()
+
         if (result.already_recorded) {
           await Swal.fire({
             icon: 'info',
@@ -109,17 +114,27 @@ export function PaymentsPageWrapper({ children }: Props) {
         // Clean up localStorage after successful payment
         localStorage.removeItem(`pending_bill_${paymentUuid}`)
 
-        // Refresh server data without full page reload
-        router.refresh()
-        setIsProcessing(false)
+        // Emit custom event with updated payment data to update the table
+        if (result.updated_payment) {
+          window.dispatchEvent(
+            new CustomEvent('payment-updated', {
+              detail: result.updated_payment
+            })
+          )
+        } else {
+          // Fallback to reload if no updated data
+          window.location.reload()
+        }
       } else {
+        setIsProcessing(false)
+        // Clear URL params immediately to prevent re-checking on reload
+        clearUrlParams()
         await Swal.fire({
           icon: 'warning',
           title: 'Payment Not Completed',
           text: `Payment status: ${result.state}. Please complete your payment.`,
           confirmButtonColor: '#f59e0b'
         })
-        setIsProcessing(false)
       }
     } catch (error: any) {
       console.error('Error checking payment status:', error)

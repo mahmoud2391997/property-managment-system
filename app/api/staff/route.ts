@@ -158,8 +158,18 @@ export async function POST (request: Request) {
 
     if (authError || !authData.user) {
       console.error('Error creating auth user:', authError)
+
+      // Check for duplicate email error - Supabase returns status 422 for duplicate emails
+      if (authError?.status === 422 || authError?.code === '23505') {
+        return NextResponse.json(
+          { error: 'A staff member with this email address already exists' },
+          { status: 400 }
+        )
+      }
+
+      // Don't expose internal error details to users
       return NextResponse.json(
-        { error: authError?.message || 'Failed to create user account' },
+        { error: 'Failed to create user account. Please try again.' },
         { status: 500 }
       )
     }
@@ -287,8 +297,23 @@ export async function POST (request: Request) {
             `${authData.user.id}/thumb.jpg`
           ])
       }
+
+      // Check for specific database constraint violations
+      // PostgreSQL error code 23505 is for unique constraint violations
+      if (dbError.code === 'P2002' || dbError.code === '23505') {
+        // Prisma code P2002 means unique constraint failed
+        const target = dbError.meta?.target || []
+        if (target.includes('staff_id')) {
+          return NextResponse.json(
+            { error: 'A staff member with this ID already exists' },
+            { status: 400 }
+          )
+        }
+      }
+
+      // Don't expose internal database errors to users
       return NextResponse.json(
-        { error: dbError.message || 'Failed to create staff record' },
+        { error: 'Failed to create staff member. Please try again.' },
         { status: 500 }
       )
     }

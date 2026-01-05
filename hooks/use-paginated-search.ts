@@ -285,19 +285,44 @@ useEffect(() => {
   }, [urlPage, updateUrl])
 
   const displayData = useMemo(() => {
-    if (!urlSearch || useServerSearch) {
+    if (useServerSearch) {
       return data
     }
-    const lowerSearch = urlSearch.toLowerCase()
-    return data.filter(item => {
-      return Object.values(item as object).some(value => {
-        if (typeof value === 'string') {
-          return value.toLowerCase().includes(lowerSearch)
-        }
-        return false
+
+    // Local filtering when total items <= pageSize
+    let filteredData = data
+
+    // Apply status filter (and other filters)
+    const hasActiveFilters = Object.entries(urlFilters).some(
+      ([key, value]) => value && value !== 'all' && value !== defaultFilters[key]
+    )
+
+    if (hasActiveFilters) {
+      filteredData = filteredData.filter(item => {
+        return Object.entries(urlFilters).every(([key, value]) => {
+          if (!value || value === 'all' || value === defaultFilters[key]) {
+            return true
+          }
+          return (item as any)[key] === value
+        })
       })
-    })
-  }, [data, urlSearch, useServerSearch])
+    }
+
+    // Apply search filter
+    if (urlSearch) {
+      const lowerSearch = urlSearch.toLowerCase()
+      filteredData = filteredData.filter(item => {
+        return Object.values(item as object).some(value => {
+          if (typeof value === 'string') {
+            return value.toLowerCase().includes(lowerSearch)
+          }
+          return false
+        })
+      })
+    }
+
+    return filteredData
+  }, [data, urlSearch, urlFilters, useServerSearch, defaultFilters])
 
   const updateItem = useCallback((id: string, updates: Partial<T>) => {
     const updateInArray = (arr: T[]) =>
