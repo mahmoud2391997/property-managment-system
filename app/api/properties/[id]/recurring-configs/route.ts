@@ -5,8 +5,8 @@ import { getUserAndStaff } from '@/utils/getUserAndStaff'
 export type RecurringConfigWithDetails = {
   id: string
   title: string
-  every: number
-  time_unit: string
+  every: number | null
+  time_unit: string | null
   event_on: string | null
   is_payment_fixed: boolean
   is_active: boolean
@@ -107,11 +107,15 @@ export async function GET(
 
     // Calculate next payment date based on recurring config
     const calculateNextPaymentDate = (
-      every: number,
-      timeUnit: string,
+      every: number | null,
+      timeUnit: string | null,
       eventOn: string | null,
       lastPaymentDate: Date | null
     ): string | null => {
+      // If every or timeUnit is null, we can't calculate (new recurring payment model)
+      if (every === null || timeUnit === null) {
+        return null
+      }
       const now = new Date()
       const baseDate = lastPaymentDate || now
 

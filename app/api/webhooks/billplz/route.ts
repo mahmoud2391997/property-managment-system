@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyXSignature, getBill, getBillTransactions, BillplzWebhookPayload } from '@/lib/billplz'
+import { handleRecurringPaymentGeneration } from '@/lib/recurring-payments-utils'
 
 /**
  * Test endpoint to verify webhook URL is accessible
@@ -112,6 +113,7 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         reference_id: true,
+        organization_id: true,
         charges: {
           select: {
             amount: true,
@@ -267,12 +269,26 @@ export async function POST(request: NextRequest) {
 
       console.log(`Payment processed successfully: ${finalPaymentId} - ${paidAmount} RM`)
 
+      // After successful payment, check if this is a recurring payment and generate next one
+      let recurringPaymentGenerated = false
+      if (paymentPercentage >= 100 && payment.organization_id) {
+        try {
+          await handleRecurringPaymentGeneration(finalPaymentId, payment.organization_id)
+          recurringPaymentGenerated = true
+          console.log(`✅ Recurring payment generated for ${finalPaymentId}`)
+        } catch (recurringError) {
+          // Log error but don't fail the webhook
+          console.error('Error generating recurring payment:', recurringError)
+        }
+      }
+
       return NextResponse.json({
         success: true,
         message: 'Payment processed successfully',
         payment_id: finalPaymentId,
         amount_paid: paidAmount,
-        payment_percentage: paymentPercentage
+        payment_percentage: paymentPercentage,
+        recurring_payment_generated: recurringPaymentGenerated
       })
     }
     // Case 2: Payment state is 'due' (pending, not completed yet)

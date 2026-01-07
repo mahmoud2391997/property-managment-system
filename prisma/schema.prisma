@@ -964,13 +964,13 @@ model organizations_tenants {
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model recurring_configs {
   id               String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  every            Int
-  time_unit        time_unit
+  every            Int?
+  time_unit        time_unit?
   event_on         String?
   title            String
   lease_id         String?       @db.Uuid
   organization_id  String        @db.Uuid
-  is_payment_fixed Boolean?
+  is_payment_fixed Boolean
   is_active        Boolean       @default(true)
   created_at       DateTime      @default(now()) @db.Timestamptz(6)
   created_by       String?       @db.Uuid
@@ -1217,7 +1217,7 @@ model task_priorities {
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model task_reports {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  task_id      String   @unique(map: "task_reports_task_id_unique") @db.Uuid
+  task_id      String   @db.Uuid
   content      String
   attachment   String?
   submitted_by String   @db.Uuid
@@ -1277,7 +1277,7 @@ model tasks {
   task_flow_instances_task_flow_instances_refund_finalization_task_idTotasks task_flow_instances? @relation("task_flow_instances_refund_finalization_task_idTotasks")
   task_flow_instances_task_flow_instances_refund_request_task_idTotasks      task_flow_instances? @relation("task_flow_instances_refund_request_task_idTotasks")
   task_priorities                                                            task_priorities[]
-  task_reports                                                               task_reports?
+  task_reports                                                               task_reports[]
   task_statuses                                                              task_statuses[]
   task_types                                                                 task_types[]
   staff                                                                      staff?               @relation(fields: [created_by], references: [id], onUpdate: NoAction)
@@ -1481,6 +1481,7 @@ enum payment_status {
   Paid
   Pending
   Cancelled
+  Unset
 
   @@schema("public")
 }

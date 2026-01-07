@@ -6,7 +6,6 @@ import {
   Repeat,
   Calendar,
   CircleCheck,
-  CircleX,
   CirclePause,
   Play,
   Pause,
@@ -42,10 +41,15 @@ export default function RecurringPaymentsTable({
 }: Props) {
   // Format recurring pattern description
   const formatRecurringPattern = (
-    every: number,
-    timeUnit: string,
+    every: number | null,
+    timeUnit: string | null,
     eventOn: string | null
   ): string => {
+    // New recurring model: monthly with rental payment
+    if (every === null || timeUnit === null) {
+      return 'Monthly with rental payment'
+    }
+
     let description = `Every ${every} ${timeUnit.toLowerCase()}${every > 1 ? 's' : ''}`
 
     if (timeUnit === 'Week' && eventOn) {

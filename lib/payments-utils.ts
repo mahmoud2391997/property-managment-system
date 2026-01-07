@@ -12,8 +12,8 @@ type RawPaymentHistory = {
 }
 
 type RawRecurringConfig = {
-  every: number
-  time_unit: string
+  every: number | null
+  time_unit: string | null
   event_on: string | null
 }
 
@@ -132,7 +132,11 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
 
   if (recurringConfig) {
     const { every, time_unit, event_on } = recurringConfig
-    if (time_unit === 'Week' && event_on) {
+
+    // New recurring model: monthly with rental payment (every and time_unit are null)
+    if (every === null || time_unit === null) {
+      recurringDescription = 'Monthly with rental payment'
+    } else if (time_unit === 'Week' && event_on) {
       const days = event_on.split(',').join(', ')
       recurringDescription = `Every ${every} ${time_unit.toLowerCase()}${every > 1 ? 's' : ''} on ${days}`
     } else if (time_unit === 'Month' && event_on) {

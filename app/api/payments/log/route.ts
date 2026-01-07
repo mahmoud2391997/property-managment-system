@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { parseLocalDateTime } from '@/utils/formatTime'
+import { handleRecurringPaymentGeneration } from '@/lib/recurring-payments-utils'
 
 /**
  * Log a manual payment (Cash or Bank Transfer) - Staff only
@@ -165,12 +166,25 @@ export async function POST(request: NextRequest) {
 
     console.log(`Manual payment logged: ${payment.reference_id} - RM ${numAmount} via ${payment_method}`)
 
+    // After successful payment, check if this is a recurring payment and generate next one
+    let recurringPaymentGenerated = false
+    if (paymentPercentage >= 100) {
+      try {
+        await handleRecurringPaymentGeneration(payment.id, staff.organization_id)
+        recurringPaymentGenerated = true
+      } catch (recurringError) {
+        // Log error but don't fail the payment logging
+        console.error('Error generating recurring payment:', recurringError)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Payment logged successfully',
       payment_history_id: paymentHistory.id,
       amount_paid: numAmount,
-      payment_percentage: paymentPercentage
+      payment_percentage: paymentPercentage,
+      recurring_payment_generated: recurringPaymentGenerated
     })
   } catch (error: any) {
     console.error('Error logging payment:', error)

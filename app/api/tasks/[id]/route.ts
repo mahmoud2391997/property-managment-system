@@ -515,8 +515,8 @@ export async function GET(
     const acceptedAssignment = task.task_assignments.find(a => a.status === 'Accepted' && !a.unassigned_at)
     const pendingAssignment = task.task_assignments.find(a => a.status === 'Pending')
 
-    // Get report
-    const report = task.task_reports
+    // Get reports (can be multiple)
+    const reports = task.task_reports
 
     // Determine if this is a flow task and get flow info
     const FLOW_TASK_TYPES = ['Inspection', 'Preparation', 'Refund_Request', 'Refund_Finalization']
@@ -801,14 +801,15 @@ export async function GET(
         requestedAt: pendingAssignment.requested_at.toISOString()
       } : undefined,
       timeline: timelineEvents,
-      report: report ? {
+      reports: reports.map(report => ({
+        id: report.id,
         content: report.content,
         attachment: report.attachment ? { name: getFileNameFromUrl(report.attachment), url: report.attachment } : undefined,
         submittedAt: report.created_at.toISOString(),
         submittedById: report.staff?.id || '',
         submittedByName: getStaffName(report.staff),
         isResolved: report.is_resolved
-      } : undefined,
+      })),
       // Current staff info for the page
       currentStaff: {
         id: currentStaff.id,

@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { handleRecurringPaymentGeneration } from '@/lib/recurring-payments-utils'
 
 export async function POST (request: NextRequest) {
   try {
@@ -174,10 +175,23 @@ export async function POST (request: NextRequest) {
       return payment
     })
 
+    // After successful payment creation, check if this is a recurring payment and generate next one
+    let recurringPaymentGenerated = false
+    if (is_paid && recurring_config && recurring_config.enabled) {
+      try {
+        await handleRecurringPaymentGeneration(result.id, staff.organization_id)
+        recurringPaymentGenerated = true
+      } catch (recurringError) {
+        // Log error but don't fail the payment creation
+        console.error('Error generating recurring payment:', recurringError)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       payment_id: result.id,
-      message: 'Payment created successfully'
+      message: 'Payment created successfully',
+      recurring_payment_generated: recurringPaymentGenerated
     })
   } catch (error: any) {
     console.error('Error creating payment:', error)
