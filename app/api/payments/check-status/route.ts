@@ -129,6 +129,7 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             reference_id: true,
+            organization_id: true,
             charges: {
               select: {
                 amount: true,
@@ -147,6 +148,7 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             reference_id: true,
+            organization_id: true,
             charges: {
               select: {
                 amount: true,
@@ -365,9 +367,9 @@ export async function POST(request: NextRequest) {
 
     // After successful payment, check if this is a recurring payment and generate next one
     let recurringPaymentGenerated = false
-    if (paymentPercentage >= 100 && staff) {
+    if (paymentPercentage >= 100) {
       try {
-        await handleRecurringPaymentGeneration(actualPaymentId, staff.organization_id)
+        await handleRecurringPaymentGeneration(actualPaymentId, payment.organization_id)
         recurringPaymentGenerated = true
       } catch (recurringError) {
         // Log error but don't fail the payment check

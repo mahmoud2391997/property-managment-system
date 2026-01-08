@@ -2,6 +2,20 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
 
+export type RecurringPaymentDetails = {
+  id: string
+  reference_id: string
+  type: string
+  status: string
+  due_date: string | null
+  amount: number
+  charges: {
+    title: string
+    amount: number
+    is_taxed: boolean
+  }[]
+}
+
 export type RecurringConfigWithDetails = {
   id: string
   title: string
@@ -14,6 +28,8 @@ export type RecurringConfigWithDetails = {
   next_payment_date: string | null
   amount: number | null // null if not fixed (determined by staff)
   payment_type: string | null
+  payments_count: number
+  payments: RecurringPaymentDetails[]
 }
 
 export async function GET(
@@ -85,19 +101,22 @@ export async function GET(
         payments: {
           select: {
             id: true,
+            reference_id: true,
             type: true,
+            status: true,
             due_payment_timestamp: true,
+            created_at: true,
             charges: {
               select: {
                 amount: true,
-                is_taxed: true
+                is_taxed: true,
+                title: true
               }
             }
           },
           orderBy: {
             due_payment_timestamp: 'desc'
-          },
-          take: 1 // Get latest payment to determine type and amount
+          }
         }
       },
       orderBy: {
@@ -214,6 +233,29 @@ export async function GET(
 
       const lastPaymentDate = latestPayment?.due_payment_timestamp || null
 
+      // Transform all payments under this config
+      const payments = config.payments.map(payment => {
+        const totalAmount = payment.charges.reduce((sum, charge) => {
+          const chargeAmount = charge.amount.toNumber()
+          const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
+          return sum + chargeAmount + tax
+        }, 0)
+
+        return {
+          id: payment.id,
+          reference_id: payment.reference_id,
+          type: payment.type,
+          status: payment.status,
+          due_date: payment.due_payment_timestamp?.toISOString() || null,
+          amount: totalAmount,
+          charges: payment.charges.map(charge => ({
+            title: charge.title,
+            amount: charge.amount.toNumber(),
+            is_taxed: charge.is_taxed
+          }))
+        }
+      })
+
       return {
         id: config.id,
         title: config.title,
@@ -227,7 +269,9 @@ export async function GET(
           ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastPaymentDate)
           : null,
         amount,
-        payment_type: latestPayment?.type || null
+        payment_type: latestPayment?.type || null,
+        payments_count: config.payments.length,
+        payments
       }
     })
 
@@ -271,6 +315,7 @@ export async function GET(
     })
 
     // Transform recurring configs for expenses
+    // TODO: Update to include full expense details like payments when needed
     const recurringExpenses: RecurringConfigWithDetails[] = expenseRecurringConfigs.map(config => {
       const latestExpense = config.expenses[0]
 
@@ -299,7 +344,9 @@ export async function GET(
           ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastExpenseDate)
           : null,
         amount,
-        payment_type: latestExpense?.type || null // expense_type
+        payment_type: latestExpense?.type || null, // expense_type
+        payments_count: 0, // TODO: Update when implementing expenses
+        payments: [] // TODO: Update when implementing expenses
       }
     })
 

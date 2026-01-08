@@ -394,7 +394,7 @@ const ChargesSection = ({
 
               <InputGroup
                 label='Amount'
-                className='w-20 md:w-30 lg:w-80'
+                className='w-30 lg:w-40'
                 isRequired
               >
                 <Input

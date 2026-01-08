@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
  * Handle recurring payment generation when a payment is fully paid
  */
 export async function handleRecurringPaymentGeneration(paymentId: string, organizationId: string) {
+  console.log(`🔄 [Recurring] Checking payment ${paymentId}...`)
+
   // Get the payment with its recurring config and lease details
   const payment = await prisma.payments.findUnique({
     where: { id: paymentId },
@@ -19,50 +21,79 @@ export async function handleRecurringPaymentGeneration(paymentId: string, organi
     }
   })
 
-  if (!payment || !payment.recurring_configs || !payment.leases) {
-    return // No recurring config or lease, nothing to do
+  if (!payment) {
+    console.log(`❌ [Recurring] Payment ${paymentId} not found`)
+    return
+  }
+
+  console.log(`📄 [Recurring] Payment ${payment.reference_id} found, recurring_config_id: ${payment.recurring_config_id}`)
+
+  if (!payment.recurring_configs) {
+    console.log(`⚠️ [Recurring] No recurring config attached to payment ${payment.reference_id}`)
+    return
+  }
+
+  if (!payment.leases) {
+    console.log(`⚠️ [Recurring] No lease attached to payment ${payment.reference_id}`)
+    return
   }
 
   const recurringConfig = payment.recurring_configs
   const lease = payment.leases
 
+  console.log(`✅ [Recurring] Found recurring config: "${recurringConfig.title}", active: ${recurringConfig.is_active}`)
+
   // Only generate if recurring is active
   if (!recurringConfig.is_active) {
+    console.log(`⏸️ [Recurring] Recurring config is inactive, skipping generation`)
     return
   }
 
-  // Calculate next payment date based on lease's payment_day
-  const today = new Date()
-  const currentMonth = today.getMonth()
-  const currentYear = today.getFullYear()
+  // Calculate next payment date based on the CURRENT payment's due date
+  const currentPaymentDate = new Date(payment.due_payment_timestamp!)
   const paymentDay = lease.payment_day
 
-  // Determine next payment date
-  let nextPaymentDate: Date
+  console.log(`📅 [Recurring] Current payment due date: ${currentPaymentDate.toISOString()}, payment_day: ${paymentDay}`)
 
-  // If payment_day hasn't passed this month, next payment is this month
-  // Otherwise, next payment is next month
-  if (today.getDate() < paymentDay) {
-    nextPaymentDate = new Date(currentYear, currentMonth, paymentDay)
-  } else {
-    // Next month
-    nextPaymentDate = new Date(currentYear, currentMonth + 1, paymentDay)
-  }
+  // Add one month to the current payment's due date
+  const nextMonth = currentPaymentDate.getMonth() + 1
+  const nextYear = nextMonth > 11 ? currentPaymentDate.getFullYear() + 1 : currentPaymentDate.getFullYear()
+  const adjustedMonth = nextMonth % 12
+
+  const nextPaymentDate = new Date(nextYear, adjustedMonth, paymentDay)
 
   // Set time to start of day
   nextPaymentDate.setHours(0, 0, 0, 0)
 
+  console.log(`📅 [Recurring] Next payment will be: ${nextPaymentDate.toISOString()}`)
+
   // Generate new payment reference ID
+  const yearPrefix = `PY-${nextPaymentDate.getFullYear()}`
+
   const lastPayment = await prisma.payments.findFirst({
-    where: { organization_id: organizationId },
-    orderBy: { created_at: 'desc' },
-    select: { reference_id: true }
+    where: {
+      organization_id: organizationId,
+      reference_id: {
+        startsWith: yearPrefix
+      }
+    },
+    orderBy: {
+      reference_id: 'desc'
+    },
+    select: {
+      reference_id: true
+    }
   })
 
-  const lastNumber = lastPayment?.reference_id
-    ? parseInt(lastPayment.reference_id.replace('P', ''))
-    : 0
-  const newReferenceId = `P${String(lastNumber + 1).padStart(3, '0')}`
+  let nextSequence = 1
+  if (lastPayment) {
+    // Extract the last 8 digits and increment
+    const lastSequence = parseInt(lastPayment.reference_id.slice(-8))
+    nextSequence = lastSequence + 1
+  }
+
+  // Format: PY-YYYY00000001
+  const newReferenceId = `${yearPrefix}${nextSequence.toString().padStart(8, '0')}`
 
   // Determine payment status based on is_payment_fixed
   const paymentStatus = recurringConfig.is_payment_fixed ? 'Pending' : 'Unset'
@@ -99,20 +130,24 @@ export async function handleRecurringPaymentGeneration(paymentId: string, organi
     return createdPayment
   })
 
+  console.log(`✅ [Recurring] Payment created: ${newReferenceId}, Status: ${paymentStatus}`)
+
   // After transaction, send notifications to staff (outside transaction)
   try {
+    console.log(`📧 [Recurring] Sending notifications...`)
     await sendRecurringPaymentNotifications(
       newPayment.id,
       organizationId,
       recurringConfig.title,
       lease
     )
+    console.log(`✅ [Recurring] Notifications sent successfully`)
   } catch (notificationError) {
-    console.error('Error sending recurring payment notifications:', notificationError)
+    console.error('❌ [Recurring] Error sending notifications:', notificationError)
     // Don't throw - payment was already created successfully
   }
 
-  console.log(`Recurring payment generated: ${newReferenceId} for ${recurringConfig.title}`)
+  console.log(`🎉 [Recurring] Complete! Generated ${newReferenceId} for "${recurringConfig.title}"`)
 }
 
 /**
@@ -158,8 +193,8 @@ async function sendRecurringPaymentNotifications(
 
   // Determine page URL based on lease type
   const pageUrl = lease.room_id
-    ? `/rooms/${lease.room_id}/overview?section=recurring`
-    : `/properties/${lease.property_id}/overview?section=recurring`
+    ? `rooms/${lease.room_id}/overview?section=recurring`
+    : `properties/${lease.property_id}/overview?section=recurring`
 
   // Create notification for each staff member
   const notificationData = staffList.map(staff => ({

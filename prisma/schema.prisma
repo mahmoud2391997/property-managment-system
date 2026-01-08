@@ -656,6 +656,7 @@ model payments {
   recurring_configs     recurring_configs? @relation(fields: [recurring_config_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([organization_id, reference_id], map: "unique_org_reference")
+  @@unique([organization_id, lease_id, recurring_config_id, due_payment_timestamp], map: "unique_recurring_payment_per_cycle")
   @@schema("public")
 }
 

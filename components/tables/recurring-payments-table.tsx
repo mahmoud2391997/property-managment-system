@@ -9,7 +9,9 @@ import {
   CirclePause,
   Play,
   Pause,
-  Trash2
+  Trash2,
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -27,6 +29,7 @@ import { formatDate } from '@/utils/formatTime'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { Table } from '../costume-ui/table'
 import { RecurringConfigWithDetails } from '@/app/api/properties/[id]/recurring-configs/route'
+import RecurringPaymentsNestedTable from './recurring-payments-nested-table'
 
 type Props = {
   data: RecurringConfigWithDetails[]
@@ -88,16 +91,56 @@ export default function RecurringPaymentsTable({
       enableHiding: false
     },
 
+    // Expand
+    {
+      id: 'expand',
+      header: () => null,
+      cell: ({ row }) => {
+        const hasPayments = row.original.payments_count > 0
+
+        if (!hasPayments) {
+          return null
+        }
+
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => row.toggleExpanded()}
+            className="h-6 w-6 p-0"
+          >
+            {row.getIsExpanded() ? (
+              <ChevronDown strokeWidth={1.5} className='h-6! w-6!' />
+            ) : (
+              <ChevronRight strokeWidth={1.5} className='h-6! w-6!' />
+            )}
+          </Button>
+        )
+      },
+      enableSorting: false,
+      enableHiding: false
+    },
+
     // Title & Payment Type
     {
       accessorKey: 'title',
       header: () => <div className='text-left'>Recurring Event</div>,
       cell: ({ row }) => {
-        const { title, payment_type } = row.original
+        const { title, payment_type, payments_count } = row.original
 
         return (
           <div>
-            <div className='text-left texts-table-cell-primary'>{title}</div>
+            <div className='flex items-center gap-2 text-left texts-table-cell-primary'>
+              <span>{title}</span>
+              {payments_count > 0 && (
+                <span className={cn(
+                  'px-2 py-0.5 rounded-full text-xs font-medium',
+                  'bg-(--info-light) text-(--info-main)'
+                )}>
+                  {payments_count}
+                </span>
+              )}
+            </div>
             {payment_type && (
               <div className='text-left texts-table-cell-secondary text-(--text-secondary)'>
                 {payment_type.replace(/_/g, ' ')}
@@ -434,6 +477,17 @@ export default function RecurringPaymentsTable({
           data={data}
           className={className}
           emptyMessage='No recurring payments configured for this property.'
+          getRowCanExpand={(row) => row.original.payments_count > 0}
+          getRowId={(row) => row.id}
+          renderSubComponent={(row) => (
+            <RecurringPaymentsNestedTable
+              key={`nested-${row.original.id}`}
+              configId={row.original.id}
+              payments={row.original.payments}
+              isExpanded={row.getIsExpanded()}
+              onRefresh={onRefresh}
+            />
+          )}
         />
       </div>
 

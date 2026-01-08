@@ -134,7 +134,7 @@ const RecurringConfig = ({ onConfigChange, defaultIsPaymentFixed = false }: Recu
             <p className='texts-caption-large text-amber-800'>
               {isPaymentFixed
                 ? 'When a recurring payment is marked as paid, a new payment will automatically be generated for the next month using the same amount and due on the lease\'s rental payment day.'
-                : 'When a recurring payment is marked as paid, a new payment will be generated for the next month with pending status. Staff must manually set the amount before sending it to the tenant.'
+                : 'When a recurring payment is marked as paid, a new payment will be generated for the next month with unset status. Staff must manually set the amount before sending it to the tenant.'
               }
             </p>
           </div>

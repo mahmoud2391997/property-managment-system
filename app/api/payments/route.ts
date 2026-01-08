@@ -131,7 +131,8 @@ export async function GET(request: NextRequest) {
             // Filter by DB status (Paid, Pending, Cancelled) if provided and not 'all'
             ...(statusFilter && statusFilter !== 'all' && ['Paid', 'Pending', 'Cancelled'].includes(statusFilter) && {
               status: statusFilter
-            })
+            }),
+            status: { not: 'Unset'}
           }
         : {
             leases: { tenant_id: tenant!.id },
@@ -145,7 +146,8 @@ export async function GET(request: NextRequest) {
             // Filter by DB status (Paid, Pending, Cancelled) if provided and not 'all'
             ...(statusFilter && statusFilter !== 'all' && ['Paid', 'Pending', 'Cancelled'].includes(statusFilter) && {
               status: statusFilter
-            })
+            }),
+            status: { not: 'Unset'}
           }
 
       // Fetch payments - for calculated statuses (Paid Late, Partially Paid, Overdue),
