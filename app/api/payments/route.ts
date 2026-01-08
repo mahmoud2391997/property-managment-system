@@ -76,10 +76,12 @@ const paymentSelect = {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET (request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user }
+    } = await supabase.auth.getUser()
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -122,37 +124,94 @@ export async function GET(request: NextRequest) {
             ...(search && {
               OR: [
                 { reference_id: { contains: search, mode: 'insensitive' } },
-                { leases: { is: { properties: { code: { contains: search, mode: 'insensitive' } } } } },
-                { leases: { is: { tenants: { individual_tenants: { first_name: { contains: search, mode: 'insensitive' } } } } } },
-                { leases: { is: { tenants: { individual_tenants: { last_name: { contains: search, mode: 'insensitive' } } } } } },
-                { leases: { is: { tenants: { company_tenants: { company_name: { contains: search, mode: 'insensitive' } } } } } }
+                {
+                  leases: {
+                    is: {
+                      properties: {
+                        code: { contains: search, mode: 'insensitive' }
+                      }
+                    }
+                  }
+                },
+                {
+                  leases: {
+                    is: {
+                      tenants: {
+                        individual_tenants: {
+                          first_name: { contains: search, mode: 'insensitive' }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  leases: {
+                    is: {
+                      tenants: {
+                        individual_tenants: {
+                          last_name: { contains: search, mode: 'insensitive' }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  leases: {
+                    is: {
+                      tenants: {
+                        company_tenants: {
+                          company_name: {
+                            contains: search,
+                            mode: 'insensitive'
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               ]
             }),
             // Filter by DB status (Paid, Pending, Cancelled) if provided and not 'all'
-            ...(statusFilter && statusFilter !== 'all' && ['Paid', 'Pending', 'Cancelled'].includes(statusFilter) && {
-              status: statusFilter
-            }),
-            status: { not: 'Unset'}
+            ...(statusFilter &&
+              statusFilter !== 'all' &&
+              ['Paid', 'Pending', 'Cancelled'].includes(statusFilter) && {
+                status: statusFilter
+              }),
+            status: { not: 'Unset' }
           }
         : {
             leases: { tenant_id: tenant!.id },
             ...(search && {
               OR: [
                 { reference_id: { contains: search, mode: 'insensitive' } },
-                { leases: { properties: { code: { contains: search, mode: 'insensitive' } } } },
-                { leases: { rooms: { title: { contains: search, mode: 'insensitive' } } } }
+                {
+                  leases: {
+                    properties: {
+                      code: { contains: search, mode: 'insensitive' }
+                    }
+                  }
+                },
+                {
+                  leases: {
+                    rooms: { title: { contains: search, mode: 'insensitive' } }
+                  }
+                }
               ]
             }),
             // Filter by DB status (Paid, Pending, Cancelled) if provided and not 'all'
-            ...(statusFilter && statusFilter !== 'all' && ['Paid', 'Pending', 'Cancelled'].includes(statusFilter) && {
-              status: statusFilter
-            }),
-            status: { not: 'Unset'}
+            ...(statusFilter &&
+              statusFilter !== 'all' &&
+              ['Paid', 'Pending', 'Cancelled'].includes(statusFilter) && {
+                status: statusFilter
+              }),
+            status: { not: 'Unset' }
           }
 
       // Fetch payments - for calculated statuses (Paid Late, Partially Paid, Overdue),
       // we need to fetch more data and filter on frontend after transformation
-      const needsFrontendFiltering = statusFilter && !['Paid', 'Pending', 'Cancelled', 'all'].includes(statusFilter)
+      const needsFrontendFiltering =
+        statusFilter &&
+        !['Paid', 'Pending', 'Cancelled', 'all'].includes(statusFilter)
 
       // If we need frontend filtering, fetch all matching records (without pagination)
       // Then apply pagination after filtering
@@ -161,12 +220,16 @@ export async function GET(request: NextRequest) {
           where: whereClause,
           select: paymentSelect,
           orderBy: { created_at: 'desc' },
-          ...(needsFrontendFiltering ? {} : {
-            skip: (page - 1) * limit,
-            take: limit
-          })
+          ...(needsFrontendFiltering
+            ? {}
+            : {
+                skip: (page - 1) * limit,
+                take: limit
+              })
         }),
-        skipCount ? Promise.resolve(-1) : prisma.payments.count({ where: whereClause })
+        skipCount
+          ? Promise.resolve(-1)
+          : prisma.payments.count({ where: whereClause })
       ])
 
       // Transform payments for display
@@ -174,11 +237,16 @@ export async function GET(request: NextRequest) {
 
       // Apply frontend filtering for calculated statuses
       if (needsFrontendFiltering) {
-        transformedPayments = transformedPayments.filter(payment => payment.status === statusFilter)
+        transformedPayments = transformedPayments.filter(
+          payment => payment.status === statusFilter
+        )
 
         // Apply pagination after filtering
         const startIndex = (page - 1) * limit
-        const paginatedPayments = transformedPayments.slice(startIndex, startIndex + limit)
+        const paginatedPayments = transformedPayments.slice(
+          startIndex,
+          startIndex + limit
+        )
 
         return NextResponse.json({
           success: true,
@@ -204,8 +272,8 @@ export async function GET(request: NextRequest) {
 
     // Build where clause - filter by property/room through leases relation
     const whereClause: any = staff
-      ? { organization_id: staff.organization_id }
-      : { leases: { tenant_id: tenant!.id } }
+      ? { organization_id: staff.organization_id, status: { not: 'Unset' } }
+      : { leases: { tenant_id: tenant!.id }, status: { not: 'Unset' } }
 
     // If propertyId provided, filter payments through leases -> property_id
     if (propertyId) {
@@ -238,6 +306,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(transformedPayments)
   } catch (error: any) {
     console.error('Error fetching payments:', error)
-    return NextResponse.json({ error: 'Failed to fetch payments' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to fetch payments' },
+      { status: 500 }
+    )
   }
 }

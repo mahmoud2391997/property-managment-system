@@ -177,33 +177,6 @@ export default function RecurringPaymentsTable({
         )
       }
     },
-
-    // Next Payment Date
-    {
-      accessorKey: 'next_payment_date',
-      header: () => <div className='text-left'>Next Payment</div>,
-      cell: ({ row }) => {
-        const { next_payment_date, is_active } = row.original
-
-        if (!is_active) {
-          return (
-            <div className='text-left texts-table-cell-secondary text-(--text-secondary)'>
-              —
-            </div>
-          )
-        }
-
-        return (
-          <div className='flex items-center gap-2'>
-            <Calendar size={14} className='text-(--text-secondary)' />
-            <span className='texts-table-cell-primary'>
-              {next_payment_date ? formatDate(new Date(next_payment_date)) : '—'}
-            </span>
-          </div>
-        )
-      }
-    },
-
     // Amount
     {
       accessorKey: 'amount',
@@ -436,21 +409,6 @@ export default function RecurringPaymentsTable({
 
         {/* Info Grid */}
         <div className='grid grid-cols-2 gap-3 pt-2 border-t border-(--border-default)'>
-          {/* Next Payment */}
-          <div className='flex items-start gap-2'>
-            <Calendar className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
-            <div className='min-w-0'>
-              <div className='texts-caption-small text-(--text-secondary)'>
-                Next Payment
-              </div>
-              <div className='texts-body-small-medium text-(--text-primary)'>
-                {config.is_active && config.next_payment_date
-                  ? formatDate(new Date(config.next_payment_date))
-                  : '—'}
-              </div>
-            </div>
-          </div>
-
           {/* Added On */}
           <div className='flex items-start gap-2'>
             <Calendar className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />

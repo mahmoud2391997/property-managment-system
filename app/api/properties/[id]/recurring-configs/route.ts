@@ -69,7 +69,8 @@ export async function GET(
         status: 'Current'
       },
       select: {
-        id: true
+        id: true,
+        payment_day: true
       },
       orderBy: {
         created_at: 'desc'
@@ -129,11 +130,25 @@ export async function GET(
       every: number | null,
       timeUnit: string | null,
       eventOn: string | null,
-      lastPaymentDate: Date | null
+      lastPaymentDate: Date | null,
+      paymentDay: number | null
     ): string | null => {
-      // If every or timeUnit is null, we can't calculate (new recurring payment model)
+      // If every or timeUnit is null, calculate based on payment_day (new recurring payment model)
       if (every === null || timeUnit === null) {
-        return null
+        if (!paymentDay || !lastPaymentDate) {
+          return null
+        }
+
+        // Calculate next month's payment based on last payment date and payment_day
+        const currentPaymentDate = new Date(lastPaymentDate)
+        const nextMonth = currentPaymentDate.getMonth() + 1
+        const nextYear = nextMonth > 11 ? currentPaymentDate.getFullYear() + 1 : currentPaymentDate.getFullYear()
+        const adjustedMonth = nextMonth % 12
+
+        const nextPaymentDate = new Date(nextYear, adjustedMonth, paymentDay)
+        nextPaymentDate.setHours(0, 0, 0, 0)
+
+        return nextPaymentDate.toISOString()
       }
       const now = new Date()
       const baseDate = lastPaymentDate || now
@@ -266,7 +281,7 @@ export async function GET(
         is_active: config.is_active,
         created_at: config.created_at.toISOString(),
         next_payment_date: config.is_active
-          ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastPaymentDate)
+          ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastPaymentDate, currentLease.payment_day)
           : null,
         amount,
         payment_type: latestPayment?.type || null,
@@ -341,7 +356,7 @@ export async function GET(
         is_active: config.is_active,
         created_at: config.created_at.toISOString(),
         next_payment_date: config.is_active
-          ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastExpenseDate)
+          ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastExpenseDate, null)
           : null,
         amount,
         payment_type: latestExpense?.type || null, // expense_type
