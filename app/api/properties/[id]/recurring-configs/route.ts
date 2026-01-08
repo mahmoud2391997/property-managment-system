@@ -2,11 +2,25 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
 
+export type RecurringPaymentDetails = {
+  id: string
+  reference_id: string
+  type: string
+  status: string
+  due_date: string | null
+  amount: number
+  charges: {
+    title: string
+    amount: number
+    is_taxed: boolean
+  }[]
+}
+
 export type RecurringConfigWithDetails = {
   id: string
   title: string
-  every: number
-  time_unit: string
+  every: number | null
+  time_unit: string | null
   event_on: string | null
   is_payment_fixed: boolean
   is_active: boolean
@@ -14,6 +28,8 @@ export type RecurringConfigWithDetails = {
   next_payment_date: string | null
   amount: number | null // null if not fixed (determined by staff)
   payment_type: string | null
+  payments_count: number
+  payments: RecurringPaymentDetails[]
 }
 
 export async function GET(
@@ -53,7 +69,8 @@ export async function GET(
         status: 'Current'
       },
       select: {
-        id: true
+        id: true,
+        payment_day: true
       },
       orderBy: {
         created_at: 'desc'
@@ -85,19 +102,22 @@ export async function GET(
         payments: {
           select: {
             id: true,
+            reference_id: true,
             type: true,
+            status: true,
             due_payment_timestamp: true,
+            created_at: true,
             charges: {
               select: {
                 amount: true,
-                is_taxed: true
+                is_taxed: true,
+                title: true
               }
             }
           },
           orderBy: {
             due_payment_timestamp: 'desc'
-          },
-          take: 1 // Get latest payment to determine type and amount
+          }
         }
       },
       orderBy: {
@@ -107,11 +127,29 @@ export async function GET(
 
     // Calculate next payment date based on recurring config
     const calculateNextPaymentDate = (
-      every: number,
-      timeUnit: string,
+      every: number | null,
+      timeUnit: string | null,
       eventOn: string | null,
-      lastPaymentDate: Date | null
+      lastPaymentDate: Date | null,
+      paymentDay: number | null
     ): string | null => {
+      // If every or timeUnit is null, calculate based on payment_day (new recurring payment model)
+      if (every === null || timeUnit === null) {
+        if (!paymentDay || !lastPaymentDate) {
+          return null
+        }
+
+        // Calculate next month's payment based on last payment date and payment_day
+        const currentPaymentDate = new Date(lastPaymentDate)
+        const nextMonth = currentPaymentDate.getMonth() + 1
+        const nextYear = nextMonth > 11 ? currentPaymentDate.getFullYear() + 1 : currentPaymentDate.getFullYear()
+        const adjustedMonth = nextMonth % 12
+
+        const nextPaymentDate = new Date(nextYear, adjustedMonth, paymentDay)
+        nextPaymentDate.setHours(0, 0, 0, 0)
+
+        return nextPaymentDate.toISOString()
+      }
       const now = new Date()
       const baseDate = lastPaymentDate || now
 
@@ -210,6 +248,29 @@ export async function GET(
 
       const lastPaymentDate = latestPayment?.due_payment_timestamp || null
 
+      // Transform all payments under this config
+      const payments = config.payments.map(payment => {
+        const totalAmount = payment.charges.reduce((sum, charge) => {
+          const chargeAmount = charge.amount.toNumber()
+          const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
+          return sum + chargeAmount + tax
+        }, 0)
+
+        return {
+          id: payment.id,
+          reference_id: payment.reference_id,
+          type: payment.type,
+          status: payment.status,
+          due_date: payment.due_payment_timestamp?.toISOString() || null,
+          amount: totalAmount,
+          charges: payment.charges.map(charge => ({
+            title: charge.title,
+            amount: charge.amount.toNumber(),
+            is_taxed: charge.is_taxed
+          }))
+        }
+      })
+
       return {
         id: config.id,
         title: config.title,
@@ -220,10 +281,12 @@ export async function GET(
         is_active: config.is_active,
         created_at: config.created_at.toISOString(),
         next_payment_date: config.is_active
-          ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastPaymentDate)
+          ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastPaymentDate, currentLease.payment_day)
           : null,
         amount,
-        payment_type: latestPayment?.type || null
+        payment_type: latestPayment?.type || null,
+        payments_count: config.payments.length,
+        payments
       }
     })
 
@@ -267,6 +330,7 @@ export async function GET(
     })
 
     // Transform recurring configs for expenses
+    // TODO: Update to include full expense details like payments when needed
     const recurringExpenses: RecurringConfigWithDetails[] = expenseRecurringConfigs.map(config => {
       const latestExpense = config.expenses[0]
 
@@ -292,10 +356,12 @@ export async function GET(
         is_active: config.is_active,
         created_at: config.created_at.toISOString(),
         next_payment_date: config.is_active
-          ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastExpenseDate)
+          ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastExpenseDate, null)
           : null,
         amount,
-        payment_type: latestExpense?.type || null // expense_type
+        payment_type: latestExpense?.type || null, // expense_type
+        payments_count: 0, // TODO: Update when implementing expenses
+        payments: [] // TODO: Update when implementing expenses
       }
     })
 

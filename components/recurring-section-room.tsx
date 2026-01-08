@@ -6,7 +6,6 @@ import TableSectionSkeleton from './loading-ui/table-section-skeleton'
 import RecurringPaymentsTable from './tables/recurring-payments-table'
 import { RecurringConfigWithDetails } from '@/app/api/properties/[id]/recurring-configs/route'
 import { Repeat } from 'lucide-react'
-import { SectionUnderDevelopment } from './costume-ui/under-development'
 
 type Props = {
   roomId: string
@@ -60,12 +59,11 @@ export default function RecurringSectionRoom({ roomId }: Props) {
       </div>
 
       {/* Table */}
-      {/* <RecurringPaymentsTable
+      <RecurringPaymentsTable
         data={recurringPayments}
         onRefresh={fetchRecurringConfigs}
         className='-mx-5! rounded-none! border-x-0'
-      /> */}
-      <SectionUnderDevelopment />
+      />
     </div>
   )
 }

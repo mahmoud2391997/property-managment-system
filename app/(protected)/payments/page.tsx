@@ -8,6 +8,8 @@ import { PaymentsPageWrapper } from '@/components/payments-page-wrapper'
 import PaymentsSection from '@/components/sections/payments-section'
 import { transformPayment, PaymentWithDetails } from '@/lib/payments-utils'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
+import { payment_status } from '@prisma/client'
+
 
 const PAGE_SIZE = 10
 
@@ -82,10 +84,16 @@ const paymentSelect = {
   }
 }
 
-async function getPayments(): Promise<{ data: PaymentWithDetails[]; total: number; userType: 'staff' | 'tenant' }> {
+async function getPayments (): Promise<{
+  data: PaymentWithDetails[]
+  total: number
+  userType: 'staff' | 'tenant'
+}> {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user }
+    } = await supabase.auth.getUser()
 
     if (!user) {
       return { data: [], total: 0, userType: 'staff' }
@@ -110,8 +118,8 @@ async function getPayments(): Promise<{ data: PaymentWithDetails[]; total: numbe
     const userType = staff ? 'staff' : 'tenant'
 
     const whereClause = staff
-      ? { organization_id: staff.organization_id }
-      : { leases: { tenant_id: tenant!.id } }
+      ? { organization_id: staff.organization_id, status: { not: payment_status.Unset } }
+      : { leases: { tenant_id: tenant!.id }, status: { not: payment_status.Unset } }
 
     // Fetch first page of payments and total count in parallel
     const [payments, total] = await Promise.all([
@@ -136,7 +144,11 @@ async function getPayments(): Promise<{ data: PaymentWithDetails[]; total: numbe
 }
 
 const Payments = async () => {
-  const { data: initialData, total: initialTotal, userType } = await getPayments()
+  const {
+    data: initialData,
+    total: initialTotal,
+    userType
+  } = await getPayments()
 
   return (
     <Suspense fallback={<TablePageSkeleton />}>

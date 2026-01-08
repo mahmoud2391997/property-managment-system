@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import { UserAvatar } from './costume-ui/name-avatar'
 import NotificationsSkeleton from './loading-ui/notifications-skeleton'
+import { useNotifications } from '@/contexts/notification-context'
 
 type FilterType = 'all' | 'unread' | 'read'
 
@@ -17,6 +18,7 @@ export default function NotificationsSection () {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<FilterType>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const { markAllAsRead: markAllAsReadInContext, refetch: refetchUnreadCount } = useNotifications()
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -34,13 +36,26 @@ export default function NotificationsSection () {
 
   const markAllAsRead = useCallback(async () => {
     try {
-      await fetch('/api/notifications', { method: 'PATCH' })
+      // First, optimistically update the context to hide the red dot immediately
+      markAllAsReadInContext()
+
+      // Then mark as read in the database
+      const response = await fetch('/api/notifications', { method: 'PATCH' })
+      if (!response.ok) {
+        throw new Error('Failed to mark notifications as read')
+      }
+
       // Update local state
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+
+      // Refetch the count from the server to ensure accuracy
+      await refetchUnreadCount()
     } catch (error) {
       console.error('Error marking notifications as read:', error)
+      // On error, refetch to restore correct state
+      await refetchUnreadCount()
     }
-  }, [])
+  }, [markAllAsReadInContext, refetchUnreadCount])
 
   useEffect(() => {
     fetchNotifications()
@@ -174,10 +189,16 @@ export default function NotificationsSection () {
               // For tickets, navigate to the detail page with reference_id
               const getNavigationUrl = () => {
                 if (!notification.page) return '/'
-                if (notification.page === 'tickets' && notification.reference_id) {
+                if (
+                  notification.page === 'tickets' &&
+                  notification.reference_id
+                ) {
                   return `/tickets/${notification.reference_id}`
                 }
-                return `/${notification.page}`
+                // If page already starts with '/', use as-is, otherwise prepend '/'
+                return notification.page.startsWith('/')
+                  ? notification.page
+                  : `/${notification.page}`
               }
 
               const content = (
@@ -185,16 +206,20 @@ export default function NotificationsSection () {
                   className={cn(
                     'flex items-start gap-4 py-5 px-4 -mx-4',
                     'transition-colors duration-150',
-                    hasPage && 'hover:bg-(--background-secondary) cursor-pointer',
+                    hasPage &&
+                      'hover:bg-(--background-secondary) cursor-pointer',
                     index === 0 && 'pt-3'
                   )}
                 >
                   {/* Avatar */}
-                  <UserAvatar
-                    name={notification.performer_name || 'System'}
-                    imgSrc={notification.performer_picture || undefined}
-                    size={44}
-                  />
+
+                  {notification.performer_type !== 'system' && (
+                    <UserAvatar
+                      name={notification.performer_name || 'Not Found'}
+                      imgSrc={notification.performer_picture || undefined}
+                      size={44}
+                    />
+                  )}
 
                   {/* Content */}
                   <div className='flex-1 min-w-0'>
@@ -212,9 +237,12 @@ export default function NotificationsSection () {
                           {notification.message}
                         </p>
                         <p className='texts-label-small text-neutral-400 mt-2'>
-                          {formatDistanceToNow(new Date(notification.created_at), {
-                            addSuffix: true
-                          })}
+                          {formatDistanceToNow(
+                            new Date(notification.created_at),
+                            {
+                              addSuffix: true
+                            }
+                          )}
                         </p>
                       </div>
 

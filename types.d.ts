@@ -262,6 +262,7 @@ export type Notification = {
   is_read: boolean
   created_at: string // ISO Timestamp
   page: string | null // Page to navigate to
+  performer_type: 'staff' | 'tenant' | 'system'
   performer_name: string | null
   performer_picture: string | null
 }

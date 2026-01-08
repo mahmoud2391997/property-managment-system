@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { getBillWithTransaction } from '@/lib/billplz'
+import { handleRecurringPaymentGeneration } from '@/lib/recurring-payments-utils'
 
 /**
  * Check payment status by fetching bill details from Billplz API
@@ -128,6 +129,7 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             reference_id: true,
+            organization_id: true,
             charges: {
               select: {
                 amount: true,
@@ -146,6 +148,7 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             reference_id: true,
+            organization_id: true,
             charges: {
               select: {
                 amount: true,
@@ -362,6 +365,18 @@ export async function POST(request: NextRequest) {
       select: { paid_at: true }
     })
 
+    // After successful payment, check if this is a recurring payment and generate next one
+    let recurringPaymentGenerated = false
+    if (paymentPercentage >= 100) {
+      try {
+        await handleRecurringPaymentGeneration(actualPaymentId, payment.organization_id)
+        recurringPaymentGenerated = true
+      } catch (recurringError) {
+        // Log error but don't fail the payment check
+        console.error('Error generating recurring payment:', recurringError)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Payment verified and recorded',
@@ -369,6 +384,7 @@ export async function POST(request: NextRequest) {
       amount_paid: paidAmount,
       payment_percentage: paymentPercentage,
       newly_recorded: true,
+      recurring_payment_generated: recurringPaymentGenerated,
       updated_payment: {
         id: payment.reference_id,
         payment_percentage: paymentPercentage,

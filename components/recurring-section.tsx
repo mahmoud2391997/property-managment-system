@@ -91,20 +91,21 @@ export default function RecurringSection({ propertyId }: Props) {
       </div>
 
       {/* Content based on selected tab */}
-      {/* {selectedIndex === 0 ? (
+      {selectedIndex === 0 ? (
         <RecurringPaymentsTable
           data={recurringPayments}
           onRefresh={fetchRecurringConfigs}
           className='-mx-5! rounded-none! border-x-0'
         />
       ) : (
-        <RecurringExpensesTable
-          data={recurringExpenses}
-          onRefresh={fetchRecurringConfigs}
-          className='-mx-5! rounded-none! border-x-0'
-        />
-      )} */}
-      <SectionUnderDevelopment />
+        // <RecurringExpensesTable
+        //   data={recurringExpenses}
+        //   onRefresh={fetchRecurringConfigs}
+        //   className='-mx-5! rounded-none! border-x-0'
+        // />
+        <SectionUnderDevelopment />
+      )}
+      
     </div>
   )
 }

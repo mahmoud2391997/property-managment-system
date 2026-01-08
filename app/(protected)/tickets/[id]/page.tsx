@@ -213,8 +213,19 @@ async function getTicketData(ticketId: string) {
     }
   }
 
+  // Serialize ticket data to convert Decimal types to strings
+  const serializedTicket = JSON.parse(
+    JSON.stringify(ticket, (key, value) => {
+      // Convert Decimal to string
+      if (value && typeof value === 'object' && value.constructor && value.constructor.name === 'Decimal') {
+        return value.toString()
+      }
+      return value
+    })
+  )
+
   return {
-    ticket,
+    ticket: serializedTicket,
     userType: userType as 'staff' | 'tenant',
     staffList,
     currentUserName,

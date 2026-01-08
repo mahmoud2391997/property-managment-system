@@ -106,6 +106,7 @@ export async function GET () {
         is_read: n.is_read ?? false,
         created_at: n.created_at?.toISOString() ?? new Date().toISOString(),
         page: n.page,
+        performer_type: n.performer_type,
         performer_name: performerName,
         performer_picture: performerPicture
       }

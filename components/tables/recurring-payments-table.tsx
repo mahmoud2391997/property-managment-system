@@ -6,11 +6,12 @@ import {
   Repeat,
   Calendar,
   CircleCheck,
-  CircleX,
   CirclePause,
   Play,
   Pause,
-  Trash2
+  Trash2,
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -28,6 +29,7 @@ import { formatDate } from '@/utils/formatTime'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { Table } from '../costume-ui/table'
 import { RecurringConfigWithDetails } from '@/app/api/properties/[id]/recurring-configs/route'
+import RecurringPaymentsNestedTable from './recurring-payments-nested-table'
 
 type Props = {
   data: RecurringConfigWithDetails[]
@@ -42,10 +44,15 @@ export default function RecurringPaymentsTable({
 }: Props) {
   // Format recurring pattern description
   const formatRecurringPattern = (
-    every: number,
-    timeUnit: string,
+    every: number | null,
+    timeUnit: string | null,
     eventOn: string | null
   ): string => {
+    // New recurring model: monthly with rental payment
+    if (every === null || timeUnit === null) {
+      return 'Monthly with rental payment'
+    }
+
     let description = `Every ${every} ${timeUnit.toLowerCase()}${every > 1 ? 's' : ''}`
 
     if (timeUnit === 'Week' && eventOn) {
@@ -84,16 +91,56 @@ export default function RecurringPaymentsTable({
       enableHiding: false
     },
 
+    // Expand
+    {
+      id: 'expand',
+      header: () => null,
+      cell: ({ row }) => {
+        const hasPayments = row.original.payments_count > 0
+
+        if (!hasPayments) {
+          return null
+        }
+
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => row.toggleExpanded()}
+            className="h-6 w-6 p-0"
+          >
+            {row.getIsExpanded() ? (
+              <ChevronDown strokeWidth={1.5} className='h-6! w-6!' />
+            ) : (
+              <ChevronRight strokeWidth={1.5} className='h-6! w-6!' />
+            )}
+          </Button>
+        )
+      },
+      enableSorting: false,
+      enableHiding: false
+    },
+
     // Title & Payment Type
     {
       accessorKey: 'title',
       header: () => <div className='text-left'>Recurring Event</div>,
       cell: ({ row }) => {
-        const { title, payment_type } = row.original
+        const { title, payment_type, payments_count } = row.original
 
         return (
           <div>
-            <div className='text-left texts-table-cell-primary'>{title}</div>
+            <div className='flex items-center gap-2 text-left texts-table-cell-primary'>
+              <span>{title}</span>
+              {payments_count > 0 && (
+                <span className={cn(
+                  'px-2 py-0.5 rounded-full text-xs font-medium',
+                  'bg-(--info-light) text-(--info-main)'
+                )}>
+                  {payments_count}
+                </span>
+              )}
+            </div>
             {payment_type && (
               <div className='text-left texts-table-cell-secondary text-(--text-secondary)'>
                 {payment_type.replace(/_/g, ' ')}
@@ -130,33 +177,6 @@ export default function RecurringPaymentsTable({
         )
       }
     },
-
-    // Next Payment Date
-    {
-      accessorKey: 'next_payment_date',
-      header: () => <div className='text-left'>Next Payment</div>,
-      cell: ({ row }) => {
-        const { next_payment_date, is_active } = row.original
-
-        if (!is_active) {
-          return (
-            <div className='text-left texts-table-cell-secondary text-(--text-secondary)'>
-              —
-            </div>
-          )
-        }
-
-        return (
-          <div className='flex items-center gap-2'>
-            <Calendar size={14} className='text-(--text-secondary)' />
-            <span className='texts-table-cell-primary'>
-              {next_payment_date ? formatDate(new Date(next_payment_date)) : '—'}
-            </span>
-          </div>
-        )
-      }
-    },
-
     // Amount
     {
       accessorKey: 'amount',
@@ -389,21 +409,6 @@ export default function RecurringPaymentsTable({
 
         {/* Info Grid */}
         <div className='grid grid-cols-2 gap-3 pt-2 border-t border-(--border-default)'>
-          {/* Next Payment */}
-          <div className='flex items-start gap-2'>
-            <Calendar className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
-            <div className='min-w-0'>
-              <div className='texts-caption-small text-(--text-secondary)'>
-                Next Payment
-              </div>
-              <div className='texts-body-small-medium text-(--text-primary)'>
-                {config.is_active && config.next_payment_date
-                  ? formatDate(new Date(config.next_payment_date))
-                  : '—'}
-              </div>
-            </div>
-          </div>
-
           {/* Added On */}
           <div className='flex items-start gap-2'>
             <Calendar className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
@@ -430,6 +435,17 @@ export default function RecurringPaymentsTable({
           data={data}
           className={className}
           emptyMessage='No recurring payments configured for this property.'
+          getRowCanExpand={(row) => row.original.payments_count > 0}
+          getRowId={(row) => row.id}
+          renderSubComponent={(row) => (
+            <RecurringPaymentsNestedTable
+              key={`nested-${row.original.id}`}
+              configId={row.original.id}
+              payments={row.original.payments}
+              isExpanded={row.getIsExpanded()}
+              onRefresh={onRefresh}
+            />
+          )}
         />
       </div>
 
