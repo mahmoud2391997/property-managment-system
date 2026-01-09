@@ -18,12 +18,19 @@ export function PaymentsPageWrapper({ children }: Props) {
   useEffect(() => {
     const shouldCheck = searchParams.get('payment_check')
     const paymentId = searchParams.get('payment_id')
+    const isGroupPayment = searchParams.get('group_payment')
 
     // Only check once, even if component re-renders
-    if (shouldCheck === 'true' && paymentId && !hasCheckedRef.current) {
+    if (shouldCheck === 'true' && !hasCheckedRef.current) {
       hasCheckedRef.current = true
-      // Auto-trigger payment check
-      checkPaymentStatus(paymentId)
+
+      if (isGroupPayment === 'true') {
+        // Auto-trigger group payment check
+        checkGroupPaymentStatus()
+      } else if (paymentId) {
+        // Auto-trigger single payment check
+        checkPaymentStatus(paymentId)
+      }
     }
   }, [searchParams])
 
@@ -92,8 +99,6 @@ export function PaymentsPageWrapper({ children }: Props) {
 
       if (result.success) {
         setIsProcessing(false)
-        // Clear URL params immediately to prevent re-checking on reload
-        clearUrlParams()
 
         if (result.already_recorded) {
           await Swal.fire({
@@ -113,6 +118,9 @@ export function PaymentsPageWrapper({ children }: Props) {
 
         // Clean up localStorage after successful payment
         localStorage.removeItem(`pending_bill_${paymentUuid}`)
+
+        // Clear URL params synchronously before any navigation
+        window.history.replaceState({}, '', '/payments')
 
         // Emit custom event with updated payment data to update the table
         if (result.updated_payment) {
@@ -149,6 +157,96 @@ export function PaymentsPageWrapper({ children }: Props) {
     }
   }
 
+  const checkGroupPaymentStatus = async () => {
+    try {
+      setIsProcessing(true)
+
+      // Call API to check group payment status
+      const response = await fetch('/api/payments/check-group-status', {
+        method: 'POST'
+      })
+
+      const result = await response.json()
+
+      // Handle payment failed
+      if (!response.ok && result.payment_failed) {
+        setIsProcessing(false)
+        clearUrlParams()
+        await Swal.fire({
+          icon: 'error',
+          title: 'Payment Failed',
+          text: result.message || 'Group payment failed due to an issue with the payment gateway. Please try again.',
+          confirmButtonColor: '#ef4444'
+        })
+        router.refresh()
+        return
+      }
+
+      // Handle payment not completed
+      if (!response.ok && result.payment_not_completed) {
+        setIsProcessing(false)
+        clearUrlParams()
+        await Swal.fire({
+          icon: 'info',
+          title: 'Payment Not Completed',
+          text: result.message || 'Group payment not completed yet. Please try making payment again.',
+          confirmButtonColor: '#3085d6'
+        })
+        router.refresh()
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to check group payment status')
+      }
+
+      if (result.success) {
+        setIsProcessing(false)
+
+        if (result.already_recorded) {
+          await Swal.fire({
+            icon: 'info',
+            title: 'Already Recorded',
+            text: `Group payment for ${result.payment_count} payment(s) was already recorded!`,
+            confirmButtonColor: '#3085d6'
+          })
+        } else if (result.newly_recorded) {
+          await Swal.fire({
+            icon: 'success',
+            title: 'Payment Successful!',
+            text: `Your group payment for ${result.payment_count} payment(s) has been recorded successfully.`,
+            confirmButtonColor: '#10b981'
+          })
+        }
+
+        // Clear URL params synchronously before reloading
+        window.history.replaceState({}, '', '/payments')
+
+        // Reload page to show updated payments
+        window.location.reload()
+      } else {
+        setIsProcessing(false)
+        clearUrlParams()
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Payment Not Completed',
+          text: 'Please complete your group payment.',
+          confirmButtonColor: '#f59e0b'
+        })
+      }
+    } catch (error: any) {
+      console.error('Error checking group payment status:', error)
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: `Failed to check group payment status: ${error.message}`,
+        confirmButtonColor: '#ef4444'
+      })
+      clearUrlParams()
+      setIsProcessing(false)
+    }
+  }
+
   const clearUrlParams = () => {
     router.replace('/payments')
   }
@@ -156,7 +254,7 @@ export function PaymentsPageWrapper({ children }: Props) {
   return (
     <>
       {isProcessing && <LoadingOverlay state='processing' />}
-      
+
       {children}
     </>
   )

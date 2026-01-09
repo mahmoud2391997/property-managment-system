@@ -6,6 +6,7 @@ import { Building2, Calendar } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Table } from '../costume-ui/table'
 import { cn } from '@/lib/utils'
+import MobileCardContainer from '../costume-ui/mobile-card-container'
 
 export type RentalWithDetails = {
   id: string
@@ -173,10 +174,7 @@ const RentalCard = ({ rental }: { rental: RentalWithDetails }) => {
   const endDate = calculateEndDate(rental.start_date, rental.number_of_months)
 
   return (
-    <div className={cn(
-      'bg-(--background-primary) rounded-xl border border-(--border-default)',
-      'p-4 space-y-3'
-    )}>
+    <MobileCardContainer>
       {/* Header: ID & Status */}
       <div className='flex items-start justify-between'>
         <div className='flex-1'>
@@ -244,7 +242,7 @@ const RentalCard = ({ rental }: { rental: RentalWithDetails }) => {
           </span>
         </div>
       </div>
-    </div>
+    </MobileCardContainer>
   )
 }
 

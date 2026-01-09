@@ -200,18 +200,19 @@ export async function POST(
       }
     })
 
-    // If there's a pending bill less than 24 hours old, check its status first
+    // If there's a pending bill, check its status first
     if (pendingBillHistory?.billplz_bill_id) {
-      const billAge = Date.now() - new Date(pendingBillHistory.paid_at).getTime()
-      const hoursOld = billAge / (1000 * 60 * 60)
+      try {
+        const { getBillWithTransaction } = await import('@/lib/billplz')
+        const billDetails = await getBillWithTransaction(pendingBillHistory.billplz_bill_id)
 
-      if (hoursOld < 24) {
-        try {
-          const { getBill } = await import('@/lib/billplz')
-          const billDetails = await getBill(pendingBillHistory.billplz_bill_id)
-
-          // If the bill is already paid, redirect to check status instead
-          if (billDetails.paid && billDetails.state === 'paid') {
+        // If the bill is already paid, redirect to check status
+        if (billDetails.paid && billDetails.state === 'paid') {
+          // SECURITY: Verify transaction ID exists for legitimate payment
+          if (!billDetails.transaction_id) {
+            console.error('⚠️ Bill marked as paid but no transaction_id - treating as suspicious')
+            // Continue to create new bill instead
+          } else {
             return NextResponse.json({
               redirect_to_check: true,
               message: 'A payment was already made. Please check payment status.',
@@ -219,7 +220,7 @@ export async function POST(
               payment_id: payment.id
             }, { status: 200 })
           }
-
+        } else if (billDetails.state === 'due') {
           // If bill exists but not paid, return existing bill URL
           return NextResponse.json({
             success: true,
@@ -229,10 +230,11 @@ export async function POST(
             amount: remainingAmount,
             existing_bill: true
           })
-        } catch (error) {
-          console.error('Error checking existing bill:', error)
-          // Continue to create new bill if check fails
         }
+        // If bill state is failed or other, continue to create new bill
+      } catch (error) {
+        console.error('Error checking existing bill:', error)
+        // Continue to create new bill if check fails
       }
     }
 

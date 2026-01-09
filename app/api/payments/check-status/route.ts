@@ -165,27 +165,64 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fetch bill details from Billplz
-    const billDetails = await getBillWithTransaction(actualBillId)
-
-    // Verify bill belongs to this payment
-    if (billDetails.reference_2 !== actualPaymentId) {
-      return NextResponse.json(
-        { error: 'Bill does not belong to this payment' },
-        { status: 400 }
-      )
-    }
-
-    // Check if this payment record exists (should exist as Pending from create-bill)
-    const existingHistory = await prisma.payment_history.findFirst({
+    // Check if this payment record(s) exist (should exist as Pending from create-bill or create-group-bill)
+    const existingHistoryRecords = await prisma.payment_history.findMany({
       where: {
         billplz_bill_id: actualBillId
       }
     })
 
+    if (existingHistoryRecords.length === 0) {
+      return NextResponse.json({
+        success: false,
+        no_payment_made: true,
+        message: 'No payment has been made yet for this bill.'
+      })
+    }
+
+    // Check if this is a group payment
+    const isGroupPayment = existingHistoryRecords[0]?.group_payment || false
+    const existingHistory = existingHistoryRecords[0]
+
+    // Fetch bill details from Billplz
+    const billDetails = await getBillWithTransaction(actualBillId)
+
+    // Verify bill belongs to this payment
+    if (isGroupPayment) {
+      // For group payments, verify this payment is part of the group
+      const isPartOfGroup = existingHistoryRecords.some(
+        record => record.payment_id === actualPaymentId
+      )
+      if (!isPartOfGroup) {
+        return NextResponse.json(
+          { error: 'This payment does not belong to this group bill' },
+          { status: 400 }
+        )
+      }
+    } else {
+      // For single payments, verify reference_2 matches
+      if (billDetails.reference_2 !== actualPaymentId) {
+        return NextResponse.json(
+          { error: 'Bill does not belong to this payment' },
+          { status: 400 }
+        )
+      }
+    }
+
     // If already marked as Success, return early with updated payment data
-    if (existingHistory && existingHistory.status === 'Success') {
-      // Calculate payment percentage
+    if (existingHistoryRecords.every(record => record.status === 'Success')) {
+      if (isGroupPayment) {
+        // For group payments, return group payment response
+        return NextResponse.json({
+          success: true,
+          already_recorded: true,
+          message: `Group payment for ${existingHistoryRecords.length} payment(s) already recorded`,
+          is_group_payment: true,
+          payment_count: existingHistoryRecords.length
+        })
+      }
+
+      // For single payments, calculate payment percentage
       const totalAmount = payment.charges.reduce((sum, charge) => {
         const amount = charge.amount.toNumber()
         const tax = charge.is_taxed ? amount * 0.08 : 0
@@ -233,19 +270,17 @@ export async function POST(request: NextRequest) {
     // Case 1: Payment is marked as 'paid' in Billplz
     if (billDetails.paid && billDetails.state === 'paid') {
       // SECURITY: Verify transaction ID exists for legitimate payment
-      // If payment is marked as paid but no transaction ID, mark as Failed
+      // If payment is marked as paid but no transaction ID, mark ALL as Failed
       if (!billDetails.transaction_id) {
         console.error('⚠️ Payment marked as paid but no transaction_id from Billplz API - marking as Failed')
 
-        if (existingHistory) {
-          await prisma.payment_history.update({
-            where: { id: existingHistory.id },
-            data: {
-              status: 'Failed',
-              paid_at: new Date()
-            }
-          })
-        }
+        await prisma.payment_history.updateMany({
+          where: { billplz_bill_id: actualBillId },
+          data: {
+            status: 'Failed',
+            paid_at: new Date()
+          }
+        })
 
         return NextResponse.json({
           success: false,
@@ -267,16 +302,17 @@ export async function POST(request: NextRequest) {
     }
     // Case 3: Payment state is 'failed' or any other failure state
     else {
-      // Mark as Failed in database if pending
-      if (existingHistory && existingHistory.status === 'Pending') {
-        await prisma.payment_history.update({
-          where: { id: existingHistory.id },
-          data: {
-            status: 'Failed',
-            paid_at: new Date()
-          }
-        })
-      }
+      // Mark ALL pending payment_history records as Failed
+      await prisma.payment_history.updateMany({
+        where: {
+          billplz_bill_id: actualBillId,
+          status: 'Pending'
+        },
+        data: {
+          status: 'Failed',
+          paid_at: new Date()
+        }
+      })
 
       return NextResponse.json({
         success: false,
@@ -288,6 +324,102 @@ export async function POST(request: NextRequest) {
     // Convert paid amount from cents to RM
     const paidAmount = billDetails.paid_amount / 100
 
+    // Handle GROUP PAYMENT - Update ALL records and process each payment
+    if (isGroupPayment) {
+      // Update ALL payment_history records with this billplz_bill_id to Success
+      await prisma.payment_history.updateMany({
+        where: { billplz_bill_id: actualBillId },
+        data: {
+          status: 'Success',
+          paid_at: new Date(),
+          billplz_transaction_id: billDetails.transaction_id
+        }
+      })
+
+      // Process each payment to update status and generate recurring payments
+      const processedPayments = []
+      let totalRecurringGenerated = 0
+
+      for (const historyRecord of existingHistoryRecords) {
+        const paymentData = await prisma.payments.findUnique({
+          where: { id: historyRecord.payment_id! },
+          select: {
+            id: true,
+            reference_id: true,
+            organization_id: true,
+            charges: {
+              select: {
+                amount: true,
+                is_taxed: true
+              }
+            }
+          }
+        })
+
+        if (!paymentData) continue
+
+        // Calculate total amount for this payment
+        const totalAmount = paymentData.charges.reduce((sum, charge) => {
+          const amount = charge.amount.toNumber()
+          const tax = charge.is_taxed ? amount * 0.08 : 0
+          return sum + amount + tax
+        }, 0)
+
+        // Get all previous SUCCESSFUL payments for this payment
+        const previousPayments = await prisma.payment_history.findMany({
+          where: {
+            payment_id: paymentData.id,
+            status: 'Success'
+          },
+          select: { amount: true }
+        })
+
+        const totalPaid = previousPayments.reduce(
+          (sum, h) => sum + h.amount.toNumber(),
+          0
+        )
+
+        const paymentPercentage = Math.min(
+          Math.round((totalPaid / totalAmount) * 100),
+          100
+        )
+
+        // Update payment status if fully paid
+        if (paymentPercentage >= 100) {
+          await prisma.payments.update({
+            where: { id: paymentData.id },
+            data: { status: 'Paid' }
+          })
+
+          // Generate recurring payment if applicable
+          try {
+            await handleRecurringPaymentGeneration(paymentData.id, paymentData.organization_id)
+            totalRecurringGenerated++
+          } catch (recurringError) {
+            console.error(`Error generating recurring payment for ${paymentData.id}:`, recurringError)
+          }
+        }
+
+        processedPayments.push({
+          payment_id: paymentData.reference_id,
+          payment_percentage: paymentPercentage
+        })
+      }
+
+      console.log(`Group payment status checked and recorded: ${processedPayments.length} payment(s)`)
+
+      return NextResponse.json({
+        success: true,
+        message: `Group payment for ${processedPayments.length} payment(s) verified and recorded`,
+        newly_recorded: true,
+        is_group_payment: true,
+        payment_count: processedPayments.length,
+        processed_payments: processedPayments,
+        recurring_payments_generated: totalRecurringGenerated
+      })
+    }
+
+    // Handle SINGLE PAYMENT - Original logic
     // Calculate total amount
     const totalAmount = payment.charges.reduce((sum, charge) => {
       const amount = charge.amount.toNumber()

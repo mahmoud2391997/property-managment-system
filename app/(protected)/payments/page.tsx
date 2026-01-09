@@ -9,6 +9,7 @@ import PaymentsSection from '@/components/sections/payments-section'
 import { transformPayment, PaymentWithDetails } from '@/lib/payments-utils'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
 import { payment_status } from '@prisma/client'
+import { PaymentSummary } from '@/components/costume-ui/payall-ui'
 
 
 const PAGE_SIZE = 10
@@ -163,7 +164,9 @@ const Payments = async () => {
             initialTotal={initialTotal}
             userType={userType}
           />
+          {userType === 'tenant' && <PaymentSummary />}
         </div>
+
       </PaymentsPageWrapper>
     </Suspense>
   )

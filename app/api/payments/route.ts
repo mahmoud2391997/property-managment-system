@@ -172,12 +172,14 @@ export async function GET (request: NextRequest) {
               ]
             }),
             // Filter by DB status (Paid, Pending, Cancelled) if provided and not 'all'
-            ...(statusFilter &&
+            AND: [
+              { status: { not: 'Unset' } },
+              ...(statusFilter &&
               statusFilter !== 'all' &&
-              ['Paid', 'Pending', 'Cancelled'].includes(statusFilter) && {
-                status: statusFilter
-              }),
-            status: { not: 'Unset' }
+              ['Paid', 'Pending', 'Cancelled'].includes(statusFilter)
+                ? [{ status: statusFilter }]
+                : [])
+            ]
           }
         : {
             leases: { tenant_id: tenant!.id },
@@ -199,12 +201,14 @@ export async function GET (request: NextRequest) {
               ]
             }),
             // Filter by DB status (Paid, Pending, Cancelled) if provided and not 'all'
-            ...(statusFilter &&
+            AND: [
+              { status: { not: 'Unset' } },
+              ...(statusFilter &&
               statusFilter !== 'all' &&
-              ['Paid', 'Pending', 'Cancelled'].includes(statusFilter) && {
-                status: statusFilter
-              }),
-            status: { not: 'Unset' }
+              ['Paid', 'Pending', 'Cancelled'].includes(statusFilter)
+                ? [{ status: statusFilter }]
+                : [])
+            ]
           }
 
       // Fetch payments - for calculated statuses (Paid Late, Partially Paid, Overdue),

@@ -67,6 +67,7 @@ export type PaymentWithDetails = {
   amount: number
   status: 'Paid' | 'Paid Late' | 'Pending' | 'Partially Paid' | 'Overdue' | 'Cancelled'
   payment_percentage: number
+  remaining_amount: number
   has_pending_payments: boolean
   tenant_name: string
   tenant_picture: string
@@ -161,6 +162,9 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
   // Get latest payment timestamp
   const latestPaymentTimestamp = successfulPayments[0]?.paid_at?.toISOString() || payment.created_at.toISOString()
 
+  // Calculate remaining amount accurately
+  const remainingAmount = totalAmount - totalPaid
+
   return {
     id: payment.reference_id,
     type: payment.type,
@@ -175,6 +179,7 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
     amount: totalAmount,
     status,
     payment_percentage: paymentPercentage,
+    remaining_amount: remainingAmount,
     has_pending_payments: hasPendingPayments,
     tenant_name: tenantName,
     tenant_picture: tenant?.profile_pic || '',
