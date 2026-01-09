@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { UserAvatar } from '../costume-ui/name-avatar'
 import Tooltip from '../costume-ui/tooltip'
 import TimestampWithTooltip from '../costume-ui/timestamp-with-tooltip'
+import MobileCardContainer from '../costume-ui/mobile-card-container'
 
 export const columns: ColumnDef<Ticket>[] = [
   //Checkbox
@@ -229,10 +230,7 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
   const statusKey = ticket.status.toLowerCase().replace(/\s/g, '-')
 
   return (
-    <div className={cn(
-      'bg-(--background-primary) rounded-xl border border-(--border-default)',
-      'p-4 space-y-3'
-    )}>
+    <MobileCardContainer>
       {/* Header: ID, Status, Actions */}
       <div className='flex items-start justify-between'>
         <div className='flex-1'>
@@ -346,7 +344,7 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
       >
         View Details
       </Link>
-    </div>
+    </MobileCardContainer>
   )
 }
 

@@ -140,19 +140,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if payment record exists (should exist as Pending from create-bill)
-    const existingHistory = await prisma.payment_history.findFirst({
+    // Check if payment record(s) exist (should exist as Pending from create-bill or create-group-bill)
+    const existingHistoryRecords = await prisma.payment_history.findMany({
       where: {
         billplz_bill_id: billId
       }
     })
 
+    if (existingHistoryRecords.length === 0) {
+      console.error('No payment history found for this bill')
+      return NextResponse.json(
+        { error: 'Payment history not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check if this is a group payment
+    const isGroupPayment = existingHistoryRecords[0]?.group_payment || false
+
     // If already marked as Success, skip duplicate processing
-    if (existingHistory && existingHistory.status === 'Success') {
-      console.log('Duplicate webhook callback detected - payment already recorded')
+    if (existingHistoryRecords.every(record => record.status === 'Success')) {
+      console.log('Duplicate webhook callback detected - payment(s) already recorded')
       return NextResponse.json({
         success: true,
-        message: 'Payment already recorded'
+        message: 'Payment(s) already recorded'
       })
     }
 
@@ -184,19 +195,17 @@ export async function POST(request: NextRequest) {
       }
 
       // SECURITY: Verify transaction ID exists for legitimate payment
-      // If payment is marked as paid but no transaction ID, mark as Failed
+      // If payment is marked as paid but no transaction ID, mark ALL as Failed
       if (!finalTransactionId) {
         console.error('⚠️ Payment marked as paid but no transaction_id available - marking as Failed')
 
-        if (existingHistory) {
-          await prisma.payment_history.update({
-            where: { id: existingHistory.id },
-            data: {
-              status: 'Failed',
-              paid_at: new Date()
-            }
-          })
-        }
+        await prisma.payment_history.updateMany({
+          where: { billplz_bill_id: billId },
+          data: {
+            status: 'Failed',
+            paid_at: new Date()
+          }
+        })
 
         return NextResponse.json({
           success: false,
@@ -204,91 +213,96 @@ export async function POST(request: NextRequest) {
         }, { status: 400 })
       }
 
-      // Calculate total payment amount
-      const totalAmount = payment.charges.reduce((sum, charge) => {
-        const amount = charge.amount.toNumber()
-        const tax = charge.is_taxed ? amount * 0.08 : 0
-        return sum + amount + tax
-      }, 0)
-
-      // Get all previous SUCCESSFUL payments
-      const previousPayments = await prisma.payment_history.findMany({
-        where: {
-          payment_id: finalPaymentId,
-          status: 'Success'
-        },
-        select: { amount: true }
+      // Update ALL payment_history records with this billplz_bill_id to Success
+      await prisma.payment_history.updateMany({
+        where: { billplz_bill_id: billId },
+        data: {
+          status: 'Success',
+          paid_at: new Date(payload.paid_at),
+          billplz_transaction_id: finalTransactionId
+        }
       })
 
-      const totalPreviouslyPaid = previousPayments.reduce(
-        (sum, h) => sum + h.amount.toNumber(),
-        0
-      )
+      // Process each payment to update status and generate recurring payments
+      const processedPayments = []
+      let totalRecurringGenerated = 0
 
-      if (existingHistory) {
-        // Update existing pending record to Success
-        await prisma.payment_history.update({
-          where: { id: existingHistory.id },
-          data: {
-            status: 'Success',
-            paid_at: new Date(payload.paid_at),
-            billplz_transaction_id: finalTransactionId
+      for (const historyRecord of existingHistoryRecords) {
+        const payment = await prisma.payments.findUnique({
+          where: { id: historyRecord.payment_id! },
+          select: {
+            id: true,
+            reference_id: true,
+            organization_id: true,
+            charges: {
+              select: {
+                amount: true,
+                is_taxed: true
+              }
+            }
           }
         })
-      } else {
-        // Create new record if no pending record exists (shouldn't happen normally)
-        await prisma.payment_history.create({
-          data: {
-            payment_id: finalPaymentId,
-            amount: paidAmount,
-            payment_method: 'FPX',
-            paid_at: new Date(payload.paid_at),
-            status: 'Success',
-            receipt_image: null,
-            registrar_role: 'tenant',
-            billplz_bill_id: billId,
-            billplz_transaction_id: finalTransactionId
+
+        if (!payment) continue
+
+        // Calculate total amount for this payment
+        const totalAmount = payment.charges.reduce((sum, charge) => {
+          const amount = charge.amount.toNumber()
+          const tax = charge.is_taxed ? amount * 0.08 : 0
+          return sum + amount + tax
+        }, 0)
+
+        // Get all previous SUCCESSFUL payments for this payment
+        const previousPayments = await prisma.payment_history.findMany({
+          where: {
+            payment_id: payment.id,
+            status: 'Success'
+          },
+          select: { amount: true }
+        })
+
+        const totalPaid = previousPayments.reduce(
+          (sum, h) => sum + h.amount.toNumber(),
+          0
+        )
+
+        const paymentPercentage = Math.min(
+          Math.round((totalPaid / totalAmount) * 100),
+          100
+        )
+
+        // Update payment status if fully paid
+        if (paymentPercentage >= 100) {
+          await prisma.payments.update({
+            where: { id: payment.id },
+            data: { status: 'Paid' }
+          })
+
+          // Generate recurring payment if applicable
+          try {
+            await handleRecurringPaymentGeneration(payment.id, payment.organization_id)
+            totalRecurringGenerated++
+          } catch (recurringError) {
+            console.error(`Error generating recurring payment for ${payment.id}:`, recurringError)
           }
-        })
-      }
-
-      // Calculate new payment percentage
-      const newTotalPaid = totalPreviouslyPaid + paidAmount
-      const paymentPercentage = Math.min(
-        Math.round((newTotalPaid / totalAmount) * 100),
-        100
-      )
-
-      // Update payment status if fully paid
-      if (paymentPercentage >= 100) {
-        await prisma.payments.update({
-          where: { id: finalPaymentId },
-          data: { status: 'Paid' }
-        })
-      }
-
-      console.log(`Payment processed successfully: ${finalPaymentId} - ${paidAmount} RM`)
-
-      // After successful payment, check if this is a recurring payment and generate next one
-      let recurringPaymentGenerated = false
-      if (paymentPercentage >= 100 && payment.organization_id) {
-        try {
-          await handleRecurringPaymentGeneration(finalPaymentId, payment.organization_id)
-          recurringPaymentGenerated = true
-          console.log(`✅ Recurring payment generated for ${finalPaymentId}`)
-        } catch (recurringError) {
-          // Log error but don't fail the webhook
-          console.error('Error generating recurring payment:', recurringError)
         }
+
+        processedPayments.push({
+          payment_id: payment.reference_id,
+          payment_percentage: paymentPercentage
+        })
       }
+
+      console.log(`${isGroupPayment ? 'Group payment' : 'Payment'} processed successfully: ${processedPayments.length} payment(s)`)
 
       return NextResponse.json({
         success: true,
-        message: 'Payment processed successfully',
-        payment_id: finalPaymentId,
+        message: `${isGroupPayment ? 'Group payment' : 'Payment'} processed successfully`,
+        is_group_payment: isGroupPayment,
+        payment_count: processedPayments.length,
         amount_paid: paidAmount,
-        payment_percentage: paymentPercentage,
-        recurring_payment_generated: recurringPaymentGenerated
+        processed_payments: processedPayments,
+        recurring_payments_generated: totalRecurringGenerated
       })
     }
     // Case 2: Payment state is 'due' (pending, not completed yet)
@@ -305,20 +319,23 @@ export async function POST(request: NextRequest) {
     else {
       console.log(`Payment failed: ${billId} - State: ${state}`)
 
-      // Mark as Failed in database if pending
-      if (existingHistory && existingHistory.status === 'Pending') {
-        await prisma.payment_history.update({
-          where: { id: existingHistory.id },
-          data: {
-            status: 'Failed',
-            paid_at: new Date()
-          }
-        })
-      }
+      // Mark ALL pending payment_history records as Failed
+      await prisma.payment_history.updateMany({
+        where: {
+          billplz_bill_id: billId,
+          status: 'Pending'
+        },
+        data: {
+          status: 'Failed',
+          paid_at: new Date()
+        }
+      })
 
       return NextResponse.json({
         success: true,
-        message: 'Webhook received - payment failed',
+        message: 'Webhook received - payment(s) failed',
+        is_group_payment: isGroupPayment,
+        payment_count: existingHistoryRecords.length,
         state: state
       })
     }

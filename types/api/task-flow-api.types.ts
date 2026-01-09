@@ -23,6 +23,7 @@ export type SubmitRefundDecisionRequestBody = {
 export type SubmitRefundDecisionResponse = {
   success: true
   refundFinalizationTaskId: string | null
+  flowCompleted?: boolean
 } | {
   error: string
 }

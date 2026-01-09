@@ -5,7 +5,6 @@ import {
 } from '@tanstack/react-table'
 import { MoreHorizontal, ChevronRight, ChevronDown, Calendar, Building2, Repeat, CreditCard, History, Banknote, Wallet, Globe, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +40,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import MobileCardSkeleton from '../loading-ui/mobile-card-skeleton'
 import { formatPaymentTypeLabel } from '@/utils/functions'
+import MobileCardContainer from '../costume-ui/mobile-card-container'
 
 type Props = {
   data: PaymentWithDetails[]
@@ -435,30 +435,6 @@ export default function PaymentsTable ({
   }
 
   const columns: ColumnDef<PaymentWithDetails>[] = [
-    //Checkbox
-    {
-      id: 'select',
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && 'indeterminate')
-          }
-          onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
-          aria-label='Select all'
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={value => row.toggleSelected(!!value)}
-          aria-label='Select row'
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false
-    },
-
     //Expand
     {
       id: 'expand',
@@ -693,11 +669,9 @@ export default function PaymentsTable ({
       header: () => <div className='text-left'>Payment</div>,
       cell: ({ row }) => {
         const {
-          amount,
           payment_percentage,
-          latest_payment_timestamp
+          remaining_amount
         } = row.original
-        const remaindingAmount = amount * ((100 - payment_percentage) / 100)
 
         return (
           <div>
@@ -708,7 +682,7 @@ export default function PaymentsTable ({
                     {payment_percentage}% Paid
                   </div>
                   <div className='text-left texts-caption-small text-(--text-secondary)'>
-                    {formatCurrency(remaindingAmount)} remaining
+                    {formatCurrency(remaining_amount)} remaining
                   </div>
                 </div>
                 <Progress value={payment_percentage} />
@@ -837,16 +811,12 @@ export default function PaymentsTable ({
   const PaymentCard = ({ payment }: { payment: PaymentWithDetails }) => {
     const displayStatus = getDisplayStatus(payment)
     const statusKey = displayStatus.toLowerCase().replace(/\s/g, '-')
-    const remainingAmount = payment.amount * ((100 - payment.payment_percentage) / 100)
     const hasRemainingAmount = payment.payment_percentage < 100 || payment.has_pending_payments
     const patternKey = payment.recurring_pattern.toLowerCase().replace(/\s/g, '-')
 
     return (
-      <div className={cn(
-        'bg-(--background-primary) rounded-xl border border-(--border-default)',
-        'p-4 space-y-3',
-        refreshingPaymentId === payment.id && 'opacity-50'
-      )}>
+      <MobileCardContainer
+      className={`${refreshingPaymentId === payment.id && 'opacity-50'}`}>
         {/* Header: ID, Status, Actions */}
         <div className='flex items-start justify-between'>
           <div className='flex-1'>
@@ -1019,7 +989,7 @@ export default function PaymentsTable ({
               </span>
             </div>
             <span className='texts-caption-small text-(--text-secondary)'>
-              {formatCurrency(remainingAmount)} remaining
+              {formatCurrency(payment.remaining_amount)} remaining
             </span>
           </div>
           <Progress value={payment.payment_percentage} className='h-2' />
@@ -1051,7 +1021,7 @@ export default function PaymentsTable ({
             View Payment History
           </button>
         )}
-      </div>
+      </MobileCardContainer>
     )
   }
 

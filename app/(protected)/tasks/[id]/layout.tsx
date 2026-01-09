@@ -780,17 +780,25 @@ export default function TaskDetailsLayout ({
       await fetchTask()
 
       setShowRefundDecisionDialog(false)
-      FeedbackToasts.updated(
-        'Refund Decision',
-        'Refund decision submitted for review'
-      )
 
-      if (result.finalizationTaskId) {
-        showFeedbackToast({
-          title: 'Review Task Created',
-          description: 'A Refund Finalization task has been created for review',
-          type: 'success'
-        })
+      if (result.flowCompleted) {
+        FeedbackToasts.updated(
+          'Flow Completed',
+          'Deposit forfeited. The lease ending flow has been completed.'
+        )
+      } else {
+        FeedbackToasts.updated(
+          'Refund Decision',
+          'Refund decision submitted for review'
+        )
+
+        if (result.refundFinalizationTaskId) {
+          showFeedbackToast({
+            title: 'Review Task Created',
+            description: 'A Refund Finalization task has been created for review',
+            type: 'success'
+          })
+        }
       }
     } catch (err: any) {
       showFeedbackToast({

@@ -485,9 +485,17 @@ export default function SubmitRefundDecisionDialog ({
         {/* Info */}
         <div className='p-3 bg-blue-50 border border-blue-200 rounded-lg'>
           <p className='texts-body-small text-blue-700'>
-            After submission, a <strong>Refund Finalization</strong> task will
-            be created for another staff member to review and approve your
-            decision.
+            {decision === 'forfeit' ? (
+              <>
+                This decision will <strong>complete the refund flow immediately</strong> without requiring further review.
+              </>
+            ) : (
+              <>
+                After submission, a <strong>Refund Finalization</strong> task will
+                be created for another staff member to review and approve your
+                decision.
+              </>
+            )}
           </p>
         </div>
       </div>
