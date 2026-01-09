@@ -758,12 +758,6 @@ export default function PaymentsTable ({
                   ) : (
                     <>
                       <DropdownMenuItem
-                        disabled={!hasRemainingAmount || isProcessingPayment === payment.id}
-                        onClick={() => handleLogPayment(payment.id)}
-                      >
-                        {isProcessingPayment === payment.id ? 'Processing...' : 'Pay now'}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
                         disabled={!payment.has_pending_payments || isCheckingStatus === payment.id}
                         onClick={() => handleCheckStatus(payment.id)}
                       >
@@ -894,12 +888,6 @@ export default function PaymentsTable ({
                   ) : (
                     <>
                       <DropdownMenuItem
-                        disabled={!hasRemainingAmount || isProcessingPayment === payment.id}
-                        onClick={() => handleLogPayment(payment.id)}
-                      >
-                        {isProcessingPayment === payment.id ? 'Processing...' : 'Pay now'}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
                         disabled={!payment.has_pending_payments || isCheckingStatus === payment.id}
                         onClick={() => handleCheckStatus(payment.id)}
                       >
@@ -995,16 +983,6 @@ export default function PaymentsTable ({
           <Progress value={payment.payment_percentage} className='h-2' />
         </div>
 
-        {/* Quick Action Button for Mobile */}
-        {userType === 'tenant' && hasRemainingAmount && payment.status !== 'Cancelled' && (
-          <Button
-            className='w-full mt-2'
-            disabled={isProcessingPayment === payment.id}
-            onClick={() => handleLogPayment(payment.id)}
-          >
-            {isProcessingPayment === payment.id ? 'Processing...' : 'Pay Now'}
-          </Button>
-        )}
 
         {/* View History Button - only show if there's payment history */}
         {payment.payment_percentage > 0 && (
