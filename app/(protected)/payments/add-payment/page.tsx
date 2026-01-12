@@ -35,10 +35,12 @@ const AddPayment = () => {
   const [loadingTenants, setLoadingTenants] = useState<boolean>(true)
   const [loadingProperties, setLoadingProperties] = useState<boolean>(false)
   const [loadingRooms, setLoadingRooms] = useState<boolean>(false)
-  const typesOfPayment: {label: string; value: string}[] = paymentTypes.map(pt => ({
-    label: formatPaymentTypeLabel(pt.type), // UI
-    value: pt.type // API / Prisma
-  }))
+  const typesOfPayment: { label: string; value: string }[] = paymentTypes.map(
+    pt => ({
+      label: formatPaymentTypeLabel(pt.type), // UI
+      value: pt.type // API / Prisma
+    })
+  )
   const [paymentType, setPaymentType] = useState<PaymentType>(paymentTypes[0])
   const selectable: boolean = paymentType === paymentTypes[0]
   const [isPaid, setIsPaid] = useState<boolean>(false)
@@ -48,6 +50,9 @@ const AddPayment = () => {
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(undefined)
   const [paymentTime, setPaymentTime] = useState<string>('10:30:00')
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
+  const [paymentEvidenceFile, setPaymentEvidenceFile] = useState<File | null>(
+    null
+  )
   const [charges, setCharges] = useState<any[]>([])
   const [recurringConfig, setRecurringConfig] = useState<any>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -163,6 +168,26 @@ const AddPayment = () => {
         }
       }
 
+      // Upload payment evidence if provided
+      let paymentEvidenceUrl = null
+      if (paymentEvidenceFile) {
+        const formData = new FormData()
+        formData.append('file', paymentEvidenceFile)
+        formData.append('bucket', 'payment-evidence')
+
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (uploadRes.ok) {
+          const { url } = await uploadRes.json()
+          paymentEvidenceUrl = url
+        } else {
+          throw new Error('Failed to upload payment evidence')
+        }
+      }
+
       // Format date for API
       const formattedDate = formatDateForAPI(paymentDate)
 
@@ -181,6 +206,7 @@ const AddPayment = () => {
           payment_date: formattedDate,
           payment_time: paymentTime,
           receipt_image: receiptUrl,
+          payment_evidence: paymentEvidenceUrl,
           recurring_config: recurringConfig
         })
       })
@@ -524,17 +550,38 @@ const AddPayment = () => {
           </InputGroup>
         </div>
 
+        {/* Payment Evidence - Always visible */}
+        <div className='flex flex-col gap-2'>
+          <InputGroup label='Payment Evidence (Optional)'>
+            <p className='texts-caption-large text-(--text-secondary) mb-2 -mt-1'>
+              Upload documentation showing why the tenant needs to pay this
+              amount (e.g., invoice, bill, repair receipt, damage evidence)
+            </p>
+            <UploadFile onFileChange={setPaymentEvidenceFile} />
+          </InputGroup>
+        </div>
+
+        {/* Receipt Upload - Only for Paid Bank Transfer */}
         <div
           className={cn(
             'trnasition-all duration-200 ease-out overflow-hidden',
             isPaid && paymentMethod === 'Bank Transfer'
               ? receiptFile
-                ? 'h-19'
-                : 'h-49'
+                ? 'h-35'
+                : 'h-55'
               : 'h-0 opacity-0'
           )}
         >
-          <UploadFile onFileChange={setReceiptFile} />
+          <InputGroup
+            label='Payment Receipt'
+            isRequired={isPaid && paymentMethod === 'Bank Transfer'}
+          >
+            <p className='texts-caption-large text-(--text-secondary) mb-2 -mt-1'>
+              Upload documentation showing why the tenant needs to pay this
+              amount (e.g., invoice, bill, repair receipt, damage evidence)
+            </p>
+            <UploadFile onFileChange={setReceiptFile} />
+          </InputGroup>
         </div>
       </div>
 

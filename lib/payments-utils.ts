@@ -23,6 +23,7 @@ type RawPayment = {
   status: string
   due_payment_timestamp: Date | null
   created_at: Date
+  payment_evidence: string | null
   leases: {
     property_id: string
     room_id: string | null
@@ -73,6 +74,7 @@ export type PaymentWithDetails = {
   tenant_picture: string
   tenant_color: string
   latest_payment_timestamp: string
+  payment_evidence: string | null
 }
 
 // Transform raw payment from database to display format
@@ -184,6 +186,7 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
     tenant_name: tenantName,
     tenant_picture: tenant?.profile_pic || '',
     tenant_color: '',
-    latest_payment_timestamp: latestPaymentTimestamp
+    latest_payment_timestamp: latestPaymentTimestamp,
+    payment_evidence: payment.payment_evidence
   }
 }

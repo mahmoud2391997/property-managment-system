@@ -21,6 +21,7 @@ const paymentSelect = {
   status: true,
   due_payment_timestamp: true,
   created_at: true,
+  payment_evidence: true,
   leases: {
     select: {
       property_id: true,

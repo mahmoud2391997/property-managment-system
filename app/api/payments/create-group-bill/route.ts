@@ -14,6 +14,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Parse request body to get optional payment_ids
+    const body = await request.json().catch(() => ({}))
+    const { payment_ids } = body as { payment_ids?: string[] }
+
     // Only tenants can create group bills
     const tenant = await prisma.tenants.findUnique({
       where: { id: user.id },
@@ -44,12 +48,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Only tenants can access this endpoint' }, { status: 403 })
     }
 
-    // Fetch all pending payments for this tenant
+    // Build where clause for payments
+    // If payment_ids provided, only fetch those specific payments
+    // Otherwise, fetch all pending payments (legacy behavior)
+    const paymentsWhere: any = {
+      leases: { tenant_id: tenant.id },
+      status: 'Pending'
+    }
+
+    if (payment_ids && payment_ids.length > 0) {
+      paymentsWhere.id = { in: payment_ids }
+    }
+
+    // Fetch pending payments for this tenant
     const pendingPayments = await prisma.payments.findMany({
-      where: {
-        leases: { tenant_id: tenant.id },
-        status: 'Pending'
-      },
+      where: paymentsWhere,
       select: {
         id: true,
         reference_id: true,
