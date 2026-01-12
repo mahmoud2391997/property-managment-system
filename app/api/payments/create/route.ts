@@ -36,6 +36,7 @@ export async function POST (request: NextRequest) {
       payment_date,
       payment_time,
       receipt_image,
+      payment_evidence,
       recurring_config
     } = body
 
@@ -117,6 +118,7 @@ export async function POST (request: NextRequest) {
           type: payment_type,
           status,
           due_payment_timestamp: is_paid ? null : paymentDateTime,
+          payment_evidence: payment_evidence || null,
           organization_id: staff.organization_id,
           created_by: staff.id,
           charges: {

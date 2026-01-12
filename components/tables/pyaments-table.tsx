@@ -718,6 +718,13 @@ export default function PaymentsTable ({
               >
                 Copy payment ID
               </DropdownMenuItem>
+              {payment.payment_evidence && (
+                <DropdownMenuItem
+                  onClick={() => window.open(payment.payment_evidence || '', '_blank')}
+                >
+                  View Payment Evidence
+                </DropdownMenuItem>
+              )}
               {!isCancelled && (
                 <>
                   <DropdownMenuSeparator />
@@ -848,6 +855,13 @@ export default function PaymentsTable ({
               <DropdownMenuItem onClick={() => navigator.clipboard.writeText(payment.id)}>
                 Copy payment ID
               </DropdownMenuItem>
+              {payment.payment_evidence && (
+                <DropdownMenuItem
+                  onClick={() => window.open(payment.payment_evidence || '', '_blank')}
+                >
+                  View Payment Evidence
+                </DropdownMenuItem>
+              )}
               {payment.status !== 'Cancelled' && (
                 <>
                   <DropdownMenuSeparator />
