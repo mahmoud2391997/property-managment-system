@@ -119,7 +119,8 @@ export function PaymentSummary() {
     const subtotal = overdueTotal + upcomingTotal
     const totalCount = data.overdue_count + selectedUpcomingIds.size
     const feeSavings = totalCount > 1 ? (totalCount - 1) * FPX_FEE : 0
-    const total = subtotal + FPX_FEE
+    // Only add fee if there's at least one payment
+    const total = totalCount > 0 ? subtotal + FPX_FEE : 0
 
     return {
       subtotal,
