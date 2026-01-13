@@ -3,7 +3,10 @@ import { prisma } from '@/lib/prisma'
 /**
  * Handle recurring payment generation when a payment is fully paid
  */
-export async function handleRecurringPaymentGeneration(paymentId: string, organizationId: string) {
+export async function handleRecurringPaymentGeneration (
+  paymentId: string,
+  organizationId: string
+) {
   console.log(`🔄 [Recurring] Checking payment ${paymentId}...`)
 
   // Get the payment with its recurring config and lease details
@@ -26,38 +29,61 @@ export async function handleRecurringPaymentGeneration(paymentId: string, organi
     return
   }
 
-  console.log(`📄 [Recurring] Payment ${payment.reference_id} found, recurring_config_id: ${payment.recurring_config_id}`)
+  console.log(
+    `📄 [Recurring] Payment ${payment.reference_id} found, recurring_config_id: ${payment.recurring_config_id}`
+  )
 
   if (!payment.recurring_configs) {
-    console.log(`⚠️ [Recurring] No recurring config attached to payment ${payment.reference_id}`)
+    console.log(
+      `⚠️ [Recurring] No recurring config attached to payment ${payment.reference_id}`
+    )
     return
   }
 
   if (!payment.leases) {
-    console.log(`⚠️ [Recurring] No lease attached to payment ${payment.reference_id}`)
+    console.log(
+      `⚠️ [Recurring] No lease attached to payment ${payment.reference_id}`
+    )
     return
   }
 
   const recurringConfig = payment.recurring_configs
   const lease = payment.leases
 
-  console.log(`✅ [Recurring] Found recurring config: "${recurringConfig.title}", active: ${recurringConfig.is_active}`)
+  console.log(
+    `✅ [Recurring] Found recurring config: "${recurringConfig.title}", active: ${recurringConfig.is_active}`
+  )
 
   // Only generate if recurring is active
   if (!recurringConfig.is_active) {
-    console.log(`⏸️ [Recurring] Recurring config is inactive, skipping generation`)
+    console.log(
+      `⏸️ [Recurring] Recurring config is inactive, skipping generation`
+    )
+    return
+  }
+
+  // Validate that payment has a due date before calculating next payment
+  if (!payment.due_payment_timestamp) {
+    console.log(
+      `❌ [Recurring] Payment ${payment.reference_id} has no due date, cannot generate next payment`
+    )
     return
   }
 
   // Calculate next payment date based on the CURRENT payment's due date
-  const currentPaymentDate = new Date(payment.due_payment_timestamp!)
+  const currentPaymentDate = new Date(payment.due_payment_timestamp)
   const paymentDay = lease.payment_day
 
-  console.log(`📅 [Recurring] Current payment due date: ${currentPaymentDate.toISOString()}, payment_day: ${paymentDay}`)
+  console.log(
+    `📅 [Recurring] Current payment due date: ${currentPaymentDate.toISOString()}, payment_day: ${paymentDay}`
+  )
 
   // Add one month to the current payment's due date
   const nextMonth = currentPaymentDate.getMonth() + 1
-  const nextYear = nextMonth > 11 ? currentPaymentDate.getFullYear() + 1 : currentPaymentDate.getFullYear()
+  const nextYear =
+    nextMonth > 11
+      ? currentPaymentDate.getFullYear() + 1
+      : currentPaymentDate.getFullYear()
   const adjustedMonth = nextMonth % 12
 
   const nextPaymentDate = new Date(nextYear, adjustedMonth, paymentDay)
@@ -65,7 +91,9 @@ export async function handleRecurringPaymentGeneration(paymentId: string, organi
   // Set time to start of day
   nextPaymentDate.setHours(0, 0, 0, 0)
 
-  console.log(`📅 [Recurring] Next payment will be: ${nextPaymentDate.toISOString()}`)
+  console.log(
+    `📅 [Recurring] Next payment will be: ${nextPaymentDate.toISOString()}`
+  )
 
   // Generate new payment reference ID
   const yearPrefix = `PY-${nextPaymentDate.getFullYear()}`
@@ -93,13 +121,15 @@ export async function handleRecurringPaymentGeneration(paymentId: string, organi
   }
 
   // Format: PY-YYYY00000001
-  const newReferenceId = `${yearPrefix}${nextSequence.toString().padStart(8, '0')}`
+  const newReferenceId = `${yearPrefix}${nextSequence
+    .toString()
+    .padStart(8, '0')}`
 
   // Determine payment status based on is_payment_fixed
   const paymentStatus = recurringConfig.is_payment_fixed ? 'Pending' : 'Unset'
 
   // Create new payment in a transaction
-  const newPayment = await prisma.$transaction(async (tx) => {
+  const newPayment = await prisma.$transaction(async tx => {
     // Create new payment
     const createdPayment = await tx.payments.create({
       data: {
@@ -130,30 +160,40 @@ export async function handleRecurringPaymentGeneration(paymentId: string, organi
     return createdPayment
   })
 
-  console.log(`✅ [Recurring] Payment created: ${newReferenceId}, Status: ${paymentStatus}`)
+  console.log(
+    `[Recurring] Payment created: ${newReferenceId}, Status: ${paymentStatus}`
+  )
 
-  // After transaction, send notifications to staff (outside transaction)
-  try {
-    console.log(`📧 [Recurring] Sending notifications...`)
-    await sendRecurringPaymentNotifications(
-      newPayment.id,
-      organizationId,
-      recurringConfig.title,
-      lease
-    )
-    console.log(`✅ [Recurring] Notifications sent successfully`)
-  } catch (notificationError) {
-    console.error('❌ [Recurring] Error sending notifications:', notificationError)
-    // Don't throw - payment was already created successfully
+  // After transaction, if recurring payment not fixed, send notifications to staff (outside transaction)
+
+  if (!recurringConfig.is_payment_fixed) {
+    try {
+      console.log(`[Recurring] Sending notifications...`)
+      await sendRecurringPaymentNotifications(
+        newPayment.id,
+        organizationId,
+        recurringConfig.title,
+        lease
+      )
+      console.log(`[Recurring] Notifications sent successfully`)
+    } catch (notificationError) {
+      console.error(
+        '[Recurring] Error sending notifications:',
+        notificationError
+      )
+      // Don't throw - payment was already created successfully
+    }
   }
 
-  console.log(`🎉 [Recurring] Complete! Generated ${newReferenceId} for "${recurringConfig.title}"`)
+  console.log(
+    `🎉 [Recurring] Complete! Generated ${newReferenceId} for "${recurringConfig.title}"`
+  )
 }
 
 /**
  * Send notifications to staff about new recurring payment
  */
-async function sendRecurringPaymentNotifications(
+async function sendRecurringPaymentNotifications (
   paymentId: string,
   organizationId: string,
   paymentTitle: string,
@@ -168,9 +208,12 @@ async function sendRecurringPaymentNotifications(
     }
   })
 
-  const tenantName = tenant?.type === 'Individual'
-    ? `${tenant.individual_tenants?.first_name} ${tenant.individual_tenants?.last_name || ''}`.trim()
-    : tenant?.company_tenants?.company_name || 'Unknown Tenant'
+  const tenantName =
+    tenant?.type === 'Individual'
+      ? `${tenant.individual_tenants?.first_name} ${
+          tenant.individual_tenants?.last_name || ''
+        }`.trim()
+      : tenant?.company_tenants?.company_name || 'Unknown Tenant'
 
   // Get all staff in organization (excluding specific emails)
   const excludedEmails = ['majidrafique777@gmail.com', 'mickyiyke745@gmail.com']

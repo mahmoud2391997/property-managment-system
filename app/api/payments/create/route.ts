@@ -117,7 +117,11 @@ export async function POST (request: NextRequest) {
           lease_id: lease?.id,
           type: payment_type,
           status,
-          due_payment_timestamp: is_paid ? null : paymentDateTime,
+          // For recurring payments, always set due_payment_timestamp (needed for next payment calculation)
+          // For non-recurring paid payments, set to null
+          due_payment_timestamp: (recurring_config && recurring_config.enabled)
+            ? paymentDateTime
+            : (is_paid ? null : paymentDateTime),
           payment_evidence: payment_evidence || null,
           organization_id: staff.organization_id,
           created_by: staff.id,
