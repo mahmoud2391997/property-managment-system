@@ -59,6 +59,7 @@ export default function RecurringSection({ propertyId }: Props) {
 
   return (
     <div
+      id="recurring"
       className={cn(
         'flex flex-col gap-5',
         'p-5 pt-4 pb-2.5 rounded-[12px]',

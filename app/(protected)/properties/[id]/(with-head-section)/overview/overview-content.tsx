@@ -31,6 +31,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { buildWhatsAppLink } from '@/utils/functions'
 import { useActionUnderDevelopment } from '@/components/costume-ui/under-development'
+import { useScrollToSection } from '@/hooks/useScrollToSection'
 
 // Types for overview data
 type LeaseOverview = {
@@ -452,6 +453,9 @@ export default function OverviewContent ({ propertyId }: Props) {
   const [loading, setLoading] = useState(true)
   const { showUnderDevelopment, ActionUnderDevelopmentOverlay } =
     useActionUnderDevelopment()
+
+  // Handle auto-scroll to section based on URL query parameter
+  useScrollToSection(loading)
 
   const fetchOverviewData = useCallback(async () => {
     try {
