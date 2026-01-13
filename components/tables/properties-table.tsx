@@ -12,6 +12,7 @@ import Tooltip from '../costume-ui/tooltip'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
+import InitiatePreparationFlowDrawer from '../dialogs/initiate-preparation-flow-drawer'
 import { toast } from 'sonner'
 
 type DisplayStatus =
@@ -203,6 +204,18 @@ export const columns: ColumnDef<PropertyWithDetails>[] = [
             <Link href={`/properties/${property.id}/leases/add-lease`}>
               <DropdownMenuItem>Add Lease</DropdownMenuItem>
             </Link>
+          )}
+          {isVacant && (
+            <InitiatePreparationFlowDrawer
+              propertyId={property.id}
+              locationName={property.code}
+              onSuccess={onDelete}
+              trigger={
+                <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                  Mark as Not Ready
+                </DropdownMenuItem>
+              }
+            />
           )}
           {canWhatsApp && (
             <>

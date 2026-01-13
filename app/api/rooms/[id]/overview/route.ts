@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { isLeaseActive } from '@/utils/lease-status'
 
 export async function GET(
   request: Request,
@@ -192,10 +193,28 @@ export async function GET(
       }
     }
 
+    // Compute display status
+    type DisplayStatus = 'Occupied' | 'Vacant' | 'Pending_Inspection' | 'Under_Preparation'
+
+    let displayStatus: DisplayStatus
+
+    // Priority 1: Room is Pending_Inspection or Under_Preparation
+    if (room.status === 'Pending_Inspection' || room.status === 'Under_Preparation') {
+      displayStatus = room.status
+    }
+    // Priority 2: Room has active lease (Occupied)
+    else if (lease && isLeaseActive({ status: 'Current', start_date: lease.start_date, number_of_months: lease.number_of_months })) {
+      displayStatus = 'Occupied'
+    }
+    // Priority 3: No active lease, room is Vacant
+    else {
+      displayStatus = 'Vacant'
+    }
+
     return NextResponse.json({
       roomTitle: room.title,
       propertyCode: room.properties?.code || null,
-      roomStatus: room.status,
+      roomStatus: displayStatus,
       lease: leaseData,
       booking: bookingData,
       propertyId: room.property_id

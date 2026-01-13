@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { isLeaseActive } from '@/utils/lease-status'
 
 export async function GET(
   request: Request,
@@ -22,7 +23,23 @@ export async function GET(
       select: {
         id: true,
         code: true,
-        status: true
+        status: true,
+        rooms: {
+          select: {
+            id: true,
+            status: true,
+            leases: {
+              where: {
+                status: 'Current'
+              },
+              select: {
+                id: true,
+                start_date: true,
+                number_of_months: true
+              }
+            }
+          }
+        }
       }
     })
 
@@ -257,9 +274,78 @@ export async function GET(
       }
     }
 
+    // Compute display status
+    type DisplayStatus = 'Occupied' | 'Vacant' | 'Pending_Inspection' | 'Under_Preparation'
+
+    let displayStatus: string | { status: DisplayStatus; count: number; total: number }[]
+
+    // Priority 1: Property is Pending_Inspection or Under_Preparation
+    if (property.status === 'Pending_Inspection' || property.status === 'Under_Preparation') {
+      displayStatus = property.status
+    }
+    // Priority 2: Property has active lease (Occupied)
+    else if (lease && isLeaseActive({ status: 'Current', start_date: lease.start_date, number_of_months: lease.number_of_months })) {
+      displayStatus = 'Occupied'
+    }
+    // Priority 3: Check rooms
+    else if (property.rooms.length > 0) {
+      // Compute room statuses
+      const roomStatuses = property.rooms.map(room => {
+        const roomLease = room.leases[0] || null
+
+        // If room has active lease, it's Occupied
+        if (roomLease && isLeaseActive({ status: 'Current', start_date: roomLease.start_date, number_of_months: roomLease.number_of_months })) {
+          return 'Occupied' as DisplayStatus
+        }
+
+        // Check room's own status
+        if (room.status === 'Pending_Inspection') return 'Pending_Inspection' as DisplayStatus
+        if (room.status === 'Under_Preparation') return 'Under_Preparation' as DisplayStatus
+
+        return 'Vacant' as DisplayStatus
+      })
+
+      const allVacant = roomStatuses.every(status => status === 'Vacant')
+
+      if (allVacant) {
+        displayStatus = 'Vacant'
+      } else {
+        // Count statuses
+        const statusCounts: Record<DisplayStatus, number> = {
+          Occupied: 0,
+          Vacant: 0,
+          Pending_Inspection: 0,
+          Under_Preparation: 0
+        }
+
+        roomStatuses.forEach(status => {
+          statusCounts[status]++
+        })
+
+        // Build status array
+        const total = property.rooms.length
+        const statusArray: { status: DisplayStatus; count: number; total: number }[] = []
+
+        for (const [status, count] of Object.entries(statusCounts)) {
+          if (count > 0) {
+            statusArray.push({
+              status: status as DisplayStatus,
+              count,
+              total
+            })
+          }
+        }
+
+        displayStatus = statusArray
+      }
+    } else {
+      // No rooms - property is Vacant
+      displayStatus = 'Vacant'
+    }
+
     return NextResponse.json({
       propertyCode: property.code,
-      propertyStatus: property.status,
+      propertyStatus: displayStatus,
       lease: leaseData,
       contract: contractData,
       booking: bookingData

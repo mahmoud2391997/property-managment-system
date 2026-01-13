@@ -14,7 +14,8 @@ import {
   MoreVertical,
   ArrowDownLeft,
   CalendarCheck2,
-  Plus
+  Plus,
+  Wrench
 } from 'lucide-react'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import { cn } from '@/lib/utils'
@@ -23,6 +24,7 @@ import PaymentsSection from '@/components/payments-section'
 import RecurringSectionRoom from '@/components/recurring-section-room'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import InitiateLeaseEndingDrawer from '@/components/dialogs/initiate-lease-ending-drawer'
+import InitiatePreparationFlowDrawer from '@/components/dialogs/initiate-preparation-flow-drawer'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { showFeedbackToast } from '@/components/costume-ui/feedback-toast'
 import { formatCurrency } from '@/utils/formatCurrency'
@@ -198,9 +200,10 @@ type EmptyCardProps = {
   Icon: LucideIcon
   title: string
   subtitle: string
-  buttonLabel: string
+  buttonLabel?: string
   href?: string
   onClick?: () => void
+  children?: React.ReactNode
 }
 
 const EmptyCard = ({
@@ -210,7 +213,8 @@ const EmptyCard = ({
   subtitle,
   buttonLabel,
   href,
-  onClick
+  onClick,
+  children
 }: EmptyCardProps) => {
   const content = (
     <>
@@ -273,7 +277,9 @@ const EmptyCard = ({
         </div>
       </div>
       {/* Body - Empty State */}
-      {onClick ? (
+      {children ? (
+        children
+      ) : onClick ? (
         <button type='button' onClick={onClick} className={containerClasses}>
           {content}
         </button>
@@ -584,6 +590,33 @@ export default function RoomOverviewContent ({ roomId }: Props) {
           />
         )}
       </div>
+
+      {/* Preparation Card - Only show when Vacant */}
+      {!loading && overviewData?.roomStatus === 'Vacant' && (
+        <div className='flex items-start gap-5 w-full'>
+          <InitiatePreparationFlowDrawer
+            roomId={roomId}
+            locationName={
+              overviewData.propertyCode
+                ? `${overviewData.propertyCode} - ${overviewData.roomTitle}`
+                : overviewData.roomTitle
+            }
+            onSuccess={fetchOverviewData}
+            trigger={
+              <div className='w-full'>
+                <EmptyCard
+                  iconStyles='bg-amber-50 text-amber-700'
+                  Icon={Wrench}
+                  title='Room Preparation'
+                  subtitle='Maintenance & preparation tasks'
+                  buttonLabel='Mark as Not Ready'
+                />
+              </div>
+            }
+          />
+        </div>
+      )}
+
       {/* Payments */}
       <PaymentsSection roomId={roomId} />
       {/* Recurring Payments */}

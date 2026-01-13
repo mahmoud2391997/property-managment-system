@@ -8,6 +8,7 @@ import UploadFile from '@/components/costume-ui/upload-file'
 import Textarea from '@/components/costume-ui/text-area'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { CheckCircle2 } from 'lucide-react'
+import type { TaskFlowType } from '../types'
 
 type Props = {
   open: boolean
@@ -18,6 +19,7 @@ type Props = {
   }) => Promise<void>
   loading?: boolean
   taskTitle?: string
+  flowType?: TaskFlowType
 }
 
 export default function CompletePreparationDialog({
@@ -25,7 +27,8 @@ export default function CompletePreparationDialog({
   onOpenChange,
   onSubmit,
   loading = false,
-  taskTitle = 'Preparation Task'
+  taskTitle = 'Preparation Task',
+  flowType = 'Lease Ending'
 }: Props) {
   const [report, setReport] = useState('')
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
@@ -113,10 +116,18 @@ export default function CompletePreparationDialog({
           <UploadFile onFileChange={setAttachmentFile} maxSizeMB={2} disabled={loading} />
         </InputGroup>
 
-        {/* Info */}
+        {/* Info - different message based on flow type */}
         <div className='p-3 bg-blue-50 border border-blue-200 rounded-lg'>
           <p className='texts-body-small text-blue-700'>
-            When all preparation tasks are completed, a <strong>Refund Request</strong> task will be automatically created for processing the refundable deposits.
+            {flowType === 'Property Not Ready' ? (
+              <>
+                When all preparation tasks are completed, the property/room status will be automatically changed back to <strong>Ready</strong> and available for leasing.
+              </>
+            ) : (
+              <>
+                When all preparation tasks are completed, a <strong>Refund Request</strong> task will be automatically created for processing the refundable deposits.
+              </>
+            )}
           </p>
         </div>
       </div>

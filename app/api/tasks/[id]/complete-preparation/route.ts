@@ -81,6 +81,7 @@ export async function POST (
       where: { id: task.flow_instance_id },
       select: {
         id: true,
+        flow_type: true,
         inspection_task_id: true,
         leases: {
           select: {
@@ -100,47 +101,55 @@ export async function POST (
 
     const organizationId = staff.organization_id
     const priority = task.task_priorities[0]?.priority || 'Medium'
+    const isPropertyNotReadyFlow = flowInstance.flow_type === 'Property_Not_Ready'
 
-    // Check if there are refundable charges for this lease
-    const refundableCharges = await prisma.charges.findMany({
-      where: {
-        payments: {
-          lease_id: flowInstance.leases?.id || '',
-          type: 'Lease_Initial_Charges'
+    // Only check refundable charges for Lease_Ending flow
+    let hasRefundableDeposit = false
+    let inspectorId = staff.id
+    let refId = ''
+
+    if (!isPropertyNotReadyFlow) {
+      // Check if there are refundable charges for this lease
+      const refundableCharges = await prisma.charges.findMany({
+        where: {
+          payments: {
+            lease_id: flowInstance.leases?.id || '',
+            type: 'Lease_Initial_Charges'
+          },
+          is_refunded: true
         },
-        is_refunded: true
-      },
-      select: { amount: true }
-    })
-    const hasRefundableDeposit =
-      refundableCharges.length > 0 &&
-      refundableCharges.reduce((sum, c) => sum + c.amount.toNumber(), 0) > 0
+        select: { amount: true }
+      })
+      hasRefundableDeposit =
+        refundableCharges.length > 0 &&
+        refundableCharges.reduce((sum, c) => sum + c.amount.toNumber(), 0) > 0
 
-    // Get the original inspector (who created the flow) - BEFORE transaction
-    const inspectionTask = await prisma.tasks.findUnique({
-      where: { id: flowInstance.inspection_task_id || '' },
-      select: { created_by: true }
-    })
-    const inspectorId = inspectionTask?.created_by || staff.id
+      // Get the original inspector (who created the flow) - BEFORE transaction
+      const inspectionTask = await prisma.tasks.findUnique({
+        where: { id: flowInstance.inspection_task_id || '' },
+        select: { created_by: true }
+      })
+      inspectorId = inspectionTask?.created_by || staff.id
 
-    // Get latest task reference ID - BEFORE transaction
-    const currentYear = new Date().getFullYear()
-    const yearPrefix = `TSK-${currentYear}`
-    const latestTask = await prisma.tasks.findFirst({
-      where: {
-        organization_id: organizationId,
-        reference_id: { startsWith: yearPrefix }
-      },
-      orderBy: { reference_id: 'desc' },
-      select: { reference_id: true }
-    })
+      // Get latest task reference ID - BEFORE transaction
+      const currentYear = new Date().getFullYear()
+      const yearPrefix = `TSK-${currentYear}`
+      const latestTask = await prisma.tasks.findFirst({
+        where: {
+          organization_id: organizationId,
+          reference_id: { startsWith: yearPrefix }
+        },
+        orderBy: { reference_id: 'desc' },
+        select: { reference_id: true }
+      })
 
-    let nextSequence = 1
-    if (latestTask) {
-      const lastSequence = parseInt(latestTask.reference_id.slice(-7))
-      nextSequence = lastSequence + 1
+      let nextSequence = 1
+      if (latestTask) {
+        const lastSequence = parseInt(latestTask.reference_id.slice(-7))
+        nextSequence = lastSequence + 1
+      }
+      refId = `${yearPrefix}${nextSequence.toString().padStart(7, '0')}`
     }
-    const refId = `${yearPrefix}${nextSequence.toString().padStart(7, '0')}`
 
     const result = await prisma.$transaction(
       async tx => {
@@ -178,8 +187,16 @@ export async function POST (
         let refundRequestTaskId: string | null = null
 
         if (allResolved) {
-          // All preparation tasks are done - create Refund Request task only if there are refundable deposits
-          if (hasRefundableDeposit) {
+          // For Property_Not_Ready flow, just complete the flow and update status to Ready
+          if (isPropertyNotReadyFlow) {
+            // Complete the flow
+            await tx.task_flow_instances.update({
+              where: { id: flowInstance.id },
+              data: { status: 'Completed' }
+            })
+          }
+          // For Lease_Ending flow, create Refund Request task only if there are refundable deposits
+          else if (hasRefundableDeposit) {
             const refundRequestTask = await tx.tasks.create({
               data: {
                 reference_id: refId,

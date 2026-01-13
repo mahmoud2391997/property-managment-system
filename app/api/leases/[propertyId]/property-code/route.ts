@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { computePropertyDisplayStatus } from '@/lib/properties-utils'
 
 export async function GET (
   req: Request,
@@ -16,14 +17,51 @@ export async function GET (
 
     const property = await prisma.properties.findUnique({
       where: { id: propertyId },
-      select: { code: true }
+      select: {
+        code: true,
+        status: true,
+        leases: {
+          where: {
+            status: 'Current',
+            room_id: null
+          },
+          select: {
+            status: true,
+            start_date: true,
+            number_of_months: true
+          },
+          take: 1
+        },
+        rooms: {
+          select: {
+            status: true,
+            leases: {
+              where: {
+                status: 'Current'
+              },
+              select: {
+                status: true,
+                start_date: true,
+                number_of_months: true
+              },
+              take: 1
+            }
+          }
+        }
+      }
     })
 
     if (!property) {
       return NextResponse.json({ error: 'Property not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ property: property?.code })
+    const displayStatus = computePropertyDisplayStatus(
+      property.status,
+      property.leases[0] || null,
+      property.rooms
+    )
+
+    return NextResponse.json({ property: property.code, status: displayStatus })
   } catch (error) {
     console.error('Error fetching properties:', error)
     return NextResponse.json(

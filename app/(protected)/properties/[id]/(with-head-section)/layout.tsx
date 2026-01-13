@@ -23,6 +23,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import { toast } from 'sonner'
 import { useActionUnderDevelopment } from '@/components/costume-ui/under-development'
+import InitiatePreparationFlowDrawer from '@/components/dialogs/initiate-preparation-flow-drawer'
 
 type Props = {
   children: React.ReactNode
@@ -32,6 +33,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
 
   const { id: propertyId } = useParams<{ id: string }>()
   const [propertyCode, setPropertyCode] = useState<string | null>(null)
+  const [propertyStatus, setPropertyStatus] = useState<string | null>(null)
   const [isPropertyCodeLoading, setIsPropertyCodeLoading] =
     useState<boolean>(true)
 
@@ -74,19 +76,20 @@ const WithHeadSectionLayout = ({ children }: Props) => {
     }
   ])
 
-  // Fetch property code
-  useEffect(() => {
-    const fetchPropertyCode = async () => {
-      setIsPropertyCodeLoading(true)
-      const response = await fetch(`/api/leases/${propertyId}/property-code`)
-      if (response.ok) {
-        setIsPropertyCodeLoading(false)
-        const data = await response.json()
-        setPropertyCode(data.property)
-      }
+  // Fetch property code and status
+  const fetchPropertyData = async () => {
+    setIsPropertyCodeLoading(true)
+    const response = await fetch(`/api/leases/${propertyId}/property-code`)
+    if (response.ok) {
+      setIsPropertyCodeLoading(false)
+      const data = await response.json()
+      setPropertyCode(data.property)
+      setPropertyStatus(data.status)
     }
+  }
 
-    fetchPropertyCode()
+  useEffect(() => {
+    fetchPropertyData()
   }, [propertyId])
 
   const handleTabClick = (index: number) => {
@@ -167,6 +170,18 @@ const WithHeadSectionLayout = ({ children }: Props) => {
               <DropdownMenuItem onClick={showUnderDevelopment}>
                 Assign owner
               </DropdownMenuItem>
+              {propertyStatus === 'Vacant' && (
+                <InitiatePreparationFlowDrawer
+                  propertyId={propertyId}
+                  locationName={propertyCode || ''}
+                  onSuccess={fetchPropertyData}
+                  trigger={
+                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                      Mark as Not Ready
+                    </DropdownMenuItem>
+                  }
+                />
+              )}
               <DropdownMenuSeparator />
               <ConfirmationDialog
                 openDialogButton={

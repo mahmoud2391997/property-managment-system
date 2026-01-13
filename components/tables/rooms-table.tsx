@@ -17,6 +17,7 @@ import { Table } from '../costume-ui/table'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
+import InitiatePreparationFlowDrawer from '../dialogs/initiate-preparation-flow-drawer'
 import { toast } from 'sonner'
 
 type RoomTableData = {
@@ -139,6 +140,7 @@ export const columns: ColumnDef<RoomTableData>[] = [
         room.tenantPhone
       const onDelete = (table.options.meta as any)?.onDeleteRoom
       const canAddLease = room.status === 'Vacant'
+      const isVacant = room.status === 'Vacant'
 
       const handleWhatsAppTenant = () => {
         if (room.tenantPhone) {
@@ -189,6 +191,18 @@ export const columns: ColumnDef<RoomTableData>[] = [
               <Link href={`/rooms/${room.id}/leases/add-lease`}>
                 <DropdownMenuItem>Add Lease</DropdownMenuItem>
               </Link>
+            )}
+            {isVacant && (
+              <InitiatePreparationFlowDrawer
+                roomId={room.id}
+                locationName={`${room.property} - ${room.title}`}
+                onSuccess={onDelete}
+                trigger={
+                  <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                    Mark as Not Ready
+                  </DropdownMenuItem>
+                }
+              />
             )}
             {canWhatsApp && (
               <>

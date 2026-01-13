@@ -20,6 +20,7 @@ import { useSingleSelectOption } from '@/hooks/useSingleSelectOption'
 import { useRouter, usePathname } from 'next/navigation'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import { toast } from 'sonner'
+import InitiatePreparationFlowDrawer from '@/components/dialogs/initiate-preparation-flow-drawer'
 
 type Props = {
   children: React.ReactNode
@@ -28,6 +29,7 @@ type Props = {
 type RoomConfig = {
   roomTitle: string
   propertyCode: string
+  status: string
 }
 
 const WithHeadSectionLayout = ({ children }: Props) => {
@@ -62,22 +64,22 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   ])
 
   // Fetch room config
-  useEffect(() => {
-    const fetchRoomConfig = async () => {
-      setIsLoading(true)
-      try {
-        const response = await fetch(`/api/rooms/${roomId}/config`)
-        if (response.ok) {
-          const data = await response.json()
-          setRoomConfig(data)
-        }
-      } catch (error) {
-        console.error('Error fetching room config:', error)
-      } finally {
-        setIsLoading(false)
+  const fetchRoomConfig = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/config`)
+      if (response.ok) {
+        const data = await response.json()
+        setRoomConfig(data)
       }
+    } catch (error) {
+      console.error('Error fetching room config:', error)
+    } finally {
+      setIsLoading(false)
     }
+  }
 
+  useEffect(() => {
     fetchRoomConfig()
   }, [roomId])
 
@@ -161,6 +163,18 @@ const WithHeadSectionLayout = ({ children }: Props) => {
               >
                 Edit room
               </DropdownMenuItem>
+              {roomConfig?.status === 'Vacant' && (
+                <InitiatePreparationFlowDrawer
+                  roomId={roomId}
+                  locationName={`${roomConfig.propertyCode} - ${roomConfig.roomTitle}`}
+                  onSuccess={fetchRoomConfig}
+                  trigger={
+                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                      Mark as Not Ready
+                    </DropdownMenuItem>
+                  }
+                />
+              )}
               <DropdownMenuSeparator />
               <ConfirmationDialog
                 openDialogButton={

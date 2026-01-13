@@ -7,7 +7,7 @@ export async function handleRecurringPaymentGeneration (
   paymentId: string,
   organizationId: string
 ) {
-  console.log(`🔄 [Recurring] Checking payment ${paymentId}...`)
+  console.log(`[Recurring] Checking payment ${paymentId}...`)
 
   // Get the payment with its recurring config and lease details
   const payment = await prisma.payments.findUnique({
@@ -25,24 +25,24 @@ export async function handleRecurringPaymentGeneration (
   })
 
   if (!payment) {
-    console.log(`❌ [Recurring] Payment ${paymentId} not found`)
+    console.log(`[Recurring] Payment ${paymentId} not found`)
     return
   }
 
   console.log(
-    `📄 [Recurring] Payment ${payment.reference_id} found, recurring_config_id: ${payment.recurring_config_id}`
+    `[Recurring] Payment ${payment.reference_id} found, recurring_config_id: ${payment.recurring_config_id}`
   )
 
   if (!payment.recurring_configs) {
     console.log(
-      `⚠️ [Recurring] No recurring config attached to payment ${payment.reference_id}`
+      `[Recurring] No recurring config attached to payment ${payment.reference_id}`
     )
     return
   }
 
   if (!payment.leases) {
     console.log(
-      `⚠️ [Recurring] No lease attached to payment ${payment.reference_id}`
+      `[Recurring] No lease attached to payment ${payment.reference_id}`
     )
     return
   }
@@ -51,13 +51,13 @@ export async function handleRecurringPaymentGeneration (
   const lease = payment.leases
 
   console.log(
-    `✅ [Recurring] Found recurring config: "${recurringConfig.title}", active: ${recurringConfig.is_active}`
+    `[Recurring] Found recurring config: "${recurringConfig.title}", active: ${recurringConfig.is_active}`
   )
 
   // Only generate if recurring is active
   if (!recurringConfig.is_active) {
     console.log(
-      `⏸️ [Recurring] Recurring config is inactive, skipping generation`
+      `[Recurring] Recurring config is inactive, skipping generation`
     )
     return
   }
@@ -65,7 +65,7 @@ export async function handleRecurringPaymentGeneration (
   // Validate that payment has a due date before calculating next payment
   if (!payment.due_payment_timestamp) {
     console.log(
-      `❌ [Recurring] Payment ${payment.reference_id} has no due date, cannot generate next payment`
+      `[Recurring] Payment ${payment.reference_id} has no due date, cannot generate next payment`
     )
     return
   }
@@ -186,7 +186,7 @@ export async function handleRecurringPaymentGeneration (
   }
 
   console.log(
-    `🎉 [Recurring] Complete! Generated ${newReferenceId} for "${recurringConfig.title}"`
+    `[Recurring] Complete! Generated ${newReferenceId} for "${recurringConfig.title}"`
   )
 }
 
