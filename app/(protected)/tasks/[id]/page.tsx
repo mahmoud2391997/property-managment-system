@@ -194,6 +194,7 @@ export default function TaskDetailsPage () {
             onSubmit={handleCompletePreparation}
             loading={actionLoading === 'completing_preparation'}
             taskTitle={task.title}
+            flowType={flowInfo?.flowType as 'Lease Ending' | 'Property Not Ready'}
           />
 
           {/* Submit Refund Decision Dialog */}

@@ -15,7 +15,8 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   CalendarCheck2,
-  Plus
+  Plus,
+  Wrench
 } from 'lucide-react'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import { cn } from '@/lib/utils'
@@ -23,6 +24,7 @@ import { Button } from '@/components/ui/button'
 import PaymentsSection from '@/components/payments-section'
 import RecurringSection from '@/components/recurring-section'
 import InitiateLeaseEndingDrawer from '@/components/dialogs/initiate-lease-ending-drawer'
+import InitiatePreparationFlowDrawer from '@/components/dialogs/initiate-preparation-flow-drawer'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/formatTime'
@@ -207,9 +209,10 @@ type EmptyCardProps = {
   Icon: LucideIcon
   title: string
   subtitle: string
-  buttonLabel: string
+  buttonLabel?: string
   href?: string
   onClick?: () => void
+  children?: React.ReactNode
 }
 
 const EmptyCard = ({
@@ -219,7 +222,8 @@ const EmptyCard = ({
   subtitle,
   buttonLabel,
   href,
-  onClick
+  onClick,
+  children
 }: EmptyCardProps) => {
   const content = (
     <>
@@ -282,7 +286,9 @@ const EmptyCard = ({
         </div>
       </div>
       {/* Body - Empty State */}
-      {onClick ? (
+      {children ? (
+        children
+      ) : onClick ? (
         <button type='button' onClick={onClick} className={containerClasses}>
           {content}
         </button>
@@ -627,6 +633,29 @@ export default function OverviewContent ({ propertyId }: Props) {
           </>
         )}
       </div>
+
+      {/* Preparation Card - Only show when Vacant */}
+      {!loading && overviewData?.propertyStatus === 'Vacant' && (
+        <div className='flex items-start gap-5 w-full'>
+          <InitiatePreparationFlowDrawer
+            propertyId={propertyId}
+            locationName={overviewData.propertyCode}
+            onSuccess={fetchOverviewData}
+            trigger={
+              <div className='w-full'>
+                <EmptyCard
+                  iconStyles='bg-amber-50 text-amber-700'
+                  Icon={Wrench}
+                  title='Property Preparation'
+                  subtitle='Maintenance & preparation tasks'
+                  buttonLabel='Mark as Not Ready'
+                />
+              </div>
+            }
+          />
+        </div>
+      )}
+
       {/* Payments */}
       <PaymentsSection propertyId={propertyId} />
       {/* Recurring Payments & Expenses */}

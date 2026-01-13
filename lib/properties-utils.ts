@@ -55,6 +55,37 @@ export type PropertyWithDetails = {
   tenantPhone?: string | null
 }
 
+// Compute simple display status for property (for header dropdown menus)
+// Returns a simple string status: 'Vacant', 'Occupied', 'Pending_Inspection', 'Under_Preparation'
+export function computePropertyDisplayStatus(
+  propertyStatus: string,
+  propertyLease: { status: string; start_date: Date; number_of_months: number | null } | null,
+  rooms: { status: string; leases: { status: string; start_date: Date; number_of_months: number | null }[] }[]
+): DisplayStatus {
+  // Priority 1: Property is Pending_Inspection or Under_Preparation
+  if (propertyStatus === 'Pending_Inspection' || propertyStatus === 'Under_Preparation') {
+    return propertyStatus as DisplayStatus
+  }
+
+  // Priority 2: Property has active lease (Occupied)
+  if (propertyLease && isLeaseActive(propertyLease)) {
+    return 'Occupied'
+  }
+
+  // Priority 3: Check if any room has an active lease
+  const hasRoomWithActiveLease = rooms.some(room => {
+    const roomLease = room.leases[0] || null
+    return roomLease && isLeaseActive(roomLease)
+  })
+
+  if (hasRoomWithActiveLease) {
+    return 'Occupied'
+  }
+
+  // Priority 4: Property is Vacant (Ready + no lease + no room leases)
+  return 'Vacant'
+}
+
 // Compute display status for a room based on its DB status and lease
 export function computeRoomDisplayStatus(
   roomStatus: string,

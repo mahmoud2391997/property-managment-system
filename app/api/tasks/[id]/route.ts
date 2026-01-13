@@ -739,9 +739,16 @@ export async function GET(
           }
         }
 
+        // Transform flow_type to display format
+        const flowTypeDisplay = flowInstance.flow_type === 'Lease_Ending'
+          ? 'Lease Ending'
+          : flowInstance.flow_type === 'Property_Not_Ready'
+          ? 'Property Not Ready'
+          : flowInstance.flow_type
+
         flowInfo = {
           flowInstanceId: flowInstance.id,
-          flowType: flowInstance.flow_type === 'Lease_Ending' ? 'Lease Ending' : flowInstance.flow_type,
+          flowType: flowTypeDisplay,
           flowStatus: flowInstance.status,
           relatedTasks,
           leaseInfo,
