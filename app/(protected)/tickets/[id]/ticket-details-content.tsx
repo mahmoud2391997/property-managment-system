@@ -666,6 +666,8 @@ export default function TicketDetailsContent({
           currentUserAvatar={currentUserAvatar}
           disabled={rawStatus === 'Resolved' || rawStatus === 'Closed'}
           onCommentAdded={handleCommentAdded}
+          userType={userType}
+          ticketType={currentType}
         />
         {/* Sidebar - only shown to staff */}
         {userType === 'staff' && (

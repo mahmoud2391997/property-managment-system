@@ -565,6 +565,111 @@ export function TypeChangedEvent ({
   )
 }
 
+// Service Notice for tenants
+export function ServiceNotice ({ ticketType }: { ticketType?: string }) {
+  const isAirconTopUp = ticketType === 'Aircon Top-Up'
+
+  return (
+    <div className='flex gap-2 sm:gap-4'>
+      {/* Desktop: info icon placeholder for alignment */}
+      <div className='relative z-10 w-10 shrink-0 hidden sm:flex justify-center'>
+        <div className='w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center'>
+          <Info size={20} className='text-blue-600' />
+        </div>
+      </div>
+      <div className='flex-1 min-w-0 border border-blue-200 rounded-lg overflow-hidden bg-blue-50/50'>
+        <div className='bg-blue-100/60 border-b border-blue-200 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2'>
+          <Info size={16} className='text-blue-600 sm:hidden' />
+          <span className='texts-body-small-medium sm:texts-body-medium-medium text-blue-800'>
+            Important Notice
+          </span>
+        </div>
+        <div className='px-3 sm:px-4 py-3 sm:py-4 space-y-4'>
+          {isAirconTopUp ? (
+            <>
+              {/* English - Air con top up */}
+              <div>
+                <p className='texts-body-small sm:texts-body-medium text-blue-900 leading-relaxed'>
+                  Thank you for your request.
+                </p>
+                <p className='texts-body-small sm:texts-body-medium text-blue-800 leading-relaxed mt-2'>
+                  Please choose your preferred top-up package and reply in this chat:
+                </p>
+                <ul className='texts-body-small sm:texts-body-medium text-blue-800 leading-relaxed mt-2 list-disc list-inside pl-1'>
+                  <li>RM20</li>
+                  <li>RM50</li>
+                  <li>RM100</li>
+                </ul>
+                <p className='texts-body-small sm:texts-body-medium text-blue-800 leading-relaxed mt-2'>
+                  The payment link will appear on your payment page within 12 hours. Kindly complete the payment accordingly. Once payment is received, the top-up will be processed within 1 working day.
+                </p>
+                <p className='texts-body-small sm:texts-body-medium text-blue-800 leading-relaxed mt-2'>
+                  For record purposes, please ensure all communications are made through this platform only.
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className='border-t border-blue-200' />
+
+              {/* Bahasa Melayu - Air con top up */}
+              <div>
+                <p className='texts-body-small sm:texts-body-medium text-blue-900 leading-relaxed'>
+                  Terima kasih atas permintaan anda.
+                </p>
+                <p className='texts-body-small sm:texts-body-medium text-blue-800 leading-relaxed mt-2'>
+                  Sila pilih pakej tambah nilai dan balas di ruangan ini:
+                </p>
+                <ul className='texts-body-small sm:texts-body-medium text-blue-800 leading-relaxed mt-2 list-disc list-inside pl-1'>
+                  <li>RM20</li>
+                  <li>RM50</li>
+                  <li>RM100</li>
+                </ul>
+                <p className='texts-body-small sm:texts-body-medium text-blue-800 leading-relaxed mt-2'>
+                  Pautan pembayaran akan dipaparkan di halaman bayaran anda dalam tempoh 12 jam. Sila buat bayaran. Setelah bayaran diterima, proses tambah nilai akan diselesaikan dalam 1 hari bekerja.
+                </p>
+                <p className='texts-body-small sm:texts-body-medium text-blue-800 leading-relaxed mt-2'>
+                  Untuk tujuan rekod, mohon semua komunikasi dibuat melalui platform ini sahaja.
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* English - Default */}
+              <div>
+                <p className='texts-body-small sm:texts-body-medium text-blue-900 leading-relaxed'>
+                  Thank you for reaching out to us.
+                </p>
+                <p className='texts-body-small sm:texts-body-medium text-blue-800 leading-relaxed mt-2'>
+                  Please note that our services are not available 24 hours. All maintenance, complaints, and billing or payment matters will be handled within 2–5 working days, and updates will be provided through this platform.
+                </p>
+                <p className='texts-body-small sm:texts-body-medium text-blue-800 leading-relaxed mt-2'>
+                  Kindly submit all requests via this system only. Thank you for your understanding.
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className='border-t border-blue-200' />
+
+              {/* Bahasa Melayu - Default */}
+              <div>
+                <p className='texts-body-small sm:texts-body-medium text-blue-900 leading-relaxed'>
+                  Terima kasih kerana menghubungi kami.
+                </p>
+                <p className='texts-body-small sm:texts-body-medium text-blue-800 leading-relaxed mt-2'>
+                  Untuk makluman, perkhidmatan kami tidak beroperasi 24 jam. Semua aduan, penyelenggaraan, serta isu bil atau bayaran akan diproses dalam tempoh 2–5 hari bekerja, dan makluman akan diberikan melalui sistem ini.
+                </p>
+                <p className='texts-body-small sm:texts-body-medium text-blue-800 leading-relaxed mt-2'>
+                  Mohon semua urusan dibuat melalui sistem ini sahaja. Terima kasih atas kerjasama anda.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Timeline wrapper that adds the connecting line
 export function TimelineEventWrapper ({
   children,
