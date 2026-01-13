@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import {
   Drawer,
@@ -19,12 +20,14 @@ type Props = {
 }
 
 export default function AddTicketDrawer({ onSuccess }: Props) {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
 
-  const handleSuccess = () => {
+  const handleSuccess = (ticketId: string) => {
     setOpen(false)
     onSuccess?.()
+    router.push(`/tickets/${ticketId}`)
   }
 
   return (

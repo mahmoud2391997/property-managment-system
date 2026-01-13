@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Dialog from '../costume-ui/dialog'
 import AddTicket from '../add-ticket'
 import Button from '../costume-ui/button'
@@ -11,12 +12,14 @@ type Props = {
 }
 
 export default function AddTicketDialog({ onSuccess }: Props) {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
 
-  const handleSuccess = () => {
+  const handleSuccess = (ticketId: string) => {
     setOpen(false)
     onSuccess?.()
+    router.push(`/tickets/${ticketId}`)
   }
  
 

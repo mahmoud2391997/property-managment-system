@@ -14,6 +14,7 @@ import {
   TypeSetEvent,
   TypeChangedEvent,
   TimelineEventWrapper,
+  ServiceNotice,
   type TicketAttachment
 } from './timeline-events'
 import AddCommentSection from './add-comment-section'
@@ -110,6 +111,8 @@ type Props = {
   currentUserAvatar?: string
   disabled?: boolean
   onCommentAdded?: (comment: CommentResult) => void
+  userType?: 'staff' | 'tenant'
+  ticketType?: string
 }
 
 export default function TicketTimeline({
@@ -118,7 +121,9 @@ export default function TicketTimeline({
   currentUserName,
   currentUserAvatar,
   disabled = false,
-  onCommentAdded
+  onCommentAdded,
+  userType,
+  ticketType
 }: Props) {
   const totalEvents = events.length
 
@@ -237,14 +242,27 @@ export default function TicketTimeline({
     <div className='flex-1'>
       <div>
         {events.map((event, index) => {
-          const isLast = index === totalEvents - 1
+          // Check if this is the last event, accounting for service notice
+          const isLastEvent = index === totalEvents - 1
+          // If tenant, the service notice follows the opened event, so opened is never "last"
+          const isLast = userType === 'tenant' && index === 0 ? false : isLastEvent
           // Card-style events (opened, comment) don't have left icons on mobile
           const hasLeftElement = event.type !== 'opened' && event.type !== 'comment'
 
           return (
-            <TimelineEventWrapper key={index} isLast={isLast} hasLeftElement={hasLeftElement}>
-              {renderEvent(event)}
-            </TimelineEventWrapper>
+            <div key={index}>
+              <TimelineEventWrapper isLast={isLast && !(userType === 'tenant' && index === 0)} hasLeftElement={hasLeftElement}>
+                {renderEvent(event)}
+              </TimelineEventWrapper>
+              {/* Show service notice after the opened event for tenants */}
+              {userType === 'tenant' && index === 0 && (
+                <TimelineEventWrapper isLast={isLastEvent && totalEvents === 1} hasLeftElement={false}>
+                  <div className='py-2'>
+                    <ServiceNotice ticketType={ticketType} />
+                  </div>
+                </TimelineEventWrapper>
+              )}
+            </div>
           )
         })}
       </div>

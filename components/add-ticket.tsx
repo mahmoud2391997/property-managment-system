@@ -18,7 +18,7 @@ type ComboBoxItem = {
 }
 
 type Props = {
-  onSuccess?: () => void
+  onSuccess?: (ticketId: string) => void
   onLoadingChange?: (loading: boolean) => void
 }
 
@@ -124,7 +124,7 @@ const AddTicket = ({ onSuccess, onLoadingChange }: Props) => {
       setSelectedLeaseId(null)
 
       if (onSuccess) {
-        onSuccess()
+        onSuccess(data.ticket.id)
       }
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to create ticket'
