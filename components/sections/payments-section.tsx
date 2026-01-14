@@ -88,11 +88,6 @@ export default function PaymentsSection ({
         {/* Buttons */}
         {userType === 'staff' && (
           <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
-            <Button
-              icon={<DeleteButtonIcon />}
-              label='Delete'
-              className='bg-(--error-main)! flex-1 sm:flex-none'
-            />
 
             <Link href='/payments/add-payment' className='flex-1 sm:flex-none'>
               <Button

@@ -657,7 +657,7 @@ export default function OverviewContent ({ propertyId }: Props) {
       )}
 
       {/* Payments */}
-      <PaymentsSection propertyId={propertyId} />
+      <PaymentsSection propertyId={propertyId} hasActiveLease={!!overviewData?.lease} />
       {/* Recurring Payments & Expenses */}
       <RecurringSection propertyId={propertyId} />
     </>

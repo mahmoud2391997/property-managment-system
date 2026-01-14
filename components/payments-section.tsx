@@ -20,9 +20,10 @@ import { SectionUnderDevelopment } from './costume-ui/under-development'
 type Props = {
   propertyId?: string
   roomId?: string
+  hasActiveLease?: boolean
 }
 
-export default function PaymentsSection({ propertyId, roomId }: Props) {
+export default function PaymentsSection({ propertyId, roomId, hasActiveLease = false }: Props) {
   const [payments, setPayments] = useState<PaymentWithDetails[]>([])
   const [expenses, setExpenses] = useState<ExpenseWithDetails[]>([])
   const [loadingPayments, setLoadingPayments] = useState(true)
@@ -125,6 +126,13 @@ export default function PaymentsSection({ propertyId, roomId }: Props) {
   const isPaymentsTab = selectedIndex === 0 || isRoomMode
   const isExpensesTab = selectedIndex === 1 && !isRoomMode
 
+  // Determine add payment URL based on mode
+  const addPaymentUrl = roomId
+    ? `/rooms/${roomId}/add-payment`
+    : propertyId
+      ? `/properties/${propertyId}/add-payment`
+      : '/payments/add-payment'
+
   if (loadingPayments) {
     return <TableSectionSkeleton />
   }
@@ -168,18 +176,17 @@ export default function PaymentsSection({ propertyId, roomId }: Props) {
         <SearchInput placeholder={isPaymentsTab ? 'Search payments' : 'Search expenses'} />
         {/* Buttons */}
         <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <CustomButton
-            icon={<DeleteButtonIcon />}
-            label='Delete'
-            className='bg-(--error-main)!'
-          />
+          
 
-          <Link href={isPaymentsTab ? '/payments/add-payment' : '/expenses/add-expense'}>
-            <CustomButton
-              icon={<AddButtonIcon className='text-neutral-300' />}
-              label={isPaymentsTab ? 'Add Payment' : 'Add Expense'}
-            />
-          </Link>
+          {/* Only show Add Payment button if there's an active lease, always show Add Expense */}
+          {(isPaymentsTab ? hasActiveLease : true) && (
+            <Link href={isPaymentsTab ? addPaymentUrl : '/expenses/add-expense'}>
+              <CustomButton
+                icon={<AddButtonIcon className='text-neutral-300' />}
+                label={isPaymentsTab ? 'Add Payment' : 'Add Expense'}
+              />
+            </Link>
+          )}
         </div>
       </div>
 
