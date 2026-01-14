@@ -281,10 +281,12 @@ export async function GET (request: NextRequest) {
       : { leases: { tenant_id: tenant!.id }, status: { not: 'Unset' } }
 
     // If propertyId provided, filter payments through leases -> property_id
+    // Also filter room_id: null to only get property-level lease payments (not room payments)
     if (propertyId) {
       whereClause.leases = {
         ...whereClause.leases,
-        property_id: propertyId
+        property_id: propertyId,
+        room_id: null
       }
     }
 
