@@ -618,7 +618,7 @@ export default function RoomOverviewContent ({ roomId }: Props) {
       )}
 
       {/* Payments */}
-      <PaymentsSection roomId={roomId} />
+      <PaymentsSection roomId={roomId} hasActiveLease={!!overviewData?.lease} />
       {/* Recurring Payments */}
       <RecurringSectionRoom roomId={roomId} />
       <ActionUnderDevelopmentOverlay />
