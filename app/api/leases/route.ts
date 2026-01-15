@@ -66,7 +66,7 @@ export async function GET(request: Request) {
       whereClause.room_id = roomId
     }
 
-    // Fetch leases with tenant details
+    // Fetch leases with tenant details, scheduled changes, and pending payments
     const leases = await prisma.leases.findMany({
       where: whereClause,
       select: {
@@ -75,7 +75,10 @@ export async function GET(request: Request) {
         start_date: true,
         number_of_months: true,
         monthly_rent: true,
+        payment_day: true,
         status: true,
+        property_id: true,
+        room_id: true,
         tenants: {
           select: {
             id: true,
@@ -104,6 +107,38 @@ export async function GET(request: Request) {
           select: {
             title: true
           }
+        },
+        scheduled_rental_changes: {
+          where: {
+            status: 'Scheduled'
+          },
+          select: {
+            id: true,
+            old_monthly_rent: true,
+            new_monthly_rent: true,
+            effective_from: true
+          },
+          take: 1
+        },
+        payments: {
+          where: {
+            type: 'Rental',
+            status: 'Pending'
+          },
+          select: {
+            id: true,
+            due_payment_timestamp: true,
+            charges: {
+              select: {
+                amount: true,
+                is_taxed: true
+              }
+            }
+          },
+          orderBy: {
+            due_payment_timestamp: 'asc'
+          },
+          take: 1
         }
       },
       orderBy: {
@@ -133,12 +168,30 @@ export async function GET(request: Request) {
           number_of_months: lease.number_of_months
         })
 
+        // Get scheduled change if any
+        const scheduledChange = lease.scheduled_rental_changes[0]
+
+        // Calculate rental amount from pending payment if available
+        const pendingPayment = lease.payments[0]
+        let monthlyRent = Number(lease.monthly_rent)
+
+        if (pendingPayment) {
+          monthlyRent = pendingPayment.charges.reduce((sum, charge) => {
+            const chargeAmount = Number(charge.amount)
+            const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
+            return sum + chargeAmount + tax
+          }, 0)
+        }
+
         return {
           id: lease.id,
           reference_id: lease.reference_id,
           start_date: lease.start_date.toISOString(),
           number_of_months: lease.number_of_months,
-          monthly_rent: lease.monthly_rent,
+          monthly_rent: monthlyRent,
+          payment_day: lease.payment_day,
+          property_id: lease.property_id,
+          room_id: lease.room_id,
           status: displayStatus,
           tenant: {
             id: tenant.id,
@@ -147,7 +200,15 @@ export async function GET(request: Request) {
             profile_thumb: tenant.profile_thumb
           },
           property: lease.properties ? { code: lease.properties.code } : undefined,
-          room: lease.rooms ? { title: lease.rooms.title } : undefined
+          room: lease.rooms ? { title: lease.rooms.title } : undefined,
+          scheduled_change: scheduledChange
+            ? {
+                id: scheduledChange.id,
+                old_rent: Number(scheduledChange.old_monthly_rent),
+                new_rent: Number(scheduledChange.new_monthly_rent),
+                effective_from: scheduledChange.effective_from.toISOString()
+              }
+            : null
         }
       })
     })

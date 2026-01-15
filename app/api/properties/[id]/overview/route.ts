@@ -82,6 +82,26 @@ export async function GET(
               }
             }
           }
+        },
+        payments: {
+          where: {
+            type: 'Rental',
+            status: 'Pending'
+          },
+          select: {
+            id: true,
+            due_payment_timestamp: true,
+            charges: {
+              select: {
+                amount: true,
+                is_taxed: true
+              }
+            }
+          },
+          orderBy: {
+            due_payment_timestamp: 'asc'
+          },
+          take: 1
         }
       },
       orderBy: {
@@ -173,23 +193,21 @@ export async function GET(
       }
     })
 
-    // Calculate next due date for lease based on payment_day
-    const calculateNextDueDate = (paymentDay: number): string => {
-      const now = new Date()
-      const currentMonth = now.getMonth()
-      const currentYear = now.getFullYear()
-      const currentDay = now.getDate()
-
-      let dueDate: Date
-      if (currentDay <= paymentDay) {
-        // Due date is this month
-        dueDate = new Date(currentYear, currentMonth, paymentDay)
-      } else {
-        // Due date is next month
-        dueDate = new Date(currentYear, currentMonth + 1, paymentDay)
-      }
-
-      return dueDate.toISOString()
+    // Fetch scheduled rental change for lease (if any)
+    let scheduledChange = null
+    if (lease) {
+      scheduledChange = await prisma.scheduled_rental_changes.findFirst({
+        where: {
+          lease_id: lease.id,
+          status: 'Scheduled'
+        },
+        select: {
+          id: true,
+          old_monthly_rent: true,
+          new_monthly_rent: true,
+          effective_from: true
+        }
+      })
     }
 
     // Transform lease data
@@ -199,11 +217,25 @@ export async function GET(
         ? `${lease.tenants.individual_tenants.first_name} ${lease.tenants.individual_tenants.last_name || ''}`.trim()
         : lease.tenants.company_tenants?.company_name || 'Unknown'
 
+      // Get pending payment data
+      const pendingPayment = lease.payments[0]
+      let dueDate: string | null = null
+      let amount = 0
+
+      if (pendingPayment) {
+        dueDate = pendingPayment.due_payment_timestamp?.toISOString() || null
+        amount = pendingPayment.charges.reduce((sum, charge) => {
+          const chargeAmount = charge.amount.toNumber()
+          const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
+          return sum + chargeAmount + tax
+        }, 0)
+      }
+
       leaseData = {
         id: lease.id,
         reference_id: lease.reference_id,
-        monthly_rent: lease.monthly_rent,
-        due_date: calculateNextDueDate(lease.payment_day),
+        monthly_rent: amount || lease.monthly_rent,
+        due_date: dueDate,
         start_date: lease.start_date,
         number_of_months: lease.number_of_months,
         tenant: {
@@ -211,7 +243,15 @@ export async function GET(
           name: tenantName,
           profile_thumb: lease.tenants.profile_thumb,
           phone_number: lease.tenants.individual_tenants?.phone_number || null
-        }
+        },
+        scheduled_change: scheduledChange
+          ? {
+              id: scheduledChange.id,
+              old_rent: Number(scheduledChange.old_monthly_rent),
+              new_rent: Number(scheduledChange.new_monthly_rent),
+              effective_from: scheduledChange.effective_from.toISOString()
+            }
+          : null
       }
     }
 

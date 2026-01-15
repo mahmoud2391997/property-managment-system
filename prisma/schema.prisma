@@ -527,36 +527,37 @@ model individual_tenants {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model leases {
-  id                          String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  start_date                  DateTime               @db.Timestamptz(6)
+  id                          String                     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  start_date                  DateTime                   @db.Timestamptz(6)
   number_of_months            Int?
   payment_day                 Int
-  monthly_rent                Decimal                @db.Decimal(10, 2)
-  is_expiry_reminder          Boolean                @default(false)
+  monthly_rent                Decimal                    @db.Decimal(10, 2)
+  is_expiry_reminder          Boolean                    @default(false)
   expiry_days_before_reminder Int?
-  is_rent_reminder            Boolean                @default(false)
+  is_rent_reminder            Boolean                    @default(false)
   rent_reminder_days_before   Int?
-  is_overdue_rent_reminder    Boolean                @default(false)
+  is_overdue_rent_reminder    Boolean                    @default(false)
   overdue_days_after_reminder Int?
-  property_id                 String                 @db.Uuid
-  room_id                     String?                @db.Uuid
-  tenant_id                   String                 @db.Uuid
-  organization_id             String                 @db.Uuid
-  created_at                  DateTime               @default(now()) @db.Timestamptz(6)
-  created_by                  String?                @db.Uuid
+  property_id                 String                     @db.Uuid
+  room_id                     String?                    @db.Uuid
+  tenant_id                   String                     @db.Uuid
+  organization_id             String                     @db.Uuid
+  created_at                  DateTime                   @default(now()) @db.Timestamptz(6)
+  created_by                  String?                    @db.Uuid
   status                      lease_status_new
   reference_id                String
-  ended_at                    DateTime?              @db.Timestamptz(6)
+  ended_at                    DateTime?                  @db.Timestamptz(6)
   expenses                    expenses[]
   late_payment_charges        late_payment_charges[]
-  staff                       staff?                 @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations               organizations          @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  properties                  properties             @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  rooms                       rooms?                 @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  tenants                     tenants                @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  staff                       staff?                     @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  organizations               organizations              @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties                  properties                 @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rooms                       rooms?                     @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                     tenants                    @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   payments                    payments[]
   recurring_configs           recurring_configs[]
   refund_decisions            refund_decisions[]
+  scheduled_rental_changes    scheduled_rental_changes[]
   task_flow_instances         task_flow_instances[]
   tickets                     tickets[]
 
@@ -810,6 +811,7 @@ model staff {
   refund_decisions_refund_decisions_submitted_byTostaff      refund_decisions[]                 @relation("refund_decisions_submitted_byTostaff")
   roles_permissions                                          roles_permissions[]
   rooms                                                      rooms[]
+  scheduled_rental_changes                                   scheduled_rental_changes[]
   staff                                                      staff?                             @relation("staffTostaff", fields: [created_by], references: [id], onUpdate: NoAction)
   other_staff                                                staff[]                            @relation("staffTostaff")
   users                                                      users                              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -1371,6 +1373,27 @@ model refund_decisions {
   @@schema("public")
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model scheduled_rental_changes {
+  id               String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  lease_id         String                  @db.Uuid
+  new_monthly_rent Decimal                 @db.Decimal(10, 2)
+  old_monthly_rent Decimal                 @db.Decimal(10, 2)
+  effective_from   DateTime                @db.Timestamptz(6)
+  status           scheduled_change_status @default(Scheduled)
+  applied_at       DateTime?               @db.Timestamptz(6)
+  cancelled_at     DateTime?               @db.Timestamptz(6)
+  created_at       DateTime                @default(now()) @db.Timestamptz(6)
+  created_by       String?                 @db.Uuid
+  staff            staff?                  @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  leases           leases                  @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([effective_from], map: "idx_scheduled_rental_changes_effective_from")
+  @@index([lease_id], map: "idx_scheduled_rental_changes_lease_id")
+  @@index([status], map: "idx_scheduled_rental_changes_status")
+  @@schema("public")
+}
+
 enum aal_level {
   aal1
   aal2
@@ -1700,6 +1723,14 @@ enum decision {
   full
   partial
   forfeit
+
+  @@schema("public")
+}
+
+enum scheduled_change_status {
+  Scheduled
+  Applied
+  Cancelled
 
   @@schema("public")
 }

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import RentalsTable, { RentalWithDetails } from '@/components/tables/rentals-table'
@@ -36,6 +37,23 @@ interface RentalsSectionProps {
 
 export default function RentalsSection({ rentals }: RentalsSectionProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const searchParams = useSearchParams()
+  const [highlightId, setHighlightId] = useState<string | null>(null)
+
+  // Check for reference_id in URL to highlight
+  useEffect(() => {
+    const referenceId = searchParams.get('reference_id')
+    if (referenceId) {
+      setHighlightId(referenceId)
+      // Clear highlight after animation completes
+      const timer = setTimeout(() => {
+        setHighlightId(null)
+        // Clean up URL without refresh
+        window.history.replaceState({}, '', '/rentals')
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [searchParams])
 
   const filteredRentals = useMemo(() => {
     if (!searchTerm.trim()) {
@@ -87,7 +105,7 @@ export default function RentalsSection({ rentals }: RentalsSectionProps) {
       </div>
       {/* Table */}
       <div>
-        <RentalsTable data={filteredRentals} />
+        <RentalsTable data={filteredRentals} highlightReferenceId={highlightId} />
       </div>
     </>
   )

@@ -1,7 +1,7 @@
 'use client'
 
 import { ColumnDef } from '@tanstack/react-table'
-import { MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal, Clock, TrendingUp, TrendingDown } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -19,8 +19,16 @@ import { UserAvatar } from '../costume-ui/name-avatar'
 import { cn } from '@/lib/utils'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 import InitiateLeaseEndingDrawer from '../dialogs/initiate-lease-ending-drawer'
+import ScheduleRentalChangeDialog from '../dialogs/schedule-rental-change-dialog'
+import RentalHistoryDialog from '../dialogs/rental-history-dialog'
 import { showFeedbackToast } from '../costume-ui/feedback-toast'
 import Link from 'next/link'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 
 // Calculate end date from start_date + number_of_months (end date has same day as start date)
 function calculateEndDate(
@@ -145,9 +153,56 @@ const createColumns = (
     accessorKey: 'monthly_rent',
     header: () => <div className='text-left'>Rental</div>,
     cell: ({ row }) => {
+      const lease = row.original
+      const scheduledChange = lease.scheduled_change
+      const currentRent = row.getValue('monthly_rent') as number
+
+      // Only show scheduled change indicator if rent hasn't already changed
+      // (i.e., current rent doesn't match the new scheduled rent)
+      const showScheduledChange = scheduledChange &&
+        Math.abs(currentRent - scheduledChange.new_rent) > 0.01
+
+      if (showScheduledChange && scheduledChange) {
+        const isIncrease = scheduledChange.new_rent > scheduledChange.old_rent
+        const effectiveDate = new Date(scheduledChange.effective_from)
+        const effectiveMonth = effectiveDate.toLocaleDateString('en-GB', {
+          month: 'long',
+          year: 'numeric'
+        })
+
+        return (
+          <div className='flex items-center gap-2 text-left'>
+            <span>{formatCurrency(currentRent)}</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className='flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs'>
+                    <Clock className='h-3 w-3' />
+                    {isIncrease ? (
+                      <TrendingUp className='h-3 w-3' />
+                    ) : (
+                      <TrendingDown className='h-3 w-3' />
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side='top' className='max-w-xs'>
+                  <p className='text-sm'>
+                    Rental changing to{' '}
+                    <span className='font-medium'>
+                      {formatCurrency(scheduledChange.new_rent)}
+                    </span>{' '}
+                    from {effectiveMonth}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )
+      }
+
       return (
         <div className='text-left'>
-          {formatCurrency(row.getValue('monthly_rent'))}
+          {formatCurrency(currentRent)}
         </div>
       )
     }
@@ -207,9 +262,29 @@ const createColumns = (
               <>
                 <DropdownMenuItem>View details</DropdownMenuItem>
                 <DropdownMenuItem>Edit lease</DropdownMenuItem>
-                <DropdownMenuItem>Schedule rental change</DropdownMenuItem>
               </>
             )}
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Rental</DropdownMenuLabel>
+            {canEndLease && (
+              <ScheduleRentalChangeDialog
+                leaseId={lease.id}
+                onSuccess={onDataRefresh}
+                trigger={
+                  <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                    Schedule rental change
+                  </DropdownMenuItem>
+                }
+              />
+            )}
+            <RentalHistoryDialog
+              leaseId={lease.id}
+              trigger={
+                <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                  View rental history
+                </DropdownMenuItem>
+              }
+            />
             {canEndLease && (
               <>
                 <DropdownMenuSeparator />

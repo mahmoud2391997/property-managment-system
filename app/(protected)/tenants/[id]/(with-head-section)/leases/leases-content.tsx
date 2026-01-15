@@ -6,6 +6,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import {
@@ -13,7 +14,10 @@ import {
   Building2,
   DoorOpen,
   ExternalLink,
-  History
+  History,
+  Clock,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -21,8 +25,17 @@ import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/formatTime'
 import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
+import ScheduleRentalChangeDialog from '@/components/dialogs/schedule-rental-change-dialog'
+import RentalHistoryDialog from '@/components/dialogs/rental-history-dialog'
 
 // Types
+type ScheduledChange = {
+  id: string
+  old_rent: number
+  new_rent: number
+  effective_from: string
+}
+
 type LeaseData = {
   id: string
   reference_id: string
@@ -32,6 +45,7 @@ type LeaseData = {
   start_date: string
   number_of_months: number | null
   ended_at: string | null
+  due_date: string | null
   property: {
     id: string
     code: string
@@ -44,14 +58,16 @@ type LeaseData = {
     title: string
   } | null
   isRoomLease: boolean
+  scheduled_change: ScheduledChange | null
 }
 
 // Lease Card Component
 type LeaseCardProps = {
   lease: LeaseData
+  onRefresh?: () => void
 }
 
-const LeaseCard = ({ lease }: LeaseCardProps) => {
+const LeaseCard = ({ lease, onRefresh }: LeaseCardProps) => {
   const isRoomLease = lease.isRoomLease
   const isCurrent = lease.status === 'Current'
   const displayTitle = isRoomLease
@@ -141,6 +157,27 @@ const LeaseCard = ({ lease }: LeaseCardProps) => {
             >
               Copy Lease ID
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Rental</DropdownMenuLabel>
+            {isCurrent && (
+              <ScheduleRentalChangeDialog
+                leaseId={lease.id}
+                onSuccess={onRefresh}
+                trigger={
+                  <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                    Schedule rental change
+                  </DropdownMenuItem>
+                }
+              />
+            )}
+            <RentalHistoryDialog
+              leaseId={lease.id}
+              trigger={
+                <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                  View rental history
+                </DropdownMenuItem>
+              }
+            />
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -194,6 +231,45 @@ const LeaseCard = ({ lease }: LeaseCardProps) => {
           </span>
         </div>
       </div>
+
+      {/* Scheduled Rental Change Banner - only show if rent hasn't already changed */}
+      {lease.scheduled_change &&
+        isCurrent &&
+        Math.abs(lease.monthly_rent - Number(lease.scheduled_change.new_rent)) > 0.01 && (
+        <div className='flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-200'>
+          <div className='flex items-center justify-center h-8 w-8 rounded-full bg-blue-100'>
+            <Clock className='h-4 w-4 text-blue-600' />
+          </div>
+          <div className='flex-1'>
+            <p className='texts-body-small-medium text-blue-900'>
+              Rental change scheduled
+            </p>
+            <p className='texts-caption-large text-blue-700'>
+              Your rental will change from{' '}
+              <span className='font-medium'>
+                {formatCurrency(Number(lease.scheduled_change.old_rent))}
+              </span>{' '}
+              to{' '}
+              <span className='font-medium'>
+                {formatCurrency(Number(lease.scheduled_change.new_rent))}
+              </span>{' '}
+              starting{' '}
+              {new Date(lease.scheduled_change.effective_from).toLocaleDateString(
+                'en-GB',
+                { month: 'long', year: 'numeric' }
+              )}
+            </p>
+          </div>
+          <div className='flex items-center gap-1'>
+            {Number(lease.scheduled_change.new_rent) >
+            Number(lease.scheduled_change.old_rent) ? (
+              <TrendingUp className='h-5 w-5 text-blue-600' />
+            ) : (
+              <TrendingDown className='h-5 w-5 text-blue-600' />
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className='flex items-center justify-between pt-3 border-t border-(--border-light)'>
@@ -315,7 +391,7 @@ export default function LeasesContent({ tenantId }: Props) {
             Active Leases ({currentLeases.length})
           </h2>
           {currentLeases.map(lease => (
-            <LeaseCard key={lease.id} lease={lease} />
+            <LeaseCard key={lease.id} lease={lease} onRefresh={fetchData} />
           ))}
         </div>
       )}
@@ -327,7 +403,7 @@ export default function LeasesContent({ tenantId }: Props) {
             Past Leases ({endedLeases.length})
           </h2>
           {endedLeases.map(lease => (
-            <LeaseCard key={lease.id} lease={lease} />
+            <LeaseCard key={lease.id} lease={lease} onRefresh={fetchData} />
           ))}
         </div>
       )}

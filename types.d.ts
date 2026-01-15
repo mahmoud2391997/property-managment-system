@@ -58,12 +58,22 @@ export type ViewWithProperty = {
 
 export type LeaseStatusComputed = 'Scheduled' | 'Current' | 'Expired' | 'Ended'
 
+export type ScheduledRentalChange = {
+  id: string
+  old_rent: number
+  new_rent: number
+  effective_from: string
+}
+
 export type LeaseWithDetails = {
   id: string
   reference_id: string
   start_date: string
   number_of_months: number | null
   monthly_rent: number
+  payment_day: number
+  property_id: string
+  room_id: string | null
   status: LeaseStatusComputed
   tenant: {
     id: string
@@ -77,6 +87,7 @@ export type LeaseWithDetails = {
   room?: {
     title: string
   }
+  scheduled_change?: ScheduledRentalChange | null
 }
 
 export type PaymentHistory = {
