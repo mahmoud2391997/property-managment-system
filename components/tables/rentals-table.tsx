@@ -1,12 +1,26 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
-import { Building2, Calendar } from 'lucide-react'
+import { Building2, Calendar, Clock, TrendingUp, TrendingDown } from 'lucide-react'
 
 import { Checkbox } from '@/components/ui/checkbox'
 import { Table } from '../costume-ui/table'
 import { cn } from '@/lib/utils'
 import MobileCardContainer from '../costume-ui/mobile-card-container'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
+
+type ScheduledChange = {
+  id: string
+  old_rent: number
+  new_rent: number
+  effective_from: string
+}
 
 export type RentalWithDetails = {
   id: string
@@ -17,6 +31,7 @@ export type RentalWithDetails = {
   number_of_months: number | null
   monthly_rent: number
   status: 'Scheduled' | 'Current' | 'Expired' | 'Ended'
+  scheduled_change?: ScheduledChange | null
 }
 
 // Calculate end date from start_date + number_of_months
@@ -133,9 +148,56 @@ const columns: ColumnDef<RentalWithDetails>[] = [
     accessorKey: 'monthly_rent',
     header: () => <div className='text-left'>Rental</div>,
     cell: ({ row }) => {
+      const rental = row.original
+      const scheduledChange = rental.scheduled_change
+      const currentRent = row.getValue('monthly_rent') as number
+
+      // Only show scheduled change indicator if rent hasn't already changed
+      // (i.e., current rent doesn't match the new scheduled rent)
+      const showScheduledChange = scheduledChange &&
+        Math.abs(currentRent - scheduledChange.new_rent) > 0.01
+
+      if (showScheduledChange && scheduledChange) {
+        const isIncrease = scheduledChange.new_rent > scheduledChange.old_rent
+        const effectiveDate = new Date(scheduledChange.effective_from)
+        const effectiveMonth = effectiveDate.toLocaleDateString('en-GB', {
+          month: 'long',
+          year: 'numeric'
+        })
+
+        return (
+          <div className='flex items-center gap-2 text-left'>
+            <span>{formatCurrency(currentRent)}</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className='flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs'>
+                    <Clock className='h-3 w-3' />
+                    {isIncrease ? (
+                      <TrendingUp className='h-3 w-3' />
+                    ) : (
+                      <TrendingDown className='h-3 w-3' />
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side='top' className='max-w-xs'>
+                  <p className='text-sm'>
+                    Your rental will change to{' '}
+                    <span className='font-medium'>
+                      {formatCurrency(scheduledChange.new_rent)}
+                    </span>{' '}
+                    from {effectiveMonth}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )
+      }
+
       return (
         <div className='text-left'>
-          {formatCurrency(row.getValue('monthly_rent'))}
+          {formatCurrency(currentRent)}
         </div>
       )
     }
@@ -169,12 +231,21 @@ const columns: ColumnDef<RentalWithDetails>[] = [
 ]
 
 // Mobile Card Component
-const RentalCard = ({ rental }: { rental: RentalWithDetails }) => {
+const RentalCard = ({ rental, isHighlighted, cardRef }: {
+  rental: RentalWithDetails
+  isHighlighted?: boolean
+  cardRef?: React.RefObject<HTMLDivElement | null>
+}) => {
   const statusKey = rental.status.toLowerCase()
   const endDate = calculateEndDate(rental.start_date, rental.number_of_months)
 
   return (
-    <MobileCardContainer>
+    <div ref={cardRef}>
+      <MobileCardContainer
+        className={cn(
+          isHighlighted && 'animate-highlight-pulse'
+        )}
+      >
       {/* Header: ID & Status */}
       <div className='flex items-start justify-between'>
         <div className='flex-1'>
@@ -242,7 +313,42 @@ const RentalCard = ({ rental }: { rental: RentalWithDetails }) => {
           </span>
         </div>
       </div>
-    </MobileCardContainer>
+
+      {/* Scheduled Rental Change Banner - only show if rent hasn't already changed */}
+      {rental.scheduled_change &&
+        rental.status === 'Current' &&
+        Math.abs(rental.monthly_rent - rental.scheduled_change.new_rent) > 0.01 && (
+        <div className='flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-200'>
+          <div className='flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 shrink-0'>
+            <Clock className='h-4 w-4 text-blue-600' />
+          </div>
+          <div className='flex-1 min-w-0'>
+            <p className='texts-body-small-medium text-blue-900'>
+              Rental change scheduled
+            </p>
+            <p className='texts-caption-large text-blue-700'>
+              Your rental will change to{' '}
+              <span className='font-medium'>
+                {formatCurrency(rental.scheduled_change.new_rent)}
+              </span>{' '}
+              from{' '}
+              {new Date(rental.scheduled_change.effective_from).toLocaleDateString(
+                'en-GB',
+                { month: 'long', year: 'numeric' }
+              )}
+            </p>
+          </div>
+          <div className='shrink-0'>
+            {rental.scheduled_change.new_rent > rental.scheduled_change.old_rent ? (
+              <TrendingUp className='h-5 w-5 text-blue-600' />
+            ) : (
+              <TrendingDown className='h-5 w-5 text-blue-600' />
+            )}
+          </div>
+        </div>
+      )}
+      </MobileCardContainer>
+    </div>
   )
 }
 
@@ -250,13 +356,30 @@ type Props = {
   data: RentalWithDetails[]
   className?: string
   noPagnitation?: boolean
+  highlightReferenceId?: string | null
 }
 
 export default function RentalsTable({
   data,
   className = '',
-  noPagnitation = false
+  noPagnitation = false,
+  highlightReferenceId
 }: Props) {
+  const highlightRef = useRef<HTMLDivElement>(null)
+
+  // Scroll to highlighted item
+  useEffect(() => {
+    if (highlightReferenceId && highlightRef.current) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        highlightRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        })
+      }, 100)
+    }
+  }, [highlightReferenceId])
+
   return (
     <>
       {/* Desktop Table View */}
@@ -266,6 +389,7 @@ export default function RentalsTable({
           className={className}
           data={data}
           noPagnitation={noPagnitation}
+          highlightReferenceId={highlightReferenceId}
         />
       </div>
 
@@ -273,7 +397,12 @@ export default function RentalsTable({
       <div className='md:hidden space-y-3'>
         {data.length > 0 ? (
           data.map((rental) => (
-            <RentalCard key={rental.id} rental={rental} />
+            <RentalCard
+              key={rental.id}
+              rental={rental}
+              isHighlighted={highlightReferenceId === rental.reference_id}
+              cardRef={highlightReferenceId === rental.reference_id ? highlightRef : undefined}
+            />
           ))
         ) : (
           <div className='text-center py-12 text-(--text-secondary)'>

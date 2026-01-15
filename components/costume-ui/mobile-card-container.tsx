@@ -5,7 +5,7 @@ export default function MobileCardContainer ({ children, className = '' }: { chi
       className={cn(
         'bg-(--background-primary) rounded-xl border border-(--border-default)',
         'p-4 space-y-3 shadow-md',
-        ''
+        className
       )}
     >
       {children}

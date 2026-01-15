@@ -15,8 +15,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   CalendarCheck2,
-  Plus,
-  Wrench
+  Plus
 } from 'lucide-react'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import { cn } from '@/lib/utils'
@@ -24,7 +23,6 @@ import { Button } from '@/components/ui/button'
 import PaymentsSection from '@/components/payments-section'
 import RecurringSection from '@/components/recurring-section'
 import InitiateLeaseEndingDrawer from '@/components/dialogs/initiate-lease-ending-drawer'
-import InitiatePreparationFlowDrawer from '@/components/dialogs/initiate-preparation-flow-drawer'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/formatTime'
@@ -34,8 +32,20 @@ import { useRouter } from 'next/navigation'
 import { buildWhatsAppLink } from '@/utils/functions'
 import { useActionUnderDevelopment } from '@/components/costume-ui/under-development'
 import { useScrollToSection } from '@/hooks/useScrollToSection'
+import ScheduleRentalChangeDialog from '@/components/dialogs/schedule-rental-change-dialog'
+import RentalHistoryDialog from '@/components/dialogs/rental-history-dialog'
+import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
+import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
+import { TrendingUp, TrendingDown, Calendar, X } from 'lucide-react'
 
 // Types for overview data
+type ScheduledChange = {
+  id: string
+  old_rent: number
+  new_rent: number
+  effective_from: string
+}
+
 type LeaseOverview = {
   id: string
   reference_id: string
@@ -49,6 +59,7 @@ type LeaseOverview = {
     profile_thumb: string | null
     phone_number: string | null
   }
+  scheduled_change: ScheduledChange | null
 }
 
 type ContractOverview = {
@@ -131,7 +142,10 @@ const Card = ({
           className={'texts-body-large-medium'}
         />
         {user_link ? (
-          <Link href={user_link} className='flex-1 flex flex-col hover:underline'>
+          <Link
+            href={user_link}
+            className='flex-1 flex flex-col hover:underline'
+          >
             {content}
           </Link>
         ) : (
@@ -329,7 +343,9 @@ const StatusCard = ({
   useEffect(() => {
     const fetchInspectionTask = async () => {
       try {
-        const response = await fetch(`/api/properties/${propertyId}/inspection-task`)
+        const response = await fetch(
+          `/api/properties/${propertyId}/inspection-task`
+        )
         if (response.ok) {
           const data = await response.json()
           setInspectionTaskId(data.inspectionTaskId)
@@ -486,6 +502,32 @@ export default function OverviewContent ({ propertyId }: Props) {
     router.push(`/properties/${propertyId}/leases/add-lease`)
   }
 
+  // Handle cancel scheduled rental change
+  const [cancellingChange, setCancellingChange] = useState(false)
+  const handleCancelScheduledChange = async () => {
+    if (!overviewData?.lease?.scheduled_change) return
+
+    setCancellingChange(true)
+    try {
+      const response = await fetch(
+        `/api/leases/${overviewData.lease.id}/cancel-rental-change`,
+        { method: 'POST' }
+      )
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to cancel')
+      }
+
+      FeedbackToasts.deleted('Scheduled rental change')
+      fetchOverviewData()
+    } catch (error: any) {
+      FeedbackToasts.deleteFailed('scheduled rental change', error.message)
+    } finally {
+      setCancellingChange(false)
+    }
+  }
+
   return (
     <>
       {/* Cards */}
@@ -540,7 +582,25 @@ export default function OverviewContent ({ propertyId }: Props) {
                   Copy lease ID
                 </DropdownMenuItem>
                 <DropdownMenuItem>Edit lease</DropdownMenuItem>
-                <DropdownMenuItem>Schedule rental change</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Rental</DropdownMenuLabel>
+                <ScheduleRentalChangeDialog
+                  leaseId={overviewData.lease!.id}
+                  onSuccess={fetchOverviewData}
+                  trigger={
+                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                      Schedule rental change
+                    </DropdownMenuItem>
+                  }
+                />
+                <RentalHistoryDialog
+                  leaseId={overviewData.lease!.id}
+                  trigger={
+                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                      View rental history
+                    </DropdownMenuItem>
+                  }
+                />
                 <DropdownMenuSeparator />
                 <InitiateLeaseEndingDrawer
                   leaseId={overviewData.lease!.id}
@@ -634,30 +694,81 @@ export default function OverviewContent ({ propertyId }: Props) {
         )}
       </div>
 
-      {/* Preparation Card - Only show when Vacant */}
-      {!loading && overviewData?.propertyStatus === 'Vacant' && (
-        <div className='flex items-start gap-5 w-full'>
-          <InitiatePreparationFlowDrawer
-            propertyId={propertyId}
-            locationName={overviewData.propertyCode}
-            onSuccess={fetchOverviewData}
-            trigger={
-              <div className='w-full'>
-                <EmptyCard
-                  iconStyles='bg-amber-50 text-amber-700'
-                  Icon={Wrench}
-                  title='Property Preparation'
-                  subtitle='Maintenance & preparation tasks'
-                  buttonLabel='Mark as Not Ready'
-                />
+      {/* Scheduled Rental Change Banner - only show if rent hasn't already changed */}
+      {!loading &&
+        overviewData?.lease?.scheduled_change &&
+        Math.abs(overviewData.lease.monthly_rent - overviewData.lease.scheduled_change.new_rent) > 0.01 && (
+        <div className='w-full p-4 bg-amber-50 border border-amber-200 rounded-lg'>
+          <div className='flex items-center justify-between gap-4'>
+            <div className='flex items-center gap-3'>
+              <Calendar className='h-5 w-5 text-amber-600 shrink-0' />
+              <div>
+                <p className='text-sm font-medium text-amber-800'>
+                  Rental Change Scheduled
+                </p>
+                <p className='text-sm text-amber-700'>
+                  {formatCurrency(overviewData.lease.scheduled_change.old_rent)}{' '}
+                  →{' '}
+                  {formatCurrency(overviewData.lease.scheduled_change.new_rent)}
+                  <span className='ml-1.5 inline-flex items-center gap-0.5'>
+                    {overviewData.lease.scheduled_change.new_rent >
+                    overviewData.lease.scheduled_change.old_rent ? (
+                      <TrendingUp className='h-3 w-3' />
+                    ) : (
+                      <TrendingDown className='h-3 w-3' />
+                    )}
+                    {(
+                      ((overviewData.lease.scheduled_change.new_rent -
+                        overviewData.lease.scheduled_change.old_rent) /
+                        overviewData.lease.scheduled_change.old_rent) *
+                      100
+                    ).toFixed(1)}
+                    %
+                  </span>
+                  <span className='ml-2 text-amber-600'>
+                    • Effective{' '}
+                    {new Date(
+                      overviewData.lease.scheduled_change.effective_from
+                    ).toLocaleDateString('en-GB', {
+                      month: 'long',
+                      year: 'numeric'
+                    })}
+                  </span>
+                </p>
               </div>
-            }
-          />
+            </div>
+            <ConfirmationDialog
+              title='Cancel Scheduled Rental Change'
+              description={`Are you sure you want to cancel the scheduled rental change from ${formatCurrency(
+                overviewData.lease.scheduled_change.old_rent
+              )} to ${formatCurrency(
+                overviewData.lease.scheduled_change.new_rent
+              )}?`}
+              confirmButtonLabel='Cancel Change'
+              onConfirm={handleCancelScheduledChange}
+              variant='warning'
+              inputLabel='Type Cancel to Confirm'
+              confirmationText='CANCEL'
+              confirmButtonLoadingLabel='Cancelling'
+              openDialogButton={
+                <Button
+                  variant='ghost'
+                  className='h-8 px-3 text-amber-700 hover:text-amber-800 hover:bg-amber-100'
+                  disabled={cancellingChange}
+                >
+                  Cancel
+                </Button>
+              }
+            />
+          </div>
         </div>
       )}
 
       {/* Payments */}
-      <PaymentsSection propertyId={propertyId} hasActiveLease={!!overviewData?.lease} />
+      <PaymentsSection
+        propertyId={propertyId}
+        hasActiveLease={!!overviewData?.lease}
+      />
       {/* Recurring Payments & Expenses */}
       <RecurringSection propertyId={propertyId} />
     </>

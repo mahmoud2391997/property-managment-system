@@ -42,6 +42,8 @@ type Props<TData extends object> = {
   /** Number of skeleton rows to show when loading */
   loadingRowsCount?: number
   emptyMessage?: string
+  /** Reference ID to highlight and scroll to */
+  highlightReferenceId?: string | null
 }
 
 function Table<TData extends object> ({
@@ -56,7 +58,8 @@ function Table<TData extends object> ({
   meta,
   isLoadingRows = false,
   loadingRowsCount = 10,
-  emptyMessage
+  emptyMessage,
+  highlightReferenceId
 }: Props<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -64,6 +67,19 @@ function Table<TData extends object> ({
   )
   const [rowSelection, setRowSelection] = React.useState({})
   const [expanded, setExpanded] = React.useState<ExpandedState>({})
+  const highlightRowRef = React.useRef<HTMLTableRowElement>(null)
+
+  // Scroll to highlighted row
+  React.useEffect(() => {
+    if (highlightReferenceId && highlightRowRef.current) {
+      setTimeout(() => {
+        highlightRowRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        })
+      }, 100)
+    }
+  }, [highlightReferenceId])
 
   const table = useReactTable({
     data,
@@ -131,12 +147,19 @@ function Table<TData extends object> ({
               table.getRowModel().rows.map(row => {
                 const rowId = getRowId ? getRowId(row.original) : null
                 const isLoading = loadingRowId && rowId === loadingRowId
+                // Check if this row should be highlighted (by reference_id field)
+                const rowData = row.original as Record<string, unknown>
+                const isHighlighted = highlightReferenceId && rowData.reference_id === highlightReferenceId
 
                 return (
                   <React.Fragment key={row.id}>
                     <TableRow
+                      ref={isHighlighted ? highlightRowRef : undefined}
                       data-state={row.getIsSelected() && 'selected'}
-                      className='relative'
+                      className={cn(
+                        'relative',
+                        isHighlighted && 'animate-highlight-pulse'
+                      )}
                     >
                       {row.getVisibleCells().map(cell => (
                         <TableCell key={cell.id} className={cn(isLoading && 'opacity-30')}>

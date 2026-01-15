@@ -126,8 +126,8 @@ export default function ConfirmationDialog ({
   return (
     <ShadcnDialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{openDialogButton}</DialogTrigger>
-      <DialogContent className='py-0! px-0! my-10! overflow-visible! sm:max-w-[425px]'>
-        <DialogHeader className='px-7 py-2.5! border-b border-(--border-strong)'>
+      <DialogContent className='py-0! px-0! overflow-visible! sm:max-w-[425px]'>
+        <DialogHeader className='px-4 pt-3! border-b border-(--border-strong)'>
           <DialogTitle asChild>
             <div className='py-[15] text-left flex items-center gap-2'>
               {variant === 'danger' ? (
@@ -140,7 +140,7 @@ export default function ConfirmationDialog ({
           </DialogTitle>
           <DialogDescription className='text-left'></DialogDescription>
         </DialogHeader>
-        <div className='transition-all duration-300 p-7 py-4 space-y-4'>
+        <div className='transition-all duration-300 px-4 py-2 space-y-4'>
           <div className='texts-body-medium text-(--text-secondary)'>
             {description}
           </div>
@@ -157,7 +157,7 @@ export default function ConfirmationDialog ({
           </div>
         </div>
         <DialogFooter>
-          <div className='w-full flex items-center justify-end gap-2 border-t border-(--border-strong) p-7 py-5'>
+          <div className='w-full flex items-center justify-end gap-2 border-t border-(--border-strong) p-4'>
             <DialogClose asChild>
               <Button
                 variant='secondary'
