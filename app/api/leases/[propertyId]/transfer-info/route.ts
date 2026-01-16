@@ -1,0 +1,201 @@
+'use server'
+
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ propertyId: string }> }
+) {
+  try {
+    const { staff, error } = await getUserAndStaff()
+
+    if (error) return error
+
+    // Note: propertyId is actually leaseId (following existing pattern in this folder)
+    const { propertyId: leaseId } = await params
+
+    // Fetch lease with all details needed for transfer
+    const lease = await prisma.leases.findFirst({
+      where: {
+        id: leaseId,
+        organization_id: staff.organization_id
+      },
+      select: {
+        id: true,
+        reference_id: true,
+        monthly_rent: true,
+        payment_day: true,
+        number_of_months: true,
+        start_date: true,
+        status: true,
+        property_id: true,
+        room_id: true,
+        // Reminders
+        is_expiry_reminder: true,
+        expiry_days_before_reminder: true,
+        is_rent_reminder: true,
+        rent_reminder_days_before: true,
+        is_overdue_rent_reminder: true,
+        overdue_days_after_reminder: true,
+        // Tenant
+        tenants: {
+          select: {
+            id: true,
+            type: true,
+            profile_thumb: true,
+            individual_tenants: {
+              select: {
+                first_name: true,
+                last_name: true
+              }
+            },
+            company_tenants: {
+              select: {
+                company_name: true,
+                contact_person_first_name: true,
+                contact_person_last_name: true
+              }
+            }
+          }
+        },
+        // Property
+        properties: {
+          select: {
+            id: true,
+            code: true
+          }
+        },
+        // Room (if room lease)
+        rooms: {
+          select: {
+            id: true,
+            title: true
+          }
+        },
+        // Late payment charges for this lease
+        late_payment_charges: {
+          select: {
+            days_after_due: true,
+            amount: true
+          }
+        },
+        // Get ALL initial charges payments (charges may be distributed across multiple payments)
+        payments: {
+          where: {
+            type: 'Lease_Initial_Charges'
+          },
+          select: {
+            charges: {
+              select: {
+                title: true,
+                amount: true,
+                is_taxed: true,
+                is_refunded: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!lease) {
+      return NextResponse.json({ error: 'Lease not found' }, { status: 404 })
+    }
+
+    // Check if lease can be transferred
+    let canTransfer = true
+    let blockedReason: string | null = null
+
+    // Check 1: Lease must be Current
+    if (lease.status !== 'Current') {
+      canTransfer = false
+      blockedReason = 'Only current leases can be transferred'
+    }
+
+    // Check 2: No active task flow in progress
+    if (canTransfer) {
+      const existingFlow = await prisma.task_flow_instances.findFirst({
+        where: {
+          lease_id: leaseId,
+          status: 'In Progress'
+        }
+      })
+
+      if (existingFlow) {
+        canTransfer = false
+        blockedReason = 'A lease ending flow is already in progress for this lease'
+      }
+    }
+
+    // Format tenant name
+    const tenant = lease.tenants
+    let tenantName: string
+    if (tenant.type === 'Company') {
+      tenantName = tenant.company_tenants?.company_name || 'Unknown Company'
+    } else {
+      const individual = tenant.individual_tenants
+      tenantName = individual?.last_name
+        ? `${individual.first_name} ${individual.last_name}`
+        : individual?.first_name || 'Unknown'
+    }
+
+    return NextResponse.json({
+      lease: {
+        id: lease.id,
+        reference_id: lease.reference_id,
+        monthly_rent: Number(lease.monthly_rent),
+        payment_day: lease.payment_day,
+        number_of_months: lease.number_of_months,
+        start_date: lease.start_date.toISOString(),
+        is_property_lease: lease.room_id === null,
+        // Reminders
+        is_expiry_reminder: lease.is_expiry_reminder,
+        expiry_days_before_reminder: lease.expiry_days_before_reminder,
+        is_rent_reminder: lease.is_rent_reminder,
+        rent_reminder_days_before: lease.rent_reminder_days_before,
+        is_overdue_rent_reminder: lease.is_overdue_rent_reminder,
+        overdue_days_after_reminder: lease.overdue_days_after_reminder,
+        // Tenant
+        tenant: {
+          id: tenant.id,
+          name: tenantName,
+          profile_thumb: tenant.profile_thumb
+        },
+        // Property
+        property: {
+          id: lease.properties.id,
+          code: lease.properties.code
+        },
+        // Room (if room lease)
+        room: lease.rooms ? {
+          id: lease.rooms.id,
+          title: lease.rooms.title
+        } : null,
+        // Late charges
+        late_charges: lease.late_payment_charges.map(lc => ({
+          days_after_due: lc.days_after_due,
+          amount: Number(lc.amount)
+        })),
+        // Initial charges from ALL Lease_Initial_Charges payments (charges distributed across payments)
+        initial_charges: lease.payments.flatMap(p =>
+          p.charges.map(c => ({
+            type: c.title,
+            amount: Number(c.amount),
+            is_taxed: c.is_taxed,
+            is_refundable: c.is_refunded // is_refunded field is used for is_refundable
+          }))
+        )
+      },
+      can_transfer: canTransfer,
+      blocked_reason: blockedReason
+    })
+  } catch (error) {
+    console.error('Error fetching transfer info:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch transfer info' },
+      { status: 500 }
+    )
+  }
+}

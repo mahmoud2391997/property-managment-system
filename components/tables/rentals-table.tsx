@@ -66,30 +66,6 @@ function formatCurrency(amount: number): string {
 }
 
 const columns: ColumnDef<RentalWithDetails>[] = [
-  // Checkbox
-  {
-    id: 'select',
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && 'indeterminate')
-        }
-        onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
-        aria-label='Select all'
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={value => row.toggleSelected(!!value)}
-        aria-label='Select row'
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false
-  },
-
   {
     accessorKey: 'reference_id',
     header: () => <div className='text-left'>Rental ID</div>,

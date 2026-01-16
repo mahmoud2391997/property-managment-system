@@ -383,12 +383,48 @@ export async function GET(
       displayStatus = 'Vacant'
     }
 
+    // Check if property can have a new lease added
+    // Property can have a lease if:
+    // 1. Property status is Ready (vacant)
+    // 2. No active property-level lease
+    // 3. ALL rooms must be Ready (vacant) with no active leases
+    let canAddLease = true
+    let leaseBlockedReason: string | null = null
+
+    if (lease) {
+      canAddLease = false
+      leaseBlockedReason = 'Property already has an active lease'
+    } else if (property.status !== 'Ready') {
+      canAddLease = false
+      leaseBlockedReason = `Property is ${property.status.replace(/_/g, ' ')}`
+    } else if (property.rooms.length > 0) {
+      // Check if any room is not Ready or has an active lease
+      const blockedRoom = property.rooms.find(room => {
+        if (room.status !== 'Ready') return true
+        if (room.leases.length > 0) return true
+        return false
+      })
+
+      if (blockedRoom) {
+        const hasActiveLease = blockedRoom.leases.length > 0
+        if (hasActiveLease) {
+          canAddLease = false
+          leaseBlockedReason = 'One or more rooms have active leases'
+        } else {
+          canAddLease = false
+          leaseBlockedReason = `One or more rooms are ${blockedRoom.status.replace(/_/g, ' ')}`
+        }
+      }
+    }
+
     return NextResponse.json({
       propertyCode: property.code,
       propertyStatus: displayStatus,
       lease: leaseData,
       contract: contractData,
-      booking: bookingData
+      booking: bookingData,
+      canAddLease,
+      leaseBlockedReason
     })
   } catch (error: any) {
     console.error('Error fetching property overview:', error)

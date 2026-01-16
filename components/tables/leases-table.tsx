@@ -288,6 +288,17 @@ const createColumns = (
             {canEndLease && (
               <>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={
+                      lease.room_id
+                        ? `/rooms/${lease.room_id}/leases/${lease.id}/transfer`
+                        : `/properties/${lease.property_id}/leases/${lease.id}/transfer`
+                    }
+                  >
+                    Transfer Lease
+                  </Link>
+                </DropdownMenuItem>
                 <InitiateLeaseEndingDrawer
                   leaseId={lease.id}
                   propertyName={lease.property?.code || 'Property'}

@@ -15,6 +15,8 @@ const paymentSelect = {
   payment_evidence: true,
   leases: {
     select: {
+      id: true,
+      reference_id: true,
       property_id: true,
       room_id: true,
       properties: {

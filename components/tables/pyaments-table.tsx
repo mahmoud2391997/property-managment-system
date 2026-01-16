@@ -45,6 +45,8 @@ import MobileCardContainer from '../costume-ui/mobile-card-container'
 type Props = {
   data: PaymentWithDetails[]
   showPropertyColumn?: boolean
+  showLeaseColumn?: boolean
+  activeLeaseId?: string
   className?: string
   userType?: 'staff' | 'tenant'
   isLoading?: boolean
@@ -94,6 +96,8 @@ type Props = {
 export default function PaymentsTable ({
   data,
   showPropertyColumn = true,
+  showLeaseColumn = false,
+  activeLeaseId,
   className = '',
   userType = 'staff',
   isLoading = false,
@@ -472,12 +476,12 @@ export default function PaymentsTable ({
         const { id, type } = row.original
 
         return (
-          <div>
-            <div className='text-left texts-table-cell-primary'>{id}</div>
+          <Link href={`/payments/${id}`} className='block group'>
+            <div className='text-left texts-table-cell-primary group-hover:underline'>{id}</div>
             <div className='text-left texts-table-cell-secondary text-(--text-secondary)'>
               {formatPaymentTypeLabel(type)}
             </div>
-          </div>
+          </Link>
         )
       }
     },
@@ -521,6 +525,35 @@ export default function PaymentsTable ({
                   <div className='text-left texts-table-cell-secondary'>
                     {room}
                   </div>
+                </div>
+              )
+            }
+          } as ColumnDef<PaymentWithDetails>
+        ] as ColumnDef<PaymentWithDetails>[])
+      : []),
+
+    // Lease column - shows lease reference with "Current" indicator if active
+    ...(showLeaseColumn
+      ? ([
+          {
+            accessorKey: 'lease_reference_id',
+            header: () => <div className='text-left'>Lease</div>,
+            cell: ({ row }) => {
+              const { lease_id, lease_reference_id } = row.original
+              const isCurrentLease = activeLeaseId && lease_id === activeLeaseId
+
+              if (!lease_reference_id) {
+                return <span className='text-(--text-secondary)'>—</span>
+              }
+
+              return (
+                <div className='flex flex-col items-start gap-1'>
+                  <span className='texts-table-cell-primary'>{lease_reference_id}</span>
+                  {isCurrentLease && (
+                    <span className='px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700'>
+                      Current
+                    </span>
+                  )}
                 </div>
               )
             }
@@ -713,6 +746,11 @@ export default function PaymentsTable ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href={`/payments/${payment.id}`}>
+                  View Details
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigator.clipboard.writeText(payment.id)}
               >
@@ -745,7 +783,7 @@ export default function PaymentsTable ({
                       >
                         {isCheckingStatus === payment.id ? 'Checking...' : 'Check payment status'}
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
+                      {/* <DropdownMenuSeparator />
                       <ConfirmationDialog
                         openDialogButton={
                           <DropdownMenuItem
@@ -760,7 +798,7 @@ export default function PaymentsTable ({
                         description={`Are you sure you want to delete payment ${payment.id}? This action cannot be undone.`}
                         onConfirm={() => handleDeletePayment(payment.id)}
                         loading={deleteLoading}
-                      />
+                      /> */}
                     </>
                   ) : (
                     <>
@@ -820,9 +858,9 @@ export default function PaymentsTable ({
       className={`${refreshingPaymentId === payment.id && 'opacity-50'}`}>
         {/* Header: ID, Status, Actions */}
         <div className='flex items-start justify-between'>
-          <div className='flex-1'>
+          <Link href={`/payments/${payment.id}`} className='flex-1'>
             <div className='flex items-center gap-2 mb-1'>
-              <span className='texts-body-medium-semibold text-(--text-primary)'>
+              <span className='texts-body-medium-semibold text-(--text-primary) hover:underline'>
                 #{payment.id}
               </span>
               <div
@@ -841,7 +879,7 @@ export default function PaymentsTable ({
               </div>
             </div>
             <span className='texts-caption-large text-(--text-secondary)'>{payment.type}</span>
-          </div>
+          </Link>
 
           {/* Actions Dropdown */}
           <DropdownMenu>
@@ -852,6 +890,11 @@ export default function PaymentsTable ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href={`/payments/${payment.id}`}>
+                  View Details
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigator.clipboard.writeText(payment.id)}>
                 Copy payment ID
               </DropdownMenuItem>
@@ -882,7 +925,7 @@ export default function PaymentsTable ({
                       >
                         {isCheckingStatus === payment.id ? 'Checking...' : 'Check payment status'}
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
+                      {/* <DropdownMenuSeparator />
                       <ConfirmationDialog
                         openDialogButton={
                           <DropdownMenuItem
@@ -897,7 +940,7 @@ export default function PaymentsTable ({
                         description={`Are you sure you want to delete payment ${payment.id}? This action cannot be undone.`}
                         onConfirm={() => handleDeletePayment(payment.id)}
                         loading={deleteLoading}
-                      />
+                      /> */}
                     </>
                   ) : (
                     <>

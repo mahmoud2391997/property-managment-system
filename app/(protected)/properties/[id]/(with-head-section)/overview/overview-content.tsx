@@ -15,7 +15,8 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   CalendarCheck2,
-  Plus
+  Plus,
+  Ban
 } from 'lucide-react'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import { cn } from '@/lib/utils'
@@ -90,6 +91,8 @@ type OverviewData = {
   lease: LeaseOverview | null
   contract: ContractOverview | null
   booking: BookingOverview | null
+  canAddLease: boolean
+  leaseBlockedReason: string | null
 }
 
 // Card component for displaying data
@@ -313,6 +316,71 @@ const EmptyCard = ({
       ) : (
         <div className={containerClasses}>{content}</div>
       )}
+    </div>
+  )
+}
+
+// Blocked card when lease cannot be added
+type BlockedCardProps = {
+  iconStyles: string
+  Icon: LucideIcon
+  title: string
+  subtitle: string
+  blockedReason: string
+}
+
+const BlockedCard = ({
+  iconStyles,
+  Icon,
+  title,
+  subtitle,
+  blockedReason
+}: BlockedCardProps) => {
+  return (
+    <div
+      className={cn(
+        'flex flex-col w-full',
+        'w-full p-5 rounded-[12px]',
+        'bg-(--background-primary)',
+        'min-h-[232px]'
+      )}
+    >
+      {/* Head */}
+      <div className={cn('flex justify-between items-center', 'w-full')}>
+        <div className='flex gap-2.5'>
+          <div
+            className={cn(
+              'flex items-center justify-center rounded-[7px]',
+              'h-[31] w-[31]',
+              iconStyles
+            )}
+          >
+            <Icon size={19} strokeWidth={1.5} />
+          </div>
+          <div className='flex flex-col'>
+            <h3>{title}</h3>
+            <span className='texts-caption-large text-(--text-secondary)'>
+              {subtitle}
+            </span>
+          </div>
+        </div>
+      </div>
+      {/* Blocked State */}
+      <div
+        className={cn(
+          'flex flex-1 flex-col items-center justify-center gap-2',
+          'mt-4 mx-1 mb-1 rounded-lg',
+          'border-2 border-dashed border-neutral-200',
+          'bg-neutral-50/50'
+        )}
+      >
+        <div className='flex items-center justify-center w-10 h-10 rounded-full bg-neutral-100'>
+          <Ban className='text-neutral-400' size={20} strokeWidth={2} />
+        </div>
+        <span className='texts-body-small text-neutral-500 text-center px-4'>
+          {blockedReason}
+        </span>
+      </div>
     </div>
   )
 }
@@ -602,6 +670,13 @@ export default function OverviewContent ({ propertyId }: Props) {
                   }
                 />
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={`/properties/${propertyId}/leases/${overviewData.lease!.id}/transfer`}
+                  >
+                    Transfer Lease
+                  </Link>
+                </DropdownMenuItem>
                 <InitiateLeaseEndingDrawer
                   leaseId={overviewData.lease!.id}
                   propertyName={overviewData.propertyCode}
@@ -616,7 +691,7 @@ export default function OverviewContent ({ propertyId }: Props) {
               </>
             }
           />
-        ) : (
+        ) : overviewData?.canAddLease ? (
           <EmptyCard
             iconStyles='bg-[#DEFFE2] text-(--success-dark)'
             Icon={ArrowDownLeft}
@@ -624,6 +699,14 @@ export default function OverviewContent ({ propertyId }: Props) {
             subtitle='Income from tenant'
             buttonLabel='Add Lease'
             onClick={handleAddLease}
+          />
+        ) : (
+          <BlockedCard
+            iconStyles='bg-[#DEFFE2] text-(--success-dark)'
+            Icon={ArrowDownLeft}
+            title='Lease Overview'
+            subtitle='Income from tenant'
+            blockedReason={overviewData?.leaseBlockedReason || 'Cannot add lease'}
           />
         )}
 
@@ -768,6 +851,7 @@ export default function OverviewContent ({ propertyId }: Props) {
       <PaymentsSection
         propertyId={propertyId}
         hasActiveLease={!!overviewData?.lease}
+        activeLeaseId={overviewData?.lease?.id}
       />
       {/* Recurring Payments & Expenses */}
       <RecurringSection propertyId={propertyId} />

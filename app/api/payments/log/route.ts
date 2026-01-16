@@ -50,16 +50,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate payment method
-    if (!['Cash', 'Bank Transfer'].includes(payment_method)) {
+    // Validate payment method (only Bank Transfer is allowed)
+    if (payment_method !== 'Bank Transfer') {
       return NextResponse.json(
-        { error: 'Invalid payment method. Must be Cash or Bank Transfer' },
+        { error: 'Invalid payment method. Must be Bank Transfer' },
+        { status: 400 }
+      )
+    }
+
+    // Validate receipt is provided (required for bank transfer)
+    if (!receipt_image) {
+      return NextResponse.json(
+        { error: 'Receipt is required' },
         { status: 400 }
       )
     }
 
     // Convert payment method to Prisma enum value
-    const prismaPaymentMethod = payment_method === 'Bank Transfer' ? 'Bank_Transfer' : payment_method
+    const prismaPaymentMethod = 'Bank_Transfer'
 
     // Validate amount
     const numAmount = parseFloat(amount)

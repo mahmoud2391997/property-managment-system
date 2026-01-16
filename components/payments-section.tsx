@@ -21,9 +21,10 @@ type Props = {
   propertyId?: string
   roomId?: string
   hasActiveLease?: boolean
+  activeLeaseId?: string
 }
 
-export default function PaymentsSection({ propertyId, roomId, hasActiveLease = false }: Props) {
+export default function PaymentsSection({ propertyId, roomId, hasActiveLease = false, activeLeaseId }: Props) {
   const [payments, setPayments] = useState<PaymentWithDetails[]>([])
   const [expenses, setExpenses] = useState<ExpenseWithDetails[]>([])
   const [loadingPayments, setLoadingPayments] = useState(true)
@@ -208,6 +209,8 @@ export default function PaymentsSection({ propertyId, roomId, hasActiveLease = f
         <PaymentsTable
           data={payments}
           showPropertyColumn={false}
+          showLeaseColumn={true}
+          activeLeaseId={activeLeaseId}
           className='-mx-5! rounded-none! border-x-0'
         />
       )}
