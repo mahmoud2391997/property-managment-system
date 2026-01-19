@@ -119,12 +119,15 @@ const ChargesSection = ({
         const config = chargeTypes.find(t => t.type === charge.type)
         // Use is_refundable from database config, fallback to true only for Security Deposit
         const isRefundableChecked = charge.is_refundable ?? (charge.type === 'Security Deposit')
+        // First Month Rental is NEVER removable (it's required for lease initial charges)
+        // Also, the first charge in the list is not removable
+        const isFirstMonthRental = charge.type === 'First Month Rental'
         return {
           type: charge.type,
           amount: String(charge.amount),
           taxable: config?.taxable ?? false,
           refundable: config?.refundable ?? false,
-          isRemovable: index > 0, // First charge is not removable
+          isRemovable: !isFirstMonthRental && index > 0, // First Month Rental and first charge are not removable
           isTaxableChecked: charge.is_taxed,
           isRefundableChecked
         }

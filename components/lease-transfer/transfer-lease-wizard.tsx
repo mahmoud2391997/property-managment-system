@@ -849,6 +849,115 @@ export default function TransferLeaseWizard ({
                   : null
               }}
             />
+
+            {/* Transfer Summary Note */}
+            <div className='p-4 bg-neutral-50 border border-neutral-200 rounded-lg'>
+              <div className='flex gap-3'>
+                <Info className='w-5 h-5 text-neutral-600 shrink-0 mt-0.5' />
+                <div className='space-y-3'>
+                  <p className='texts-body-small-medium text-neutral-800'>
+                    Summary: What will happen when you transfer
+                  </p>
+                  <ul className='texts-body-small text-neutral-700 space-y-2'>
+                    <li className='flex items-start gap-2'>
+                      <span className='text-neutral-400 mt-0.5'>•</span>
+                      <span>
+                        <strong>Current lease</strong> will be ended and marked as "Transferred"
+                      </span>
+                    </li>
+                    <li className='flex items-start gap-2'>
+                      <span className='text-neutral-400 mt-0.5'>•</span>
+                      <span>
+                        <strong>Pending payments</strong> on the current lease will be cancelled
+                      </span>
+                    </li>
+                    <li className='flex items-start gap-2'>
+                      <span className='text-neutral-400 mt-0.5'>•</span>
+                      <span>
+                        <strong>Open tickets</strong> linked to the current lease will be closed
+                      </span>
+                    </li>
+                    <li className='flex items-start gap-2'>
+                      <span className='text-neutral-400 mt-0.5'>•</span>
+                      <span>
+                        <strong>Inspection task</strong> will be created for the vacated unit
+                      </span>
+                    </li>
+                    <li className='flex items-start gap-2'>
+                      <span className='text-neutral-400 mt-0.5'>•</span>
+                      <span>
+                        <strong>New lease</strong> will be created at{' '}
+                        {selectedDestination ? (
+                          <span className='font-medium'>
+                            {selectedDestination.subtitle
+                              ? `${selectedDestination.subtitle} - ${selectedDestination.label}`
+                              : selectedDestination.label}
+                          </span>
+                        ) : (
+                          'the selected destination'
+                        )}
+                        {transferDate && (
+                          <>
+                            {' '}starting{' '}
+                            <span className='font-medium'>
+                              {transferDate.toLocaleDateString('en-MY', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
+                            </span>
+                          </>
+                        )}
+                      </span>
+                    </li>
+                    {paymentStatus.isPaid && (
+                      <li className='flex items-start gap-2'>
+                        <span className='text-green-500 mt-0.5'>✓</span>
+                        <span>
+                          <strong>Initial charges</strong> will be marked as paid via{' '}
+                          <span className='font-medium'>{paymentStatus.paymentMethod}</span>
+                        </span>
+                      </li>
+                    )}
+                    {!paymentStatus.isPaid && (
+                      <li className='flex items-start gap-2'>
+                        <span className='text-amber-500 mt-0.5'>○</span>
+                        <span>
+                          <strong>Initial charges</strong> will be pending payment
+                        </span>
+                      </li>
+                    )}
+                    {lateCharges.length > 0 && (
+                      <li className='flex items-start gap-2'>
+                        <span className='text-neutral-400 mt-0.5'>•</span>
+                        <span>
+                          <strong>Late charges</strong>:{' '}
+                          {lateCharges.map((lc, i) => (
+                            <span key={i}>
+                              RM {parseFloat(lc.amount).toFixed(2)} after {lc.days_after_due} day{lc.days_after_due > 1 ? 's' : ''}
+                              {i < lateCharges.length - 1 ? ', ' : ''}
+                            </span>
+                          ))}
+                        </span>
+                      </li>
+                    )}
+                    {(leaseExpiryReminder.enabled || rentReminder.enabled || overdueReminder.enabled) && (
+                      <li className='flex items-start gap-2'>
+                        <span className='text-neutral-400 mt-0.5'>•</span>
+                        <span>
+                          <strong>Reminders enabled</strong>:{' '}
+                          {[
+                            leaseExpiryReminder.enabled && `Lease expiry (${leaseExpiryReminder.days} days before)`,
+                            rentReminder.enabled && `Rent due (${rentReminder.days} days before)`,
+                            overdueReminder.enabled && `Overdue (${overdueReminder.days} days after)`
+                          ].filter(Boolean).join(', ')}
+                        </span>
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
