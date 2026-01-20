@@ -1583,6 +1583,7 @@ enum payment_type {
   Parking
   Rental
   Miscellaneous_Others  @map("Miscellaneous/Others")
+  Rental_Adjustment     @map("Rental Adjustment")
 
   @@schema("public")
 }

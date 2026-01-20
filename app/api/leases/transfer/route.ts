@@ -109,16 +109,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!new_lease?.initial_charges?.length) {
+    // initial_charges is now optional (First Month Rental removed from charges)
+
+    // Payment date/time only required if there are initial charges
+    const hasInitialCharges = new_lease?.initial_charges && new_lease.initial_charges.length > 0
+    if (hasInitialCharges && (!new_lease?.payment_date || !new_lease?.payment_time)) {
       return NextResponse.json(
-        { error: 'At least one initial charge is required' },
+        { error: 'Payment date and time are required for initial charges' },
         { status: 400 }
       )
     }
 
-    if (!new_lease?.payment_date || !new_lease?.payment_time) {
+    // first_rental_due_date is required for rental schedule
+    if (!new_lease?.first_rental_due_date) {
       return NextResponse.json(
-        { error: 'Payment date and time are required' },
+        { error: 'First rental due date is required' },
         { status: 400 }
       )
     }
@@ -244,19 +249,18 @@ export async function POST(request: NextRequest) {
     const isSelfAssign = ending_task.assigned_staff_id === staff.id
     const organizationId = staff.organization_id
 
-    // Combine payment date and time
+    // Combine payment date and time (for initial charges payment)
     const paymentDateTime = new Date(`${new_lease.payment_date}T${new_lease.payment_time}`)
 
-    // Separate First Month Rental from other initial charges
-    const firstMonthRentalCharge = new_lease.initial_charges.find(
-      (charge: any) => charge.type === 'First Month Rental'
-    )
-    const otherInitialCharges = new_lease.initial_charges.filter(
-      (charge: any) => charge.type !== 'First Month Rental'
-    )
+    // First rental due date (from the rental schedule section)
+    const firstRentalDueDate = new Date(new_lease.first_rental_due_date)
+    firstRentalDueDate.setHours(0, 0, 0, 0) // Normalize to midnight
 
-    // Calculate total amount from other initial charges
-    const initialChargesTotalAmount = otherInitialCharges.reduce(
+    // Initial charges (no longer includes First Month Rental)
+    const initialCharges = new_lease.initial_charges || []
+
+    // Calculate total amount from initial charges
+    const initialChargesTotalAmount = initialCharges.reduce(
       (sum: number, charge: any) => {
         const amount = parseFloat(charge.amount) || 0
         const tax = charge.isTaxableChecked ? amount * 0.08 : 0
@@ -265,12 +269,10 @@ export async function POST(request: NextRequest) {
       0
     )
 
-    // Calculate First Month Rental amount
-    const firstMonthRentalAmount = firstMonthRentalCharge
-      ? parseFloat(firstMonthRentalCharge.amount) || 0
-      : 0
+    // First Rental amount is always the monthly rent
+    const firstRentalAmount = parseFloat(new_lease.monthly_rent) || 0
 
-    // Determine payment status
+    // Determine payment status (for initial charges only)
     const paymentStatus = new_lease.is_paid ? 'Paid' : 'Pending'
 
     // ============================================
@@ -555,10 +557,10 @@ export async function POST(request: NextRequest) {
         return refId
       }
 
-      // 14. Create Initial Charges Payment (excluding First Month Rental)
+      // 14. Create Initial Charges Payment (if any charges provided)
       let initialChargesPayment = null
 
-      if (otherInitialCharges.length > 0) {
+      if (initialCharges.length > 0) {
         const initialChargesReferenceId = generatePaymentReferenceId()
 
         initialChargesPayment = await tx.payments.create({
@@ -571,7 +573,7 @@ export async function POST(request: NextRequest) {
             organization_id: organizationId,
             created_by: staff.id,
             charges: {
-              create: otherInitialCharges.map((charge: any) => ({
+              create: initialCharges.map((charge: any) => ({
                 title: charge.type,
                 amount: parseFloat(charge.amount) || 0,
                 is_taxed: charge.isTaxableChecked || false,
@@ -600,87 +602,61 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 16. Create First Month Rental Payment
-      let firstMonthRentalPayment = null
+      // 16. Create First Rental Payment (always created with due date from rental schedule)
+      const firstRentalReferenceId = generatePaymentReferenceId()
 
-      if (firstMonthRentalCharge) {
-        const firstMonthRentalReferenceId = generatePaymentReferenceId()
-
-        // Build charges array - Monthly Rental + optional Proration
-        const rentalCharges: any[] = [
-          {
-            title: 'Monthly Rental',
-            amount: firstMonthRentalAmount,
-            is_taxed: false,
-            is_refunded: firstMonthRentalCharge?.isRefundableChecked || false,
-            created_by: staff.id
+      const firstRentalPayment = await tx.payments.create({
+        data: {
+          reference_id: firstRentalReferenceId,
+          lease_id: newLease.id,
+          type: 'Rental',
+          status: 'Pending',
+          due_payment_timestamp: firstRentalDueDate,
+          organization_id: organizationId,
+          created_by: staff.id,
+          charges: {
+            create: {
+              title: 'Monthly Rental',
+              amount: firstRentalAmount,
+              is_taxed: false,
+              is_refunded: false,
+              created_by: staff.id
+            }
           }
-        ]
+        }
+      })
 
-        firstMonthRentalPayment = await tx.payments.create({
+      // 17. Create Rental Adjustment Payment (if enabled and provided)
+      let rentalAdjustmentPayment = null
+      if (new_lease.rental_adjustment && new_lease.rental_adjustment.amount > 0) {
+        const rentalAdjustmentReferenceId = generatePaymentReferenceId()
+        const rentalAdjustmentDueDate = new_lease.rental_adjustment.due_date
+          ? new Date(new_lease.rental_adjustment.due_date)
+          : firstRentalDueDate
+
+        rentalAdjustmentPayment = await tx.payments.create({
           data: {
-            reference_id: firstMonthRentalReferenceId,
+            reference_id: rentalAdjustmentReferenceId,
             lease_id: newLease.id,
-            type: 'Rental',
-            status: paymentStatus,
-            due_payment_timestamp: new_lease.is_paid ? null : paymentDateTime,
+            type: 'Rental_Adjustment',
+            status: 'Pending',
+            due_payment_timestamp: rentalAdjustmentDueDate,
             organization_id: organizationId,
             created_by: staff.id,
             charges: {
-              create: rentalCharges
+              create: {
+                title: 'Rental Adjustment',
+                amount: new_lease.rental_adjustment.amount,
+                is_taxed: false,
+                is_refunded: false,
+                created_by: staff.id
+              }
             }
           }
         })
-
-        // 18. If paid, create payment_history entry for first month rental
-        if (new_lease.is_paid) {
-          await tx.payment_history.create({
-            data: {
-              payment_id: firstMonthRentalPayment.id,
-              amount: firstMonthRentalAmount,
-              payment_method:
-                new_lease.payment_method === 'Bank Transfer' ? 'Bank_Transfer' : 'Cash',
-              paid_at: paymentDateTime,
-              registrar_role: 'staff',
-              registrar: staff.id,
-              receipt_image: new_lease.receipt_image || null,
-              status: 'Success'
-            }
-          })
-
-          // 19. Create Next Month Rental Payment (if First Month is Paid)
-          const firstMonthDueDate = paymentDateTime
-          const nextMonthDueDate = new Date(firstMonthDueDate)
-          nextMonthDueDate.setMonth(nextMonthDueDate.getMonth() + 1)
-          nextMonthDueDate.setDate(new_lease.payment_day)
-          nextMonthDueDate.setHours(0, 0, 0, 0)
-
-          const nextMonthRentalReferenceId = generatePaymentReferenceId()
-
-          await tx.payments.create({
-            data: {
-              reference_id: nextMonthRentalReferenceId,
-              lease_id: newLease.id,
-              type: 'Rental',
-              status: 'Pending',
-              due_payment_timestamp: nextMonthDueDate,
-              organization_id: organizationId,
-              created_by: staff.id,
-              charges: {
-                create: {
-                  title: 'Monthly Rental',
-                  amount: new_lease.monthly_rent || 0,
-                  is_taxed: false,
-                  is_refunded: false,
-                  created_by: staff.id
-                }
-              }
-            }
-          })
-        }
       }
 
-      // 20. Create Late Payment Charges
+      // 18. Create Late Payment Charges
       if (new_lease.late_charges && new_lease.late_charges.length > 0) {
         await tx.late_payment_charges.createMany({
           data: new_lease.late_charges.map((charge: any) => ({
@@ -697,7 +673,8 @@ export async function POST(request: NextRequest) {
         inspectionTask,
         newLease,
         initialChargesPayment,
-        firstMonthRentalPayment
+        firstRentalPayment,
+        rentalAdjustmentPayment
       }
     }, { timeout: 15000 })
 

@@ -45,6 +45,7 @@ type Props = {
   defaultCharges?: DefaultCharge[]
   excludedChargeTypes?: string[]
   allChargesSelectable?: boolean
+  allowAllRemovable?: boolean
 }
 const ChargesSection = ({
   title = 'Charges',
@@ -55,7 +56,8 @@ const ChargesSection = ({
   defaultPayment = false,
   defaultCharges,
   excludedChargeTypes = [],
-  allChargesSelectable = false
+  allChargesSelectable = false,
+  allowAllRemovable = false
 }: Props) => {
   // Filter out excluded charge types - memoized to prevent infinite re-renders
   // Use JSON.stringify for stable dependency since excludedChargeTypes array reference changes
@@ -121,13 +123,14 @@ const ChargesSection = ({
         const isRefundableChecked = charge.is_refundable ?? (charge.type === 'Security Deposit')
         // First Month Rental is NEVER removable (it's required for lease initial charges)
         // Also, the first charge in the list is not removable
+        // Unless allowAllRemovable is true (for transfer lease wizard)
         const isFirstMonthRental = charge.type === 'First Month Rental'
         return {
           type: charge.type,
           amount: String(charge.amount),
           taxable: config?.taxable ?? false,
           refundable: config?.refundable ?? false,
-          isRemovable: !isFirstMonthRental && index > 0, // First Month Rental and first charge are not removable
+          isRemovable: allowAllRemovable ? true : (!isFirstMonthRental && index > 0),
           isTaxableChecked: charge.is_taxed,
           isRefundableChecked
         }
@@ -135,7 +138,7 @@ const ChargesSection = ({
       setCharges(mappedCharges)
       setChargesApplied(true)
     }
-  }, [defaultCharges, chargesApplied])
+  }, [defaultCharges, chargesApplied, allowAllRemovable])
 
   // Notify parent when charges change
   useEffect(() => {

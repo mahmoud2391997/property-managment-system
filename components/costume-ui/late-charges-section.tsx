@@ -18,8 +18,10 @@ type Props = {
   defaultLateCharges?: DefaultLateCharge[]
 }
 
+// Stable array - created once outside the component to prevent re-renders
+const DAYS_OF_MONTH: number[] = Array.from({ length: 28 }, (_, i) => i + 1)
+
 const LateChargesSection = ({ onLateChargesChange, defaultLateCharges }: Props) => {
-  const daysOfMonth: number[] = Array.from({ length: 28 }, (_, i) => i + 1)
   const [lateChargesApplied, setLateChargesApplied] = useState(false)
 
   const [lateCharges, setLateCharges] = useState<LateCharge[]>([])
@@ -35,7 +37,9 @@ const LateChargesSection = ({ onLateChargesChange, defaultLateCharges }: Props) 
       onLateChargesChange?.(mappedCharges)
       setLateChargesApplied(true)
     }
-  }, [defaultLateCharges, lateChargesApplied, onLateChargesChange])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultLateCharges, lateChargesApplied])
+
   const handleAddLateCharge = () => {
     const updated = [...lateCharges, { days_after_due: 0, amount: '' }]
     setLateCharges(updated)
@@ -71,7 +75,7 @@ const LateChargesSection = ({ onLateChargesChange, defaultLateCharges }: Props) 
       )
       .filter(day => day !== null)
 
-    return daysOfMonth.filter(day => !selectedDays.includes(day))
+    return DAYS_OF_MONTH.filter((day: number) => !selectedDays.includes(day))
   }
 
   return (

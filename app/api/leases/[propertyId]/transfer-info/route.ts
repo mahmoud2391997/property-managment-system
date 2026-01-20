@@ -129,6 +129,51 @@ export async function GET(
       }
     }
 
+    // Fetch ALL pending payments to check for partially paid (any type)
+    const allPendingPayments = await prisma.payments.findMany({
+      where: {
+        lease_id: leaseId,
+        status: 'Pending'
+      },
+      orderBy: {
+        due_payment_timestamp: 'asc'
+      },
+      select: {
+        id: true,
+        reference_id: true,
+        type: true,
+        due_payment_timestamp: true,
+        charges: {
+          select: {
+            amount: true
+          }
+        },
+        // Check for partial payments via payment history
+        payment_history: {
+          select: {
+            amount: true
+          }
+        }
+      }
+    })
+
+    // Check for partially paid payment of ANY type (any payment with history entries = partial payment)
+    const partiallyPaidPayment = allPendingPayments.find(payment =>
+      payment.payment_history.length > 0
+    )
+
+    // Check 3: No partially paid payments
+    if (canTransfer && partiallyPaidPayment) {
+      canTransfer = false
+      blockedReason = `There is a partially paid ${partiallyPaidPayment.type.replace('_', ' ')} payment (${partiallyPaidPayment.reference_id}). Please settle it before transferring.`
+    }
+
+    // Filter to only rental payments for cycle info
+    const pendingRentalPayments = allPendingPayments.filter(p => p.type === 'Rental')
+
+    // Get the next pending rental (earliest due date) for cycle info
+    const nextPendingRental = pendingRentalPayments.length > 0 ? pendingRentalPayments[0] : null
+
     // Format tenant name
     const tenant = lease.tenants
     let tenantName: string
@@ -186,7 +231,21 @@ export async function GET(
             is_taxed: c.is_taxed,
             is_refundable: c.is_refunded // is_refunded field is used for is_refundable
           }))
-        )
+        ),
+        // Next pending rental payment info (for cycle awareness)
+        next_pending_rental: nextPendingRental ? {
+          id: nextPendingRental.id,
+          reference_id: nextPendingRental.reference_id,
+          due_date: nextPendingRental.due_payment_timestamp?.toISOString() || null,
+          amount: nextPendingRental.charges.reduce((sum: number, c: { amount: any }) => sum + Number(c.amount), 0)
+        } : null,
+        // All pending rental payments (for advance payment info in rental adjustment)
+        pending_rentals: pendingRentalPayments.map(p => ({
+          id: p.id,
+          reference_id: p.reference_id,
+          due_date: p.due_payment_timestamp?.toISOString() || null,
+          amount: p.charges.reduce((sum: number, c: { amount: any }) => sum + Number(c.amount), 0)
+        }))
       },
       can_transfer: canTransfer,
       blocked_reason: blockedReason

@@ -87,7 +87,8 @@ const ReminderSection = ({
 
       setRemindersApplied(true)
     }
-  }, [defaultReminders, remindersApplied, onLeaseExpiryChange, onRentReminderChange, onOverdueReminderChange])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultReminders, remindersApplied]) // Don't include callbacks - they're not stable and cause infinite loops
 
   const inputGroupEffect = (activate: boolean) => {
     return cn(
