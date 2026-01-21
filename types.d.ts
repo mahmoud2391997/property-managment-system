@@ -88,6 +88,67 @@ export type LeaseWithDetails = {
     title: string
   }
   scheduled_change?: ScheduledRentalChange | null
+  // Transfer tracking
+  transferred_from?: string | null
+  is_transferred_from?: boolean
+  transferred_to?: string | null
+  is_transferred_to?: boolean
+  transferred_from_lease?: {
+    id: string
+    property_id: string
+    room_id: string | null
+    property_code?: string
+    room_title?: string
+  } | null
+  transferred_to_lease?: {
+    id: string
+    property_id: string
+    room_id: string | null
+    property_code?: string
+    room_title?: string
+  } | null
+}
+
+export type TransferDestination = {
+  id: string
+  label: string
+  subtitle?: string
+  property_id?: string
+  default_rent?: number | null
+}
+
+export type TransferLeaseInfo = {
+  lease: {
+    id: string
+    reference_id: string
+    monthly_rent: number
+    payment_day: number
+    number_of_months: number | null
+    start_date: string
+    is_property_lease: boolean
+    is_expiry_reminder: boolean
+    expiry_days_before_reminder: number | null
+    is_rent_reminder: boolean
+    rent_reminder_days_before: number | null
+    is_overdue_rent_reminder: boolean
+    overdue_days_after_reminder: number | null
+    tenant: {
+      id: string
+      name: string
+      profile_thumb: string | null
+    }
+    property: {
+      id: string
+      code: string
+    }
+    room?: {
+      id: string
+      title: string
+    } | null
+    late_charges: Array<{ days_after_due: number; amount: number }>
+  }
+  can_transfer: boolean
+  blocked_reason?: string
 }
 
 export type PaymentHistory = {

@@ -29,7 +29,19 @@ export async function GET(
         property_id: true,
         properties: {
           select: {
-            code: true
+            code: true,
+            status: true,
+            // Check for property-level lease
+            leases: {
+              where: {
+                room_id: null,
+                status: 'Current'
+              },
+              select: {
+                id: true
+              },
+              take: 1
+            }
           }
         }
       }
@@ -251,13 +263,38 @@ export async function GET(
       displayStatus = 'Vacant'
     }
 
+    // Check if room can have a new lease added
+    // Room can have a lease if:
+    // 1. Room status is Ready (vacant)
+    // 2. No active room lease
+    // 3. Property status is Ready (vacant)
+    // 4. No active property-level lease on parent property
+    let canAddLease = true
+    let leaseBlockedReason: string | null = null
+
+    if (lease) {
+      canAddLease = false
+      leaseBlockedReason = 'Room already has an active lease'
+    } else if (room.status !== 'Ready') {
+      canAddLease = false
+      leaseBlockedReason = `Room is ${room.status.replace(/_/g, ' ')}`
+    } else if (room.properties?.status !== 'Ready') {
+      canAddLease = false
+      leaseBlockedReason = `Property is ${room.properties?.status?.replace(/_/g, ' ') || 'not ready'}`
+    } else if (room.properties?.leases && room.properties.leases.length > 0) {
+      canAddLease = false
+      leaseBlockedReason = 'Property has an active property-level lease'
+    }
+
     return NextResponse.json({
       roomTitle: room.title,
       propertyCode: room.properties?.code || null,
       roomStatus: displayStatus,
       lease: leaseData,
       booking: bookingData,
-      propertyId: room.property_id
+      propertyId: room.property_id,
+      canAddLease,
+      leaseBlockedReason
     })
   } catch (error: any) {
     console.error('Error fetching room overview:', error)

@@ -55,9 +55,7 @@ export default function PaymentFormCore({
   const [paymentType, setPaymentType] = useState<PaymentType>(paymentTypes[0])
   const selectable: boolean = paymentType === paymentTypes[0]
   const [isPaid, setIsPaid] = useState<boolean>(false)
-  const [paymentMethod, setPaymentMethod] = useState<
-    string | 'Cash' | 'Bank Transfer'
-  >('Cash')
+  const [paymentMethod] = useState<'Bank Transfer'>('Bank Transfer')
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(undefined)
   const [paymentTime, setPaymentTime] = useState<string>('10:30:00')
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
@@ -111,13 +109,8 @@ export default function PaymentFormCore({
       }
     }
 
-    if (isPaid && !paymentMethod) {
-      showAlert('Please select payment method', 'warning')
-      return
-    }
-
-    if (isPaid && paymentMethod === 'Bank Transfer' && !receiptFile) {
-      showAlert('Please upload receipt for bank transfer', 'warning')
+    if (isPaid && !receiptFile) {
+      showAlert('Please upload receipt', 'warning')
       return
     }
 
@@ -143,9 +136,9 @@ export default function PaymentFormCore({
     setIsSubmitting(true)
 
     try {
-      // Upload receipt if needed
+      // Upload receipt if paid (required)
       let receiptUrl = null
-      if (receiptFile && isPaid && paymentMethod === 'Bank Transfer') {
+      if (receiptFile && isPaid) {
         const formData = new FormData()
         formData.append('file', receiptFile)
         formData.append('bucket', 'receipts')
@@ -155,10 +148,12 @@ export default function PaymentFormCore({
           body: formData
         })
 
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json()
-          receiptUrl = url
+        if (!uploadRes.ok) {
+          throw new Error('Failed to upload receipt')
         }
+
+        const { url } = await uploadRes.json()
+        receiptUrl = url
       }
 
       // Upload payment evidence if provided
@@ -337,20 +332,6 @@ export default function PaymentFormCore({
 
         <div className={cn('flex')}>
           <InputGroup
-            label='Payment Method'
-            className={cn(isPaid ? 'max-w-full mr-3' : 'max-w-0! opacity-0')}
-            isRequired
-          >
-            <Select
-              items={['Cash', 'Bank Transfer']}
-              value={paymentMethod}
-              onChange={setPaymentMethod}
-              label='Methods'
-              placeholder='Select method'
-              required
-            />
-          </InputGroup>
-          <InputGroup
             label={`${isPaid ? '' : 'Due'} Payment Date`}
             className='mr-3'
             isRequired
@@ -377,11 +358,11 @@ export default function PaymentFormCore({
           </InputGroup>
         </div>
 
-        {/* Receipt Upload - Only for Paid Bank Transfer */}
+        {/* Receipt Upload - Only for Paid payments */}
         <div
           className={cn(
-            'trnasition-all duration-200 ease-out overflow-hidden',
-            isPaid && paymentMethod === 'Bank Transfer'
+            'transition-all duration-200 ease-out overflow-hidden',
+            isPaid
               ? receiptFile
                 ? 'h-35'
                 : 'h-55'
@@ -390,11 +371,10 @@ export default function PaymentFormCore({
         >
           <InputGroup
             label='Payment Receipt'
-            isRequired={isPaid && paymentMethod === 'Bank Transfer'}
+            isRequired={isPaid}
           >
             <p className='texts-caption-large text-(--text-secondary) mb-2 -mt-1'>
-              Upload documentation showing why the tenant needs to pay this
-              amount (e.g., invoice, bill, repair receipt, damage evidence)
+              Upload the bank transfer receipt as proof of payment
             </p>
             <UploadFile onFileChange={setReceiptFile} />
           </InputGroup>

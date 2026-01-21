@@ -212,22 +212,81 @@ const createColumns = (
     accessorKey: 'status',
     header: () => <div className='text-left'>Status</div>,
     cell: ({ row }) => {
+      const lease = row.original
       const status: LeaseWithDetails['status'] = row.getValue('status')
       const statusKey = status.toLowerCase()
 
+      // Build transfer label and link
+      let transferLabel: string | null = null
+      let transferLink: string | null = null
+
+      if (lease.is_transferred_from && lease.transferred_to_lease) {
+        // This is the OLD lease - tenant left from here
+        // Show "Now at [New Property/Room]"
+        const newPropertyCode = lease.transferred_to_lease.property_code
+        const newRoomTitle = lease.transferred_to_lease.room_title
+        const locationLabel = newRoomTitle
+          ? `${newPropertyCode}(${newRoomTitle})`
+          : newPropertyCode
+
+        transferLabel = `Now at ${locationLabel}`
+
+        const newPropertyId = lease.transferred_to_lease.room_id
+          ? null
+          : lease.transferred_to_lease.property_id
+        const newRoomId = lease.transferred_to_lease.room_id
+
+        if (newRoomId) {
+          transferLink = `/rooms/${newRoomId}/leases`
+        } else if (newPropertyId) {
+          transferLink = `/properties/${newPropertyId}/leases`
+        }
+      } else if (lease.is_transferred_to && lease.transferred_from_lease) {
+        // This is the NEW lease - tenant arrived here
+        // Show "Previously at [Old Property/Room]"
+        const oldPropertyCode = lease.transferred_from_lease.property_code
+        const oldRoomTitle = lease.transferred_from_lease.room_title
+        const locationLabel = oldRoomTitle
+          ? `${oldPropertyCode}(${oldRoomTitle})`
+          : oldPropertyCode
+
+        transferLabel = `Previously at ${locationLabel}`
+
+        const oldPropertyId = lease.transferred_from_lease.room_id
+          ? null
+          : lease.transferred_from_lease.property_id
+        const oldRoomId = lease.transferred_from_lease.room_id
+
+        if (oldRoomId) {
+          transferLink = `/rooms/${oldRoomId}/leases`
+        } else if (oldPropertyId) {
+          transferLink = `/properties/${oldPropertyId}/leases`
+        }
+      }
+
       return (
         <div className='texts-table-cell-primary text-left'>
-          <div
-            data-status={statusKey}
-            className={cn(
-              'status-styles',
-              'data-[status=current]:bg-green-100 data-[status=current]:text-green-800',
-              'data-[status=scheduled]:bg-blue-100 data-[status=scheduled]:text-blue-800',
-              'data-[status=expired]:bg-yellow-100 data-[status=expired]:text-yellow-800',
-              'data-[status=ended]:bg-red-100 data-[status=ended]:text-red-800'
+          <div className='flex flex-col gap-1'>
+            <div
+              data-status={statusKey}
+              className={cn(
+                'status-styles',
+                'data-[status=current]:bg-green-100 data-[status=current]:text-green-800',
+                'data-[status=scheduled]:bg-blue-100 data-[status=scheduled]:text-blue-800',
+                'data-[status=expired]:bg-yellow-100 data-[status=expired]:text-yellow-800',
+                'data-[status=ended]:bg-red-100 data-[status=ended]:text-red-800'
+              )}
+            >
+              {status}
+            </div>
+            {transferLabel && transferLink && (
+              <Link
+                href={transferLink}
+                className='text-xs text-blue-600 hover:text-blue-800 hover:underline cursor-pointer'
+              >
+                {transferLabel}
+              </Link>
             )}
-          >
-            {status}
           </div>
         </div>
       )
@@ -288,6 +347,17 @@ const createColumns = (
             {canEndLease && (
               <>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={
+                      lease.room_id
+                        ? `/rooms/${lease.room_id}/leases/${lease.id}/transfer`
+                        : `/properties/${lease.property_id}/leases/${lease.id}/transfer`
+                    }
+                  >
+                    Transfer Lease
+                  </Link>
+                </DropdownMenuItem>
                 <InitiateLeaseEndingDrawer
                   leaseId={lease.id}
                   propertyName={lease.property?.code || 'Property'}

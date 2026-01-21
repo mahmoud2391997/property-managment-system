@@ -25,6 +25,8 @@ type RawPayment = {
   created_at: Date
   payment_evidence: string | null
   leases: {
+    id: string
+    reference_id: string
     property_id: string
     room_id: string | null
     properties: {
@@ -61,6 +63,8 @@ export type PaymentWithDetails = {
   property_id: string | null
   room: string
   room_id: string | null
+  lease_id: string | null
+  lease_reference_id: string | null
   due_date: Date | null
   issued_at: string
   recurring_pattern: 'Recurring' | 'One-time'
@@ -174,6 +178,8 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
     property_id: payment.leases?.property_id || null,
     room: payment.leases?.rooms?.title || 'Whole unit',
     room_id: payment.leases?.room_id || null,
+    lease_id: payment.leases?.id || null,
+    lease_reference_id: payment.leases?.reference_id || null,
     due_date: payment.due_payment_timestamp,
     issued_at: payment.created_at.toISOString(),
     recurring_pattern: isRecurring ? 'Recurring' : 'One-time',

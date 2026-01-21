@@ -3,14 +3,12 @@
 import { useState } from 'react'
 import InputGroup from './costume-ui/input-group'
 import Input from './costume-ui/input'
-import Select from './costume-ui/select'
 import DatePicker from './costume-ui/date-picker'
 import TimePicker from './costume-ui/time-picker'
 import UploadFile from './costume-ui/upload-file'
 import { FeedbackToasts } from './costume-ui/feedback-toast'
 import { useRouter } from 'next/navigation'
 import { formatDateForAPI } from '@/utils/formatTime'
-import { cn } from '@/lib/utils'
 
 type Props = {
   paymentId: string
@@ -31,7 +29,7 @@ const LogPayment = ({
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
   const [amount, setAmount] = useState<string>(maxAmount.toFixed(2))
-  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Bank Transfer'>('Cash')
+  const [paymentMethod] = useState<'Bank Transfer'>('Bank Transfer')
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date())
   const [paymentTime, setPaymentTime] = useState<string>('10:00:00')
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
@@ -67,30 +65,26 @@ const LogPayment = ({
         throw new Error('Payment date and time cannot be in the future')
       }
 
-      // Validate receipt for bank transfer
-      if (paymentMethod === 'Bank Transfer' && !receiptFile) {
-        throw new Error('Please upload receipt for bank transfer')
+      // Validate receipt is provided (required)
+      if (!receiptFile) {
+        throw new Error('Please upload receipt')
       }
 
-      // Upload receipt if needed
-      let receiptUrl = null
-      if (receiptFile && paymentMethod === 'Bank Transfer') {
-        const formData = new FormData()
-        formData.append('file', receiptFile)
-        formData.append('bucket', 'receipts')
+      // Upload receipt (required)
+      const formData = new FormData()
+      formData.append('file', receiptFile)
+      formData.append('bucket', 'receipts')
 
-        const uploadRes = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData
-        })
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      })
 
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json()
-          receiptUrl = url
-        } else {
-          throw new Error('Failed to upload receipt')
-        }
+      if (!uploadRes.ok) {
+        throw new Error('Failed to upload receipt')
       }
+
+      const { url: receiptUrl } = await uploadRes.json()
 
       // Format date for API
       const formattedDate = formatDateForAPI(paymentDate)
@@ -166,18 +160,6 @@ const LogPayment = ({
         />
       </InputGroup>
 
-      <InputGroup label='Payment Method' isRequired>
-        <Select
-          items={['Cash', 'Bank Transfer']}
-          value={paymentMethod}
-          onValueChange={(value) => setPaymentMethod(value as 'Cash' | 'Bank Transfer')}
-          label='Methods'
-          placeholder='Select method'
-          required
-          disabled={loading}
-        />
-      </InputGroup>
-
       <div className='grid grid-cols-2 gap-5'>
         <InputGroup label='Payment Date' isRequired>
           <DatePicker
@@ -196,18 +178,9 @@ const LogPayment = ({
         </InputGroup>
       </div>
 
-      <div
-        className={cn(
-          'transition-all duration-200 ease-out overflow-hidden',
-          paymentMethod === 'Bank Transfer'
-            ? receiptFile
-              ? 'h-19'
-              : 'h-49'
-            : 'h-0 opacity-0'
-        )}
-      >
+      <InputGroup label='Receipt' isRequired>
         <UploadFile onFileChange={setReceiptFile} />
-      </div>
+      </InputGroup>
 
       {error && <p className='text-red-600 text-sm'>{error}</p>}
     </form>

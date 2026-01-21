@@ -73,6 +73,7 @@ type Props = {
   onPaymentStatusChange?: (data: PaymentStatusData) => void
   defaultPayment?: boolean
   defaultConfig?: DefaultPaymentConfig
+  allowAllChargesRemovable?: boolean
 }
 
 const PaymentSection = ({
@@ -82,7 +83,8 @@ const PaymentSection = ({
   onLateChargesChange,
   onPaymentStatusChange,
   defaultPayment = false,
-  defaultConfig
+  defaultConfig,
+  allowAllChargesRemovable = false
 }: Props) => {
   const [monthlyRent, setMonthlyRent] = useState<string>(defaultConfig?.monthlyRent || '')
   const [selectedDay, setSelectedDay] = useState<number>(defaultConfig?.paymentDay || 1)
@@ -146,6 +148,7 @@ const PaymentSection = ({
         onChargesChange={onInitialChargesChange}
         defaultPayment={defaultPayment}
         defaultCharges={defaultConfig?.initialCharges}
+        allowAllRemovable={allowAllChargesRemovable}
       />
 
       {/* Initial charges payment status and details */}

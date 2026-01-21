@@ -6,6 +6,7 @@ import { cva } from 'class-variance-authority'
 type Props = {
   variant?: 'primary' | 'secondary' | 'info'
   className?: string
+  children?: React.ReactNode
   labelStyles?: string
   icon?: React.ReactNode
   label?: string
@@ -62,6 +63,7 @@ const labelStylesCVA = cva('texts-button-primary', {
 const Button = ({
   className = '',
   labelStyles = '',
+  children,
   icon,
   label,
   variant = 'primary',
@@ -73,12 +75,14 @@ const Button = ({
     <button
       className={cn(
         buttonStyles({ variant }),
+        labelStylesCVA({ variant }), labelStyles,
         'disabled:opacity-70 disabled:cursor-not-allowed',
         className
       )}
       disabled={loading || props.disabled}
       {...props}
     >
+      {children}
       {icon && (
         <div className={cn('w-4.5 h-auto p-0.5 flex items-center justify-center', variant === 'primary' && 'text-(--text-inverse)')}>
           {icon}

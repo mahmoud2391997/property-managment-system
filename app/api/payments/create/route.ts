@@ -137,18 +137,20 @@ export async function POST (request: NextRequest) {
         }
       })
 
-      // If paid, create payment_history entry
+      // If paid, create payment_history entry (only Bank Transfer allowed, receipt required)
       if (is_paid) {
+        if (!receipt_image) {
+          throw new Error('Receipt is required for paid payments')
+        }
         await tx.payment_history.create({
           data: {
             payment_id: payment.id,
             amount: totalAmount,
-            payment_method:
-              payment_method === 'Bank Transfer' ? 'Bank_Transfer' : 'Cash',
+            payment_method: 'Bank_Transfer',
             paid_at: paymentDateTime,
             registrar_role: 'staff',
             registrar: staff.id,
-            receipt_image: receipt_image || null,
+            receipt_image: receipt_image,
             status: 'Success'
           }
         })
