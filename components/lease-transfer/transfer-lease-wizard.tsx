@@ -84,7 +84,7 @@ type TransferInfoResponse = {
       due_date: string | null
       amount: number
     } | null
-    pending_rentals: Array<{
+    paid_future_rentals: Array<{
       id: string
       reference_id: string
       due_date: string | null
@@ -301,13 +301,11 @@ export default function TransferLeaseWizard ({
 
     const newRent = parseFloat(monthlyRent) || 0
     const oldRent = transferInfo.lease.monthly_rent || 0
-    const pendingRentals = transferInfo.lease.pending_rentals || []
 
-    // Filter to only future pending rentals (advance payments)
-    const now = new Date()
-    const advancePayments = pendingRentals.filter(
-      p => p.due_date && new Date(p.due_date) > now
-    )
+    // Advance payments = PAID rentals with FUTURE due dates
+    // These are rentals the tenant already paid for at the OLD rate
+    // but will be living in the NEW property (with higher rent)
+    const advancePayments = transferInfo.lease.paid_future_rentals || []
 
     if (newRent <= oldRent || advancePayments.length === 0) {
       return null
@@ -357,6 +355,19 @@ export default function TransferLeaseWizard ({
         amount: lc.amount.toString()
       }))
     )
+  }, [])
+
+  // Memoize callback for initial charges to prevent infinite re-renders
+  // This is critical because ChargesSection has a useEffect that calls onChargesChange(charges)
+  // whenever charges change, and if onChargesChange is not stable, it causes an infinite loop
+  const handleInitialChargesChange = useCallback((charges: ChargeData[]) => {
+    setInitialCharges(prevCharges => {
+      // Only update if charges have actually changed (deep comparison)
+      if (JSON.stringify(prevCharges) === JSON.stringify(charges)) {
+        return prevCharges
+      }
+      return charges
+    })
   }, [])
 
   const showAlert = (
@@ -1234,13 +1245,13 @@ export default function TransferLeaseWizard ({
                 title='Lease Initial Charges'
                 subtitle='Optional charges for the new lease (e.g., Security Deposit)'
               >
-                <ChargesSection
+<ChargesSection
                   title='Initial Charges'
                   subtitle='Add any initial charges for the new lease'
                   flowType='income'
                   selectable={true}
-                  onChargesChange={setInitialCharges}
-                  defaultCharges={preparedInitialCharges}
+                  onChargesChange={handleInitialChargesChange}
+                  defaultCharges={[]}
                   allowAllRemovable={true}
                   allChargesSelectable={true}
                   excludedChargeTypes={['First Month Rental']}

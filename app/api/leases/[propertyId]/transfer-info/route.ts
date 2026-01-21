@@ -174,6 +174,32 @@ export async function GET(
     // Get the next pending rental (earliest due date) for cycle info
     const nextPendingRental = pendingRentalPayments.length > 0 ? pendingRentalPayments[0] : null
 
+    // Fetch PAID rental payments with FUTURE due dates (advance payments)
+    // These are rentals the tenant already paid for but the due date hasn't arrived yet
+    const paidFutureRentals = await prisma.payments.findMany({
+      where: {
+        lease_id: leaseId,
+        type: 'Rental',
+        status: 'Paid',
+        due_payment_timestamp: {
+          gt: new Date() // Future due dates only
+        }
+      },
+      orderBy: {
+        due_payment_timestamp: 'asc'
+      },
+      select: {
+        id: true,
+        reference_id: true,
+        due_payment_timestamp: true,
+        charges: {
+          select: {
+            amount: true
+          }
+        }
+      }
+    })
+
     // Format tenant name
     const tenant = lease.tenants
     let tenantName: string
@@ -239,8 +265,10 @@ export async function GET(
           due_date: nextPendingRental.due_payment_timestamp?.toISOString() || null,
           amount: nextPendingRental.charges.reduce((sum: number, c: { amount: any }) => sum + Number(c.amount), 0)
         } : null,
-        // All pending rental payments (for advance payment info in rental adjustment)
-        pending_rentals: pendingRentalPayments.map(p => ({
+        // PAID rental payments with FUTURE due dates (advance payments)
+        // These are rentals already paid by tenant but due date is in the future
+        // Used for rental adjustment calculation when new rent > old rent
+        paid_future_rentals: paidFutureRentals.map(p => ({
           id: p.id,
           reference_id: p.reference_id,
           due_date: p.due_payment_timestamp?.toISOString() || null,

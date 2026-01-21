@@ -79,6 +79,47 @@ export async function GET(request: Request) {
         status: true,
         property_id: true,
         room_id: true,
+        // Transfer tracking
+        transferred_from: true,
+        is_transferred_from: true,
+        transferred_to: true,
+        is_transferred_to: true,
+        // Relation to the lease this was transferred from
+        leases_leases_transferred_fromToleases: {
+          select: {
+            id: true,
+            property_id: true,
+            room_id: true,
+            properties: {
+              select: {
+                code: true
+              }
+            },
+            rooms: {
+              select: {
+                title: true
+              }
+            }
+          }
+        },
+        // Relation to the lease this was transferred to
+        leases_leases_transferred_toToleases: {
+          select: {
+            id: true,
+            property_id: true,
+            room_id: true,
+            properties: {
+              select: {
+                code: true
+              }
+            },
+            rooms: {
+              select: {
+                title: true
+              }
+            }
+          }
+        },
         tenants: {
           select: {
             id: true,
@@ -208,7 +249,26 @@ export async function GET(request: Request) {
                 new_rent: Number(scheduledChange.new_monthly_rent),
                 effective_from: scheduledChange.effective_from.toISOString()
               }
-            : null
+            : null,
+          // Transfer tracking
+          transferred_from: lease.transferred_from,
+          is_transferred_from: lease.is_transferred_from,
+          transferred_to: lease.transferred_to,
+          is_transferred_to: lease.is_transferred_to,
+          transferred_from_lease: lease.leases_leases_transferred_fromToleases ? {
+            id: lease.leases_leases_transferred_fromToleases.id,
+            property_id: lease.leases_leases_transferred_fromToleases.property_id,
+            room_id: lease.leases_leases_transferred_fromToleases.room_id,
+            property_code: lease.leases_leases_transferred_fromToleases.properties?.code,
+            room_title: lease.leases_leases_transferred_fromToleases.rooms?.title
+          } : null,
+          transferred_to_lease: lease.leases_leases_transferred_toToleases ? {
+            id: lease.leases_leases_transferred_toToleases.id,
+            property_id: lease.leases_leases_transferred_toToleases.property_id,
+            room_id: lease.leases_leases_transferred_toToleases.room_id,
+            property_code: lease.leases_leases_transferred_toToleases.properties?.code,
+            room_title: lease.leases_leases_transferred_toToleases.rooms?.title
+          } : null
         }
       })
     })

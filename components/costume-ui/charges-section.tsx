@@ -78,41 +78,50 @@ const ChargesSection = ({
   useEffect(() => {
     const selectableChanged = prevSelectable !== null && prevSelectable !== selectable
 
-    if ((!initialChargesSet || selectableChanged) && !defaultPayment && (!defaultCharges || defaultCharges.length === 0)) {
-      if (selectable) {
-        // For lease initial charges, use the first available charge type
-        if (availableChargeTypes.length > 0) {
-          const firstType = availableChargeTypes[0]
+    if ((!initialChargesSet || selectableChanged) && !defaultPayment) {
+      // If defaultCharges is explicitly an empty array, set charges to empty (for transfer lease)
+      if (defaultCharges !== undefined && defaultCharges.length === 0) {
+        setCharges([])
+        setInitialChargesSet(true)
+      }
+      // Only create default charges if defaultCharges is undefined (not passed at all)
+      else if (defaultCharges === undefined) {
+        if (selectable) {
+          // For lease initial charges, use the first available charge type
+          if (availableChargeTypes.length > 0) {
+            const firstType = availableChargeTypes[0]
+            setCharges([
+              {
+                type: firstType.type,
+                amount: '',
+                refundable: firstType.refundable,
+                taxable: firstType.taxable,
+                isRemovable: allowAllRemovable,
+                isTaxableChecked: false,
+                isRefundableChecked: firstType.type === 'Security Deposit'
+              }
+            ])
+          }
+        } else {
+          // For other payment types (non-selectable), use empty type with taxable option
           setCharges([
             {
-              type: firstType.type,
+              type: '',
               amount: '',
-              refundable: firstType.refundable,
-              taxable: firstType.taxable,
+              refundable: false,
+              taxable: true,
               isRemovable: false,
               isTaxableChecked: false,
-              isRefundableChecked: firstType.type === 'Security Deposit'
+              isRefundableChecked: false
             }
           ])
         }
-      } else {
-        // For other payment types (non-selectable), use empty type with taxable option
-        setCharges([
-          {
-            type: '',
-            amount: '',
-            refundable: false,
-            taxable: true,
-            isRemovable: false,
-            isTaxableChecked: false,
-            isRefundableChecked: false
-          }
-        ])
+        setInitialChargesSet(true)
       }
-      setInitialChargesSet(true)
     }
+
     setPrevSelectable(selectable)
-  }, [availableChargeTypes, defaultPayment, defaultCharges, initialChargesSet, selectable, prevSelectable])
+  }, [availableChargeTypes, defaultPayment, defaultCharges, initialChargesSet, selectable, prevSelectable, allowAllRemovable])
 
   // Apply default charges when they arrive (after async load)
   useEffect(() => {
@@ -165,7 +174,12 @@ const ChargesSection = ({
         )
 
         // If all charges were filtered out and we have available types, add the first available one
-        if (filteredCharges.length === 0 && availableChargeTypes.length > 0) {
+        // BUT: Don't add a charge if defaultCharges was explicitly passed as empty array []
+        const shouldAddDefaultCharge = filteredCharges.length === 0 &&
+                                        availableChargeTypes.length > 0 &&
+                                        defaultCharges === undefined
+
+        if (shouldAddDefaultCharge) {
           const firstType = availableChargeTypes[0]
           return [
             {
@@ -180,9 +194,9 @@ const ChargesSection = ({
           ]
         }
 
-        // Update isRemovable for the first charge
+        // Update isRemovable for the first charge (respect allowAllRemovable prop)
         if (filteredCharges.length > 0) {
-          filteredCharges[0] = { ...filteredCharges[0], isRemovable: false }
+          filteredCharges[0] = { ...filteredCharges[0], isRemovable: allowAllRemovable }
           for (let i = 1; i < filteredCharges.length; i++) {
             filteredCharges[i] = { ...filteredCharges[i], isRemovable: true }
           }
@@ -191,7 +205,7 @@ const ChargesSection = ({
         return filteredCharges
       })
     }
-  }, [excludedChargeTypes, availableChargeTypes, initialChargesSet])
+  }, [excludedChargeTypes, availableChargeTypes, initialChargesSet, defaultCharges, allowAllRemovable])
 
   const handleTypeChange = (index: number, selectedType: string) => {
     const config = chargeTypes.find(t => t.type === selectedType)
@@ -332,6 +346,9 @@ const ChargesSection = ({
   // Check if we can add more charges (only when selectable is true)
   const canAddMore = selectable ? charges.length < availableChargeTypes.length : true
 
+  useEffect(() => {
+    console.log("Check charges: ", charges)
+  }, [charges])
   return (
     <InnerSection title={title} subtitle={subtitle}>
       {charges.length === 0 ? (

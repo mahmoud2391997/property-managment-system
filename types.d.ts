@@ -93,6 +93,20 @@ export type LeaseWithDetails = {
   is_transferred_from?: boolean
   transferred_to?: string | null
   is_transferred_to?: boolean
+  transferred_from_lease?: {
+    id: string
+    property_id: string
+    room_id: string | null
+    property_code?: string
+    room_title?: string
+  } | null
+  transferred_to_lease?: {
+    id: string
+    property_id: string
+    room_id: string | null
+    property_code?: string
+    room_title?: string
+  } | null
 }
 
 export type TransferDestination = {
