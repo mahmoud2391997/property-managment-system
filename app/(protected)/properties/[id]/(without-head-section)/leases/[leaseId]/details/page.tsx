@@ -27,6 +27,7 @@ export type LeaseDetailsData = {
       type: string
       name: string
       phone: string | null
+      email: string | null
       profile_thumb: string | null
     }
     property: {

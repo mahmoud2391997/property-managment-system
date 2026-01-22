@@ -27,6 +27,24 @@ type PaymentHistoryData = {
   receipt_image: string | null
 }
 
+export type LateChargeInfo = {
+  days_overdue: number
+  applied_at: string
+  rental_payment: {
+    reference_id: string
+    due_payment_timestamp: string | null
+  }
+  lease: {
+    reference_id: string
+  }
+  property: {
+    street_address: string
+  }
+  room: {
+    title: string
+  } | null
+}
+
 export type PaymentDetailsData = {
   id: string
   reference_id: string
@@ -69,6 +87,7 @@ export type PaymentDetailsData = {
     event_on: string | null
     is_payment_fixed: boolean
   } | null
+  late_charge_info: LateChargeInfo | null
   total_amount: number
   total_paid: number
   remaining_amount: number
@@ -189,6 +208,34 @@ async function getPaymentDetails(referenceId: string): Promise<PaymentDetailsDat
             event_on: true,
             is_payment_fixed: true
           }
+        },
+        // For late payment charges, get the original rental payment info
+        payment_late_charges_applied_payment_late_charges_applied_late_charge_payment_idTopayments: {
+          select: {
+            days_overdue_when_applied: true,
+            applied_at: true,
+            payments_payment_late_charges_applied_rental_payment_idTopayments: {
+              select: {
+                reference_id: true,
+                due_payment_timestamp: true,
+                leases: {
+                  select: {
+                    reference_id: true,
+                    properties: {
+                      select: {
+                        street_address: true
+                      }
+                    },
+                    rooms: {
+                      select: {
+                        title: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     })
@@ -284,6 +331,29 @@ async function getPaymentDetails(referenceId: string): Promise<PaymentDetailsDat
       charges: transformedCharges,
       payment_history: transformedHistory,
       recurring_config: payment.recurring_configs,
+      late_charge_info: (() => {
+        const lateChargeRecord = payment.payment_late_charges_applied_payment_late_charges_applied_late_charge_payment_idTopayments?.[0]
+        if (!lateChargeRecord) return null
+
+        const rentalPayment = lateChargeRecord.payments_payment_late_charges_applied_rental_payment_idTopayments
+        const lease = rentalPayment?.leases
+
+        return {
+          days_overdue: lateChargeRecord.days_overdue_when_applied,
+          applied_at: lateChargeRecord.applied_at.toISOString(),
+          rental_payment: {
+            reference_id: rentalPayment?.reference_id || '',
+            due_payment_timestamp: rentalPayment?.due_payment_timestamp?.toISOString() || null
+          },
+          lease: {
+            reference_id: lease?.reference_id || ''
+          },
+          property: {
+            street_address: lease?.properties?.street_address || ''
+          },
+          room: lease?.rooms ? { title: lease.rooms.title } : null
+        }
+      })(),
       total_amount: totalAmount,
       total_paid: totalPaid,
       remaining_amount: remainingAmount,
