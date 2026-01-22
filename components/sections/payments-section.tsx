@@ -91,7 +91,14 @@ export default function PaymentsSection ({
       recurring_pattern: '',
       property: '',
       tenant_name: ''
-    }
+    },
+    // Map filter keys to actual data property names
+    filterKeyMapping: {
+      payment_id: 'id',
+      lease_id: 'lease_reference_id'
+    },
+    // Text filters use partial/case-insensitive matching
+    textFilterKeys: ['payment_id', 'lease_id', 'property', 'tenant_name']
   })
 
   const statusOptions = ['all', 'Paid', 'Paid Late', 'Partially Paid', 'Overdue', 'Pending', 'Cancelled']

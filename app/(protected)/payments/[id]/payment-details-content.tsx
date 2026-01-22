@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/formatTime'
-import { formatPaymentTypeLabel } from '@/utils/functions'
+import { formatPaymentTypeLabel, buildWhatsAppLink } from '@/utils/functions'
 import { cn } from '@/lib/utils'
 import type { PaymentDetailsData } from './page'
 import {
@@ -525,6 +525,62 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
             </div>
           </div>
 
+          {/* Late Charge Info Card - Only for Late Payment Charges */}
+          {payment.type === 'Late_Payment_Charges' && payment.late_charge_info && (
+            <div className='card-styles'>
+              <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
+                <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-amber-100 text-amber-600'>
+                  <AlertCircle size={19} strokeWidth={1.5} />
+                </div>
+                <span className='texts-body-medium-medium'>Charge Reason</span>
+              </div>
+
+              <div className='flex flex-col gap-3 pt-4'>
+                <div className='flex flex-col gap-1'>
+                  <span className='texts-caption-large text-(--text-secondary)'>Charged for Payment</span>
+                  <Link
+                    href={`/payments/${payment.late_charge_info.rental_payment.reference_id}`}
+                    className='texts-body-small-medium text-(--info-main) hover:underline'
+                  >
+                    {payment.late_charge_info.rental_payment.reference_id}
+                  </Link>
+                </div>
+
+                <div className='flex items-center justify-between pt-3 border-t border-(--border-light)'>
+                  <span className='texts-body-small text-(--text-secondary)'>Days Overdue</span>
+                  <span className='texts-body-small-medium text-red-600'>
+                    {payment.late_charge_info.days_overdue} days
+                  </span>
+                </div>
+
+                <div className='flex items-center justify-between'>
+                  <span className='texts-body-small text-(--text-secondary)'>Lease</span>
+                  <span className='texts-body-small-medium'>
+                    {payment.late_charge_info.lease.reference_id}
+                  </span>
+                </div>
+
+                <div className='flex flex-col gap-1 pt-3 border-t border-(--border-light)'>
+                  <span className='texts-caption-large text-(--text-secondary)'>Property</span>
+                  <span className='texts-body-small-medium'>
+                    {payment.late_charge_info.room
+                      ? `${payment.late_charge_info.property.street_address} (${payment.late_charge_info.room.title})`
+                      : payment.late_charge_info.property.street_address}
+                  </span>
+                </div>
+
+                {payment.late_charge_info.rental_payment.due_payment_timestamp && (
+                  <div className='flex items-center justify-between pt-3 border-t border-(--border-light)'>
+                    <span className='texts-body-small text-(--text-secondary)'>Original Due Date</span>
+                    <span className='texts-body-small-medium'>
+                      {formatDate(payment.late_charge_info.rental_payment.due_payment_timestamp)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Property Info Card */}
           {payment.lease && (
             <div className='card-styles'>
@@ -589,7 +645,12 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
                     size={40}
                   />
                   <div className='flex flex-col'>
-                    <span className='texts-body-medium-medium'>{payment.lease.tenant.name}</span>
+                    <Link
+                      href={`/tenants/${payment.lease.tenant.id}/overview`}
+                      className='texts-body-medium-medium text-(--text-primary) hover:text-(--info-main) hover:underline'
+                    >
+                      {payment.lease.tenant.name}
+                    </Link>
                     <span className='texts-caption-large text-(--text-secondary)'>
                       {payment.lease.tenant.type === 'Company' ? 'Company' : 'Individual'}
                     </span>
@@ -600,7 +661,9 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
                   <div className='flex flex-col gap-2 pt-3 border-t border-(--border-light)'>
                     {payment.lease.tenant.phone && (
                       <a
-                        href={`tel:${payment.lease.tenant.phone}`}
+                        href={buildWhatsAppLink(payment.lease.tenant.phone)}
+                        target='_blank'
+                        rel='noopener noreferrer'
                         className='flex items-center gap-2 texts-caption-large text-(--text-secondary) hover:text-(--text-primary)'
                       >
                         <Phone size={12} />

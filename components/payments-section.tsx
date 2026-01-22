@@ -142,7 +142,14 @@ export default function PaymentsSection({ propertyId, roomId, hasActiveLease = f
       type: '',
       recurring_pattern: '',
       tenant_name: ''
-    }
+    },
+    // Map filter keys to actual data property names
+    filterKeyMapping: {
+      payment_id: 'id',
+      lease_id: 'lease_reference_id'
+    },
+    // Text filters use partial/case-insensitive matching
+    textFilterKeys: ['payment_id', 'lease_id', 'tenant_name']
   })
 
   // Current status from activeFilters

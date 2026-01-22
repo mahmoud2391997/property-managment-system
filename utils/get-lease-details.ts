@@ -60,6 +60,11 @@ export async function getLeaseDetails(
                 contact_person_last_name: true,
                 phone_number: true
               }
+            },
+            users: {
+              select: {
+                email: true
+              }
             }
           }
         },
@@ -238,6 +243,8 @@ export async function getLeaseDetails(
         : individual?.first_name || 'Unknown'
       tenantPhone = individual?.phone_number || null
     }
+    // Email comes from the auth users table
+    const tenantEmail = tenant.users?.email || null
 
     // Calculate end date
     const endDate = lease.number_of_months
@@ -334,6 +341,7 @@ export async function getLeaseDetails(
           type: tenant.type,
           name: tenantName,
           phone: tenantPhone,
+          email: tenantEmail,
           profile_thumb: tenant.profile_thumb
         },
         property: {

@@ -11,9 +11,11 @@ import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import ScheduleRentalChangeDialog from '@/components/dialogs/schedule-rental-change-dialog'
 import InitiateLeaseEndingDrawer from '@/components/dialogs/initiate-lease-ending-drawer'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
+import ScheduledRentChangeBanner from '@/components/costume-ui/scheduled-rent-change-banner'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/formatTime'
+import { buildWhatsAppLink } from '@/utils/functions'
 import { cn } from '@/lib/utils'
 import type { LeaseDetailsData } from '@/app/(protected)/properties/[id]/(without-head-section)/leases/[leaseId]/details/page'
 import {
@@ -40,6 +42,7 @@ import {
   Copy,
   ExternalLink,
   Phone,
+  Mail,
   Banknote,
   History,
   Timer
@@ -307,56 +310,13 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId, userTy
 
           {/* Upcoming Rent Change Banner */}
           {lease.upcoming_change && (
-            <div className='p-4 rounded-[12px] border bg-purple-50 border-purple-200'>
-              <div className='flex items-center justify-between'>
-                <div className='flex items-center gap-3'>
-                  <div className='flex items-center justify-center rounded-full h-10 w-10 bg-purple-100 text-purple-700'>
-                    <TrendingUp size={20} />
-                  </div>
-                  <div className='flex flex-col'>
-                    <span className='texts-body-medium-medium text-purple-800'>
-                      Rent Change Scheduled
-                    </span>
-                    <span className='texts-body-small text-purple-700'>
-                      {formatCurrency(lease.upcoming_change.old_rent)} → {formatCurrency(lease.upcoming_change.new_rent)}
-                      {' • '}
-                      Effective {formatDate(lease.upcoming_change.effective_from)}
-                    </span>
-                  </div>
-                </div>
-                {userType === 'staff' && (
-                  <ConfirmationDialog
-                    openDialogButton={
-                      <Button
-                        variant='secondary'
-                        label='Cancel'
-                        className='text-sm!'
-                      />
-                    }
-                    title='Cancel Scheduled Rent Change'
-                    description={`Are you sure you want to cancel the scheduled rent change from ${formatCurrency(lease.upcoming_change.old_rent)} to ${formatCurrency(lease.upcoming_change.new_rent)}?`}
-                    variant='warning'
-                    inputLabel='Type Cancel to Confirm'
-                    confirmationText='CANCEL'
-                    confirmButtonLabel='Cancel Change'
-                    confirmButtonLoadingLabel='Cancelling...'
-                    confirmButtonClassName='bg-amber-600! hover:bg-amber-700!'
-                    onConfirm={async () => {
-                      try {
-                        const response = await fetch(`/api/leases/${lease.id}/cancel-rental-change`, {
-                          method: 'POST'
-                        })
-                        if (!response.ok) throw new Error('Failed to cancel')
-                        FeedbackToasts.deleted('Scheduled rent change')
-                        router.refresh()
-                      } catch (error) {
-                        FeedbackToasts.operationFailed('Cancel rent change')
-                      }
-                    }}
-                  />
-                )}
-              </div>
-            </div>
+            <ScheduledRentChangeBanner
+              leaseId={lease.id}
+              scheduledChange={lease.upcoming_change}
+              currentRent={lease.monthly_rent}
+              onCancelSuccess={() => router.refresh()}
+              showCancelButton={userType === 'staff'}
+            />
           )}
 
           {/* Lease Summary Card */}
@@ -613,15 +573,10 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId, userTy
           {userType === 'staff' && (
             <div className='card-styles'>
               <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
-                <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-blue-100 text-blue-700'>
+                <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-teal-100 text-teal-600'>
                   <User size={19} strokeWidth={1.5} />
                 </div>
-                <div className='flex flex-col'>
-                  <span className='texts-body-medium-medium'>Tenant</span>
-                  <span className='texts-caption-large text-(--text-secondary)'>
-                    {lease.tenant.type}
-                  </span>
-                </div>
+                <span className='texts-body-medium-medium'>Tenant</span>
               </div>
 
               <div className='flex flex-col gap-3 pt-4'>
@@ -633,18 +588,39 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId, userTy
                   />
                   <div className='flex flex-col'>
                     <Link
-                      href={`/tenants/${lease.tenant.id}`}
+                      href={`/tenants/${lease.tenant.id}/overview`}
                       className='texts-body-medium-medium text-(--text-primary) hover:text-(--info-main) hover:underline'
                     >
                       {lease.tenant.name}
                     </Link>
+                    <span className='texts-caption-large text-(--text-secondary)'>
+                      {lease.tenant.type === 'Company' ? 'Company' : 'Individual'}
+                    </span>
                   </div>
                 </div>
 
-                {lease.tenant.phone && (
-                  <div className='flex items-center gap-2 text-(--text-secondary)'>
-                    <Phone size={14} />
-                    <span className='texts-body-small'>{lease.tenant.phone}</span>
+                {(lease.tenant.phone || lease.tenant.email) && (
+                  <div className='flex flex-col gap-2 pt-3 border-t border-(--border-light)'>
+                    {lease.tenant.phone && (
+                      <a
+                        href={buildWhatsAppLink(lease.tenant.phone)}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='flex items-center gap-2 texts-caption-large text-(--text-secondary) hover:text-(--text-primary)'
+                      >
+                        <Phone size={12} />
+                        {lease.tenant.phone}
+                      </a>
+                    )}
+                    {lease.tenant.email && (
+                      <a
+                        href={`mailto:${lease.tenant.email}`}
+                        className='flex items-center gap-2 texts-caption-large text-(--text-secondary) hover:text-(--text-primary)'
+                      >
+                        <Mail size={12} />
+                        {lease.tenant.email}
+                      </a>
+                    )}
                   </div>
                 )}
               </div>

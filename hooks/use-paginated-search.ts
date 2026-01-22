@@ -10,6 +10,10 @@ interface UsePaginatedSearchOptions<T> {
   pageSize?: number
   debounceMs?: number
   defaultFilters?: Record<string, string>
+  /** Maps filter keys to actual data property names (e.g., { payment_id: 'id' }) */
+  filterKeyMapping?: Record<string, string>
+  /** Filter keys that should use partial/case-insensitive matching instead of exact match */
+  textFilterKeys?: string[]
 }
 
 interface UsePaginatedSearchReturn<T> {
@@ -35,7 +39,9 @@ export function usePaginatedSearch<T> ({
   initialTotal,
   pageSize = 10,
   debounceMs = 1000,
-  defaultFilters = {}
+  defaultFilters = {},
+  filterKeyMapping = {},
+  textFilterKeys = []
 }: UsePaginatedSearchOptions<T>): UsePaginatedSearchReturn<T> {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -64,6 +70,17 @@ export function usePaginatedSearch<T> ({
   const [total, setTotal] = useState(initialTotal)
   const [isLoading, setIsLoading] = useState(false)
   const [searchInputValue, setSearchInputValue] = useState(urlSearch)
+
+  // Sync data when initialData changes from empty to populated
+  // This handles the case where initialData is fetched asynchronously
+  const prevInitialLengthRef = useRef(initialData.length)
+  useEffect(() => {
+    if (prevInitialLengthRef.current === 0 && initialData.length > 0) {
+      setData(initialData)
+      setTotal(initialTotal)
+    }
+    prevInitialLengthRef.current = initialData.length
+  }, [initialData, initialTotal])
 
   // REFS
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -208,7 +225,9 @@ export function usePaginatedSearch<T> ({
         ([key, value]) => value && value !== defaultFilters[key]
       )
 
-      if (!hasNonDefaultPage && !hasSearch && !hasNonDefaultFilters) {
+      // Only cache and skip if we have actual data AND no custom URL params
+      // If initialData is empty, don't cache - let subsequent renders handle it
+      if (!hasNonDefaultPage && !hasSearch && !hasNonDefaultFilters && initialData.length > 0) {
         const cacheKey = buildCacheKey(1, '', urlFilters)
         pageCacheRef.current.set(cacheKey, {
           data: initialData,
@@ -219,7 +238,7 @@ export function usePaginatedSearch<T> ({
       }
     }
 
-    // 2️Debounced fetch (only after initial mount)
+    // 2️⃣ Debounced fetch (only after initial mount)
     if (!useServerSearch) return
 
     if (debounceTimerRef.current) {
@@ -301,11 +320,25 @@ useEffect(() => {
 
     if (hasActiveFilters) {
       filteredData = filteredData.filter(item => {
-        return Object.entries(urlFilters).every(([key, value]) => {
-          if (!value || value === 'all' || value === defaultFilters[key]) {
+        return Object.entries(urlFilters).every(([filterKey, filterValue]) => {
+          if (!filterValue || filterValue === 'all' || filterValue === defaultFilters[filterKey]) {
             return true
           }
-          return (item as any)[key] === value
+
+          // Get the actual data property name (use mapping if provided, otherwise use filter key)
+          const dataKey = filterKeyMapping[filterKey] || filterKey
+          const itemValue = (item as any)[dataKey]
+
+          // Check if this is a text filter (partial/case-insensitive match)
+          if (textFilterKeys.includes(filterKey)) {
+            if (typeof itemValue === 'string') {
+              return itemValue.toLowerCase().includes(filterValue.toLowerCase())
+            }
+            return false
+          }
+
+          // Exact match for select filters
+          return itemValue === filterValue
         })
       })
     }
@@ -324,7 +357,7 @@ useEffect(() => {
     }
 
     return filteredData
-  }, [data, urlSearch, urlFilters, useServerSearch, defaultFilters])
+  }, [data, urlSearch, urlFilters, useServerSearch, defaultFilters, filterKeyMapping, textFilterKeys])
 
   const updateItem = useCallback((id: string, updates: Partial<T>) => {
     const updateInArray = (arr: T[]) =>

@@ -35,9 +35,7 @@ import { useActionUnderDevelopment } from '@/components/costume-ui/under-develop
 import { useScrollToSection } from '@/hooks/useScrollToSection'
 import ScheduleRentalChangeDialog from '@/components/dialogs/schedule-rental-change-dialog'
 import RentalHistoryDialog from '@/components/dialogs/rental-history-dialog'
-import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
-import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
-import { TrendingUp, TrendingDown, Calendar, X } from 'lucide-react'
+import ScheduledRentChangeBanner from '@/components/costume-ui/scheduled-rent-change-banner'
 
 // Types for overview data
 type ScheduledChange = {
@@ -578,31 +576,6 @@ export default function OverviewContent ({ propertyId }: Props) {
     router.push(`/properties/${propertyId}/leases/add-lease`)
   }
 
-  // Handle cancel scheduled rental change
-  const [cancellingChange, setCancellingChange] = useState(false)
-  const handleCancelScheduledChange = async () => {
-    if (!overviewData?.lease?.scheduled_change) return
-
-    setCancellingChange(true)
-    try {
-      const response = await fetch(
-        `/api/leases/${overviewData.lease.id}/cancel-rental-change`,
-        { method: 'POST' }
-      )
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to cancel')
-      }
-
-      FeedbackToasts.deleted('Scheduled rental change')
-      fetchOverviewData()
-    } catch (error: any) {
-      FeedbackToasts.deleteFailed('scheduled rental change', error.message)
-    } finally {
-      setCancellingChange(false)
-    }
-  }
 
   return (
     <>
@@ -786,75 +759,14 @@ export default function OverviewContent ({ propertyId }: Props) {
         )}
       </div>
 
-      {/* Scheduled Rental Change Banner - only show if rent hasn't already changed */}
-      {!loading &&
-        overviewData?.lease?.scheduled_change &&
-        Math.abs(overviewData.lease.monthly_rent - overviewData.lease.scheduled_change.new_rent) > 0.01 && (
-        <div className='w-full p-4 bg-amber-50 border border-amber-200 rounded-lg'>
-          <div className='flex items-center justify-between gap-4'>
-            <div className='flex items-center gap-3'>
-              <Calendar className='h-5 w-5 text-amber-600 shrink-0' />
-              <div>
-                <p className='text-sm font-medium text-amber-800'>
-                  Rental Change Scheduled
-                </p>
-                <p className='text-sm text-amber-700'>
-                  {formatCurrency(overviewData.lease.scheduled_change.old_rent)}{' '}
-                  →{' '}
-                  {formatCurrency(overviewData.lease.scheduled_change.new_rent)}
-                  <span className='ml-1.5 inline-flex items-center gap-0.5'>
-                    {overviewData.lease.scheduled_change.new_rent >
-                    overviewData.lease.scheduled_change.old_rent ? (
-                      <TrendingUp className='h-3 w-3' />
-                    ) : (
-                      <TrendingDown className='h-3 w-3' />
-                    )}
-                    {(
-                      ((overviewData.lease.scheduled_change.new_rent -
-                        overviewData.lease.scheduled_change.old_rent) /
-                        overviewData.lease.scheduled_change.old_rent) *
-                      100
-                    ).toFixed(1)}
-                    %
-                  </span>
-                  <span className='ml-2 text-amber-600'>
-                    • Effective{' '}
-                    {new Date(
-                      overviewData.lease.scheduled_change.effective_from
-                    ).toLocaleDateString('en-GB', {
-                      month: 'long',
-                      year: 'numeric'
-                    })}
-                  </span>
-                </p>
-              </div>
-            </div>
-            <ConfirmationDialog
-              title='Cancel Scheduled Rental Change'
-              description={`Are you sure you want to cancel the scheduled rental change from ${formatCurrency(
-                overviewData.lease.scheduled_change.old_rent
-              )} to ${formatCurrency(
-                overviewData.lease.scheduled_change.new_rent
-              )}?`}
-              variant='warning'
-              inputLabel='Type Cancel to Confirm'
-              confirmationText='CANCEL'
-              confirmButtonLabel='Cancel Change'
-              confirmButtonLoadingLabel='Cancelling...'
-              confirmButtonClassName='bg-amber-600! hover:bg-amber-700!'
-              onConfirm={handleCancelScheduledChange}
-              openDialogButton={
-                <Button
-                  variant='ghost'
-                  className='h-8 px-3 text-amber-700 hover:text-amber-800 hover:bg-amber-100'
-                  disabled={cancellingChange}
-                >
-                  Cancel
-                </Button>
-              }
-            />
-          </div>
-        </div>
+      {/* Scheduled Rental Change Banner */}
+      {!loading && overviewData?.lease?.scheduled_change && (
+        <ScheduledRentChangeBanner
+          leaseId={overviewData.lease.id}
+          scheduledChange={overviewData.lease.scheduled_change}
+          currentRent={overviewData.lease.monthly_rent}
+          onCancelSuccess={fetchOverviewData}
+        />
       )}
 
       {/* Payments */}

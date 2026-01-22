@@ -882,7 +882,7 @@ export default function PaymentsTable ({
         <div className='flex items-start justify-between'>
           <Link href={`/payments/${payment.id}`} className='flex-1'>
             <div className='flex items-center gap-2 mb-1'>
-              <span className='texts-body-medium-semibold text-(--text-primary) hover:underline'>
+              <span className='texts-body-medium-semibold text-(--text-primary) hover:text-(--info-main) hover:underline'>
                 #{payment.id}
               </span>
               <div
