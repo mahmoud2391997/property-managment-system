@@ -97,6 +97,7 @@ type CardProps = {
   user_link?: string
   user_type: string
   user_avatar?: string | null
+  detailsLink?: string
   menuItems?: React.ReactNode
 }
 
@@ -112,6 +113,7 @@ const Card = ({
   user_link,
   user_type,
   user_avatar,
+  detailsLink,
   menuItems
 }: CardProps) => {
   const renderAvatar = (item: ComboBoxitemsType) => {
@@ -182,7 +184,13 @@ const Card = ({
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end'>
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem>View details</DropdownMenuItem>
+            {detailsLink ? (
+              <DropdownMenuItem asChild>
+                <Link href={detailsLink}>View details</Link>
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem>View details</DropdownMenuItem>
+            )}
             {menuItems}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -612,6 +620,7 @@ export default function RoomOverviewContent ({ roomId }: Props) {
             user_link={`/tenants/${overviewData.lease.tenant.id}/overview`}
             user_type='Tenant'
             user_avatar={overviewData.lease.tenant.profile_thumb}
+            detailsLink={`/rooms/${roomId}/leases/${overviewData.lease.id}/details`}
             menuItems={
               <>
                 {overviewData.lease?.tenant.phone_number && (
@@ -770,9 +779,13 @@ export default function RoomOverviewContent ({ roomId }: Props) {
             <ConfirmationDialog
               title='Cancel Scheduled Rental Change'
               description={`Are you sure you want to cancel the scheduled rental change from ${formatCurrency(overviewData.lease.scheduled_change.old_rent)} to ${formatCurrency(overviewData.lease.scheduled_change.new_rent)}?`}
-              confirmButtonLabel='Cancel Change'
-              onConfirm={handleCancelScheduledChange}
               variant='warning'
+              inputLabel='Type Cancel to Confirm'
+              confirmationText='CANCEL'
+              confirmButtonLabel='Cancel Change'
+              confirmButtonLoadingLabel='Cancelling...'
+              confirmButtonClassName='bg-amber-600! hover:bg-amber-700!'
+              onConfirm={handleCancelScheduledChange}
               openDialogButton={
                 <Button
                   variant='ghost'

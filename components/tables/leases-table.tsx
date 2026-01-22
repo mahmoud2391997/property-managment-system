@@ -92,7 +92,19 @@ const createColumns = (
     accessorKey: 'reference_id',
     header: () => <div className='text-left'>Lease ID</div>,
     cell: ({ row }) => {
-      return <div className='text-left'>{row.getValue('reference_id')}</div>
+      const lease = row.original
+      const detailsLink = lease.room_id
+        ? `/rooms/${lease.room_id}/leases/${lease.id}/details`
+        : `/properties/${lease.property_id}/leases/${lease.id}/details`
+
+      return (
+        <Link
+          href={detailsLink}
+          className='text-left texts-body-small-medium text-(--info-main) hover:underline'
+        >
+          {row.getValue('reference_id')}
+        </Link>
+      )
     }
   },
 
@@ -317,12 +329,17 @@ const createColumns = (
             >
               Copy lease ID
             </DropdownMenuItem>
-            {!isEnded && (
-              <>
-                <DropdownMenuItem>View details</DropdownMenuItem>
-                <DropdownMenuItem>Edit lease</DropdownMenuItem>
-              </>
-            )}
+            <DropdownMenuItem asChild>
+              <Link
+                href={
+                  lease.room_id
+                    ? `/rooms/${lease.room_id}/leases/${lease.id}/details`
+                    : `/properties/${lease.property_id}/leases/${lease.id}/details`
+                }
+              >
+                View details
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Rental</DropdownMenuLabel>
             {canEndLease && (

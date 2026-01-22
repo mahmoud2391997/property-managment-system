@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { Building2, Calendar, Clock, TrendingUp, TrendingDown } from 'lucide-react'
+import Link from 'next/link'
 
 import { Checkbox } from '@/components/ui/checkbox'
 import { Table } from '../costume-ui/table'
@@ -70,7 +71,15 @@ const columns: ColumnDef<RentalWithDetails>[] = [
     accessorKey: 'reference_id',
     header: () => <div className='text-left'>Rental ID</div>,
     cell: ({ row }) => {
-      return <div className='text-left'>{row.getValue('reference_id')}</div>
+      const { id, reference_id } = row.original
+      return (
+        <Link
+          href={`/rentals/${id}`}
+          className='text-left texts-table-cell-primary hover:text-(--info-main) hover:underline'
+        >
+          {reference_id}
+        </Link>
+      )
     }
   },
 
@@ -217,18 +226,19 @@ const RentalCard = ({ rental, isHighlighted, cardRef }: {
 
   return (
     <div ref={cardRef}>
-      <MobileCardContainer
-        className={cn(
-          isHighlighted && 'animate-highlight-pulse'
-        )}
-      >
-      {/* Header: ID & Status */}
-      <div className='flex items-start justify-between'>
-        <div className='flex-1'>
-          <div className='flex items-center gap-2 mb-1'>
-            <span className='texts-body-medium-semibold text-(--text-primary)'>
-              {rental.reference_id}
-            </span>
+      <Link href={`/rentals/${rental.id}`}>
+        <MobileCardContainer
+          className={cn(
+            isHighlighted && 'animate-highlight-pulse'
+          )}
+        >
+        {/* Header: ID & Status */}
+        <div className='flex items-start justify-between'>
+          <div className='flex-1'>
+            <div className='flex items-center gap-2 mb-1'>
+              <span className='texts-body-medium-semibold text-(--text-primary) hover:text-(--info-main) hover:underline'>
+                {rental.reference_id}
+              </span>
             <div
               data-status={statusKey}
               className={cn(
@@ -290,40 +300,41 @@ const RentalCard = ({ rental, isHighlighted, cardRef }: {
         </div>
       </div>
 
-      {/* Scheduled Rental Change Banner - only show if rent hasn't already changed */}
-      {rental.scheduled_change &&
-        rental.status === 'Current' &&
-        Math.abs(rental.monthly_rent - rental.scheduled_change.new_rent) > 0.01 && (
-        <div className='flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-200'>
-          <div className='flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 shrink-0'>
-            <Clock className='h-4 w-4 text-blue-600' />
-          </div>
-          <div className='flex-1 min-w-0'>
-            <p className='texts-body-small-medium text-blue-900'>
-              Rental change scheduled
-            </p>
-            <p className='texts-caption-large text-blue-700'>
-              Your rental will change to{' '}
-              <span className='font-medium'>
-                {formatCurrency(rental.scheduled_change.new_rent)}
-              </span>{' '}
-              from{' '}
-              {new Date(rental.scheduled_change.effective_from).toLocaleDateString(
-                'en-GB',
-                { month: 'long', year: 'numeric' }
+        {/* Scheduled Rental Change Banner - only show if rent hasn't already changed */}
+        {rental.scheduled_change &&
+          rental.status === 'Current' &&
+          Math.abs(rental.monthly_rent - rental.scheduled_change.new_rent) > 0.01 && (
+          <div className='flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-200'>
+            <div className='flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 shrink-0'>
+              <Clock className='h-4 w-4 text-blue-600' />
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='texts-body-small-medium text-blue-900'>
+                Rental change scheduled
+              </p>
+              <p className='texts-caption-large text-blue-700'>
+                Your rental will change to{' '}
+                <span className='font-medium'>
+                  {formatCurrency(rental.scheduled_change.new_rent)}
+                </span>{' '}
+                from{' '}
+                {new Date(rental.scheduled_change.effective_from).toLocaleDateString(
+                  'en-GB',
+                  { month: 'long', year: 'numeric' }
+                )}
+              </p>
+            </div>
+            <div className='shrink-0'>
+              {rental.scheduled_change.new_rent > rental.scheduled_change.old_rent ? (
+                <TrendingUp className='h-5 w-5 text-blue-600' />
+              ) : (
+                <TrendingDown className='h-5 w-5 text-blue-600' />
               )}
-            </p>
+            </div>
           </div>
-          <div className='shrink-0'>
-            {rental.scheduled_change.new_rent > rental.scheduled_change.old_rent ? (
-              <TrendingUp className='h-5 w-5 text-blue-600' />
-            ) : (
-              <TrendingDown className='h-5 w-5 text-blue-600' />
-            )}
-          </div>
-        </div>
-      )}
-      </MobileCardContainer>
+        )}
+        </MobileCardContainer>
+      </Link>
     </div>
   )
 }

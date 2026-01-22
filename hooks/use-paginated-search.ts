@@ -171,7 +171,9 @@ export function usePaginatedSearch<T> ({
           if (value && value !== 'all') params.set(key, value)
         })
 
-        const response = await fetch(`${apiRoute}?${params.toString()}`)
+        // Handle apiRoute that may already have query params
+        const separator = apiRoute.includes('?') ? '&' : '?'
+        const response = await fetch(`${apiRoute}${separator}${params.toString()}`)
         const result = await response.json()
 
         if (result.success) {
@@ -213,11 +215,11 @@ export function usePaginatedSearch<T> ({
           total: initialTotal
         })
         lastFetchedParams.current = cacheKey
-        return // ⛔ EXIT — do NOT schedule debounce
+        return // EXIT — do NOT schedule debounce
       }
     }
 
-    // 2️⃣ Debounced fetch (only after initial mount)
+    // 2️Debounced fetch (only after initial mount)
     if (!useServerSearch) return
 
     if (debounceTimerRef.current) {

@@ -3,13 +3,54 @@
 import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
-import { AddButtonIcon, DeleteButtonIcon } from '@/components/costume-ui/icon'
+import { AddButtonIcon } from '@/components/costume-ui/icon'
 import PaymentsTable from '@/components/tables/pyaments-table'
 import Link from 'next/link'
 import { PaymentWithDetails } from '@/lib/payments-utils'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import { Tab, TabGroup } from '../costume-ui/tab'
-import { useEffect } from 'react'
+import { useEffect, useCallback, useMemo } from 'react'
+import TableFilter, { type FilterAttribute, type FilterValue } from '../costume-ui/table-filter'
+
+// Define filterable attributes for payments
+const PAYMENT_FILTER_ATTRIBUTES: FilterAttribute[] = [
+  { key: 'payment_id', label: 'Payment ID', type: 'text' },
+  { key: 'lease_id', label: 'Lease ID', type: 'text' },
+  {
+    key: 'type',
+    label: 'Type',
+    type: 'select',
+    options: [
+      // Core rent
+      { value: 'Rental', label: 'Rental' },
+      { value: 'Rental_Adjustment', label: 'Rental Adjustment' },
+      { value: 'Lease_Initial_Charges', label: 'Lease Initial Charges' },
+      // Utilities
+      { value: 'Electricity_Bill', label: 'Electricity Bill' },
+      { value: 'Water_Bill', label: 'Water Bill' },
+      { value: 'Internet_Bill', label: 'Internet Bill' },
+      { value: 'Sewerage_Bill', label: 'Sewerage Bill' },
+      // Services
+      { value: 'Cleaning_Service', label: 'Cleaning Service' },
+      { value: 'Parking', label: 'Parking' },
+      // Penalties & Other
+      { value: 'Late_Payment_Charges', label: 'Late Payment Charges' },
+      { value: 'Fines_or_Penalties', label: 'Fines or Penalties' },
+      { value: 'Miscellaneous_Others', label: 'Miscellaneous/Others' }
+    ]
+  },
+  {
+    key: 'recurring_pattern',
+    label: 'Pattern',
+    type: 'select',
+    options: [
+      { value: 'Recurring', label: 'Recurring' },
+      { value: 'One-time', label: 'One-time' }
+    ]
+  },
+  { key: 'property', label: 'Property', type: 'text' },
+  { key: 'tenant_name', label: 'Tenant', type: 'text' }
+]
 
 interface PaymentsSectionProps {
   initialData: PaymentWithDetails[]
@@ -42,7 +83,15 @@ export default function PaymentsSection ({
     initialData,
     initialTotal,
     pageSize: 10,
-    defaultFilters: { status: 'all' } // Changed from filters to defaultFilters
+    defaultFilters: {
+      status: 'all',
+      payment_id: '',
+      lease_id: '',
+      type: '',
+      recurring_pattern: '',
+      property: '',
+      tenant_name: ''
+    }
   })
 
   const statusOptions = ['all', 'Paid', 'Paid Late', 'Partially Paid', 'Overdue', 'Pending', 'Cancelled']
@@ -54,6 +103,34 @@ export default function PaymentsSection ({
   const handleTabClick = (status: string) => {
     updateFilters({ status })
   }
+
+  // Convert activeFilters (Record) to FilterValue[] for TableFilter component
+  const advancedFilters = useMemo((): FilterValue[] => {
+    return Object.entries(activeFilters)
+      .filter(([key, value]) => value && key !== 'status') // Exclude status (handled by tabs)
+      .map(([key, value]) => ({ id: key, attribute: key, value }))
+  }, [activeFilters])
+
+  // Handle advanced filters change - convert FilterValue[] to Record and update
+  const handleFiltersChange = useCallback((newFilters: FilterValue[]) => {
+    const filterObj: Record<string, string> = {}
+
+    // Set values for active filters
+    newFilters.forEach(f => {
+      if (f.attribute && f.value) {
+        filterObj[f.attribute] = f.value
+      }
+    })
+
+    // Clear filters that were removed
+    PAYMENT_FILTER_ATTRIBUTES.forEach(attr => {
+      if (!filterObj[attr.key]) {
+        filterObj[attr.key] = ''
+      }
+    })
+
+    updateFilters(filterObj)
+  }, [updateFilters])
 
   // Listen for payment updates from the payment gateway return flow
   useEffect(() => {
@@ -80,15 +157,21 @@ export default function PaymentsSection ({
           'w-full'
         )}
       >
-        <SearchInput
-          placeholder='Search payments'
-          value={searchTerm}
-          onChange={e => handleSearchChange(e.target.value)}
-        />
+        <div className='flex items-center gap-2'>
+          <TableFilter
+            attributes={PAYMENT_FILTER_ATTRIBUTES}
+            filters={advancedFilters}
+            onFiltersChange={handleFiltersChange}
+          />
+          <SearchInput
+            placeholder='Search payments'
+            value={searchTerm}
+            onChange={e => handleSearchChange(e.target.value)}
+          />
+        </div>
         {/* Buttons */}
         {userType === 'staff' && (
           <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
-
             <Link href='/payments/add-payment' className='flex-1 sm:flex-none'>
               <Button
                 icon={<AddButtonIcon className='text-neutral-300' />}
@@ -100,7 +183,7 @@ export default function PaymentsSection ({
         )}
       </div>
 
-      {/* Filters */}
+      {/* Status Tabs */}
       <TabGroup showButton={true} className='-mx-5 px-5 mb-3'>
         {statusOptions.map((status) => (
           <Tab
