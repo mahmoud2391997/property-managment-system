@@ -49,25 +49,31 @@ type Props = {
   data: LeaseDetailsData
   sourceType: 'property' | 'room'
   sourceId: string
+  userType: 'staff' | 'tenant'
 }
 
 
-export default function LeaseDetailsContent({ data, sourceType, sourceId }: Props) {
+export default function LeaseDetailsContent({ data, sourceType, sourceId, userType }: Props) {
   const router = useRouter()
   const { lease, pending_rental, recent_payments, recurring_payments } = data
 
-  // Build breadcrumb
-  const breadcrumbItems = sourceType === 'property'
+  // Build breadcrumb - different paths for staff vs tenant
+  const breadcrumbItems = userType === 'tenant'
     ? [
-        { label: 'Properties', href: '/properties' },
-        { label: lease.property.code, href: `/properties/${sourceId}/leases` },
+        { label: 'Rentals', href: '/rentals' },
         { label: lease.reference_id }
       ]
-    : [
-        { label: 'Rooms', href: '/rooms' },
-        { label: `${lease.property.code}(${lease.room?.title})`, href: `/rooms/${sourceId}/leases` },
-        { label: lease.reference_id }
-      ]
+    : sourceType === 'property'
+      ? [
+          { label: 'Properties', href: '/properties' },
+          { label: lease.property.code, href: `/properties/${sourceId}/leases` },
+          { label: lease.reference_id }
+        ]
+      : [
+          { label: 'Rooms', href: '/rooms' },
+          { label: `${lease.property.code}(${lease.room?.title})`, href: `/rooms/${sourceId}/leases` },
+          { label: lease.reference_id }
+        ]
 
   // Status styling
   const statusKey = lease.status.toLowerCase()
@@ -80,9 +86,13 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId }: Prop
       const locationLabel = target.room_title
         ? `${target.property_code}(${target.room_title})`
         : target.property_code
-      const link = target.room_id
-        ? `/rooms/${target.room_id}/leases/${target.id}/details`
-        : `/properties/${target.property_id}/leases/${target.id}/details`
+
+      // Use /rentals/ path for tenants, property/room paths for staff
+      const link = userType === 'tenant'
+        ? `/rentals/${target.id}`
+        : target.room_id
+          ? `/rooms/${target.room_id}/leases/${target.id}/details`
+          : `/properties/${target.property_id}/leases/${target.id}/details`
 
       return {
         label: 'Tenant transferred to',
@@ -98,9 +108,13 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId }: Prop
       const locationLabel = source.room_title
         ? `${source.property_code}(${source.room_title})`
         : source.property_code
-      const link = source.room_id
-        ? `/rooms/${source.room_id}/leases/${source.id}/details`
-        : `/properties/${source.property_id}/leases/${source.id}/details`
+
+      // Use /rentals/ path for tenants, property/room paths for staff
+      const link = userType === 'tenant'
+        ? `/rentals/${source.id}`
+        : source.room_id
+          ? `/rooms/${source.room_id}/leases/${source.id}/details`
+          : `/properties/${source.property_id}/leases/${source.id}/details`
 
       return {
         label: 'Tenant transferred from',
@@ -163,69 +177,71 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId }: Prop
           </span>
         </div>
 
-        {/* Action Buttons */}
-        <div className='flex items-center gap-2.5'>
-          {canScheduleChange && (
-            <ScheduleRentalChangeDialog
-              leaseId={lease.id}
-              trigger={
+        {/* Action Buttons - Staff only */}
+        {userType === 'staff' && (
+          <div className='flex items-center gap-2.5'>
+            {canScheduleChange && (
+              <ScheduleRentalChangeDialog
+                leaseId={lease.id}
+                trigger={
+                  <Button
+                    variant='secondary'
+                    label='Schedule Rent Change'
+                    icon={<TrendingUp size={16} />}
+                  />
+                }
+                onSuccess={() => router.refresh()}
+              />
+            )}
+
+            {canTransfer && (
+              <Link href={sourceType === 'property'
+                ? `/properties/${sourceId}/leases/${lease.id}/transfer`
+                : `/rooms/${sourceId}/leases/${lease.id}/transfer`
+              }>
                 <Button
                   variant='secondary'
-                  label='Schedule Rent Change'
-                  icon={<TrendingUp size={16} />}
+                  label='Transfer'
+                  icon={<ArrowRightLeft size={16} />}
                 />
-              }
-              onSuccess={() => router.refresh()}
-            />
-          )}
+              </Link>
+            )}
 
-          {canTransfer && (
-            <Link href={sourceType === 'property'
-              ? `/properties/${sourceId}/leases/${lease.id}/transfer`
-              : `/rooms/${sourceId}/leases/${lease.id}/transfer`
-            }>
-              <Button
-                variant='secondary'
-                label='Transfer'
-                icon={<ArrowRightLeft size={16} />}
-              />
-            </Link>
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant='secondary'
-                icon={<MoreHorizontal size={16} />}
-              />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align='end'>
-              <DropdownMenuItem onClick={handleCopyId}>
-                <Copy size={14} className='mr-2' />
-                Copy Lease ID
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {canEndLease && (
-                <InitiateLeaseEndingDrawer
-                  leaseId={lease.id}
-                  propertyName={lease.property.code}
-                  unitName={lease.room?.title}
-                  tenantName={lease.tenant.name}
-                  trigger={
-                    <DropdownMenuItem
-                      className='text-red-600 focus:text-red-600'
-                      onSelect={(e) => e.preventDefault()}
-                    >
-                      <XCircle size={14} className='mr-2' />
-                      End Lease
-                    </DropdownMenuItem>
-                  }
-                  onSuccess={() => router.refresh()}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant='secondary'
+                  icon={<MoreHorizontal size={16} />}
                 />
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align='end'>
+                <DropdownMenuItem onClick={handleCopyId}>
+                  <Copy size={14} className='mr-2' />
+                  Copy Lease ID
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {canEndLease && (
+                  <InitiateLeaseEndingDrawer
+                    leaseId={lease.id}
+                    propertyName={lease.property.code}
+                    unitName={lease.room?.title}
+                    tenantName={lease.tenant.name}
+                    trigger={
+                      <DropdownMenuItem
+                        className='text-red-600 focus:text-red-600'
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        <XCircle size={14} className='mr-2' />
+                        End Lease
+                      </DropdownMenuItem>
+                    }
+                    onSuccess={() => router.refresh()}
+                  />
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
@@ -308,35 +324,37 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId }: Prop
                     </span>
                   </div>
                 </div>
-                <ConfirmationDialog
-                  openDialogButton={
-                    <Button
-                      variant='secondary'
-                      label='Cancel'
-                      className='text-sm!'
-                    />
-                  }
-                  title='Cancel Scheduled Rent Change'
-                  description={`Are you sure you want to cancel the scheduled rent change from ${formatCurrency(lease.upcoming_change.old_rent)} to ${formatCurrency(lease.upcoming_change.new_rent)}?`}
-                  variant='warning'
-                  inputLabel='Type Cancel to Confirm'
-                  confirmationText='CANCEL'
-                  confirmButtonLabel='Cancel Change'
-                  confirmButtonLoadingLabel='Cancelling...'
-                  confirmButtonClassName='bg-amber-600! hover:bg-amber-700!'
-                  onConfirm={async () => {
-                    try {
-                      const response = await fetch(`/api/leases/${lease.id}/cancel-rental-change`, {
-                        method: 'POST'
-                      })
-                      if (!response.ok) throw new Error('Failed to cancel')
-                      FeedbackToasts.deleted('Scheduled rent change')
-                      router.refresh()
-                    } catch (error) {
-                      FeedbackToasts.operationFailed('Cancel rent change')
+                {userType === 'staff' && (
+                  <ConfirmationDialog
+                    openDialogButton={
+                      <Button
+                        variant='secondary'
+                        label='Cancel'
+                        className='text-sm!'
+                      />
                     }
-                  }}
-                />
+                    title='Cancel Scheduled Rent Change'
+                    description={`Are you sure you want to cancel the scheduled rent change from ${formatCurrency(lease.upcoming_change.old_rent)} to ${formatCurrency(lease.upcoming_change.new_rent)}?`}
+                    variant='warning'
+                    inputLabel='Type Cancel to Confirm'
+                    confirmationText='CANCEL'
+                    confirmButtonLabel='Cancel Change'
+                    confirmButtonLoadingLabel='Cancelling...'
+                    confirmButtonClassName='bg-amber-600! hover:bg-amber-700!'
+                    onConfirm={async () => {
+                      try {
+                        const response = await fetch(`/api/leases/${lease.id}/cancel-rental-change`, {
+                          method: 'POST'
+                        })
+                        if (!response.ok) throw new Error('Failed to cancel')
+                        FeedbackToasts.deleted('Scheduled rent change')
+                        router.refresh()
+                      } catch (error) {
+                        FeedbackToasts.operationFailed('Cancel rent change')
+                      }
+                    }}
+                  />
+                )}
               </div>
             </div>
           )}
@@ -446,7 +464,7 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId }: Prop
                     </span>
                   </div>
                 </div>
-                <Link href={`/payments?leaseId=${lease.id}`}>
+                <Link href={`/payments?lease_id=${lease.reference_id}`}>
                   <Button variant='info' label='View All' className='text-sm!' />
                 </Link>
               </div>
@@ -591,45 +609,47 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId }: Prop
 
         {/* Right Sidebar */}
         <div className='lg:w-80 flex flex-col gap-5'>
-          {/* Tenant Card */}
-          <div className='card-styles'>
-            <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
-              <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-blue-100 text-blue-700'>
-                <User size={19} strokeWidth={1.5} />
-              </div>
-              <div className='flex flex-col'>
-                <span className='texts-body-medium-medium'>Tenant</span>
-                <span className='texts-caption-large text-(--text-secondary)'>
-                  {lease.tenant.type}
-                </span>
-              </div>
-            </div>
-
-            <div className='flex flex-col gap-3 pt-4'>
-              <div className='flex items-center gap-3'>
-                <UserAvatar
-                  name={lease.tenant.name}
-                  imgSrc={lease.tenant.profile_thumb}
-                  size={40}
-                />
+          {/* Tenant Card - Only show for staff */}
+          {userType === 'staff' && (
+            <div className='card-styles'>
+              <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
+                <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-blue-100 text-blue-700'>
+                  <User size={19} strokeWidth={1.5} />
+                </div>
                 <div className='flex flex-col'>
-                  <Link
-                    href={`/tenants/${lease.tenant.id}`}
-                    className='texts-body-medium-medium text-(--text-primary) hover:text-(--info-main) hover:underline'
-                  >
-                    {lease.tenant.name}
-                  </Link>
+                  <span className='texts-body-medium-medium'>Tenant</span>
+                  <span className='texts-caption-large text-(--text-secondary)'>
+                    {lease.tenant.type}
+                  </span>
                 </div>
               </div>
 
-              {lease.tenant.phone && (
-                <div className='flex items-center gap-2 text-(--text-secondary)'>
-                  <Phone size={14} />
-                  <span className='texts-body-small'>{lease.tenant.phone}</span>
+              <div className='flex flex-col gap-3 pt-4'>
+                <div className='flex items-center gap-3'>
+                  <UserAvatar
+                    name={lease.tenant.name}
+                    imgSrc={lease.tenant.profile_thumb}
+                    size={40}
+                  />
+                  <div className='flex flex-col'>
+                    <Link
+                      href={`/tenants/${lease.tenant.id}`}
+                      className='texts-body-medium-medium text-(--text-primary) hover:text-(--info-main) hover:underline'
+                    >
+                      {lease.tenant.name}
+                    </Link>
+                  </div>
                 </div>
-              )}
+
+                {lease.tenant.phone && (
+                  <div className='flex items-center gap-2 text-(--text-secondary)'>
+                    <Phone size={14} />
+                    <span className='texts-body-small'>{lease.tenant.phone}</span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Property/Room Card */}
           <div className='card-styles'>
@@ -652,18 +672,27 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId }: Prop
                 <span className='texts-caption-large text-(--text-secondary)'>
                   {lease.room ? 'Room' : 'Property'}
                 </span>
-                <Link
-                  href={lease.room
-                    ? `/rooms/${lease.room.id}/overview`
-                    : `/properties/${lease.property.id}/overview`
-                  }
-                  className='texts-body-medium-medium text-(--text-primary) hover:text-(--info-main) hover:underline'
-                >
-                  {lease.room
-                    ? `${lease.property.code}(${lease.room.title})`
-                    : lease.property.code
-                  }
-                </Link>
+                {userType === 'staff' ? (
+                  <Link
+                    href={lease.room
+                      ? `/rooms/${lease.room.id}/overview`
+                      : `/properties/${lease.property.id}/overview`
+                    }
+                    className='texts-body-medium-medium text-(--text-primary) hover:text-(--info-main) hover:underline'
+                  >
+                    {lease.room
+                      ? `${lease.property.code}(${lease.room.title})`
+                      : lease.property.code
+                    }
+                  </Link>
+                ) : (
+                  <span className='texts-body-medium-medium text-(--text-primary)'>
+                    {lease.room
+                      ? `${lease.property.code}(${lease.room.title})`
+                      : lease.property.code
+                    }
+                  </span>
+                )}
               </div>
 
               {lease.property.address && (
@@ -677,8 +706,8 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId }: Prop
             </div>
           </div>
 
-          {/* Late Charges Card */}
-          {lease.late_charges.length > 0 && (
+          {/* Late Charges Card - Staff only */}
+          {userType === 'staff' && lease.late_charges.length > 0 && (
             <div className='card-styles'>
               <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
                 <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-red-100 text-red-700'>
@@ -707,8 +736,8 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId }: Prop
             </div>
           )}
 
-          {/* Reminders Card */}
-          {(lease.reminders.expiry.enabled || lease.reminders.rent.enabled || lease.reminders.overdue.enabled) && (
+          {/* Reminders Card - Staff only */}
+          {userType === 'staff' && (lease.reminders.expiry.enabled || lease.reminders.rent.enabled || lease.reminders.overdue.enabled) && (
             <div className='card-styles'>
               <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
                 <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-yellow-100 text-yellow-700'>
@@ -773,7 +802,8 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId }: Prop
                 </span>
               </div>
 
-              {lease.created_by && (
+              {/* Created By - Staff only */}
+              {userType === 'staff' && lease.created_by && (
                 <div className='flex flex-col gap-1'>
                   <span className='texts-caption-large text-(--text-secondary)'>Created By</span>
                   <span className='texts-body-small text-(--text-primary)'>

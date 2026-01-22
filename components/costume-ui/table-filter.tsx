@@ -101,21 +101,18 @@ export default function TableFilter({
   return (
     <Popover open={open} onOpenChange={handleOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant='secondary'
+        <button
           className={cn(
-            activeFilterCount > 0 && 'border-(--primary-color) bg-blue-50 text-(--primary-color)',
+            'relative flex items-center justify-center size-10 rounded-lg border border-(--border-default) bg-white hover:bg-neutral-50 transition-colors',
+            activeFilterCount > 0 && 'border-2 border-(--secondary-color)',
             className
           )}
         >
-          <SlidersHorizontal size={16} />
-          <span>Filter</span>
+          <SlidersHorizontal className={cn('text-neutral-500', activeFilterCount > 0 && 'text-(--secondary-color)')} size={18} />
           {activeFilterCount > 0 && (
-            <span className='flex items-center justify-center size-4 rounded-full bg-(--primary-color) text-white text-[10px] font-medium leading-none'>
-              {activeFilterCount}
-            </span>
+            <span className='absolute -top-0.5 -right-0.5 size-2 rounded-full bg-(--secondary-color)' />
           )}
-        </Button>
+        </button>
       </PopoverTrigger>
       <PopoverContent align='start' className='w-[420px] p-0'>
         <div className='flex flex-col'>

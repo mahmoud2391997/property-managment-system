@@ -571,8 +571,8 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
             </div>
           )}
 
-          {/* Tenant Info Card */}
-          {payment.lease && (
+          {/* Tenant Info Card - Staff only */}
+          {payment.lease && userType === 'staff' && (
             <div className='card-styles'>
               <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
                 <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-teal-100 text-teal-600'>
@@ -636,13 +636,22 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
                 <div className='flex items-center justify-between'>
                   <span className='texts-body-small text-(--text-secondary)'>Reference</span>
                   {userType === 'staff' ? (
-                    <span
-                      className='texts-body-small-medium'
+                    <Link
+                      href={payment.lease.room
+                        ? `/rooms/${payment.lease.room.id}/leases/${payment.lease.id}/details`
+                        : `/properties/${payment.lease.property.id}/leases/${payment.lease.id}/details`
+                      }
+                      className='texts-body-small-medium text-(--info-main) hover:underline'
                     >
                       {payment.lease.reference_id}
-                    </span>
+                    </Link>
                   ) : (
-                    <span className='texts-body-small-medium'>{payment.lease.reference_id}</span>
+                    <Link
+                      href={`/rentals/${payment.lease.id}`}
+                      className='texts-body-small-medium text-(--info-main) hover:underline'
+                    >
+                      {payment.lease.reference_id}
+                    </Link>
                   )}
                 </div>
                 <div className='flex items-center justify-between'>

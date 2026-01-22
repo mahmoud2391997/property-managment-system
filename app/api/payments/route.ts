@@ -116,11 +116,108 @@ export async function GET (request: NextRequest) {
     const skipCount = searchParams.get('skipCount') === 'true'
     const statusFilter = searchParams.get('status')?.trim() || ''
 
+    // Advanced filter params
+    const paymentIdFilter = searchParams.get('payment_id')?.trim() || ''
+    const leaseIdFilter = searchParams.get('lease_id')?.trim() || ''
+    const typeFilter = searchParams.get('type')?.trim() || ''
+    const recurringPatternFilter = searchParams.get('recurring_pattern')?.trim() || ''
+    const propertyFilter = searchParams.get('property')?.trim() || ''
+    const tenantNameFilter = searchParams.get('tenant_name')?.trim() || ''
+
+    // Property/Room context filters (for property/room overview pages)
+    const propertyId = searchParams.get('propertyId')?.trim() || ''
+    const roomId = searchParams.get('roomId')?.trim() || ''
+
     // If paginate mode is enabled, use pagination/search logic
     if (paginate) {
       // Build where clause with search and filters
       // Note: leases is optional (payments can be for bookings instead)
       // Using 'is' wrapper for optional relation filtering
+
+      // Build AND conditions for advanced filters
+      const buildAdvancedFilters = () => {
+        const filters: any[] = []
+
+        // Payment ID filter
+        if (paymentIdFilter) {
+          filters.push({ reference_id: { contains: paymentIdFilter, mode: 'insensitive' } })
+        }
+
+        // Lease ID filter
+        if (leaseIdFilter) {
+          filters.push({
+            leases: {
+              is: {
+                reference_id: { contains: leaseIdFilter, mode: 'insensitive' }
+              }
+            }
+          })
+        }
+
+        // Type filter
+        if (typeFilter) {
+          filters.push({ type: typeFilter })
+        }
+
+        // Property filter
+        if (propertyFilter) {
+          filters.push({
+            leases: {
+              is: {
+                OR: [
+                  { properties: { code: { contains: propertyFilter, mode: 'insensitive' } } },
+                  { rooms: { title: { contains: propertyFilter, mode: 'insensitive' } } }
+                ]
+              }
+            }
+          })
+        }
+
+        // Tenant name filter
+        if (tenantNameFilter) {
+          filters.push({
+            leases: {
+              is: {
+                tenants: {
+                  OR: [
+                    { individual_tenants: { first_name: { contains: tenantNameFilter, mode: 'insensitive' } } },
+                    { individual_tenants: { last_name: { contains: tenantNameFilter, mode: 'insensitive' } } },
+                    { company_tenants: { company_name: { contains: tenantNameFilter, mode: 'insensitive' } } }
+                  ]
+                }
+              }
+            }
+          })
+        }
+
+        // Property ID filter (for property overview page - only property-level leases)
+        if (propertyId) {
+          filters.push({
+            leases: {
+              is: {
+                property_id: propertyId,
+                room_id: null
+              }
+            }
+          })
+        }
+
+        // Room ID filter (for room overview page)
+        if (roomId) {
+          filters.push({
+            leases: {
+              is: {
+                room_id: roomId
+              }
+            }
+          })
+        }
+
+        return filters
+      }
+
+      const advancedFilters = buildAdvancedFilters()
+
       const whereClause: any = staff
         ? {
             organization_id: staff.organization_id,
@@ -181,7 +278,8 @@ export async function GET (request: NextRequest) {
               statusFilter !== 'all' &&
               ['Paid', 'Pending', 'Cancelled'].includes(statusFilter)
                 ? [{ status: statusFilter }]
-                : [])
+                : []),
+              ...advancedFilters
             ]
           }
         : {
@@ -210,15 +308,18 @@ export async function GET (request: NextRequest) {
               statusFilter !== 'all' &&
               ['Paid', 'Pending', 'Cancelled'].includes(statusFilter)
                 ? [{ status: statusFilter }]
-                : [])
+                : []),
+              ...advancedFilters
             ]
           }
 
-      // Fetch payments - for calculated statuses (Paid Late, Partially Paid, Overdue),
-      // we need to fetch more data and filter on frontend after transformation
-      const needsFrontendFiltering =
+      // Fetch payments - for calculated fields (Paid Late, Partially Paid, Overdue, recurring_pattern),
+      // we need to fetch more data and filter after transformation
+      const needsCalculatedStatusFilter =
         statusFilter &&
         !['Paid', 'Pending', 'Cancelled', 'all'].includes(statusFilter)
+
+      const needsFrontendFiltering = needsCalculatedStatusFilter || recurringPatternFilter
 
       // If we need frontend filtering, fetch all matching records (without pagination)
       // Then apply pagination after filtering
@@ -242,11 +343,21 @@ export async function GET (request: NextRequest) {
       // Transform payments for display
       let transformedPayments = payments.map(transformPayment)
 
-      // Apply frontend filtering for calculated statuses
+      // Apply frontend filtering for calculated fields
       if (needsFrontendFiltering) {
-        transformedPayments = transformedPayments.filter(
-          payment => payment.status === statusFilter
-        )
+        // Filter by calculated status
+        if (needsCalculatedStatusFilter) {
+          transformedPayments = transformedPayments.filter(
+            payment => payment.status === statusFilter
+          )
+        }
+
+        // Filter by recurring pattern
+        if (recurringPatternFilter) {
+          transformedPayments = transformedPayments.filter(
+            payment => payment.recurring_pattern === recurringPatternFilter
+          )
+        }
 
         // Apply pagination after filtering
         const startIndex = (page - 1) * limit
@@ -273,9 +384,7 @@ export async function GET (request: NextRequest) {
       })
     }
 
-    // Legacy mode: Get optional propertyId and roomId filters
-    const propertyId = searchParams.get('propertyId')
-    const roomId = searchParams.get('roomId')
+    // Legacy mode: propertyId and roomId already extracted above
 
     // Build where clause - filter by property/room through leases relation
     const whereClause: any = staff

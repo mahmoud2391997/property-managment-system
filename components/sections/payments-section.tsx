@@ -9,8 +9,8 @@ import Link from 'next/link'
 import { PaymentWithDetails } from '@/lib/payments-utils'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import { Tab, TabGroup } from '../costume-ui/tab'
-import { useEffect, useState, useMemo, useCallback } from 'react'
-import TableFilter, { ActiveFilterChips, type FilterAttribute, type FilterValue } from '../costume-ui/table-filter'
+import { useEffect, useCallback, useMemo } from 'react'
+import TableFilter, { type FilterAttribute, type FilterValue } from '../costume-ui/table-filter'
 
 // Define filterable attributes for payments
 const PAYMENT_FILTER_ATTRIBUTES: FilterAttribute[] = [
@@ -21,11 +21,22 @@ const PAYMENT_FILTER_ATTRIBUTES: FilterAttribute[] = [
     label: 'Type',
     type: 'select',
     options: [
+      // Core rent
       { value: 'Rental', label: 'Rental' },
-      { value: 'Deposit', label: 'Deposit' },
-      { value: 'Utilities', label: 'Utilities' },
-      { value: 'Maintenance', label: 'Maintenance' },
-      { value: 'Other', label: 'Other' }
+      { value: 'Rental_Adjustment', label: 'Rental Adjustment' },
+      { value: 'Lease_Initial_Charges', label: 'Lease Initial Charges' },
+      // Utilities
+      { value: 'Electricity_Bill', label: 'Electricity Bill' },
+      { value: 'Water_Bill', label: 'Water Bill' },
+      { value: 'Internet_Bill', label: 'Internet Bill' },
+      { value: 'Sewerage_Bill', label: 'Sewerage Bill' },
+      // Services
+      { value: 'Cleaning_Service', label: 'Cleaning Service' },
+      { value: 'Parking', label: 'Parking' },
+      // Penalties & Other
+      { value: 'Late_Payment_Charges', label: 'Late Payment Charges' },
+      { value: 'Fines_or_Penalties', label: 'Fines or Penalties' },
+      { value: 'Miscellaneous_Others', label: 'Miscellaneous/Others' }
     ]
   },
   {
@@ -52,9 +63,6 @@ export default function PaymentsSection ({
   initialTotal,
   userType
 }: PaymentsSectionProps) {
-  // Advanced filters state
-  const [advancedFilters, setAdvancedFilters] = useState<FilterValue[]>([])
-
   const {
     data,
     isLoading,
@@ -75,7 +83,15 @@ export default function PaymentsSection ({
     initialData,
     initialTotal,
     pageSize: 10,
-    defaultFilters: { status: 'all' }
+    defaultFilters: {
+      status: 'all',
+      payment_id: '',
+      lease_id: '',
+      type: '',
+      recurring_pattern: '',
+      property: '',
+      tenant_name: ''
+    }
   })
 
   const statusOptions = ['all', 'Paid', 'Paid Late', 'Partially Paid', 'Overdue', 'Pending', 'Cancelled']
@@ -88,50 +104,33 @@ export default function PaymentsSection ({
     updateFilters({ status })
   }
 
-  // Handle advanced filters change
+  // Convert activeFilters (Record) to FilterValue[] for TableFilter component
+  const advancedFilters = useMemo((): FilterValue[] => {
+    return Object.entries(activeFilters)
+      .filter(([key, value]) => value && key !== 'status') // Exclude status (handled by tabs)
+      .map(([key, value]) => ({ id: key, attribute: key, value }))
+  }, [activeFilters])
+
+  // Handle advanced filters change - convert FilterValue[] to Record and update
   const handleFiltersChange = useCallback((newFilters: FilterValue[]) => {
-    setAdvancedFilters(newFilters)
-  }, [])
+    const filterObj: Record<string, string> = {}
 
-  // Remove single filter
-  const handleRemoveFilter = useCallback((id: string) => {
-    setAdvancedFilters(prev => prev.filter(f => f.id !== id))
-  }, [])
-
-  // Clear all filters
-  const handleClearAllFilters = useCallback(() => {
-    setAdvancedFilters([])
-  }, [])
-
-  // Apply client-side filtering for advanced filters
-  const filteredData = useMemo(() => {
-    if (advancedFilters.length === 0) return data
-
-    return data.filter(payment => {
-      return advancedFilters.every(filter => {
-        if (!filter.attribute || !filter.value) return true
-
-        const filterValue = filter.value.toLowerCase()
-
-        switch (filter.attribute) {
-          case 'payment_id':
-            return payment.id.toLowerCase().includes(filterValue)
-          case 'lease_id':
-            return payment.lease_reference_id?.toLowerCase().includes(filterValue) ?? false
-          case 'type':
-            return payment.type === filter.value
-          case 'recurring_pattern':
-            return payment.recurring_pattern === filter.value
-          case 'property':
-            return payment.property.toLowerCase().includes(filterValue)
-          case 'tenant_name':
-            return payment.tenant_name.toLowerCase().includes(filterValue)
-          default:
-            return true
-        }
-      })
+    // Set values for active filters
+    newFilters.forEach(f => {
+      if (f.attribute && f.value) {
+        filterObj[f.attribute] = f.value
+      }
     })
-  }, [data, advancedFilters])
+
+    // Clear filters that were removed
+    PAYMENT_FILTER_ATTRIBUTES.forEach(attr => {
+      if (!filterObj[attr.key]) {
+        filterObj[attr.key] = ''
+      }
+    })
+
+    updateFilters(filterObj)
+  }, [updateFilters])
 
   // Listen for payment updates from the payment gateway return flow
   useEffect(() => {
@@ -158,16 +157,16 @@ export default function PaymentsSection ({
           'w-full'
         )}
       >
-        <div className='flex items-center gap-2.5'>
-          <SearchInput
-            placeholder='Search payments'
-            value={searchTerm}
-            onChange={e => handleSearchChange(e.target.value)}
-          />
+        <div className='flex items-center gap-2'>
           <TableFilter
             attributes={PAYMENT_FILTER_ATTRIBUTES}
             filters={advancedFilters}
             onFiltersChange={handleFiltersChange}
+          />
+          <SearchInput
+            placeholder='Search payments'
+            value={searchTerm}
+            onChange={e => handleSearchChange(e.target.value)}
           />
         </div>
         {/* Buttons */}
@@ -183,17 +182,6 @@ export default function PaymentsSection ({
           </div>
         )}
       </div>
-
-      {/* Active Filter Chips */}
-      {advancedFilters.length > 0 && (
-        <ActiveFilterChips
-          filters={advancedFilters}
-          attributes={PAYMENT_FILTER_ATTRIBUTES}
-          onRemove={handleRemoveFilter}
-          onClearAll={handleClearAllFilters}
-          className='mb-2'
-        />
-      )}
 
       {/* Status Tabs */}
       <TabGroup showButton={true} className='-mx-5 px-5 mb-3'>
@@ -211,14 +199,14 @@ export default function PaymentsSection ({
       {/* Table */}
       <div>
         <PaymentsTable
-          data={filteredData}
+          data={data}
           userType={userType}
           isLoading={isLoading}
           currentPage={currentPage}
-          totalItems={advancedFilters.length > 0 ? filteredData.length : total}
+          totalItems={total}
           pageSize={pageSize}
-          canGoNext={advancedFilters.length > 0 ? false : canGoNext}
-          canGoPrevious={advancedFilters.length > 0 ? false : canGoPrevious}
+          canGoNext={canGoNext}
+          canGoPrevious={canGoPrevious}
           onNextPage={goToNextPage}
           onPreviousPage={goToPreviousPage}
         />

@@ -97,6 +97,7 @@ type CardProps = {
   user_link?: string
   user_type: string
   user_avatar?: string | null
+  detailsLink?: string
   menuItems?: React.ReactNode
 }
 
@@ -112,6 +113,7 @@ const Card = ({
   user_link,
   user_type,
   user_avatar,
+  detailsLink,
   menuItems
 }: CardProps) => {
   const renderAvatar = (item: ComboBoxitemsType) => {
@@ -182,7 +184,13 @@ const Card = ({
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end'>
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem>View details</DropdownMenuItem>
+            {detailsLink ? (
+              <DropdownMenuItem asChild>
+                <Link href={detailsLink}>View details</Link>
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem>View details</DropdownMenuItem>
+            )}
             {menuItems}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -612,6 +620,7 @@ export default function RoomOverviewContent ({ roomId }: Props) {
             user_link={`/tenants/${overviewData.lease.tenant.id}/overview`}
             user_type='Tenant'
             user_avatar={overviewData.lease.tenant.profile_thumb}
+            detailsLink={`/rooms/${roomId}/leases/${overviewData.lease.id}/details`}
             menuItems={
               <>
                 {overviewData.lease?.tenant.phone_number && (

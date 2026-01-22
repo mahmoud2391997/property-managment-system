@@ -491,20 +491,42 @@ export default function PaymentsTable ({
             accessorKey: 'property',
             header: () => <div className='text-left'>Property</div>,
             cell: ({ row }) => {
-              const { property, property_id, room, room_id } = row.original
+              const { property, property_id, room, room_id, lease_id } = row.original
 
-              // Build navigation URL based on room_id
-              const href = property_id
+              // Build navigation URL based on user type
+              // Staff: navigate to property/room overview
+              // Tenant: navigate to rentals lease details page
+              const staffHref = property_id
                 ? room_id
                   ? `/rooms/${room_id}/overview`
                   : `/properties/${property_id}/overview`
                 : null
 
-              // Only staff can click to navigate
-              if (userType === 'staff' && href) {
+              // Tenant uses /rentals/[leaseId]/details path
+              const tenantHref = lease_id ? `/rentals/${lease_id}` : null
+
+              // Staff navigation to property/room
+              if (userType === 'staff' && staffHref) {
                 return (
                   <Link
-                    href={href}
+                    href={staffHref}
+                    className='block group hover:underline'
+                  >
+                    <div className='text-left texts-table-cell-primary group-hover:underline'>
+                      {property}
+                    </div>
+                    <div className='text-left texts-table-cell-secondary group-hover:underline'>
+                      {room}
+                    </div>
+                  </Link>
+                )
+              }
+
+              // Tenant navigation to lease details
+              if (userType === 'tenant' && tenantHref) {
+                return (
+                  <Link
+                    href={tenantHref}
                     className='block group hover:underline'
                   >
                     <div className='text-left texts-table-cell-primary group-hover:underline'>
@@ -981,11 +1003,15 @@ export default function PaymentsTable ({
           {/* Property */}
           {showPropertyColumn && (
             (() => {
-              const href = payment.property_id
+              // Staff: navigate to property/room overview
+              const staffHref = payment.property_id
                 ? payment.room_id
-                  ? `/properties/${payment.property_id}/rooms/${payment.room_id}`
+                  ? `/rooms/${payment.room_id}/overview`
                   : `/properties/${payment.property_id}/overview`
                 : null
+
+              // Tenant: navigate to rentals lease details page
+              const tenantHref = payment.lease_id ? `/rentals/${payment.lease_id}` : null
 
               const content = (
                 <>
@@ -998,9 +1024,19 @@ export default function PaymentsTable ({
                 </>
               )
 
-              if (userType === 'staff' && href) {
+              // Staff navigation to property/room
+              if (userType === 'staff' && staffHref) {
                 return (
-                  <Link href={href} className='flex items-start gap-2 group'>
+                  <Link href={staffHref} className='flex items-start gap-2 group'>
+                    {content}
+                  </Link>
+                )
+              }
+
+              // Tenant navigation to lease details
+              if (userType === 'tenant' && tenantHref) {
+                return (
+                  <Link href={tenantHref} className='flex items-start gap-2 group'>
                     {content}
                   </Link>
                 )

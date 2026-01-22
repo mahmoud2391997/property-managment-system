@@ -4,15 +4,18 @@ import type { LeaseDetailsData } from '@/app/(protected)/properties/[id]/(withou
 
 export async function getLeaseDetails(
   leaseId: string,
-  organizationId: string
+  organizationId: string | null,
+  tenantId?: string | null
 ): Promise<LeaseDetailsData | null> {
   try {
+    // Build where clause based on user type
+    const whereClause = organizationId
+      ? { id: leaseId, organization_id: organizationId }
+      : { id: leaseId, tenant_id: tenantId! }
+
     // Fetch lease with all related data
     const lease = await prisma.leases.findFirst({
-      where: {
-        id: leaseId,
-        organization_id: organizationId
-      },
+      where: whereClause,
       select: {
         id: true,
         reference_id: true,
