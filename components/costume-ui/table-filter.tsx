@@ -114,7 +114,7 @@ export default function TableFilter({
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent align='start' className='w-[420px] p-0'>
+      <PopoverContent align='start' className='w-[calc(100vw-2rem)] sm:w-[420px] max-w-[420px] p-0'>
         <div className='flex flex-col'>
           {/* Header */}
           <div className='flex items-center justify-between px-4 py-3 border-b border-(--border-light)'>
@@ -142,7 +142,7 @@ export default function TableFilter({
                 const attrConfig = getAttributeConfig(filter.attribute)
                 const availableAttrs = getAvailableAttributes(filter.id)
                 return (
-                  <div key={filter.id} className='flex items-start gap-2'>
+                  <div key={filter.id} className='flex flex-col sm:flex-row sm:items-start gap-2'>
                     {/* Attribute Select */}
                     <div className='flex-1'>
                       <Select
@@ -185,7 +185,7 @@ export default function TableFilter({
                     {/* Remove Button */}
                     <button
                       onClick={() => removeFilter(filter.id)}
-                      className='flex items-center justify-center h-10 w-10 rounded-[5px] text-(--text-secondary) hover:text-red-600 hover:bg-red-50 transition-colors'
+                      className='flex items-center justify-center h-10 w-10 sm:w-10 sm:shrink-0 rounded-[5px] text-(--text-secondary) hover:text-red-600 hover:bg-red-50 transition-colors self-end sm:self-auto'
                     >
                       <Trash2 size={16} />
                     </button>
