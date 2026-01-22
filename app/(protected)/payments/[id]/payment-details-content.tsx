@@ -59,7 +59,6 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
   const router = useRouter()
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const cardStyles = 'flex flex-col p-5 rounded-[12px] bg-(--background-primary) border border-(--border-default) shadow-xs'
 
   // Calculate display status
   const getDisplayStatus = () => {
@@ -279,7 +278,7 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
         {/* Left Column - Main Info */}
         <div className='flex-1 flex flex-col gap-5'>
           {/* Payment Summary Card */}
-          <div className={cardStyles}>
+          <div className='card-styles'>
             {/* Card Header */}
             <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
               <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-[#DEFFE2] text-(--success-dark)'>
@@ -320,7 +319,7 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
           </div>
 
           {/* Charges Breakdown Card */}
-          <div className={cardStyles}>
+          <div className='card-styles'>
             {/* Card Header */}
             <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
               <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-(--warning-light) text-(--warning-dark)'>
@@ -382,7 +381,7 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
 
           {/* Payment History Card */}
           {payment.payment_history.length > 0 && (
-            <div className={cardStyles}>
+            <div className='card-styles'>
               {/* Card Header */}
               <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
                 <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-(--info-light) text-(--info-main)'>
@@ -493,7 +492,7 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
         {/* Right Column - Sidebar */}
         <div className='w-full lg:w-80 flex flex-col gap-5'>
           {/* Dates Card */}
-          <div className={cardStyles}>
+          <div className='card-styles'>
             <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
               <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-purple-100 text-purple-600'>
                 <Calendar size={19} strokeWidth={1.5} />
@@ -528,7 +527,7 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
 
           {/* Property Info Card */}
           {payment.lease && (
-            <div className={cardStyles}>
+            <div className='card-styles'>
               <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
                 <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-blue-100 text-blue-600'>
                   <Building2 size={19} strokeWidth={1.5} />
@@ -574,7 +573,7 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
 
           {/* Tenant Info Card */}
           {payment.lease && (
-            <div className={cardStyles}>
+            <div className='card-styles'>
               <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
                 <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-teal-100 text-teal-600'>
                   <User size={19} strokeWidth={1.5} />
@@ -625,7 +624,7 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
 
           {/* Lease Reference Card */}
           {payment.lease && (
-            <div className={cardStyles}>
+            <div className='card-styles'>
               <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
                 <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-orange-100 text-orange-600'>
                   <FileText size={19} strokeWidth={1.5} />
@@ -660,7 +659,7 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
 
           {/* Payment Evidence Card */}
           {payment.payment_evidence && (
-            <div className={cardStyles}>
+            <div className='card-styles'>
               <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
                 <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-rose-100 text-rose-600'>
                   <FileText size={19} strokeWidth={1.5} />

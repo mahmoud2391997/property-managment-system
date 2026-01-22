@@ -770,9 +770,13 @@ export default function RoomOverviewContent ({ roomId }: Props) {
             <ConfirmationDialog
               title='Cancel Scheduled Rental Change'
               description={`Are you sure you want to cancel the scheduled rental change from ${formatCurrency(overviewData.lease.scheduled_change.old_rent)} to ${formatCurrency(overviewData.lease.scheduled_change.new_rent)}?`}
-              confirmButtonLabel='Cancel Change'
-              onConfirm={handleCancelScheduledChange}
               variant='warning'
+              inputLabel='Type Cancel to Confirm'
+              confirmationText='CANCEL'
+              confirmButtonLabel='Cancel Change'
+              confirmButtonLoadingLabel='Cancelling...'
+              confirmButtonClassName='bg-amber-600! hover:bg-amber-700!'
+              onConfirm={handleCancelScheduledChange}
               openDialogButton={
                 <Button
                   variant='ghost'

@@ -827,12 +827,13 @@ export default function OverviewContent ({ propertyId }: Props) {
               )} to ${formatCurrency(
                 overviewData.lease.scheduled_change.new_rent
               )}?`}
-              confirmButtonLabel='Cancel Change'
-              onConfirm={handleCancelScheduledChange}
               variant='warning'
               inputLabel='Type Cancel to Confirm'
               confirmationText='CANCEL'
-              confirmButtonLoadingLabel='Cancelling'
+              confirmButtonLabel='Cancel Change'
+              confirmButtonLoadingLabel='Cancelling...'
+              confirmButtonClassName='bg-amber-600! hover:bg-amber-700!'
+              onConfirm={handleCancelScheduledChange}
               openDialogButton={
                 <Button
                   variant='ghost'

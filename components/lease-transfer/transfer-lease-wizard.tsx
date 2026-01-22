@@ -1251,7 +1251,7 @@ export default function TransferLeaseWizard ({
                   flowType='income'
                   selectable={true}
                   onChargesChange={handleInitialChargesChange}
-                  defaultCharges={[]}
+                  defaultCharges={preparedInitialCharges}
                   allowAllRemovable={true}
                   allChargesSelectable={true}
                   excludedChargeTypes={['First Month Rental']}

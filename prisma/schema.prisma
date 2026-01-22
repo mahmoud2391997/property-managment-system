@@ -575,29 +575,30 @@ model leases {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model organizations {
-  id                    String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  title                 String
-  type                  organization_type
-  created_at            DateTime                @default(now()) @db.Timestamptz(6)
-  created_by            String?                 @db.Uuid
-  contracts             contracts[]
-  expenses              expenses[]
-  leases                leases[]
-  notifications         notifications[]
-  users                 users?                  @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations_tenants organizations_tenants[]
-  owners                owners[]
-  payments              payments[]
-  projects              projects[]
-  properties            properties[]
-  recurring_configs     recurring_configs[]
-  refund_decisions      refund_decisions[]
-  reminders             reminders[]
-  roles                 roles[]
-  staff                 staff[]
-  task_flow_instances   task_flow_instances[]
-  tasks                 tasks[]
-  tickets               tickets[]
+  id                           String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title                        String
+  type                         organization_type
+  created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+  created_by                   String?                        @db.Uuid
+  contracts                    contracts[]
+  expenses                     expenses[]
+  leases                       leases[]
+  notifications                notifications[]
+  users                        users?                         @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  organizations_tenants        organizations_tenants[]
+  owners                       owners[]
+  payment_late_charges_applied payment_late_charges_applied[]
+  payments                     payments[]
+  projects                     projects[]
+  properties                   properties[]
+  recurring_configs            recurring_configs[]
+  refund_decisions             refund_decisions[]
+  reminders                    reminders[]
+  roles                        roles[]
+  staff                        staff[]
+  task_flow_instances          task_flow_instances[]
+  tasks                        tasks[]
+  tickets                      tickets[]
 
   @@schema("public")
 }
@@ -647,25 +648,27 @@ model payment_history {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model payments {
-  id                    String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  due_payment_timestamp DateTime?          @db.Timestamptz(6)
-  lease_id              String?            @db.Uuid
-  booking_id            String?            @db.Uuid
-  organization_id       String             @db.Uuid
-  created_at            DateTime           @default(now()) @db.Timestamptz(6)
-  created_by            String?            @db.Uuid
-  status                payment_status
-  type                  payment_type
-  reference_id          String             @default("PY-202500000001")
-  recurring_config_id   String?            @db.Uuid
-  payment_evidence      String?
-  charges               charges[]
-  payment_history       payment_history[]
-  bookings              bookings?          @relation(fields: [booking_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  staff                 staff?             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  leases                leases?            @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  organizations         organizations      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  recurring_configs     recurring_configs? @relation(fields: [recurring_config_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                                                                                         String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  due_payment_timestamp                                                                      DateTime?                      @db.Timestamptz(6)
+  lease_id                                                                                   String?                        @db.Uuid
+  booking_id                                                                                 String?                        @db.Uuid
+  organization_id                                                                            String                         @db.Uuid
+  created_at                                                                                 DateTime                       @default(now()) @db.Timestamptz(6)
+  created_by                                                                                 String?                        @db.Uuid
+  status                                                                                     payment_status
+  type                                                                                       payment_type
+  reference_id                                                                               String                         @default("PY-202500000001")
+  recurring_config_id                                                                        String?                        @db.Uuid
+  payment_evidence                                                                           String?
+  charges                                                                                    charges[]
+  payment_history                                                                            payment_history[]
+  payment_late_charges_applied_payment_late_charges_applied_late_charge_payment_idTopayments payment_late_charges_applied[] @relation("payment_late_charges_applied_late_charge_payment_idTopayments")
+  payment_late_charges_applied_payment_late_charges_applied_rental_payment_idTopayments      payment_late_charges_applied[] @relation("payment_late_charges_applied_rental_payment_idTopayments")
+  bookings                                                                                   bookings?                      @relation(fields: [booking_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  staff                                                                                      staff?                         @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  leases                                                                                     leases?                        @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations                                                                              organizations                  @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  recurring_configs                                                                          recurring_configs?             @relation(fields: [recurring_config_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([organization_id, reference_id], map: "unique_org_reference")
   @@unique([organization_id, lease_id, recurring_config_id, due_payment_timestamp], map: "unique_recurring_payment_per_cycle")
@@ -893,18 +896,19 @@ model views {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model late_payment_charges {
-  id             String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  property_id    String?     @db.Uuid
-  days_after_due Int
-  amount         Decimal     @db.Decimal(10, 2)
-  created_at     DateTime    @default(now()) @db.Timestamptz(6)
-  created_by     String?     @db.Uuid
-  room_id        String?     @db.Uuid
-  lease_id       String?     @db.Uuid
-  leases         leases?     @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_lease")
-  properties     properties? @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_property")
-  rooms          rooms?      @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_room")
-  staff          staff?      @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  id                           String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  property_id                  String?                        @db.Uuid
+  days_after_due               Int
+  amount                       Decimal                        @db.Decimal(10, 2)
+  created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+  created_by                   String?                        @db.Uuid
+  room_id                      String?                        @db.Uuid
+  lease_id                     String?                        @db.Uuid
+  leases                       leases?                        @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_lease")
+  properties                   properties?                    @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_property")
+  rooms                        rooms?                         @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_room")
+  staff                        staff?                         @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  payment_late_charges_applied payment_late_charges_applied[]
 
   @@unique([property_id, days_after_due], map: "unique_property_days")
   @@unique([room_id, days_after_due], map: "unique_room_days")
@@ -1141,18 +1145,6 @@ model oauth_client_states {
 
   @@index([created_at], map: "idx_oauth_client_states_created_at")
   @@schema("auth")
-}
-
-model cron_log {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  job_name      String?
-  started_at    DateTime? @default(now()) @db.Timestamptz(6)
-  finished_at   DateTime? @db.Timestamptz(6)
-  status        String?
-  error_message String?
-  description   String?
-
-  @@schema("public")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1402,6 +1394,43 @@ model scheduled_rental_changes {
   @@schema("public")
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model payment_late_charges_applied {
+  id                                                                     String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  rental_payment_id                                                      String               @db.Uuid
+  late_charge_config_id                                                  String               @db.Uuid
+  late_charge_payment_id                                                 String               @db.Uuid
+  applied_at                                                             DateTime             @default(now()) @db.Timestamptz(6)
+  days_overdue_when_applied                                              Int
+  organization_id                                                        String               @db.Uuid
+  late_payment_charges                                                   late_payment_charges @relation(fields: [late_charge_config_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payment_late_charges_applied_late_charge_config_fkey")
+  payments_payment_late_charges_applied_late_charge_payment_idTopayments payments             @relation("payment_late_charges_applied_late_charge_payment_idTopayments", fields: [late_charge_payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payment_late_charges_applied_late_charge_payment_fkey")
+  organizations                                                          organizations        @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payment_late_charges_applied_organization_fkey")
+  payments_payment_late_charges_applied_rental_payment_idTopayments      payments             @relation("payment_late_charges_applied_rental_payment_idTopayments", fields: [rental_payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payment_late_charges_applied_rental_payment_fkey")
+
+  @@unique([rental_payment_id, late_charge_config_id], map: "unique_rental_payment_late_charge")
+  @@index([late_charge_payment_id], map: "idx_payment_late_charges_late_charge_payment")
+  @@index([organization_id], map: "idx_payment_late_charges_organization")
+  @@index([rental_payment_id], map: "idx_payment_late_charges_rental_payment")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model cron_logs {
+  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  job_name          String
+  executed_at       DateTime @default(now()) @db.Timestamptz(6)
+  status            String
+  records_processed Int      @default(0)
+  charges_applied   Int      @default(0)
+  error_message     String?
+  execution_time_ms Int?
+
+  @@schema("public")
+}
+
 enum aal_level {
   aal1
   aal2
@@ -1584,6 +1613,7 @@ enum payment_type {
   Rental
   Miscellaneous_Others  @map("Miscellaneous/Others")
   Rental_Adjustment     @map("Rental Adjustment")
+  Late_Payment_Charges  @map("Late Payment Charges")
 
   @@schema("public")
 }
