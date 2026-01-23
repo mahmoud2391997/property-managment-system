@@ -20,20 +20,20 @@ const TASK_FILTER_ATTRIBUTES: FilterAttribute[] = [
     options: [
       { value: 'Inspection', label: 'Inspection' },
       { value: 'Preparation', label: 'Preparation' },
-      { value: 'Refund Request', label: 'Refund Request' },
-      { value: 'Refund Finalizatoin', label: 'Refund Finalization' },
+      { value: 'Refund_Request', label: 'Refund Request' },
+      { value: 'Refund_Finalization', label: 'Refund Finalization' },
       { value: 'Maintenance', label: 'Maintenance' },
       { value: 'Renovation', label: 'Renovation' },
       { value: 'Cleaning', label: 'Cleaning' },
       { value: 'Administrative', label: 'Administrative' },
       { value: 'Documentation', label: 'Documentation' },
-      { value: 'Data Entry', label: 'Data Entry' },
+      { value: 'Data_Entry', label: 'Data Entry' },
       { value: 'Accounting', label: 'Accounting' },
       { value: 'Legal', label: 'Legal' },
-      { value: 'IT Support', label: 'IT Support' },
-      { value: 'Follow Up', label: 'Follow Up' },
-      { value: 'Complaint Handling', label: 'Complaint Handling' },
-      { value: 'Miscellaneous/Others', label: 'Miscellaneous/Others' }
+      { value: 'IT_Support', label: 'IT Support' },
+      { value: 'Follow_Up', label: 'Follow Up' },
+      { value: 'Complaint_Handling', label: 'Complaint Handling' },
+      { value: 'Miscellaneous_Others', label: 'Miscellaneous/Others' }
     ]
   },
   {

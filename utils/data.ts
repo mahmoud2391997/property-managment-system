@@ -1124,7 +1124,7 @@ export const taskTypes: string[] = ['Maintenance', 'Cleaning', 'Others']
 export const ticketTypes: string[] = [
   'Maintenance',
   'Complaint',
-  'Billing & Payments',
+  'Billing',
   'Aircon Top-Up',
   'Others'
 ]

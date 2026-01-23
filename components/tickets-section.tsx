@@ -21,7 +21,7 @@ const TICKET_FILTER_ATTRIBUTES: FilterAttribute[] = [
     options: [
       { value: 'Maintenance', label: 'Maintenance' },
       { value: 'Complaint', label: 'Complaint' },
-      { value: 'Billing & Payments', label: 'Billing & Payments' },
+      { value: 'Billing', label: 'Billing' },
       { value: 'Aircon Top-Up', label: 'Aircon Top-Up' },
       { value: 'Others', label: 'Others' }
     ]
