@@ -245,7 +245,7 @@ const PaymentSection = ({
             currency
             value={monthlyRent}
             onValueChange={value => handleMonthlyRentChange(value || '')}
-            required
+            required={requiredFields}
           />
         </InputGroup>
 
