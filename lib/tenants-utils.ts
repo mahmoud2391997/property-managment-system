@@ -13,6 +13,7 @@ export type TenantWithDetails = {
   accountStatus: 'Activated' | 'Pending'
   inviteSent: boolean
   activeLeaseCount: number
+  rental_status: 'Renting' | 'Not Renting'
 }
 
 // Raw tenant type from Prisma query
@@ -56,6 +57,7 @@ export function transformTenant(
     email,
     accountStatus,
     inviteSent: tenant.invite_sent ?? false,
-    activeLeaseCount
+    activeLeaseCount,
+    rental_status: activeLeaseCount > 0 ? 'Renting' : 'Not Renting'
   }
 }

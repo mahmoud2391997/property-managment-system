@@ -225,7 +225,7 @@ export type Staff = {
 export type Ticket = {
   id: string // reference_id (e.g., TK-20250001)
   ticket_id: string // actual UUID for linking
-  type: 'Maintenance' | 'Billing' | 'Complaint' | 'Others'
+  type: 'Maintenance' | 'Complaint' | 'Billing & Payments' | 'Aircon Top-Up' | 'Others'
   title: string
   description: string
   property: string
@@ -233,15 +233,16 @@ export type Ticket = {
   tenant_name: string
   tenant_picture: string
   issue_timestamp: string // ISO Timestamp
-  staff_name?: string
+  staff_name?: string // assigned to
   staff_picture?: string
+  assigner_name?: string // assigned by
   assignment_timestamp: string // ISO Timestamp
   status:
-    | 'Resolved'
     | 'Open'
-    | 'Closed'
     | 'In Progress'
     | 'Pending Tenant Confirmation'
+    | 'Resolved'
+    | 'Closed'
 }
 
 export type Task = {
@@ -275,6 +276,8 @@ export type Task = {
   created_at: string // ISO Timestamp
   staff_name?: string
   staff_picture?: string
+  assigner_name?: string
+  assigner_picture?: string
   assignment_timestamp?: string // ISO Timestamp
   status: 'Open' | 'In Progress' | 'Resolved'
   has_pending_assignment?: boolean // True if current user has pending assignment for this task

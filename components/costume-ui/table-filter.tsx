@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import Select from '@/components/costume-ui/select'
 import Input from '@/components/costume-ui/input'
 import Button from '@/components/costume-ui/button'
+import DatePicker from '@/components/costume-ui/date-picker'
 import { cn } from '@/lib/utils'
 
 export type FilterAttribute = {
@@ -165,11 +166,9 @@ export default function TableFilter({
                           onChange={(value) => updateFilter(filter.id, 'value', value)}
                         />
                       ) : attrConfig?.type === 'date' ? (
-                        <Input
-                          type='date'
-                          value={filter.value}
-                          onChange={(e) => updateFilter(filter.id, 'value', e.target.value)}
-                          placeholder='Select date'
+                        <DatePicker
+                          value={filter.value ? new Date(filter.value) : undefined}
+                          onValueChange={(date) => updateFilter(filter.id, 'value', date ? date.toISOString().split('T')[0] : '')}
                         />
                       ) : (
                         <Input
@@ -252,6 +251,9 @@ export function ActiveFilterChips({
     const attr = attributes.find(a => a.key === attributeKey)
     if (attr?.type === 'select' && attr.options) {
       return attr.options.find(o => o.value === value)?.label || value
+    }
+    if (attr?.type === 'date' && value) {
+      return new Date(value).toLocaleDateString()
     }
     return value
   }

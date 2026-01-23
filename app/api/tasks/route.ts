@@ -52,6 +52,14 @@ const taskSelect = {
           last_name: true,
           profile_pic: true
         }
+      },
+      staff_task_assignments_assigner_idTostaff: {
+        select: {
+          id: true,
+          first_name: true,
+          last_name: true,
+          profile_pic: true
+        }
       }
     }
   }
@@ -81,8 +89,12 @@ function transformTask(task: any, currentUserId: string) {
   // Get assignment info
   const assignment = task.task_assignments[0]
   const assignedStaff = assignment?.staff_task_assignments_assigned_idTostaff
+  const assignerStaff = assignment?.staff_task_assignments_assigner_idTostaff
   const staffName = assignedStaff && assignment?.status === 'Accepted'
     ? `${assignedStaff.first_name} ${assignedStaff.last_name || ''}`.trim()
+    : undefined
+  const assignerName = assignerStaff
+    ? `${assignerStaff.first_name} ${assignerStaff.last_name || ''}`.trim()
     : undefined
 
   // Check if current user has a pending assignment
@@ -103,6 +115,8 @@ function transformTask(task: any, currentUserId: string) {
     created_at: task.created_at.toISOString(),
     staff_name: staffName,
     staff_picture: assignedStaff?.profile_pic || undefined,
+    assigner_name: assignerName,
+    assigner_picture: assignerStaff?.profile_pic || undefined,
     assignment_timestamp: assignment?.responded_at?.toISOString(),
     status,
     has_pending_assignment: hasPendingAssignment
@@ -140,6 +154,17 @@ export async function GET(request: NextRequest) {
     const skipCount = searchParams.get('skipCount') === 'true'
     const statusFilter = searchParams.get('status')?.trim() || ''
 
+    // Advanced filter params
+    const taskIdFilter = searchParams.get('task_id')?.trim() || ''
+    const typeFilter = searchParams.get('type')?.trim() || ''
+    const priorityFilter = searchParams.get('priority')?.trim() || ''
+    const propertyFilter = searchParams.get('property')?.trim() || ''
+    const roomFilter = searchParams.get('room')?.trim() || ''
+    const createdByFilter = searchParams.get('created_by')?.trim() || ''
+    const assignedToFilter = searchParams.get('assigned_to')?.trim() || ''
+    const assignedByFilter = searchParams.get('assigned_by')?.trim() || ''
+    const dueDateFilter = searchParams.get('due_date')?.trim() || ''
+
     // If paginate mode is enabled, use pagination/search logic
     if (paginate) {
       // Build base where clause
@@ -160,8 +185,28 @@ export async function GET(request: NextRequest) {
         ]
       }
 
-      // Check if we need frontend filtering (for latest status)
-      const needsFrontendFiltering = statusFilter && statusFilter !== 'all' && statusFilter !== 'Pending My Assignment'
+      // DB-level filters (can filter directly in Prisma WHERE)
+      if (taskIdFilter) {
+        baseWhere.reference_id = { contains: taskIdFilter, mode: 'insensitive' }
+      }
+      if (propertyFilter) {
+        baseWhere.properties = { code: { contains: propertyFilter, mode: 'insensitive' } }
+      }
+      if (roomFilter) {
+        baseWhere.rooms = { title: { contains: roomFilter, mode: 'insensitive' } }
+      }
+      if (createdByFilter) {
+        baseWhere.staff = {
+          OR: [
+            { first_name: { contains: createdByFilter, mode: 'insensitive' } },
+            { last_name: { contains: createdByFilter, mode: 'insensitive' } }
+          ]
+        }
+      }
+
+      // Check if we need frontend filtering (for fields that require latest from history tables)
+      const needsStatusFiltering = statusFilter && statusFilter !== 'all' && statusFilter !== 'Pending My Assignment'
+      const needsFrontendFiltering = needsStatusFiltering || typeFilter || priorityFilter || assignedToFilter || assignedByFilter || dueDateFilter
 
       // Add status filter
       if (statusFilter && statusFilter !== 'all') {
@@ -196,9 +241,47 @@ export async function GET(request: NextRequest) {
       // Transform tasks
       let transformedTasks = tasks.map(task => transformTask(task, user.id))
 
-      // Apply frontend filtering for latest status (Open, In Progress, Resolved)
+      // Apply frontend filtering for fields that require latest from history tables
       if (needsFrontendFiltering) {
-        transformedTasks = transformedTasks.filter(task => task.status === statusFilter)
+        // Status filter (Open, In Progress, Resolved)
+        if (needsStatusFiltering) {
+          transformedTasks = transformedTasks.filter(task => task.status === statusFilter)
+        }
+
+        // Type filter
+        if (typeFilter) {
+          transformedTasks = transformedTasks.filter(task => task.type === typeFilter)
+        }
+
+        // Priority filter
+        if (priorityFilter) {
+          transformedTasks = transformedTasks.filter(task => task.priority === priorityFilter)
+        }
+
+        // Assigned To filter (case-insensitive partial match)
+        if (assignedToFilter) {
+          const lowerFilter = assignedToFilter.toLowerCase()
+          transformedTasks = transformedTasks.filter(task =>
+            task.staff_name?.toLowerCase().includes(lowerFilter)
+          )
+        }
+
+        // Assigned By filter (case-insensitive partial match)
+        if (assignedByFilter) {
+          const lowerFilter = assignedByFilter.toLowerCase()
+          transformedTasks = transformedTasks.filter(task =>
+            task.assigner_name?.toLowerCase().includes(lowerFilter)
+          )
+        }
+
+        // Due Date filter (exact date match)
+        if (dueDateFilter) {
+          const filterDate = new Date(dueDateFilter).toDateString()
+          transformedTasks = transformedTasks.filter(task => {
+            if (!task.due_date) return false
+            return new Date(task.due_date).toDateString() === filterDate
+          })
+        }
 
         // Apply pagination after filtering
         const startIndex = (page - 1) * limit
