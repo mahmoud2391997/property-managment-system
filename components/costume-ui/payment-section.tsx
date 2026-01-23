@@ -74,6 +74,7 @@ type Props = {
   defaultPayment?: boolean
   defaultConfig?: DefaultPaymentConfig
   allowAllChargesRemovable?: boolean
+  requiredFields?: boolean
 }
 
 const PaymentSection = ({
@@ -84,7 +85,8 @@ const PaymentSection = ({
   onPaymentStatusChange,
   defaultPayment = false,
   defaultConfig,
-  allowAllChargesRemovable = false
+  allowAllChargesRemovable = false,
+  requiredFields=false
 }: Props) => {
   const [monthlyRent, setMonthlyRent] = useState<string>(defaultConfig?.monthlyRent || '')
   const [selectedDay, setSelectedDay] = useState<number>(defaultConfig?.paymentDay || 1)
@@ -236,7 +238,7 @@ const PaymentSection = ({
         <InputGroup
           label='Subsequent Monthly Rental Payment'
           className='w-40 sm:w-75'
-          isRequired
+          isRequired={requiredFields}
         >
           <Input
             maxLength={20}
