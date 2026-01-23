@@ -109,7 +109,7 @@ export async function GET(request: Request) {
             leases: {
               where: {
                 room_id: null,
-                status: 'Current'
+                status: 'Current' as const
               },
               select: {
                 status: true,
@@ -131,7 +131,7 @@ export async function GET(request: Request) {
           }
         },
         leases: {
-          where: { status: 'Current' },
+          where: { status: 'Current' as const },
           select: {
             status: true,
             start_date: true,
