@@ -223,6 +223,14 @@ export const columns: ColumnDef<Ticket>[] = [
 type Props = {
   data: Ticket[]
   onDataRefresh?: () => void
+  isLoading?: boolean
+  currentPage?: number
+  totalItems?: number
+  pageSize?: number
+  canGoNext?: boolean
+  canGoPrevious?: boolean
+  onNextPage?: () => void
+  onPreviousPage?: () => void
 }
 
 // Mobile Card Component
@@ -348,17 +356,77 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
   )
 }
 
-export default function TicketsTable({ data, onDataRefresh }: Props) {
+export default function TicketsTable({
+  data,
+  onDataRefresh,
+  isLoading = false,
+  currentPage = 1,
+  totalItems = 0,
+  pageSize = 10,
+  canGoNext = false,
+  canGoPrevious = false,
+  onNextPage,
+  onPreviousPage
+}: Props) {
+  const hasServerPagination = onNextPage !== undefined || onPreviousPage !== undefined
+
   return (
     <>
       {/* Desktop Table View */}
       <div className='hidden md:block'>
-        <Table columns={columns} data={data} />
+        <Table
+          columns={columns}
+          data={data}
+          noPagnitation={hasServerPagination}
+          isLoadingRows={isLoading}
+          loadingRowsCount={pageSize}
+        />
+        {hasServerPagination && (
+          <div className='flex items-center justify-end space-x-2 py-4'>
+            <div className='text-muted-foreground flex-1 text-sm'>
+              Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalItems)} of {totalItems} tickets
+            </div>
+            <div className='space-x-2'>
+              <button
+                className='inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3'
+                onClick={onPreviousPage}
+                disabled={!canGoPrevious || isLoading}
+              >
+                Previous
+              </button>
+              <button
+                className='inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3'
+                onClick={onNextPage}
+                disabled={!canGoNext || isLoading}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile Card View */}
       <div className='md:hidden space-y-3'>
-        {data.length > 0 ? (
+        {isLoading ? (
+          // Loading skeleton for mobile
+          Array.from({ length: pageSize }).map((_, i) => (
+            <MobileCardContainer key={i}>
+              <div className='animate-pulse space-y-3'>
+                <div className='flex justify-between'>
+                  <div className='h-5 w-24 bg-gray-200 rounded' />
+                  <div className='h-5 w-16 bg-gray-200 rounded-full' />
+                </div>
+                <div className='h-4 w-32 bg-gray-100 rounded' />
+                <div className='h-4 w-full bg-gray-100 rounded' />
+                <div className='grid grid-cols-2 gap-3'>
+                  <div className='h-12 bg-gray-100 rounded' />
+                  <div className='h-12 bg-gray-100 rounded' />
+                </div>
+              </div>
+            </MobileCardContainer>
+          ))
+        ) : data.length > 0 ? (
           data.map((ticket) => (
             <TicketCard key={ticket.id} ticket={ticket} />
           ))
@@ -368,10 +436,28 @@ export default function TicketsTable({ data, onDataRefresh }: Props) {
           </div>
         )}
 
-        {/* Pagination info for mobile */}
-        {data.length > 0 && (
-          <div className='text-center py-4 texts-caption-large text-(--text-secondary)'>
-            Showing {data.length} ticket{data.length !== 1 ? 's' : ''}
+        {/* Pagination controls for mobile */}
+        {hasServerPagination && (
+          <div className='flex flex-col gap-3 py-4'>
+            <div className='text-center texts-caption-large text-(--text-secondary)'>
+              Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalItems)} of {totalItems} tickets
+            </div>
+            <div className='flex justify-center gap-2'>
+              <button
+                className='inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4'
+                onClick={onPreviousPage}
+                disabled={!canGoPrevious || isLoading}
+              >
+                Previous
+              </button>
+              <button
+                className='inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4'
+                onClick={onNextPage}
+                disabled={!canGoNext || isLoading}
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>

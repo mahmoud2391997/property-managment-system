@@ -7,6 +7,53 @@ import { Task } from '@/types'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import { Tab, TabGroup } from '../costume-ui/tab'
 import AddTaskDialog from '../dialogs/add-task-dialog'
+import { useCallback, useMemo } from 'react'
+import TableFilter, { type FilterAttribute, type FilterValue } from '../costume-ui/table-filter'
+
+// Define filterable attributes for tasks
+const TASK_FILTER_ATTRIBUTES: FilterAttribute[] = [
+  { key: 'task_id', label: 'Task ID', type: 'text' },
+  {
+    key: 'type',
+    label: 'Type',
+    type: 'select',
+    options: [
+      { value: 'Inspection', label: 'Inspection' },
+      { value: 'Preparation', label: 'Preparation' },
+      { value: 'Refund Request', label: 'Refund Request' },
+      { value: 'Refund Finalizatoin', label: 'Refund Finalization' },
+      { value: 'Maintenance', label: 'Maintenance' },
+      { value: 'Renovation', label: 'Renovation' },
+      { value: 'Cleaning', label: 'Cleaning' },
+      { value: 'Administrative', label: 'Administrative' },
+      { value: 'Documentation', label: 'Documentation' },
+      { value: 'Data Entry', label: 'Data Entry' },
+      { value: 'Accounting', label: 'Accounting' },
+      { value: 'Legal', label: 'Legal' },
+      { value: 'IT Support', label: 'IT Support' },
+      { value: 'Follow Up', label: 'Follow Up' },
+      { value: 'Complaint Handling', label: 'Complaint Handling' },
+      { value: 'Miscellaneous/Others', label: 'Miscellaneous/Others' }
+    ]
+  },
+  {
+    key: 'priority',
+    label: 'Priority',
+    type: 'select',
+    options: [
+      { value: 'Low', label: 'Low' },
+      { value: 'Medium', label: 'Medium' },
+      { value: 'High', label: 'High' },
+      { value: 'Urgent', label: 'Urgent' }
+    ]
+  },
+  { key: 'property', label: 'Property', type: 'text' },
+  { key: 'room', label: 'Room', type: 'text' },
+  { key: 'created_by', label: 'Created By', type: 'text' },
+  { key: 'assigned_to', label: 'Assigned To', type: 'text' },
+  { key: 'assigned_by', label: 'Assigned By', type: 'text' },
+  { key: 'due_date', label: 'Due Date', type: 'date' }
+]
 
 interface TasksSectionProps {
   initialData: Task[]
@@ -37,7 +84,22 @@ export default function TasksSection({
     initialData,
     initialTotal,
     pageSize: 10,
-    defaultFilters: { status: 'all' }
+    defaultFilters: {
+      status: 'all',
+      task_id: '',
+      type: '',
+      priority: '',
+      property: '',
+      room: '',
+      created_by: '',
+      assigned_to: '',
+      assigned_by: '',
+      due_date: ''
+    },
+    filterKeyMapping: {
+      task_id: 'id'
+    },
+    textFilterKeys: ['task_id', 'property', 'room', 'created_by', 'assigned_to', 'assigned_by']
   })
 
   const statusOptions = [
@@ -56,6 +118,34 @@ export default function TasksSection({
     updateFilters({ status })
   }
 
+  // Convert activeFilters (Record) to FilterValue[] for TableFilter component
+  const advancedFilters = useMemo((): FilterValue[] => {
+    return Object.entries(activeFilters)
+      .filter(([key, value]) => value && key !== 'status') // Exclude status (handled by tabs)
+      .map(([key, value]) => ({ id: key, attribute: key, value }))
+  }, [activeFilters])
+
+  // Handle advanced filters change - convert FilterValue[] to Record and update
+  const handleFiltersChange = useCallback((newFilters: FilterValue[]) => {
+    const filterObj: Record<string, string> = {}
+
+    // Set values for active filters
+    newFilters.forEach(f => {
+      if (f.attribute && f.value) {
+        filterObj[f.attribute] = f.value
+      }
+    })
+
+    // Clear filters that were removed
+    TASK_FILTER_ATTRIBUTES.forEach(attr => {
+      if (!filterObj[attr.key]) {
+        filterObj[attr.key] = ''
+      }
+    })
+
+    updateFilters(filterObj)
+  }, [updateFilters])
+
   const handleRefresh = async () => {
     // Force a fresh fetch by clearing cache and refetching
     window.location.reload()
@@ -70,11 +160,18 @@ export default function TasksSection({
           'w-full'
         )}
       >
-        <SearchInput
-          placeholder='Search tasks'
-          value={searchTerm}
-          onChange={e => handleSearchChange(e.target.value)}
-        />
+        <div className='flex items-center gap-2'>
+          <TableFilter
+            attributes={TASK_FILTER_ATTRIBUTES}
+            filters={advancedFilters}
+            onFiltersChange={handleFiltersChange}
+          />
+          <SearchInput
+            placeholder='Search tasks'
+            value={searchTerm}
+            onChange={e => handleSearchChange(e.target.value)}
+          />
+        </div>
         <AddTaskDialog onSuccess={handleRefresh} />
       </div>
 

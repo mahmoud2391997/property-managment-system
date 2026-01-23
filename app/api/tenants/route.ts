@@ -43,35 +43,93 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')?.trim() || ''
     const skipCount = searchParams.get('skipCount') === 'true'
 
+    // Advanced filter params
+    const rentalStatusFilter = searchParams.get('rental_status')?.trim() || ''
+    const typeFilter = searchParams.get('type')?.trim() || ''
+    const identityTypeFilter = searchParams.get('identity_type')?.trim() || ''
+    const accountStatusFilter = searchParams.get('account_status')?.trim() || ''
+    const nameFilter = searchParams.get('name')?.trim() || ''
+    const emailFilter = searchParams.get('email')?.trim() || ''
+    const identityNumberFilter = searchParams.get('identity_number')?.trim() || ''
+    const phoneNumberFilter = searchParams.get('phone_number')?.trim() || ''
+
+    // Check if we need frontend filtering (for calculated fields)
+    const needsFrontendFiltering =
+      (rentalStatusFilter && rentalStatusFilter !== 'all') ||
+      accountStatusFilter ||
+      emailFilter
+
     if (paginate) {
-      // Build where clause with search
+      // Build where clause with search and filters
       // Search is done on individual_tenants fields via tenants relation
       const whereClause: any = {
         organization_id: currentStaff.organization_id,
         tenants: {
-          type: 'Individual'
-        },
-        ...(search && {
+          type: typeFilter || 'Individual',
+          ...(identityTypeFilter && {
+            individual_tenants: {
+              identity_type: identityTypeFilter
+            }
+          })
+        }
+      }
+
+      // Build OR conditions for search and text filters
+      const orConditions: any[] = []
+
+      // Search across multiple fields
+      if (search) {
+        orConditions.push(
+          { tenants: { individual_tenants: { first_name: { contains: search, mode: 'insensitive' } } } },
+          { tenants: { individual_tenants: { last_name: { contains: search, mode: 'insensitive' } } } },
+          { tenants: { individual_tenants: { identity_number: { contains: search, mode: 'insensitive' } } } },
+          { tenants: { individual_tenants: { phone_number: { contains: search, mode: 'insensitive' } } } }
+        )
+      }
+
+      if (orConditions.length > 0) {
+        whereClause.OR = orConditions
+      }
+
+      // Add AND conditions for specific text filters
+      const andConditions: any[] = []
+
+      if (nameFilter) {
+        andConditions.push({
           OR: [
-            { tenants: { individual_tenants: { first_name: { contains: search, mode: 'insensitive' } } } },
-            { tenants: { individual_tenants: { last_name: { contains: search, mode: 'insensitive' } } } },
-            { tenants: { individual_tenants: { identity_number: { contains: search, mode: 'insensitive' } } } },
-            { tenants: { individual_tenants: { phone_number: { contains: search, mode: 'insensitive' } } } }
+            { tenants: { individual_tenants: { first_name: { contains: nameFilter, mode: 'insensitive' } } } },
+            { tenants: { individual_tenants: { last_name: { contains: nameFilter, mode: 'insensitive' } } } }
           ]
         })
       }
 
-      // Fetch tenants and optionally total count in parallel
-      const [organizationTenants, total] = await Promise.all([
-        prisma.organizations_tenants.findMany({
-          where: whereClause,
-          select: tenantSelect,
-          orderBy: { created_at: 'desc' },
+      if (identityNumberFilter) {
+        andConditions.push({
+          tenants: { individual_tenants: { identity_number: { contains: identityNumberFilter, mode: 'insensitive' } } }
+        })
+      }
+
+      if (phoneNumberFilter) {
+        andConditions.push({
+          tenants: { individual_tenants: { phone_number: { contains: phoneNumberFilter, mode: 'insensitive' } } }
+        })
+      }
+
+      if (andConditions.length > 0) {
+        whereClause.AND = andConditions
+      }
+
+      // Fetch tenants - if frontend filtering needed, get all matching records
+      // Otherwise use server-side pagination
+      const organizationTenants = await prisma.organizations_tenants.findMany({
+        where: whereClause,
+        select: tenantSelect,
+        orderBy: { created_at: 'desc' },
+        ...(needsFrontendFiltering ? {} : {
           skip: (page - 1) * limit,
           take: limit
-        }),
-        skipCount ? Promise.resolve(-1) : prisma.organizations_tenants.count({ where: whereClause })
-      ])
+        })
+      })
 
       // Get tenant IDs for active lease count query
       const tenantIds = organizationTenants.map(ot => ot.tenants.id)
@@ -114,10 +172,36 @@ export async function GET(request: NextRequest) {
         })
       )
 
+      // Apply frontend filtering for calculated fields
+      let filteredTenants = tenantsWithStatus
+
+      // Filter by rental status
+      if (rentalStatusFilter && rentalStatusFilter !== 'all') {
+        filteredTenants = filteredTenants.filter(t => t.rental_status === rentalStatusFilter)
+      }
+
+      // Filter by account status (calculated from Supabase auth)
+      if (accountStatusFilter) {
+        filteredTenants = filteredTenants.filter(t => t.accountStatus === accountStatusFilter)
+      }
+
+      // Filter by email (from Supabase auth)
+      if (emailFilter) {
+        filteredTenants = filteredTenants.filter(t =>
+          t.email.toLowerCase().includes(emailFilter.toLowerCase())
+        )
+      }
+
+      // Calculate total and apply pagination for frontend-filtered results
+      const finalTotal = needsFrontendFiltering ? filteredTenants.length : await prisma.organizations_tenants.count({ where: whereClause })
+      const paginatedTenants = needsFrontendFiltering
+        ? filteredTenants.slice((page - 1) * limit, page * limit)
+        : filteredTenants
+
       return NextResponse.json({
         success: true,
-        data: tenantsWithStatus,
-        total,
+        data: paginatedTenants,
+        total: finalTotal,
         page,
         pageSize: limit
       })
