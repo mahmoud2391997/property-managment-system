@@ -441,6 +441,7 @@ const AddLease = () => {
           onLateChargesChange={setLateCharges}
           onPaymentStatusChange={setPaymentStatus}
           defaultConfig={defaultPaymentConfig}
+          requiredFields={true}
         />
       </CollapsibleSection>
 
