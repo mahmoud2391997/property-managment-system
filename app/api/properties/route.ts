@@ -35,22 +35,56 @@ export async function GET (req: Request) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const search = searchParams.get('search')?.trim() || ''
 
+    // Filter params
+    const statusFilter = searchParams.get('status')?.trim() || ''
+    const codeFilter = searchParams.get('code')?.trim() || ''
+    const typeFilter = searchParams.get('type')?.trim() || ''
+    const projectFilter = searchParams.get('project')?.trim() || ''
+    const stateFilter = searchParams.get('state')?.trim() || ''
+
     // If paginate mode is enabled, use new pagination/search logic
     if (paginate) {
       // Build where clause with search
       const whereClause: any = {
-        organization_id: staff.organization_id,
-        ...(search && {
-          OR: [
-            { code: { contains: search, mode: 'insensitive' } },
-            { street_address: { contains: search, mode: 'insensitive' } },
-            { projects: { title: { contains: search, mode: 'insensitive' } } }
-          ]
-        })
+        organization_id: staff.organization_id
       }
 
+      // Add search conditions
+      if (search) {
+        whereClause.OR = [
+          { code: { contains: search, mode: 'insensitive' } },
+          { street_address: { contains: search, mode: 'insensitive' } },
+          { projects: { title: { contains: search, mode: 'insensitive' } } }
+        ]
+      }
+
+      // DB-level filters
+      if (codeFilter) {
+        whereClause.code = { contains: codeFilter, mode: 'insensitive' }
+      }
+      if (typeFilter) {
+        whereClause.type = typeFilter
+      }
+      if (projectFilter) {
+        whereClause.projects = { title: { contains: projectFilter, mode: 'insensitive' } }
+      }
+      if (stateFilter) {
+        whereClause.projects = {
+          ...whereClause.projects,
+          state: { contains: stateFilter, mode: 'insensitive' }
+        }
+      }
+
+      // DB-level status filters (Pending_Inspection, Under_Preparation)
+      if (statusFilter === 'Pending_Inspection' || statusFilter === 'Under_Preparation') {
+        whereClause.status = statusFilter
+      }
+
+      // Check if we need frontend filtering (for computed statuses)
+      const needsFrontendFiltering = statusFilter === 'Occupied' || statusFilter === 'Vacant'
+
       // Fetch properties and total count in parallel
-      const [properties, total] = await Promise.all([
+      const [properties, totalBeforeFilter] = await Promise.all([
         prisma.properties.findMany({
           where: whereClause,
           select: {
@@ -107,19 +141,46 @@ export async function GET (req: Request) {
             }
           },
           orderBy: { created_at: 'desc' },
-          skip: (page - 1) * limit,
-          take: limit
+          // Only paginate if NOT filtering by computed status
+          ...(needsFrontendFiltering ? {} : {
+            skip: (page - 1) * limit,
+            take: limit
+          })
         }),
         prisma.properties.count({ where: whereClause })
       ])
 
       // Transform properties for display
-      const transformedProperties = properties.map(transformProperty)
+      let transformedProperties = properties.map(transformProperty)
+
+      // Apply frontend filtering for computed statuses (Occupied, Vacant)
+      if (needsFrontendFiltering) {
+        transformedProperties = transformedProperties.filter(property => {
+          // Get the primary status (handle both string and array status)
+          const primaryStatus = Array.isArray(property.status)
+            ? (property.status.some(s => s.status === 'Occupied') ? 'Occupied' : 'Vacant')
+            : property.status
+
+          return primaryStatus === statusFilter
+        })
+
+        // Apply pagination after filtering
+        const startIndex = (page - 1) * limit
+        const paginatedProperties = transformedProperties.slice(startIndex, startIndex + limit)
+
+        return NextResponse.json({
+          success: true,
+          data: paginatedProperties,
+          total: transformedProperties.length,
+          page,
+          pageSize: limit
+        })
+      }
 
       return NextResponse.json({
         success: true,
         data: transformedProperties,
-        total,
+        total: totalBeforeFilter,
         page,
         pageSize: limit
       })

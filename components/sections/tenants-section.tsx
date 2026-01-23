@@ -157,7 +157,7 @@ export default function TenantsSection({
           />
         </div>
         {/* Buttons */}
-        <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
+        <div className='flex items-center gap-2.5'>
           <Link href='/tenants/import-tenants' className='flex-1 sm:flex-none'>
             <Button
               variant='secondary'

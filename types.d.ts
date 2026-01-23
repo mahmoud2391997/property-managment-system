@@ -225,7 +225,7 @@ export type Staff = {
 export type Ticket = {
   id: string // reference_id (e.g., TK-20250001)
   ticket_id: string // actual UUID for linking
-  type: 'Maintenance' | 'Complaint' | 'Billing & Payments' | 'Aircon Top-Up' | 'Others'
+  type: 'Maintenance' | 'Complaint' | 'Billing' | 'Aircon Top-Up' | 'Others'
   title: string
   description: string
   property: string

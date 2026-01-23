@@ -51,9 +51,18 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const search = searchParams.get('search')?.trim() || ''
 
+    // Filter params
+    const statusFilter = searchParams.get('status') || 'all'
+    const titleFilter = searchParams.get('title')?.trim() || ''
+    const propertyFilter = searchParams.get('property')?.trim() || ''
+    const projectFilter = searchParams.get('project')?.trim() || ''
+
+    // Check if we need frontend filtering (for computed status)
+    const needsFrontendFiltering = statusFilter !== 'all'
+
     // If paginate mode is enabled, return all rooms with pagination
     if (paginate) {
-      // Build where clause with search
+      // Build where clause with search and DB-level filters
       const whereClause: any = {
         properties: {
           organization_id: staff.organization_id
@@ -64,53 +73,44 @@ export async function GET(request: Request) {
             { properties: { code: { contains: search, mode: 'insensitive' } } },
             { properties: { projects: { title: { contains: search, mode: 'insensitive' } } } }
           ]
+        }),
+        // DB-level filters for direct fields
+        ...(titleFilter && {
+          title: { contains: titleFilter, mode: 'insensitive' }
+        }),
+        ...(propertyFilter && {
+          properties: {
+            organization_id: staff.organization_id,
+            code: { contains: propertyFilter, mode: 'insensitive' }
+          }
+        }),
+        ...(projectFilter && {
+          properties: {
+            organization_id: staff.organization_id,
+            projects: { title: { contains: projectFilter, mode: 'insensitive' } }
+          }
         })
       }
 
-      // Fetch rooms and total count in parallel
-      const [rooms, total] = await Promise.all([
-        prisma.rooms.findMany({
-          where: whereClause,
+      const roomSelect = {
+        id: true,
+        title: true,
+        status: true,
+        properties: {
           select: {
             id: true,
-            title: true,
+            code: true,
             status: true,
-            properties: {
+            projects: {
               select: {
-                id: true,
-                code: true,
-                status: true,
-                projects: {
-                  select: {
-                    title: true
-                  }
-                },
-                leases: {
-                  where: {
-                    room_id: null,
-                    status: 'Current'
-                  },
-                  select: {
-                    status: true,
-                    start_date: true,
-                    number_of_months: true,
-                    tenants: {
-                      select: {
-                        individual_tenants: {
-                          select: {
-                            phone_number: true
-                          }
-                        }
-                      }
-                    }
-                  },
-                  orderBy: { created_at: 'desc' },
-                  take: 1
-                }
+                title: true
               }
             },
             leases: {
-              where: { status: 'Current' },
+              where: {
+                room_id: null,
+                status: 'Current'
+              },
               select: {
                 status: true,
                 start_date: true,
@@ -125,10 +125,68 @@ export async function GET(request: Request) {
                   }
                 }
               },
-              orderBy: { created_at: 'desc' },
+              orderBy: { created_at: 'desc' as const },
               take: 1
             }
+          }
+        },
+        leases: {
+          where: { status: 'Current' },
+          select: {
+            status: true,
+            start_date: true,
+            number_of_months: true,
+            tenants: {
+              select: {
+                individual_tenants: {
+                  select: {
+                    phone_number: true
+                  }
+                }
+              }
+            }
           },
+          orderBy: { created_at: 'desc' as const },
+          take: 1
+        }
+      }
+
+      // If we need frontend filtering, fetch all and filter after transform
+      if (needsFrontendFiltering) {
+        const allRooms = await prisma.rooms.findMany({
+          where: whereClause,
+          select: roomSelect,
+          orderBy: { created_at: 'desc' }
+        })
+
+        // Transform all rooms
+        let transformedRooms = allRooms.map(transformRoom)
+
+        // Apply frontend filters (computed status)
+        if (statusFilter !== 'all') {
+          transformedRooms = transformedRooms.filter(room => room.status === statusFilter)
+        }
+
+        // Get total after filtering
+        const total = transformedRooms.length
+
+        // Apply pagination
+        const paginatedRooms = transformedRooms.slice((page - 1) * limit, page * limit)
+
+        return NextResponse.json({
+          success: true,
+          data: paginatedRooms,
+          total,
+          page,
+          pageSize: limit
+        })
+      }
+
+      // No frontend filtering needed - use DB pagination
+      const [rooms, total] = await Promise.all([
+        prisma.rooms.findMany({
+          where: whereClause,
+          select: roomSelect,
           orderBy: { created_at: 'desc' },
           skip: (page - 1) * limit,
           take: limit
