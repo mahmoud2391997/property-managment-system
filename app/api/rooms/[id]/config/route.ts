@@ -14,7 +14,7 @@ export async function GET(
 
     const { id: roomId } = await params
 
-    // Fetch room with property info and lease status
+    // Fetch room with property info, lease status, and images
     const room = await prisma.rooms.findFirst({
       where: {
         id: roomId,
@@ -26,6 +26,14 @@ export async function GET(
         id: true,
         title: true,
         status: true,
+        property_images: {
+          select: {
+            id: true,
+            image_url: true,
+            thumb_url: true
+          },
+          orderBy: { created_at: 'asc' }
+        },
         leases: {
           where: {
             status: 'Current'
@@ -77,7 +85,8 @@ export async function GET(
       roomTitle: room.title,
       propertyCode: room.properties?.code || 'N/A',
       propertyId: room.properties?.id || null,
-      status: displayStatus
+      status: displayStatus,
+      images: room.property_images
     })
   } catch (error: any) {
     console.error('Error fetching room config:', error)

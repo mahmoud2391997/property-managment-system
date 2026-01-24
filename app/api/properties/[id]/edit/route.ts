@@ -56,7 +56,7 @@ export async function GET(
     }
 
     // Fetch default configurations in parallel
-    const [leaseConfig, initialCharges, latePaymentCharges] = await Promise.all([
+    const [leaseConfig, initialCharges, latePaymentCharges, propertyImages] = await Promise.all([
       prisma.property_default_lease_config.findUnique({
         where: { property_id: propertyId },
         select: {
@@ -93,6 +93,17 @@ export async function GET(
         orderBy: {
           days_after_due: 'asc'
         }
+      }),
+      prisma.property_images.findMany({
+        where: { property_id: propertyId },
+        select: {
+          id: true,
+          image_url: true,
+          thumb_url: true
+        },
+        orderBy: {
+          created_at: 'asc'
+        }
       })
     ])
 
@@ -106,6 +117,9 @@ export async function GET(
         postal_code: property.postal_code,
         type: property.type,
         status: property.status,
+        wifi: property.wifi,
+        cleaning_service: property.cleaning_service,
+        female: property.female,
         project: property.projects
       },
       leaseConfig,
@@ -120,7 +134,8 @@ export async function GET(
         id: charge.id,
         days_after_due: charge.days_after_due,
         amount: charge.amount
-      }))
+      })),
+      images: propertyImages
     })
   } catch (error) {
     console.error('Error fetching property for edit:', error)
@@ -178,6 +193,8 @@ export async function PUT(
       postal_code,
       city,
       project_id,
+      // Features
+      features,
       // Optional default payment details
       initial_charges,
       monthly_rent,
@@ -205,7 +222,10 @@ export async function PUT(
           street_address,
           postal_code,
           city,
-          project_id: project_id || null
+          project_id: project_id || null,
+          wifi: features?.wifi || false,
+          cleaning_service: features?.cleaning_service || false,
+          female: features?.female || false
         }
       })
 

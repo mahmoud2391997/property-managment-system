@@ -10,6 +10,8 @@ import { useRouter } from 'next/navigation'
 import type { ChargeData } from '@/components/costume-ui/charges-section'
 import PaymentSection from '@/components/costume-ui/payment-section'
 import ReminderSection from '@/components/costume-ui/reminder-section'
+import FeaturesSection, { PropertyFeatures } from '@/components/costume-ui/features-section'
+import PropertyImagesUpload, { ImageData } from '@/components/costume-ui/property-images-upload'
 import type { LateCharge } from '@/components/costume-ui/payment-section'
 import type { projects } from '@prisma/client'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
@@ -27,6 +29,9 @@ type PropertyData = {
   postal_code: string
   type: string
   status: string
+  wifi: boolean
+  cleaning_service: boolean
+  female: boolean
   project: {
     id: string
     title: string
@@ -79,6 +84,13 @@ const EditProperty = ({ params }: PageProps) => {
   const [streetAddress, setStreetAddress] = useState('')
   const [city, setCity] = useState('')
   const [postalCode, setPostalCode] = useState('')
+  const [features, setFeatures] = useState<PropertyFeatures>({
+    wifi: false,
+    cleaning_service: false,
+    female: false
+  })
+  const [images, setImages] = useState<ImageData[]>([])
+  const [originalImages, setOriginalImages] = useState<ImageData[]>([])
 
   // Payment Details State (Optional) - managed by PaymentSection component
   const [initialCharges, setInitialCharges] = useState<ChargeData[]>([])
@@ -135,6 +147,11 @@ const EditProperty = ({ params }: PageProps) => {
         setStreetAddress(data.property.street_address)
         setCity(data.property.city)
         setPostalCode(data.property.postal_code)
+        setFeatures({
+          wifi: data.property.wifi || false,
+          cleaning_service: data.property.cleaning_service || false,
+          female: data.property.female || false
+        })
 
         // Set lease config values
         if (data.leaseConfig) {
@@ -146,6 +163,12 @@ const EditProperty = ({ params }: PageProps) => {
           setRentReminderDays(data.leaseConfig.rent_reminder_days_before?.toString() || '')
           setOverdueReminderEnabled(data.leaseConfig.is_overdue_rent_reminder || false)
           setOverdueReminderDays(data.leaseConfig.overdue_days_after_reminder?.toString() || '')
+        }
+
+        // Set images
+        if (data.images) {
+          setImages(data.images)
+          setOriginalImages(data.images)
         }
       } catch (error) {
         console.error('Error fetching property:', error)
@@ -180,7 +203,13 @@ const EditProperty = ({ params }: PageProps) => {
         street_address: streetAddress,
         postal_code: postalCode,
         city: city,
-        project_id: selectedProject?.id || null
+        project_id: selectedProject?.id || null,
+        // Features
+        features: {
+          wifi: features.wifi,
+          cleaning_service: features.cleaning_service,
+          female: features.female
+        }
       }
 
       // Add optional initial charges if any have amounts
@@ -246,6 +275,37 @@ const EditProperty = ({ params }: PageProps) => {
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to update property')
+      }
+
+      // Handle image changes
+      // 1. Delete removed images
+      const removedImages = originalImages.filter(
+        orig => !images.some(img => img.id === orig.id)
+      )
+      for (const image of removedImages) {
+        if (image.id) {
+          await fetch(`/api/property-images?id=${image.id}`, { method: 'DELETE' })
+        }
+      }
+
+      // 2. Upload new images
+      const newImages = images.filter(img => img.isNew && img.file)
+      for (const image of newImages) {
+        if (!image.file) continue
+
+        const formData = new FormData()
+        formData.append('main_image', image.file)
+
+        // Create thumb blob from thumb_url
+        const thumbResponse = await fetch(image.thumb_url)
+        const thumbBlob = await thumbResponse.blob()
+        formData.append('thumb_image', new File([thumbBlob], 'thumb.jpg', { type: 'image/jpeg' }))
+        formData.append('property_id', propertyId)
+
+        await fetch('/api/property-images', {
+          method: 'POST',
+          body: formData
+        })
       }
 
       FeedbackToasts.updated(
@@ -404,6 +464,20 @@ const EditProperty = ({ params }: PageProps) => {
             />
           </InputGroup>
         </InnerSection>
+
+        {/* Features */}
+        <FeaturesSection
+          type='property'
+          features={features}
+          onFeaturesChange={(f) => setFeatures(f as PropertyFeatures)}
+        />
+
+        {/* Images */}
+        <PropertyImagesUpload
+          type='property'
+          images={images}
+          onImagesChange={setImages}
+        />
       </CollapsibleSection>
 
       {/* Default Payment Details - Using PaymentSection Component */}

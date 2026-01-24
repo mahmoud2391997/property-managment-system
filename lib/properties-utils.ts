@@ -29,6 +29,12 @@ type PropertyLease = {
   } | null
 }
 
+type PropertyFeatures = {
+  wifi?: boolean
+  cleaning_service?: boolean
+  female?: boolean
+}
+
 type RawProperty = {
   id: string
   code: string
@@ -37,6 +43,9 @@ type RawProperty = {
   city: string
   type: string
   status: string
+  wifi?: boolean | null
+  cleaning_service?: boolean | null
+  female?: boolean | null
   projects: {
     title: string
     state: string | null
@@ -53,6 +62,7 @@ export type PropertyWithDetails = {
   type: string
   status: string | StatusCount[]
   tenantPhone?: string | null
+  features?: PropertyFeatures
 }
 
 // Compute simple display status for property (for header dropdown menus)
@@ -175,6 +185,11 @@ export function transformProperty(property: RawProperty): PropertyWithDetails {
     project: property.projects?.title || null,
     type: property.type,
     status: displayStatus,
-    tenantPhone
+    tenantPhone,
+    features: {
+      wifi: property.wifi || false,
+      cleaning_service: property.cleaning_service || false,
+      female: property.female || false
+    }
   }
 }

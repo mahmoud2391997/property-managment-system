@@ -24,10 +24,25 @@ type PropertyLease = {
   } | null
 }
 
+type RoomFeatures = {
+  wifi?: boolean
+  cleaning_service?: boolean
+  toilet?: boolean
+  balcony?: boolean
+  ac?: boolean
+  female?: boolean
+}
+
 type RawRoom = {
   id: string
   title: string
   status: string
+  wifi?: boolean | null
+  cleaning_service?: boolean | null
+  toilet?: boolean | null
+  balcony?: boolean | null
+  ac?: boolean | null
+  female?: boolean | null
   properties: {
     id: string
     code: string
@@ -48,6 +63,7 @@ export type RoomWithDetails = {
   project: string | null
   status: DisplayStatus
   tenantPhone?: string | null
+  features?: RoomFeatures
 }
 
 // Compute display status for a room
@@ -101,6 +117,14 @@ export function transformRoom(room: RawRoom): RoomWithDetails {
     property: room.properties?.code || 'No Property',
     project: room.properties?.projects?.title || null,
     status: displayStatus,
-    tenantPhone
+    tenantPhone,
+    features: {
+      wifi: room.wifi || false,
+      cleaning_service: room.cleaning_service || false,
+      toilet: room.toilet || false,
+      balcony: room.balcony || false,
+      ac: room.ac || false,
+      female: room.female || false
+    }
   }
 }

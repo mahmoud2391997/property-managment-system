@@ -1,9 +1,9 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { MoreHorizontal } from 'lucide-react'
+import HeaderImage from '@/components/costume-ui/header-image'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +34,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const { id: propertyId } = useParams<{ id: string }>()
   const [propertyCode, setPropertyCode] = useState<string | null>(null)
   const [propertyStatus, setPropertyStatus] = useState<string | null>(null)
+  const [propertyImages, setPropertyImages] = useState<{ id: string; image_url: string; thumb_url: string }[]>([])
   const [isPropertyCodeLoading, setIsPropertyCodeLoading] =
     useState<boolean>(true)
 
@@ -76,7 +77,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
     }
   ])
 
-  // Fetch property code and status
+  // Fetch property code, status, and images
   const fetchPropertyData = async () => {
     setIsPropertyCodeLoading(true)
     const response = await fetch(`/api/leases/${propertyId}/property-code`)
@@ -85,6 +86,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
       const data = await response.json()
       setPropertyCode(data.property)
       setPropertyStatus(data.status)
+      setPropertyImages(data.images || [])
     }
   }
 
@@ -135,18 +137,11 @@ const WithHeadSectionLayout = ({ children }: Props) => {
 
         <div className={cn('flex justify-between items-center', 'w-full')}>
           <div className='flex items-center gap-2.5'>
-            {isPropertyCodeLoading ? (
-              <Skeleton className='w-12 h-12 rounded-full bg-neutral-300' />
-            ) : (
-              <span className='w-12 h-12 rounded-full overflow-hidden'>
-                <Image
-                  src={'/images/property-image-placeholder.png'}
-                  height={48}
-                  width={48}
-                  alt='Property Placeholder'
-                />
-              </span>
-            )}
+            <HeaderImage
+              images={propertyImages}
+              isLoading={isPropertyCodeLoading}
+              alt='Property'
+            />
             {isPropertyCodeLoading ? (
               <Skeleton className='h-7 w-40 bg-neutral-300' />
             ) : (

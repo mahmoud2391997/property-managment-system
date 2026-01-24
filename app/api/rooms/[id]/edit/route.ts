@@ -66,7 +66,7 @@ export async function GET(
     }
 
     // Fetch default configurations in parallel
-    const [leaseConfig, initialCharges, latePaymentCharges] = await Promise.all([
+    const [leaseConfig, initialCharges, latePaymentCharges, roomImages] = await Promise.all([
       prisma.property_default_lease_config.findUnique({
         where: { room_id: roomId },
         select: {
@@ -103,6 +103,17 @@ export async function GET(
         orderBy: {
           days_after_due: 'asc'
         }
+      }),
+      prisma.property_images.findMany({
+        where: { room_id: roomId },
+        select: {
+          id: true,
+          image_url: true,
+          thumb_url: true
+        },
+        orderBy: {
+          created_at: 'asc'
+        }
       })
     ])
 
@@ -112,6 +123,12 @@ export async function GET(
         id: room.id,
         title: room.title,
         status: room.status,
+        wifi: room.wifi,
+        cleaning_service: room.cleaning_service,
+        toilet: room.toilet,
+        balcony: room.balcony,
+        ac: room.ac,
+        female: room.female,
         property: {
           id: room.properties.id,
           code: room.properties.code,
@@ -130,7 +147,8 @@ export async function GET(
         id: charge.id,
         days_after_due: charge.days_after_due,
         amount: charge.amount
-      }))
+      })),
+      images: roomImages
     })
   } catch (error) {
     console.error('Error fetching room for edit:', error)
@@ -190,6 +208,8 @@ export async function PUT(
     const {
       // Room details (editable)
       title,
+      // Features
+      features,
       // Optional default payment details
       initial_charges,
       monthly_rent,
@@ -212,7 +232,15 @@ export async function PUT(
       // 1. Update the room
       const updatedRoom = await tx.rooms.update({
         where: { id: roomId },
-        data: { title }
+        data: {
+          title,
+          wifi: features?.wifi || false,
+          cleaning_service: features?.cleaning_service || false,
+          toilet: features?.toilet || false,
+          balcony: features?.balcony || false,
+          ac: features?.ac || false,
+          female: features?.female || false
+        }
       })
 
       // 2. Delete existing initial charges and create new ones

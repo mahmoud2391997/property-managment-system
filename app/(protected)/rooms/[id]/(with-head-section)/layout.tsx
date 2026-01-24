@@ -1,9 +1,9 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { MoreHorizontal } from 'lucide-react'
+import HeaderImage from '@/components/costume-ui/header-image'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,10 +26,17 @@ type Props = {
   children: React.ReactNode
 }
 
+type ImageItem = {
+  id: string
+  image_url: string
+  thumb_url: string
+}
+
 type RoomConfig = {
   roomTitle: string
   propertyCode: string
   status: string
+  images?: ImageItem[]
 }
 
 const WithHeadSectionLayout = ({ children }: Props) => {
@@ -129,18 +136,11 @@ const WithHeadSectionLayout = ({ children }: Props) => {
 
         <div className={cn('flex justify-between items-center', 'w-full')}>
           <div className='flex items-center gap-2.5'>
-            {isLoading ? (
-              <Skeleton className='w-12 h-12 rounded-full bg-neutral-300' />
-            ) : (
-              <span className='w-12 h-12 rounded-full overflow-hidden'>
-                <Image
-                  src={'/images/property-image-placeholder.png'}
-                  height={48}
-                  width={48}
-                  alt='Room Placeholder'
-                />
-              </span>
-            )}
+            <HeaderImage
+              images={roomConfig?.images}
+              isLoading={isLoading}
+              alt='Room'
+            />
             {isLoading ? (
               <Skeleton className='h-7 w-40 bg-neutral-300' />
             ) : (

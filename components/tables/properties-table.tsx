@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Table } from '../costume-ui/table'
 import Tooltip from '../costume-ui/tooltip'
+import FeaturesDisplay from '../costume-ui/features-display'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
@@ -27,6 +28,12 @@ type StatusCount = {
   total: number
 }
 
+type PropertyFeatures = {
+  wifi?: boolean
+  cleaning_service?: boolean
+  female?: boolean
+}
+
 type PropertyWithDetails = {
   id: string
   code: string
@@ -35,6 +42,7 @@ type PropertyWithDetails = {
   type: string
   status: string | StatusCount[]
   tenantPhone?: string | null
+  features?: PropertyFeatures
 }
 
 const statusStyles: Record<string, string> = {
@@ -112,6 +120,20 @@ export const columns: ColumnDef<PropertyWithDetails>[] = [
     header: () => <div className='text-left'>Type</div>,
     cell: ({ row }) => {
       return <div className='text-left'>{row.getValue('type')}</div>
+    }
+  },
+
+  {
+    accessorKey: 'features',
+    header: () => <div className='text-left'>Features</div>,
+    cell: ({ row }) => {
+      const property = row.original
+      return (
+        <FeaturesDisplay
+          features={property.features || {}}
+          maxVisible={3}
+        />
+      )
     }
   },
 
