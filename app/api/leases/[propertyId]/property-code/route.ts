@@ -20,6 +20,15 @@ export async function GET (
       select: {
         code: true,
         status: true,
+        property_images: {
+          where: { room_id: null },
+          select: {
+            id: true,
+            image_url: true,
+            thumb_url: true
+          },
+          orderBy: { created_at: 'asc' }
+        },
         leases: {
           where: {
             status: 'Current',
@@ -61,7 +70,11 @@ export async function GET (
       property.rooms
     )
 
-    return NextResponse.json({ property: property.code, status: displayStatus })
+    return NextResponse.json({
+      property: property.code,
+      status: displayStatus,
+      images: property.property_images
+    })
   } catch (error) {
     console.error('Error fetching properties:', error)
     return NextResponse.json(

@@ -11,6 +11,7 @@ import InnerSection from '@/components/costume-ui/collapsible-inner-section'
 import ReminderSection from '@/components/costume-ui/reminder-section'
 import PaymentSection from '@/components/costume-ui/payment-section'
 import FeaturesSection, { RoomFeatures } from '@/components/costume-ui/features-section'
+import PropertyImagesUpload, { ImageData } from '@/components/costume-ui/property-images-upload'
 import AddPageHead from '@/components/costume-ui/add-page-head'
 import type { ChargeData } from '@/components/costume-ui/charges-section'
 import type { LateCharge } from '@/components/costume-ui/payment-section'
@@ -38,6 +39,7 @@ const AddRoom = () => {
     ac: false,
     female: false
   })
+  const [images, setImages] = useState<ImageData[]>([])
 
   // Payment Details State (Optional) - managed by PaymentSection component
   const [initialCharges, setInitialCharges] = useState<ChargeData[]>([])
@@ -175,6 +177,28 @@ const AddRoom = () => {
         throw new Error(data.error || 'Failed to create room')
       }
 
+      // Upload images if any
+      const newImages = images.filter(img => img.isNew && img.file)
+      if (newImages.length > 0) {
+        for (const image of newImages) {
+          if (!image.file) continue
+
+          const formData = new FormData()
+          formData.append('main_image', image.file)
+
+          // Create thumb blob from thumb_url
+          const thumbResponse = await fetch(image.thumb_url)
+          const thumbBlob = await thumbResponse.blob()
+          formData.append('thumb_image', new File([thumbBlob], 'thumb.jpg', { type: 'image/jpeg' }))
+          formData.append('room_id', data.room.id)
+
+          await fetch('/api/property-images', {
+            method: 'POST',
+            body: formData
+          })
+        }
+      }
+
       // Show success toast
       FeedbackToasts.created(
         'Room',
@@ -185,6 +209,7 @@ const AddRoom = () => {
       setTitle('')
       setIsRoomReady(false)
       setFeatures({ wifi: false, cleaning_service: false, toilet: false, balcony: false, ac: false, female: false })
+      setImages([])
       setInitialCharges([])
       setLateCharges([])
       setMonthlyRent('')
@@ -319,6 +344,14 @@ const AddRoom = () => {
           type='room'
           features={features}
           onFeaturesChange={(f) => setFeatures(f as RoomFeatures)}
+        />
+
+        {/* Images */}
+        <PropertyImagesUpload
+          key={`images-${formKey}`}
+          type='room'
+          images={images}
+          onImagesChange={setImages}
         />
       </CollapsibleSection>
 

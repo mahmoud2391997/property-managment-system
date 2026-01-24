@@ -66,7 +66,7 @@ export async function GET(
     }
 
     // Fetch default configurations in parallel
-    const [leaseConfig, initialCharges, latePaymentCharges] = await Promise.all([
+    const [leaseConfig, initialCharges, latePaymentCharges, roomImages] = await Promise.all([
       prisma.property_default_lease_config.findUnique({
         where: { room_id: roomId },
         select: {
@@ -103,6 +103,17 @@ export async function GET(
         orderBy: {
           days_after_due: 'asc'
         }
+      }),
+      prisma.property_images.findMany({
+        where: { room_id: roomId },
+        select: {
+          id: true,
+          image_url: true,
+          thumb_url: true
+        },
+        orderBy: {
+          created_at: 'asc'
+        }
       })
     ])
 
@@ -136,7 +147,8 @@ export async function GET(
         id: charge.id,
         days_after_due: charge.days_after_due,
         amount: charge.amount
-      }))
+      })),
+      images: roomImages
     })
   } catch (error) {
     console.error('Error fetching room for edit:', error)
