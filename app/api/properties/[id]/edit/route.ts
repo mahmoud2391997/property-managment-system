@@ -106,6 +106,9 @@ export async function GET(
         postal_code: property.postal_code,
         type: property.type,
         status: property.status,
+        wifi: property.wifi,
+        cleaning_service: property.cleaning_service,
+        female: property.female,
         project: property.projects
       },
       leaseConfig,
@@ -178,6 +181,8 @@ export async function PUT(
       postal_code,
       city,
       project_id,
+      // Features
+      features,
       // Optional default payment details
       initial_charges,
       monthly_rent,
@@ -205,7 +210,10 @@ export async function PUT(
           street_address,
           postal_code,
           city,
-          project_id: project_id || null
+          project_id: project_id || null,
+          wifi: features?.wifi || false,
+          cleaning_service: features?.cleaning_service || false,
+          female: features?.female || false
         }
       })
 

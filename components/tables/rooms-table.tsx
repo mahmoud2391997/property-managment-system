@@ -14,11 +14,21 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Table } from '../costume-ui/table'
+import FeaturesDisplay from '../costume-ui/features-display'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 import InitiatePreparationFlowDrawer from '../dialogs/initiate-preparation-flow-drawer'
 import { toast } from 'sonner'
+
+type RoomFeatures = {
+  wifi?: boolean
+  cleaning_service?: boolean
+  toilet?: boolean
+  balcony?: boolean
+  ac?: boolean
+  female?: boolean
+}
 
 type RoomTableData = {
   id: string
@@ -34,6 +44,7 @@ type RoomTableData = {
     | 'Property_Rented'
     | 'Property_Not_Ready'
   tenantPhone?: string | null
+  features?: RoomFeatures
 }
 
 export const columns: ColumnDef<RoomTableData>[] = [
@@ -91,14 +102,28 @@ export const columns: ColumnDef<RoomTableData>[] = [
           )}
       </>
       return (
-        room.propertyId ? 
+        room.propertyId ?
         <Link href={`/properties/${room.propertyId}/overview`} className='text-left hover:underline'>
           {content}
         </Link>
-        : 
+        :
         <div className='text-left'>
           {content}
         </div>
+      )
+    }
+  },
+
+  {
+    accessorKey: 'features',
+    header: () => <div className='text-left'>Features</div>,
+    cell: ({ row }) => {
+      const room = row.original
+      return (
+        <FeaturesDisplay
+          features={room.features || {}}
+          maxVisible={3}
+        />
       )
     }
   },

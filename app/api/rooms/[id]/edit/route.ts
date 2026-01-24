@@ -112,6 +112,12 @@ export async function GET(
         id: room.id,
         title: room.title,
         status: room.status,
+        wifi: room.wifi,
+        cleaning_service: room.cleaning_service,
+        toilet: room.toilet,
+        balcony: room.balcony,
+        ac: room.ac,
+        female: room.female,
         property: {
           id: room.properties.id,
           code: room.properties.code,
@@ -190,6 +196,8 @@ export async function PUT(
     const {
       // Room details (editable)
       title,
+      // Features
+      features,
       // Optional default payment details
       initial_charges,
       monthly_rent,
@@ -212,7 +220,15 @@ export async function PUT(
       // 1. Update the room
       const updatedRoom = await tx.rooms.update({
         where: { id: roomId },
-        data: { title }
+        data: {
+          title,
+          wifi: features?.wifi || false,
+          cleaning_service: features?.cleaning_service || false,
+          toilet: features?.toilet || false,
+          balcony: features?.balcony || false,
+          ac: features?.ac || false,
+          female: features?.female || false
+        }
       })
 
       // 2. Delete existing initial charges and create new ones

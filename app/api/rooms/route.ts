@@ -96,6 +96,12 @@ export async function GET(request: Request) {
         id: true,
         title: true,
         status: true,
+        wifi: true,
+        cleaning_service: true,
+        toilet: true,
+        balcony: true,
+        ac: true,
+        female: true,
         properties: {
           select: {
             id: true,
@@ -341,6 +347,8 @@ export async function POST(req: NextRequest) {
       title,
       property_id,
       is_ready,
+      // Features
+      features,
       // Optional default payment details
       initial_charges,
       monthly_rent,
@@ -388,6 +396,12 @@ export async function POST(req: NextRequest) {
           title,
           property_id,
           status: is_ready ? 'Ready' : 'Pending_Inspection',
+          wifi: features?.wifi || false,
+          cleaning_service: features?.cleaning_service || false,
+          toilet: features?.toilet || false,
+          balcony: features?.balcony || false,
+          ac: features?.ac || false,
+          female: features?.female || false,
           created_by: user.id
         }
       })

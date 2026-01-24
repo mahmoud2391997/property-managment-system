@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import type { ChargeData } from '@/components/costume-ui/charges-section'
 import PaymentSection from '@/components/costume-ui/payment-section'
 import ReminderSection from '@/components/costume-ui/reminder-section'
+import FeaturesSection, { PropertyFeatures } from '@/components/costume-ui/features-section'
 import type { LateCharge } from '@/components/costume-ui/payment-section'
 import type { projects } from '@prisma/client'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
@@ -27,6 +28,9 @@ type PropertyData = {
   postal_code: string
   type: string
   status: string
+  wifi: boolean
+  cleaning_service: boolean
+  female: boolean
   project: {
     id: string
     title: string
@@ -79,6 +83,11 @@ const EditProperty = ({ params }: PageProps) => {
   const [streetAddress, setStreetAddress] = useState('')
   const [city, setCity] = useState('')
   const [postalCode, setPostalCode] = useState('')
+  const [features, setFeatures] = useState<PropertyFeatures>({
+    wifi: false,
+    cleaning_service: false,
+    female: false
+  })
 
   // Payment Details State (Optional) - managed by PaymentSection component
   const [initialCharges, setInitialCharges] = useState<ChargeData[]>([])
@@ -135,6 +144,11 @@ const EditProperty = ({ params }: PageProps) => {
         setStreetAddress(data.property.street_address)
         setCity(data.property.city)
         setPostalCode(data.property.postal_code)
+        setFeatures({
+          wifi: data.property.wifi || false,
+          cleaning_service: data.property.cleaning_service || false,
+          female: data.property.female || false
+        })
 
         // Set lease config values
         if (data.leaseConfig) {
@@ -180,7 +194,13 @@ const EditProperty = ({ params }: PageProps) => {
         street_address: streetAddress,
         postal_code: postalCode,
         city: city,
-        project_id: selectedProject?.id || null
+        project_id: selectedProject?.id || null,
+        // Features
+        features: {
+          wifi: features.wifi,
+          cleaning_service: features.cleaning_service,
+          female: features.female
+        }
       }
 
       // Add optional initial charges if any have amounts
@@ -404,6 +424,13 @@ const EditProperty = ({ params }: PageProps) => {
             />
           </InputGroup>
         </InnerSection>
+
+        {/* Features */}
+        <FeaturesSection
+          type='property'
+          features={features}
+          onFeaturesChange={(f) => setFeatures(f as PropertyFeatures)}
+        />
       </CollapsibleSection>
 
       {/* Default Payment Details - Using PaymentSection Component */}

@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import InnerSection from '@/components/costume-ui/collapsible-inner-section'
 import ReminderSection from '@/components/costume-ui/reminder-section'
 import PaymentSection from '@/components/costume-ui/payment-section'
+import FeaturesSection, { RoomFeatures } from '@/components/costume-ui/features-section'
 import AddPageHead from '@/components/costume-ui/add-page-head'
 import type { ChargeData } from '@/components/costume-ui/charges-section'
 import type { LateCharge } from '@/components/costume-ui/payment-section'
@@ -29,6 +30,14 @@ const AddRoom = () => {
     useState<PropertyWithProject>()
   const [title, setTitle] = useState('')
   const [isRoomReady, setIsRoomReady] = useState<boolean>(false)
+  const [features, setFeatures] = useState<RoomFeatures>({
+    wifi: false,
+    cleaning_service: false,
+    toilet: false,
+    balcony: false,
+    ac: false,
+    female: false
+  })
 
   // Payment Details State (Optional) - managed by PaymentSection component
   const [initialCharges, setInitialCharges] = useState<ChargeData[]>([])
@@ -89,7 +98,16 @@ const AddRoom = () => {
         // Required room details
         title,
         property_id: selectedProperty.id,
-        is_ready: isRoomReady
+        is_ready: isRoomReady,
+        // Features
+        features: {
+          wifi: features.wifi,
+          cleaning_service: features.cleaning_service,
+          toilet: features.toilet,
+          balcony: features.balcony,
+          ac: features.ac,
+          female: features.female
+        }
       }
 
       // Add optional initial charges if any have amounts
@@ -166,6 +184,7 @@ const AddRoom = () => {
       // Reset all form fields
       setTitle('')
       setIsRoomReady(false)
+      setFeatures({ wifi: false, cleaning_service: false, toilet: false, balcony: false, ac: false, female: false })
       setInitialCharges([])
       setLateCharges([])
       setMonthlyRent('')
@@ -294,6 +313,13 @@ const AddRoom = () => {
             </button>
           </div>
         </InnerSection>
+
+        {/* Features */}
+        <FeaturesSection
+          type='room'
+          features={features}
+          onFeaturesChange={(f) => setFeatures(f as RoomFeatures)}
+        />
       </CollapsibleSection>
 
       {/* Default Payment Details */}

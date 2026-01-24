@@ -95,6 +95,9 @@ export async function GET (req: Request) {
             city: true,
             type: true,
             status: true,
+            wifi: true,
+            cleaning_service: true,
+            female: true,
             projects: {
               select: {
                 title: true,
@@ -280,6 +283,8 @@ export async function POST (req: NextRequest) {
       project_id,
       is_ready,
       rooms,
+      // Features
+      features,
       // Optional default payment details
       initial_charges,
       monthly_rent,
@@ -346,6 +351,9 @@ export async function POST (req: NextRequest) {
           project_id: project_id || null,
           organization_id: staff.organization_id,
           status: is_ready ? 'Ready' : 'Pending_Inspection',
+          wifi: features?.wifi || false,
+          cleaning_service: features?.cleaning_service || false,
+          female: features?.female || false,
           created_by: user.id
         }
       })
@@ -354,10 +362,16 @@ export async function POST (req: NextRequest) {
       let roomsCount = 0
       if (rooms && Array.isArray(rooms) && rooms.length > 0) {
         await tx.rooms.createMany({
-          data: rooms.map((room: { title: string; is_ready: boolean }) => ({
+          data: rooms.map((room: { title: string; is_ready: boolean; features?: { wifi?: boolean; cleaning_service?: boolean; toilet?: boolean; balcony?: boolean; ac?: boolean; female?: boolean } }) => ({
             title: room.title,
             property_id: newProperty.id,
             status: room.is_ready ? 'Ready' : 'Pending_Inspection',
+            wifi: room.features?.wifi || false,
+            cleaning_service: room.features?.cleaning_service || false,
+            toilet: room.features?.toilet || false,
+            balcony: room.features?.balcony || false,
+            ac: room.features?.ac || false,
+            female: room.features?.female || false,
             created_by: user.id
           }))
         })

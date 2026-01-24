@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import type { ChargeData } from '@/components/costume-ui/charges-section'
 import PaymentSection from '@/components/costume-ui/payment-section'
 import ReminderSection from '@/components/costume-ui/reminder-section'
+import FeaturesSection, { RoomFeatures } from '@/components/costume-ui/features-section'
 import type { LateCharge } from '@/components/costume-ui/payment-section'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import ActionPageSkeleton from '@/components/loading-ui/action-page-skeleton'
@@ -21,6 +22,12 @@ type RoomData = {
   id: string
   title: string
   status: string
+  wifi: boolean
+  cleaning_service: boolean
+  toilet: boolean
+  balcony: boolean
+  ac: boolean
+  female: boolean
   property: {
     id: string
     code: string
@@ -70,6 +77,14 @@ const EditRoom = ({ params }: PageProps) => {
 
   // Room Details State (editable)
   const [title, setTitle] = useState('')
+  const [features, setFeatures] = useState<RoomFeatures>({
+    wifi: false,
+    cleaning_service: false,
+    toilet: false,
+    balcony: false,
+    ac: false,
+    female: false
+  })
 
   // Payment Details State (Optional) - managed by PaymentSection component
   const [initialCharges, setInitialCharges] = useState<ChargeData[]>([])
@@ -104,6 +119,14 @@ const EditRoom = ({ params }: PageProps) => {
 
         // Set form values from fetched data
         setTitle(data.room.title)
+        setFeatures({
+          wifi: data.room.wifi || false,
+          cleaning_service: data.room.cleaning_service || false,
+          toilet: data.room.toilet || false,
+          balcony: data.room.balcony || false,
+          ac: data.room.ac || false,
+          female: data.room.female || false
+        })
 
         // Set lease config values
         if (data.leaseConfig) {
@@ -135,7 +158,16 @@ const EditRoom = ({ params }: PageProps) => {
       // Prepare the payload
       const payload: any = {
         // Room details (editable)
-        title
+        title,
+        // Features
+        features: {
+          wifi: features.wifi,
+          cleaning_service: features.cleaning_service,
+          toilet: features.toilet,
+          balcony: features.balcony,
+          ac: features.ac,
+          female: features.female
+        }
       }
 
       // Add optional initial charges if any have amounts
@@ -289,6 +321,13 @@ const EditRoom = ({ params }: PageProps) => {
             />
           </InputGroup>
         </InnerSection>
+
+        {/* Features */}
+        <FeaturesSection
+          type='room'
+          features={features}
+          onFeaturesChange={(f) => setFeatures(f as RoomFeatures)}
+        />
       </CollapsibleSection>
 
       {/* Default Payment Details - Using PaymentSection Component */}

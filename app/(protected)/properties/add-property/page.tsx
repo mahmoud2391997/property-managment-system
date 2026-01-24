@@ -15,6 +15,7 @@ import AddPageHead from '@/components/costume-ui/add-page-head'
 import { useRouter } from 'next/navigation'
 import type { ChargeData } from '@/components/costume-ui/charges-section'
 import RoomCard, { RoomData } from '@/components/costume-ui/room-card'
+import FeaturesSection, { PropertyFeatures } from '@/components/costume-ui/features-section'
 import PaymentSection from '@/components/costume-ui/payment-section'
 import ReminderSection from '@/components/costume-ui/reminder-section'
 import type { LateCharge } from '@/components/costume-ui/payment-section'
@@ -58,6 +59,11 @@ const AddProperty = () => {
   const [postalCode, setPostalCode] = useState('')
   const [isPropertyReady, setIsPropertyReady] = useState<boolean>(false)
   const [rooms, setRooms] = useState<RoomData[]>([])
+  const [features, setFeatures] = useState<PropertyFeatures>({
+    wifi: false,
+    cleaning_service: false,
+    female: false
+  })
 
   // Payment Details State (Optional) - managed by PaymentSection component
   const [initialCharges, setInitialCharges] = useState<ChargeData[]>([])
@@ -113,6 +119,13 @@ const AddProperty = () => {
         type: selectedType.replace(' ', '_'),
         project_id: selectedProject?.id || null,
         is_ready: isPropertyReady,
+
+        // Features
+        features: {
+          wifi: features.wifi,
+          cleaning_service: features.cleaning_service,
+          female: features.female
+        },
 
         // Optional rooms (only for House and Apartment types)
         rooms:
@@ -204,6 +217,7 @@ const AddProperty = () => {
       setPostalCode('')
       setIsPropertyReady(false)
       setRooms([])
+      setFeatures({ wifi: false, cleaning_service: false, female: false })
       setInitialCharges([])
       setLateCharges([])
       setMonthlyRent('')
@@ -394,6 +408,13 @@ const AddProperty = () => {
             </button>
           </div>
         </InnerSection>
+
+        {/* Features */}
+        <FeaturesSection
+          type='property'
+          features={features}
+          onFeaturesChange={(f) => setFeatures(f as PropertyFeatures)}
+        />
       </CollapsibleSection>
 
       {/* Default Payment Details - Using PaymentSection Component */}
