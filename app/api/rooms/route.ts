@@ -101,6 +101,7 @@ export async function GET(request: Request) {
         toilet: true,
         balcony: true,
         ac: true,
+        queen_bed: true,
         female: true,
         properties: {
           select: {
@@ -401,6 +402,7 @@ export async function POST(req: NextRequest) {
           toilet: features?.toilet || false,
           balcony: features?.balcony || false,
           ac: features?.ac || false,
+          queen_bed: features?.queen_bed || false,
           female: features?.female || false,
           created_by: user.id
         }

@@ -28,6 +28,7 @@ type RoomData = {
   toilet: boolean
   balcony: boolean
   ac: boolean
+  queen_bed: boolean
   female: boolean
   property: {
     id: string
@@ -84,6 +85,7 @@ const EditRoom = ({ params }: PageProps) => {
     toilet: false,
     balcony: false,
     ac: false,
+    queen_bed: false,
     female: false
   })
   const [images, setImages] = useState<ImageData[]>([])
@@ -128,6 +130,7 @@ const EditRoom = ({ params }: PageProps) => {
           toilet: data.room.toilet || false,
           balcony: data.room.balcony || false,
           ac: data.room.ac || false,
+          queen_bed: data.room.queen_bed || false,
           female: data.room.female || false
         })
 
@@ -175,6 +178,7 @@ const EditRoom = ({ params }: PageProps) => {
           toilet: features.toilet,
           balcony: features.balcony,
           ac: features.ac,
+          queen_bed: features.queen_bed,
           female: features.female
         }
       }

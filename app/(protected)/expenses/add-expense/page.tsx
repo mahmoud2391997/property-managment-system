@@ -458,50 +458,6 @@ const AddExpense = () => {
         </div>
       </div>
 
-      {/* Recurring Pattern - always shown for property related expenses */}
-      {selectedIndex === 0 && (
-        <>
-          <RecurringConfig
-            onConfigChange={setRecurringConfig}
-            defaultIsPaymentFixed={expenseType.isFixedByDefault ?? false}
-          />
-          {/* Recurring explanation */}
-          {recurringConfig && recurringConfig.enabled && paymentDate && (
-            <div className='p-3 rounded-md bg-blue-50 border border-blue-200'>
-              <div className='flex items-start gap-2 text-sm text-blue-800'>
-                <Info strokeWidth={1.5} size={18} className='mt-0.5 shrink-0' />
-                <div className='flex flex-col gap-1'>
-                  <p className='font-medium'>Recurring Expense Schedule</p>
-                  <p>
-                    Starting from the {isPaid ? 'payment' : 'due'} date ({paymentDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}),
-                    this expense titled "<span className='font-semibold'>{recurringConfig.title || 'Untitled'}</span>" will generate every{' '}
-                    <span className='font-semibold'>
-                      {recurringConfig.every} {recurringConfig.time_unit.toLowerCase()}{recurringConfig.every > 1 ? 's' : ''}
-                    </span>
-                    {recurringConfig.event_on && recurringConfig.time_unit === 'Week' && (
-                      <> on <span className='font-semibold'>{translateWeekDays(recurringConfig.event_on)}</span></>
-                    )}
-                    {recurringConfig.event_on && recurringConfig.time_unit === 'Month' && (
-                      <> on day <span className='font-semibold'>{recurringConfig.event_on.split(',').join(', ')}</span> of each month</>
-                    )}
-                    .
-                  </p>
-                  <p>
-                    <span className='font-medium'>Next expense:</span>{' '}
-                    <span className='font-semibold'>
-                      {calculateNextExpenseDate(paymentDate, recurringConfig).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </span>
-                  </p>
-                  <p className='text-blue-600 mt-1'>
-                    This recurring expense will continue until manually stopped by staff.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
       {/* Alert Dialog */}
       <Alert
         open={alertOpen}

@@ -30,6 +30,7 @@ type RoomFeatures = {
   toilet?: boolean
   balcony?: boolean
   ac?: boolean
+  queen_bed?: boolean
   female?: boolean
 }
 
@@ -42,6 +43,7 @@ type RawRoom = {
   toilet?: boolean | null
   balcony?: boolean | null
   ac?: boolean | null
+  queen_bed?: boolean | null
   female?: boolean | null
   properties: {
     id: string
@@ -124,6 +126,7 @@ export function transformRoom(room: RawRoom): RoomWithDetails {
       toilet: room.toilet || false,
       balcony: room.balcony || false,
       ac: room.ac || false,
+      queen_bed: room.queen_bed || false,
       female: room.female || false
     }
   }

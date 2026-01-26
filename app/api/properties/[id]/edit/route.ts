@@ -119,6 +119,7 @@ export async function GET(
         status: property.status,
         wifi: property.wifi,
         cleaning_service: property.cleaning_service,
+        water_heater: property.water_heater,
         female: property.female,
         project: property.projects
       },
@@ -225,73 +226,66 @@ export async function PUT(
           project_id: project_id || null,
           wifi: features?.wifi || false,
           cleaning_service: features?.cleaning_service || false,
+          water_heater: features?.water_heater || false,
           female: features?.female || false
         }
       })
 
-      // 2. Delete existing initial charges and create new ones
-      await tx.property_default_initial_charges.deleteMany({
-        where: { property_id: propertyId }
-      })
-
-      if (
-        initial_charges &&
-        Array.isArray(initial_charges) &&
-        initial_charges.length > 0
-      ) {
-        await tx.property_default_initial_charges.createMany({
-          data: initial_charges.map(
-            (charge: {
-              charge_type: any
-              amount: number
-              is_taxed: boolean
-              is_refundable: boolean
-            }) => ({
-              property_id: propertyId,
-              charge_type: charge.charge_type as any,
-              amount: charge.amount,
-              is_taxed: charge.is_taxed || false,
-              is_refundable: charge.is_refundable || false,
-              created_by: user.id
-            })
-          )
+      // 2. Update initial charges only if provided in payload
+      if (initial_charges !== undefined) {
+        await tx.property_default_initial_charges.deleteMany({
+          where: { property_id: propertyId }
         })
-      }
 
-      // 3. Delete existing late payment charges (property-level only) and create new ones
-      await tx.late_payment_charges.deleteMany({
-        where: {
-          property_id: propertyId,
-          lease_id: null
+        if (Array.isArray(initial_charges) && initial_charges.length > 0) {
+          await tx.property_default_initial_charges.createMany({
+            data: initial_charges.map(
+              (charge: {
+                charge_type: any
+                amount: number
+                is_taxed: boolean
+                is_refundable: boolean
+              }) => ({
+                property_id: propertyId,
+                charge_type: charge.charge_type as any,
+                amount: charge.amount,
+                is_taxed: charge.is_taxed || false,
+                is_refundable: charge.is_refundable || false,
+                created_by: user.id
+              })
+            )
+          })
         }
-      })
-
-      if (
-        late_payment_charges &&
-        Array.isArray(late_payment_charges) &&
-        late_payment_charges.length > 0
-      ) {
-        await tx.late_payment_charges.createMany({
-          data: late_payment_charges.map(
-            (charge: { days_after_due: number; amount: number }) => ({
-              property_id: propertyId,
-              days_after_due: charge.days_after_due,
-              amount: charge.amount,
-              created_by: user.id
-            })
-          )
-        })
       }
 
-      // 4. Upsert default lease config
-      const existingConfig = await tx.property_default_lease_config.findUnique({
-        where: { property_id: propertyId }
-      })
+      // 3. Update late payment charges only if provided in payload
+      if (late_payment_charges !== undefined) {
+        await tx.late_payment_charges.deleteMany({
+          where: {
+            property_id: propertyId,
+            lease_id: null
+          }
+        })
 
-      if (existingConfig) {
-        await tx.property_default_lease_config.update({
+        if (Array.isArray(late_payment_charges) && late_payment_charges.length > 0) {
+          await tx.late_payment_charges.createMany({
+            data: late_payment_charges.map(
+              (charge: { days_after_due: number; amount: number }) => ({
+                property_id: propertyId,
+                days_after_due: charge.days_after_due,
+                amount: charge.amount,
+                created_by: user.id
+              })
+            )
+          })
+        }
+      }
+
+      // 4. Upsert default lease config only if provided in payload
+      if (reminders !== undefined || monthly_rent !== undefined || payment_day !== undefined) {
+        await tx.property_default_lease_config.upsert({
           where: { property_id: propertyId },
-          data: {
+          update: {
             default_monthly_rent: monthly_rent || null,
             default_payment_day: payment_day || null,
             is_expiry_reminder: reminders?.is_expiry_reminder || false,
@@ -304,15 +298,8 @@ export async function PUT(
               reminders?.is_overdue_rent_reminder || false,
             overdue_days_after_reminder:
               reminders?.overdue_days_after_reminder || null
-          }
-        })
-      } else if (
-        reminders ||
-        monthly_rent !== undefined ||
-        payment_day !== undefined
-      ) {
-        await tx.property_default_lease_config.create({
-          data: {
+          },
+          create: {
             property_id: propertyId,
             default_monthly_rent: monthly_rent || null,
             default_payment_day: payment_day || null,

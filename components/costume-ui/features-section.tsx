@@ -2,7 +2,7 @@
 
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
-import { Wifi, SprayCan, Bath, Fence, AirVent } from 'lucide-react'
+import { Wifi, SprayCan, Bath, Fence, AirVent, Flame, BedDouble } from 'lucide-react'
 import InnerSection from './collapsible-inner-section'
 
 // Venus symbol (♀) as a custom icon component
@@ -28,6 +28,7 @@ const VenusIcon = ({ size = 24, className }: { size?: number; className?: string
 export const PROPERTY_FEATURES = [
   { key: 'wifi', label: 'WiFi', description: 'WiFi internet available', Icon: Wifi },
   { key: 'cleaning_service', label: 'Cleaning Service', description: 'Cleaning service included', Icon: SprayCan },
+  { key: 'water_heater', label: 'Water Heater', description: 'Water heater in bathrooms', Icon: Flame },
   { key: 'female', label: 'Female Only', description: 'For female tenants only', Icon: VenusIcon }
 ] as const
 
@@ -37,12 +38,14 @@ export const ROOM_FEATURES = [
   { key: 'toilet', label: 'Private Toilet', description: 'Private toilet/bathroom', Icon: Bath },
   { key: 'balcony', label: 'Balcony', description: 'Has a balcony', Icon: Fence },
   { key: 'ac', label: 'Air Conditioner', description: 'Air conditioning available', Icon: AirVent },
+  { key: 'queen_bed', label: 'Queen Bed', description: 'Has a queen-size bed', Icon: BedDouble },
   { key: 'female', label: 'Female Only', description: 'For female tenants only', Icon: VenusIcon }
 ] as const
 
 export type PropertyFeatures = {
   wifi: boolean
   cleaning_service: boolean
+  water_heater: boolean
   female: boolean
 }
 
@@ -52,6 +55,7 @@ export type RoomFeatures = {
   toilet: boolean
   balcony: boolean
   ac: boolean
+  queen_bed: boolean
   female: boolean
 }
 

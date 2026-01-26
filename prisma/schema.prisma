@@ -720,6 +720,7 @@ model properties {
   wifi                             Boolean?                           @default(false)
   cleaning_service                 Boolean?                           @default(false)
   female                           Boolean?                           @default(false)
+  water_heater                     Boolean?                           @default(false)
   bookings                         bookings[]
   contracts                        contracts[]
   expenses                         expenses[]
@@ -785,6 +786,7 @@ model rooms {
   balcony                          Boolean?                           @default(false)
   female                           Boolean?                           @default(false)
   ac                               Boolean?                           @default(false)
+  queen_bed                        Boolean?                           @default(false)
   bookings                         bookings[]
   late_payment_charges             late_payment_charges[]
   leases                           leases[]
