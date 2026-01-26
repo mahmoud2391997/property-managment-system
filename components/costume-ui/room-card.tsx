@@ -5,7 +5,7 @@ import InputGroup from './input-group'
 import Input from './input'
 import { Checkbox } from '@/components/ui/checkbox'
 import Button from './button'
-import { Plus, Wifi, SprayCan, Bath, Fence, AirVent } from 'lucide-react'
+import { Plus, Wifi, SprayCan, Bath, Fence, AirVent, BedDouble } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip as ShadcnTooltip,
@@ -39,6 +39,7 @@ export type RoomFeatures = {
   toilet: boolean
   balcony: boolean
   ac: boolean
+  queen_bed: boolean
   female: boolean
 }
 
@@ -54,6 +55,7 @@ const ROOM_FEATURES_CONFIG = [
   { key: 'toilet', label: 'Toilet', Icon: Bath },
   { key: 'balcony', label: 'Balcony', Icon: Fence },
   { key: 'ac', label: 'AC', Icon: AirVent },
+  { key: 'queen_bed', label: 'Queen Bed', Icon: BedDouble },
   { key: 'female', label: 'Female Only', Icon: VenusIcon }
 ] as const
 
@@ -67,6 +69,7 @@ const defaultFeatures: RoomFeatures = {
   toilet: false,
   balcony: false,
   ac: false,
+  queen_bed: false,
   female: false
 }
 

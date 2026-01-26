@@ -37,6 +37,7 @@ const AddRoom = () => {
     toilet: false,
     balcony: false,
     ac: false,
+    queen_bed: false,
     female: false
   })
   const [images, setImages] = useState<ImageData[]>([])
@@ -108,6 +109,7 @@ const AddRoom = () => {
           toilet: features.toilet,
           balcony: features.balcony,
           ac: features.ac,
+          queen_bed: features.queen_bed,
           female: features.female
         }
       }
@@ -208,7 +210,7 @@ const AddRoom = () => {
       // Reset all form fields
       setTitle('')
       setIsRoomReady(false)
-      setFeatures({ wifi: false, cleaning_service: false, toilet: false, balcony: false, ac: false, female: false })
+      setFeatures({ wifi: false, cleaning_service: false, toilet: false, balcony: false, ac: false, queen_bed: false, female: false })
       setImages([])
       setInitialCharges([])
       setLateCharges([])

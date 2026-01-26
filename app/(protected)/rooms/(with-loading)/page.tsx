@@ -43,6 +43,7 @@ async function getRoomsWithTotal(): Promise<{ rooms: RoomWithDetails[], total: n
         toilet: true,
         balcony: true,
         ac: true,
+        queen_bed: true,
         female: true,
         properties: {
           select: {

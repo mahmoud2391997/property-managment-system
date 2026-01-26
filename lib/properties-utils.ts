@@ -32,6 +32,7 @@ type PropertyLease = {
 type PropertyFeatures = {
   wifi?: boolean
   cleaning_service?: boolean
+  water_heater?: boolean
   female?: boolean
 }
 
@@ -45,6 +46,7 @@ type RawProperty = {
   status: string
   wifi?: boolean | null
   cleaning_service?: boolean | null
+  water_heater?: boolean | null
   female?: boolean | null
   projects: {
     title: string
@@ -189,6 +191,7 @@ export function transformProperty(property: RawProperty): PropertyWithDetails {
     features: {
       wifi: property.wifi || false,
       cleaning_service: property.cleaning_service || false,
+      water_heater: property.water_heater || false,
       female: property.female || false
     }
   }

@@ -31,6 +31,7 @@ type PropertyData = {
   status: string
   wifi: boolean
   cleaning_service: boolean
+  water_heater: boolean
   female: boolean
   project: {
     id: string
@@ -87,6 +88,7 @@ const EditProperty = ({ params }: PageProps) => {
   const [features, setFeatures] = useState<PropertyFeatures>({
     wifi: false,
     cleaning_service: false,
+    water_heater: false,
     female: false
   })
   const [images, setImages] = useState<ImageData[]>([])
@@ -150,6 +152,7 @@ const EditProperty = ({ params }: PageProps) => {
         setFeatures({
           wifi: data.property.wifi || false,
           cleaning_service: data.property.cleaning_service || false,
+          water_heater: data.property.water_heater || false,
           female: data.property.female || false
         })
 
@@ -208,6 +211,7 @@ const EditProperty = ({ params }: PageProps) => {
         features: {
           wifi: features.wifi,
           cleaning_service: features.cleaning_service,
+          water_heater: features.water_heater,
           female: features.female
         }
       }

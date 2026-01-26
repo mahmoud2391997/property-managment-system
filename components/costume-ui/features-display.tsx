@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Wifi, Bath, AirVent, Fence, SprayCan } from 'lucide-react'
+import { Wifi, Bath, AirVent, Fence, SprayCan, Flame, BedDouble } from 'lucide-react'
 import {
   Tooltip as ShadcnTooltip,
   TooltipTrigger,
@@ -40,7 +40,9 @@ const FEATURE_CONFIG = {
   female: { label: 'Female Only', Icon: VenusIcon, bg: 'bg-pink-50', text: 'text-pink-600' },
   toilet: { label: 'Private Toilet', Icon: Bath, bg: 'bg-cyan-50', text: 'text-cyan-600' },
   balcony: { label: 'Balcony', Icon: Fence, bg: 'bg-amber-50', text: 'text-amber-600' },
-  ac: { label: 'Air Conditioner', Icon: AirVent, bg: 'bg-sky-50', text: 'text-sky-600' }
+  ac: { label: 'Air Conditioner', Icon: AirVent, bg: 'bg-sky-50', text: 'text-sky-600' },
+  water_heater: { label: 'Water Heater', Icon: Flame, bg: 'bg-orange-50', text: 'text-orange-600' },
+  queen_bed: { label: 'Queen Bed', Icon: BedDouble, bg: 'bg-violet-50', text: 'text-violet-600' }
 } as const
 
 type FeatureKey = keyof typeof FEATURE_CONFIG
@@ -52,6 +54,8 @@ type Features = {
   toilet?: boolean
   balcony?: boolean
   ac?: boolean
+  water_heater?: boolean
+  queen_bed?: boolean
 }
 
 type FeaturesDisplayProps = {
