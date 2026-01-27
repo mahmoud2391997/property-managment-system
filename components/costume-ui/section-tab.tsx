@@ -23,7 +23,7 @@ export default function SectionTab({
   return (
     <div
       className={cn(
-        'inline-flex p-1 rounded-lg',
+        'inline-flex w-fit p-1 rounded-lg',
         'bg-neutral-100',
         className
       )}

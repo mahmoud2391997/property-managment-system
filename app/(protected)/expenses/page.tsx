@@ -1,62 +1,14 @@
 export const dynamic = 'force-dynamic'
-import { UnderDevelopment } from '@/components/costume-ui/under-development'
 import { Suspense } from 'react'
 import { cn } from '@/lib/utils'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import ExpensesSection from '@/components/sections/expenses-section'
 import { transformExpense, ExpenseWithDetails } from '@/lib/expenses-utils'
+import { expenseSelect } from '@/app/api/expenses/route'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
 
 const PAGE_SIZE = 10
-
-// Shared select for expense queries
-const expenseSelect = {
-  reference_id: true,
-  type: true,
-  status: true,
-  due_payment_date: true,
-  created_at: true,
-  properties: {
-    select: {
-      id: true,
-      code: true,
-      projects: {
-        select: {
-          title: true
-        }
-      }
-    }
-  },
-  leases: {
-    select: {
-      reference_id: true
-    }
-  },
-  charges: {
-    select: {
-      amount: true,
-      is_taxed: true
-    }
-  },
-  payment_history: {
-    orderBy: {
-      paid_at: 'desc' as const
-    },
-    select: {
-      paid_at: true,
-      amount: true,
-      status: true
-    }
-  },
-  recurring_configs: {
-    select: {
-      every: true,
-      time_unit: true,
-      event_on: true
-    }
-  }
-}
 
 async function getExpenses(): Promise<{ data: ExpenseWithDetails[]; total: number }> {
   try {
@@ -104,8 +56,6 @@ async function getExpenses(): Promise<{ data: ExpenseWithDetails[]; total: numbe
 }
 
 const Expenses = async () => {
-  
-  // return <UnderDevelopment />
   const { data: initialData, total: initialTotal } = await getExpenses()
 
   return (

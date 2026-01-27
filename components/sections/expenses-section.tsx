@@ -8,6 +8,15 @@ import ExpensesTable from '@/components/tables/expenses-table'
 import Link from 'next/link'
 import { ExpenseWithDetails } from '@/lib/expenses-utils'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
+import SectionTab from '../costume-ui/section-tab'
+import { Building2, FileText, Briefcase, ShoppingCart } from 'lucide-react'
+
+const CATEGORY_TABS = [
+  { key: 'Property_Related', label: 'Property', icon: <Building2 size={14} /> },
+  { key: 'Contract_Related', label: 'Contract', icon: <FileText size={14} /> },
+  { key: 'Company_Related', label: 'Company', icon: <Briefcase size={14} /> },
+  { key: 'Purchase_Related', label: 'Purchase', icon: <ShoppingCart size={14} /> }
+]
 
 interface ExpensesSectionProps {
   initialData: ExpenseWithDetails[]
@@ -29,16 +38,37 @@ export default function ExpensesSection({
     canGoPrevious,
     goToNextPage,
     goToPreviousPage,
-    pageSize
+    pageSize,
+    updateFilters,
+    activeFilters
   } = usePaginatedSearch<ExpenseWithDetails>({
     apiRoute: '/api/expenses',
     initialData,
     initialTotal,
-    pageSize: 10
+    pageSize: 10,
+    defaultFilters: {
+      category: 'Property_Related'
+    }
   })
+
+  const currentCategory = activeFilters.category || 'Property_Related'
+  const selectedIndex = CATEGORY_TABS.findIndex(tab => tab.key === currentCategory)
+
+  const handleTabChange = (index: number) => {
+    updateFilters({ category: CATEGORY_TABS[index].key })
+  }
 
   return (
     <>
+      {/* Category Filter */}
+      <div className='flex justify-center w-full'>
+        <SectionTab
+          options={CATEGORY_TABS}
+          selectedIndex={selectedIndex}
+          onChange={handleTabChange}
+        />
+      </div>
+
       {/* Actions */}
       <div
         className={cn(
@@ -62,10 +92,12 @@ export default function ExpensesSection({
           </Link>
         </div>
       </div>
+
       {/* Table */}
       <div>
         <ExpensesTable
           data={data}
+          category={currentCategory}
           isLoading={isLoading}
           currentPage={currentPage}
           totalItems={total}

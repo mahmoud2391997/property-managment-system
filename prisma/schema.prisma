@@ -460,26 +460,26 @@ model company_tenants {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model contracts {
-  id                          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  start_date                  DateTime      @db.Timestamptz(6)
+  id                          String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  start_date                  DateTime            @db.Timestamptz(6)
   number_of_months            Int?
-  is_expiry_reminder          Boolean       @default(false)
+  is_expiry_reminder          Boolean             @default(false)
   expiry_days_before_reminder Int?
-  is_rent_reminder            Boolean       @default(false)
+  is_rent_reminder            Boolean             @default(false)
   rent_reminder_days_before   Int?
-  is_overdue_rent_reminder    Boolean       @default(false)
+  is_overdue_rent_reminder    Boolean             @default(false)
   overdue_days_after_reminder Int?
-  property_id                 String        @db.Uuid
-  owner_id                    String        @db.Uuid
-  organization_id             String        @db.Uuid
-  created_at                  DateTime      @default(now()) @db.Timestamptz(6)
-  created_by                  String?       @db.Uuid
+  property_id                 String              @db.Uuid
+  owner_id                    String              @db.Uuid
+  organization_id             String              @db.Uuid
+  created_at                  DateTime            @default(now()) @db.Timestamptz(6)
+  created_by                  String?             @db.Uuid
   contract_id                 String
-  staff                       staff?        @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations               organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  owners                      owners        @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  properties                  properties    @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  expenses                    expenses[]
+  contract_expenses           contract_expenses[]
+  staff                       staff?              @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  organizations               organizations       @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  owners                      owners              @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  properties                  properties          @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([contract_id, organization_id], map: "unique_contract_id_per_organization")
   @@schema("public")
@@ -490,24 +490,23 @@ model expenses {
   id                  String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   due_payment_date    DateTime?          @db.Timestamptz(6)
   category            expense_category
-  type                expense_type
-  contract_id         String?            @db.Uuid
-  property_id         String?            @db.Uuid
   organization_id     String             @db.Uuid
   created_at          DateTime           @default(now()) @db.Timestamptz(6)
   created_by          String?            @db.Uuid
   status              payment_status
-  lease_id            String?            @db.Uuid
   reference_id        String             @default("'XP-202500000001'::text")
   recurring_config_id String?            @db.Uuid
+  description         String?
   charges             charges[]
-  contracts           contracts?         @relation(fields: [contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  company_expenses    company_expenses?
+  contract_expenses   contract_expenses?
   staff               staff?             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  leases              leases?            @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   organizations       organizations      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  properties          properties?        @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   recurring_configs   recurring_configs? @relation(fields: [recurring_config_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   payment_history     payment_history[]
+  property_expenses   property_expenses?
+  purchase_expenses   purchase_expenses?
+  staff_expenses      staff_expenses?
 
   @@schema("public")
 }
@@ -551,7 +550,6 @@ model leases {
   is_transferred_from                          Boolean                    @default(false)
   transferred_to                               String?                    @db.Uuid
   is_transferred_to                            Boolean                    @default(false)
-  expenses                                     expenses[]
   late_payment_charges                         late_payment_charges[]
   staff                                        staff?                     @relation(fields: [created_by], references: [id], onUpdate: NoAction)
   organizations                                organizations              @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -563,6 +561,7 @@ model leases {
   leases_leases_transferred_toToleases         leases?                    @relation("leases_transferred_toToleases", fields: [transferred_to], references: [id], onUpdate: NoAction)
   other_leases_leases_transferred_toToleases   leases[]                   @relation("leases_transferred_toToleases")
   payments                                     payments[]
+  property_expenses                            property_expenses[]
   recurring_configs                            recurring_configs[]
   refund_decisions                             refund_decisions[]
   scheduled_rental_changes                     scheduled_rental_changes[]
@@ -723,7 +722,6 @@ model properties {
   water_heater                     Boolean?                           @default(false)
   bookings                         bookings[]
   contracts                        contracts[]
-  expenses                         expenses[]
   late_payment_charges             late_payment_charges[]
   leases                           leases[]
   staff                            staff?                             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
@@ -731,6 +729,7 @@ model properties {
   projects                         projects?                          @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   property_default_initial_charges property_default_initial_charges[]
   property_default_lease_config    property_default_lease_config?
+  property_expenses                property_expenses[]
   property_images                  property_images[]
   recurring_configs                recurring_configs[]
   rooms                            rooms[]
@@ -843,6 +842,7 @@ model staff {
   users                                                      users                              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   organizations                                              organizations                      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   roles                                                      roles                              @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  staff_expenses                                             staff_expenses[]
   task_assignments_task_assignments_assigned_idTostaff       task_assignments[]                 @relation("task_assignments_assigned_idTostaff")
   task_assignments_task_assignments_assigner_idTostaff       task_assignments[]                 @relation("task_assignments_assigner_idTostaff")
   task_assignments_task_assignments_responded_byTostaff      task_assignments[]                 @relation("task_assignments_responded_byTostaff")
@@ -1465,6 +1465,61 @@ model property_images {
   @@schema("public")
 }
 
+model company_expenses {
+  id       String               @id @db.Uuid
+  type     company_expense_type
+  expenses expenses             @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model property_expenses {
+  id          String                @id @db.Uuid
+  property_id String?               @db.Uuid
+  type        property_expense_type
+  lease_id    String?               @db.Uuid
+  expenses    expenses              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  leases      leases?               @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  properties  properties?           @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model purchase_expenses {
+  id                      String                @id @db.Uuid
+  type                    purchase_expense_type
+  is_asset                Boolean               @default(false)
+  depreciation_percentage Decimal?              @db.Decimal(5, 2)
+  expenses                expenses              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model staff_expenses {
+  id         String             @id @db.Uuid
+  staff_id   String?            @db.Uuid
+  staff_name String?
+  type       staff_expense_type
+  month      DateTime           @db.Date
+  expenses   expenses           @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  staff      staff?             @relation(fields: [staff_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+model contract_expenses {
+  id          String                @id(map: "owner_expenses_pkey") @db.Uuid
+  contract_id String                @db.Uuid
+  type        contract_expense_type
+  contracts   contracts             @relation(fields: [contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "owner_expenses_contract_id_fkey")
+  expenses    expenses              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "owner_expenses_id_fkey")
+
+  @@schema("public")
+}
+
 enum aal_level {
   aal1
   aal2
@@ -1540,6 +1595,7 @@ enum expense_category {
   Contract_Related
   Staff_Related
   Company_Related
+  Purchase_Related
 
   @@schema("public")
 }
@@ -1720,22 +1776,6 @@ enum property_status_new {
   @@schema("public")
 }
 
-enum expense_type {
-  Refund
-  Maintenance
-  Cleaning_Service       @map("Cleaning Service")
-  Internet_Bill          @map("Internet Bill")
-  Water_Bill             @map("Water Bill")
-  Electricity_Bill       @map("Electricity Bill")
-  Sewerage_Bill          @map("Sewerage Bill")
-  Management_Fees        @map("Management Fees")
-  Renovation
-  Furniture___Appliances @map("Furniture & Appliances")
-  Miscellaneous_Others   @map("Miscellaneous/Others")
-
-  @@schema("public")
-}
-
 enum task_assignment_status {
   Pending
   Accepted
@@ -1804,6 +1844,62 @@ enum scheduled_change_status {
   Scheduled
   Applied
   Cancelled
+
+  @@schema("public")
+}
+
+enum company_expense_type {
+  Office_Rent             @map("Office Rent")
+  Software_Subscription   @map("Software Subscription")
+  Professional_Fees       @map("Professional Fees")
+  Bank_Charges            @map("Bank Charges")
+  Marketing___Advertising @map("Marketing & Advertising")
+  Insurance
+  Licenses___Permits      @map("Licenses & Permits")
+  Miscellaneous_Others    @map("Miscellaneous/Others")
+
+  @@schema("public")
+}
+
+enum contract_expense_type {
+  Rental
+  Contract_Initial_Charges @map("Contract Initial Charges")
+
+  @@schema("public")
+}
+
+enum property_expense_type {
+  Refund
+  Maintenance
+  Cleaning_Service       @map("Cleaning Service")
+  Internet_Bill          @map("Internet Bill")
+  Water_Bill             @map("Water Bill")
+  Electricity_Bill       @map("Electricity Bill")
+  Sewerage_Bill          @map("Sewerage Bill")
+  Management_Fees        @map("Management Fees")
+  Renovation
+  Furniture___Appliances @map("Furniture & Appliances")
+  Miscellaneous_Others   @map("Miscellaneous/Others")
+
+  @@schema("public")
+}
+
+enum purchase_expense_type {
+  Plant___Machinery    @map("Plant & Machinery")
+  Furniture___Fixtures @map("Furniture & Fixtures")
+  Office_Equipment     @map("Office Equipment")
+  Motor_Vehicles       @map("Motor Vehicles")
+  ICT_Equipment        @map("ICT Equipment")
+  Office_Supplies      @map("Office Supplies")
+  Miscellaneous_Others @map("Miscellaneous/Others")
+
+  @@schema("public")
+}
+
+enum staff_expense_type {
+  Salary
+  Allowances
+  Miscellaneous_Others @map("Miscellaneous/Others")
 
   @@schema("public")
 }

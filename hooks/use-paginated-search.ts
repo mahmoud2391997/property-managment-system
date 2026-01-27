@@ -239,7 +239,20 @@ export function usePaginatedSearch<T> ({
     }
 
     // 2️⃣ Debounced fetch (only after initial mount)
-    if (!useServerSearch) return
+    const hasNonDefaultFilters = Object.entries(urlFilters).some(
+      ([key, value]) => value && value !== defaultFilters[key]
+    )
+    if (!useServerSearch && !hasNonDefaultFilters) {
+      // Restore cached data if state was replaced by a non-default fetch
+      const cacheKey = buildCacheKey(urlPage, urlSearch, urlFilters)
+      const cached = pageCacheRef.current.get(cacheKey)
+      if (cached && lastFetchedParams.current !== cacheKey) {
+        setData(cached.data)
+        setTotal(cached.total)
+        lastFetchedParams.current = cacheKey
+      }
+      return
+    }
 
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current)

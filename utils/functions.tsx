@@ -15,6 +15,7 @@ export const buildEmailLink = (email: string, subject?: string, body?: string) =
 
 export const formatPaymentTypeLabel = (type: string) =>
     type
+      .replace(/___/g, ' & ')
       .replace(/_/g, ' ')
       .toLowerCase()
       .replace(/\b\w/g, c => c.toUpperCase())

@@ -27,19 +27,26 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const {
-      property_id,
+      category,
       expense_type,
+      description,
       charges,
       is_paid,
       payment_method,
       payment_date,
       payment_time,
       receipt_image,
-      recurring_config
+      recurring_config,
+      // Category-specific fields
+      property_id,
+      lease_id,
+      contract_id,
+      is_asset,
+      depreciation_percentage
     } = body
 
     // Validate required fields
-    if (!property_id || !expense_type || !charges || charges.length === 0) {
+    if (!category || !expense_type || !charges || charges.length === 0) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -49,6 +56,21 @@ export async function POST(request: NextRequest) {
     if (!payment_date || !payment_time) {
       return NextResponse.json(
         { error: 'Payment date and time are required' },
+        { status: 400 }
+      )
+    }
+
+    // Category-specific validation
+    if (category === 'Property_Related' && !property_id) {
+      return NextResponse.json(
+        { error: 'Property is required for property-related expenses' },
+        { status: 400 }
+      )
+    }
+
+    if (category === 'Contract_Related' && !contract_id) {
+      return NextResponse.json(
+        { error: 'Contract is required for contract-related expenses' },
         { status: 400 }
       )
     }
@@ -98,13 +120,12 @@ export async function POST(request: NextRequest) {
       // Format: XP-YYYY00000001
       const expense_reference_id = `${yearPrefix}${nextSequence.toString().padStart(8, '0')}`
 
-      // Create expense
+      // Create base expense record
       const expense = await tx.expenses.create({
         data: {
           reference_id: expense_reference_id,
-          property_id: property_id,
-          category: 'Property_Related',
-          type: expense_type,
+          category,
+          description: description || null,
           status,
           due_payment_date: is_paid ? null : paymentDateTime,
           organization_id: staff.organization_id,
@@ -120,6 +141,52 @@ export async function POST(request: NextRequest) {
           }
         }
       })
+
+      // Create category-specific subtype record
+      switch (category) {
+        case 'Property_Related':
+          await tx.property_expenses.create({
+            data: {
+              id: expense.id,
+              type: expense_type,
+              property_id,
+              lease_id: lease_id || null
+            }
+          })
+          break
+
+        case 'Contract_Related':
+          await tx.contract_expenses.create({
+            data: {
+              id: expense.id,
+              type: expense_type,
+              contract_id
+            }
+          })
+          break
+
+        case 'Company_Related':
+          await tx.company_expenses.create({
+            data: {
+              id: expense.id,
+              type: expense_type
+            }
+          })
+          break
+
+        case 'Purchase_Related':
+          await tx.purchase_expenses.create({
+            data: {
+              id: expense.id,
+              type: expense_type,
+              is_asset: is_asset || false,
+              depreciation_percentage: is_asset && depreciation_percentage
+                ? parseFloat(depreciation_percentage)
+                : null
+            }
+          })
+          break
+      }
 
       // If paid, create payment_history entry
       if (is_paid) {
@@ -139,12 +206,10 @@ export async function POST(request: NextRequest) {
       }
 
       // If recurring config is provided and enabled
-      // Create recurring config linked to the property and organization
-      // Then link the expense to the recurring config
       if (recurring_config && recurring_config.enabled) {
         const newRecurringConfig = await tx.recurring_configs.create({
           data: {
-            property_id: property_id,
+            property_id: category === 'Property_Related' ? property_id : null,
             organization_id: staff.organization_id,
             title: recurring_config.title,
             every: recurring_config.every,

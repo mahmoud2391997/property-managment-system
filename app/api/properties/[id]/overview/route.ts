@@ -125,24 +125,22 @@ export async function GET(
             profile_thumb: true
           }
         },
-        expenses: {
-          where: {
-            status: 'Pending'
-          },
+        contract_expenses: {
           select: {
-            id: true,
-            due_payment_date: true,
-            charges: {
+            expenses: {
               select: {
-                amount: true,
-                is_taxed: true
+                id: true,
+                status: true,
+                due_payment_date: true,
+                charges: {
+                  select: {
+                    amount: true,
+                    is_taxed: true
+                  }
+                }
               }
             }
-          },
-          orderBy: {
-            due_payment_date: 'asc'
-          },
-          take: 1
+          }
         }
       },
       orderBy: {
@@ -259,13 +257,23 @@ export async function GET(
     let contractData = null
     if (contract) {
       const ownerName = `${contract.owners.first_name} ${contract.owners.last_name || ''}`.trim()
-      const nextExpense = contract.expenses[0]
+
+      // Find next pending expense through contract_expenses
+      const pendingExpenses = contract.contract_expenses
+        .map(ce => ce.expenses)
+        .filter(e => e.status === 'Pending')
+        .sort((a, b) => {
+          const dateA = a.due_payment_date?.getTime() ?? Infinity
+          const dateB = b.due_payment_date?.getTime() ?? Infinity
+          return dateA - dateB
+        })
+      const nextExpense = pendingExpenses[0]
 
       // Calculate amount from charges
       let amount = 0
       let dueDate = null
       if (nextExpense) {
-        amount = nextExpense.charges.reduce((sum, charge) => {
+        amount = nextExpense.charges.reduce((sum: number, charge: { amount: { toNumber: () => number }; is_taxed: boolean }) => {
           const chargeAmount = charge.amount.toNumber()
           const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
           return sum + chargeAmount + tax
