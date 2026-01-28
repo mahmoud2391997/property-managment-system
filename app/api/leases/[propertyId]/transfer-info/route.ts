@@ -174,10 +174,15 @@ export async function GET(
       blockedReason = `An FPX payment for ${pendingFpxPayment.type.replace('_', ' ')} (${pendingFpxPayment.reference_id}) is currently being verified. Please wait for the verification to complete before transferring.`
     }
 
-    // Check 4: No partially paid payments (only count successful payment history entries)
-    const partiallyPaidPayment = allPendingPayments.find(payment =>
-      payment.payment_history.some(h => h.status === 'Success')
-    )
+    // Check 4: No partially paid payments (successful amount > 0 but < total charges)
+    const partiallyPaidPayment = allPendingPayments.find(payment => {
+      const totalCharges = payment.charges.reduce((sum, c) => sum + Number(c.amount), 0)
+      const successfulPaid = payment.payment_history
+        .filter(h => h.status === 'Success')
+        .reduce((sum, h) => sum + Number(h.amount), 0)
+      // Partially paid = has some successful payment but less than total
+      return successfulPaid > 0 && successfulPaid < totalCharges
+    })
 
     if (canTransfer && partiallyPaidPayment) {
       canTransfer = false
