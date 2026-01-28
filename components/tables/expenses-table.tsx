@@ -3,7 +3,7 @@
 import {
   ColumnDef
 } from '@tanstack/react-table'
-import { MoreHorizontal, ChevronRight, ChevronDown, Calendar, Building2, FileText, Repeat, CreditCard } from 'lucide-react'
+import { MoreHorizontal, ChevronRight, ChevronDown, Calendar, Building2, FileText, User, Repeat, CreditCard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -44,10 +44,11 @@ type Props = {
 
 const CONTEXT_COLUMN_HEADER: Record<string, string> = {
   Property_Related: 'Property',
-  Contract_Related: 'Contract'
+  Contract_Related: 'Contract',
+  Staff_Related: 'Staff'
 }
 
-const CONTEXT_COLUMN_CATEGORIES = ['Property_Related', 'Contract_Related']
+const CONTEXT_COLUMN_CATEGORIES = ['Property_Related', 'Contract_Related', 'Staff_Related']
 
 export default function ExpensesTable({
   data,
@@ -554,9 +555,12 @@ export default function ExpensesTable({
           {/* Context (Property / Contract) */}
           {showContextColumn && (() => {
             const href = expense.context_id ? `/properties/${expense.context_id}/overview` : null
-            const icon = category === 'Property_Related'
-              ? <Building2 className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
-              : <FileText className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
+            const iconMap: Record<string, React.ReactNode> = {
+              Property_Related: <Building2 className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />,
+              Contract_Related: <FileText className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />,
+              Staff_Related: <User className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
+            }
+            const icon = iconMap[category] || <Building2 className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
 
             const content = (
               <>

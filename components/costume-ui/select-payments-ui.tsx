@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronDown, ChevronUp, AlertTriangle, Clock, TrendingDown, ArrowRight } from 'lucide-react'
+import { ChevronDown, ChevronUp, AlertTriangle, Clock, TrendingDown, ArrowRight, Info } from 'lucide-react'
+import HoverTooltip from '@/components/costume-ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -365,8 +366,16 @@ export function SelectPaymentsUI() {
                       </span>
                     </div>
 
-                    <div className='flex justify-between text-sm mt-1'>
-                      <span className='text-(--text-secondary)'>Transaction Fee</span>
+                    <div className='flex justify-between items-center text-sm mt-1'>
+                      <span className='text-(--text-secondary) flex items-center gap-1'>
+                        Transaction Fee
+                        <HoverTooltip
+                          variant='description'
+                          content='This fee is charged by the payment gateway provider, not by us.'
+                        >
+                          <Info className='size-3.5 text-(--text-secondary)/70 cursor-help' />
+                        </HoverTooltip>
+                      </span>
                       <span className='font-medium text-(--text-primary)'>
                         {formatCurrency(FPX_FEE)}
                       </span>
@@ -573,6 +582,10 @@ export function SelectPaymentsUI() {
               <div className='flex justify-between'>
                 <span className='text-(--text-secondary)'>Transaction Fee</span>
                 <span className='font-medium'>{formatCurrency(FPX_FEE)}</span>
+              </div>
+              <div className='flex items-center gap-1 text-xs text-(--text-secondary)/70'>
+                <Info className='size-3 shrink-0' />
+                <span>Gateway fee — not charged by us</span>
               </div>
               {summary.feeSavings > 0 && (
                 <div className='flex justify-between text-(--success-main) bg-(--success-main)/10 p-2 rounded'>

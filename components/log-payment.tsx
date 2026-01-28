@@ -101,7 +101,8 @@ const LogPayment = ({
           payment_method: paymentMethod,
           payment_date: formattedDate,
           payment_time: paymentTime,
-          receipt_image: receiptUrl
+          receipt_image: receiptUrl,
+          timezone_offset: new Date().getTimezoneOffset()
         })
       })
 

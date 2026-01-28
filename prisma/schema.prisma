@@ -1499,13 +1499,17 @@ model purchase_expenses {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model staff_expenses {
-  id         String             @id @db.Uuid
-  staff_id   String?            @db.Uuid
-  staff_name String?
-  type       staff_expense_type
-  month      DateTime           @db.Date
-  expenses   expenses           @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  staff      staff?             @relation(fields: [staff_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id             String             @id @db.Uuid
+  staff_id       String?            @db.Uuid
+  type           staff_expense_type
+  month          DateTime           @db.Date
+  gross_salary   Decimal            @db.Decimal(10, 2)
+  epf_employer   Decimal            @db.Decimal(10, 2)
+  socso_employer Decimal            @db.Decimal(10, 2)
+  epf_employee   Decimal            @db.Decimal(10, 2)
+  socso_employee Decimal            @db.Decimal(10, 2)
+  expenses       expenses           @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  staff          staff?             @relation(fields: [staff_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("public")
 }

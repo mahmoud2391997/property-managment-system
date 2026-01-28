@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { parseLocalDateTime } from '@/utils/formatTime'
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +31,8 @@ export async function POST(request: NextRequest) {
       payment_method,
       payment_date,
       payment_time,
-      receipt_image
+      receipt_image,
+      timezone_offset
     } = body
 
     // Validate required fields
@@ -92,8 +94,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Combine date and time into timestamp
-    const paymentDateTime = new Date(`${payment_date}T${payment_time}`)
+    // Combine date and time into timestamp using client's timezone
+    const paymentDateTime = parseLocalDateTime(payment_date, payment_time, timezone_offset ?? 0)
 
     // Create payment history record
     await prisma.payment_history.create({

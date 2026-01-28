@@ -9,11 +9,12 @@ import Link from 'next/link'
 import { ExpenseWithDetails } from '@/lib/expenses-utils'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import SectionTab from '../costume-ui/section-tab'
-import { Building2, FileText, Briefcase, ShoppingCart } from 'lucide-react'
+import { Building2, FileText, User, Briefcase, ShoppingCart } from 'lucide-react'
 
 const CATEGORY_TABS = [
   { key: 'Property_Related', label: 'Property', icon: <Building2 size={14} /> },
   { key: 'Contract_Related', label: 'Contract', icon: <FileText size={14} /> },
+  { key: 'Staff_Related', label: 'Staff', icon: <User size={14} /> },
   { key: 'Company_Related', label: 'Company', icon: <Briefcase size={14} /> },
   { key: 'Purchase_Related', label: 'Purchase', icon: <ShoppingCart size={14} /> }
 ]

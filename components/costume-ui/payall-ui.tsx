@@ -1,7 +1,14 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { ArrowRight, TrendingDown, Receipt, ChevronUp } from 'lucide-react'
+import {
+  ArrowRight,
+  TrendingDown,
+  Receipt,
+  ChevronUp,
+  Info
+} from 'lucide-react'
+import HoverTooltip from '@/components/costume-ui/tooltip'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -36,20 +43,24 @@ interface PaymentsData {
   total_amount: number
 }
 
-const FPX_FEE = 1.20
+const FPX_FEE = 1.2
 
-export function PaymentSummary() {
+export function PaymentSummary () {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isVisible, setIsVisible] = useState(false)
   const [data, setData] = useState<PaymentsData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
-  const [loadingState, setLoadingState] = useState<'checking' | 'redirecting' | null>(null)
+  const [loadingState, setLoadingState] = useState<
+    'checking' | 'redirecting' | null
+  >(null)
 
   // Selection state
   const [isSelectionExpanded, setIsSelectionExpanded] = useState(false)
-  const [selectedUpcomingIds, setSelectedUpcomingIds] = useState<Set<string>>(new Set())
+  const [selectedUpcomingIds, setSelectedUpcomingIds] = useState<Set<string>>(
+    new Set()
+  )
 
   useEffect(() => {
     fetchPaymentsData()
@@ -238,9 +249,12 @@ export function PaymentSummary() {
           {isSelectionExpanded && (
             <div className='absolute bottom-full left-0 right-0 mb-3 rounded-2xl border bg-white shadow-2xl overflow-hidden animate-in slide-in-from-bottom-2 duration-300'>
               <div className='bg-linear-to-r from-gray-50 to-white px-5 py-3.5 border-b'>
-                <h3 className='text-sm font-semibold text-(--text-primary)'>Select Payments</h3>
+                <h3 className='text-sm font-semibold text-(--text-primary)'>
+                  Select Payments
+                </h3>
                 <p className='text-xs text-(--text-secondary) mt-0.5'>
-                  Overdue payments are required • Choose optional pending payments
+                  Overdue payments are required • Choose optional pending
+                  payments
                 </p>
               </div>
 
@@ -248,7 +262,8 @@ export function PaymentSummary() {
               <div className='max-h-[420px] overflow-y-auto p-4 space-y-2.5'>
                 {allPayments.map(payment => {
                   const isOverdue = payment.type === 'overdue'
-                  const isSelected = isOverdue || selectedUpcomingIds.has(payment.id)
+                  const isSelected =
+                    isOverdue || selectedUpcomingIds.has(payment.id)
 
                   return (
                     <div
@@ -262,13 +277,17 @@ export function PaymentSummary() {
                           : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm',
                         !isOverdue && 'cursor-pointer active:scale-[0.99]'
                       )}
-                      onClick={() => !isOverdue && toggleUpcomingPayment(payment.id)}
+                      onClick={() =>
+                        !isOverdue && toggleUpcomingPayment(payment.id)
+                      }
                     >
                       {/* Checkbox */}
                       <Checkbox
                         checked={isSelected}
                         disabled={isOverdue}
-                        onCheckedChange={() => !isOverdue && toggleUpcomingPayment(payment.id)}
+                        onCheckedChange={() =>
+                          !isOverdue && toggleUpcomingPayment(payment.id)
+                        }
                         className={cn(
                           'shrink-0',
                           isOverdue
@@ -318,7 +337,9 @@ export function PaymentSummary() {
                       {data.overdue_count} overdue (required)
                     </span>
                   )}
-                  {data.overdue_count > 0 && selectedUpcomingIds.size > 0 && <span className='mx-2'>•</span>}
+                  {data.overdue_count > 0 && selectedUpcomingIds.size > 0 && (
+                    <span className='mx-2'>•</span>
+                  )}
                   {selectedUpcomingIds.size > 0 && (
                     <span className='font-medium text-blue-700'>
                       {selectedUpcomingIds.size} pending selected
@@ -341,7 +362,9 @@ export function PaymentSummary() {
             <button
               onClick={() => setIsSelectionExpanded(!isSelectionExpanded)}
               className='absolute -top-3 left-1/2 -translate-x-1/2 bg-white border-2 border-gray-300 rounded-full p-2 shadow-lg hover:bg-gray-50 transition-all hover:scale-110'
-              aria-label={isSelectionExpanded ? 'Hide payments' : 'Select payments'}
+              aria-label={
+                isSelectionExpanded ? 'Hide payments' : 'Select payments'
+              }
             >
               <ChevronUp
                 className={cn(
@@ -357,7 +380,8 @@ export function PaymentSummary() {
                 {summary.totalCount > 0 ? (
                   <>
                     <span className='rounded-full px-3 py-1.5 text-sm font-semibold bg-(--info-light) text-(--info-dark)'>
-                      {summary.totalCount} {summary.totalCount === 1 ? 'payment' : 'payments'}
+                      {summary.totalCount}{' '}
+                      {summary.totalCount === 1 ? 'payment' : 'payments'}
                     </span>
 
                     <div className='h-8 w-px bg-border' />
@@ -370,12 +394,20 @@ export function PaymentSummary() {
                             {formatCurrency(summary.subtotal)}
                           </span>
                         </span>
-                        <span className='text-(--text-secondary)'>
-                          + Fee{' '}
-                          <span className='font-semibold text-foreground'>
-                            {formatCurrency(FPX_FEE)}
+                        <div className='flex gap-1 items-center'>
+                          <span className='text-(--text-secondary)'>
+                            + Fee{' '}
+                            <span className='font-semibold text-foreground'>
+                              {formatCurrency(FPX_FEE)}
+                            </span>
                           </span>
-                        </span>
+                          <HoverTooltip
+                            variant='description'
+                            content='This fee is charged by the payment gateway provider, not by us.'
+                          >
+                            <Info className='size-3.5 text-(--text-secondary)/70 cursor-help' />
+                          </HoverTooltip>
+                        </div>
                       </div>
 
                       {summary.feeSavings > 0 && (
@@ -415,12 +447,15 @@ export function PaymentSummary() {
                   disabled={isProcessingPayment || summary.totalCount === 0}
                 >
                   {isProcessingPayment
-                    ? (loadingState === 'checking' ? 'Processing...' : 'Redirecting...')
+                    ? loadingState === 'checking'
+                      ? 'Processing...'
+                      : 'Redirecting...'
                     : summary.totalCount === 0
-                      ? 'No payments selected'
-                      : `Pay ${summary.totalCount === 1 ? '' : 'All'}`
-                  }
-                  {!isProcessingPayment && summary.totalCount > 0 && <ArrowRight className='size-4' />}
+                    ? 'No payments selected'
+                    : `Pay ${summary.totalCount === 1 ? '' : 'All'}`}
+                  {!isProcessingPayment && summary.totalCount > 0 && (
+                    <ArrowRight className='size-4' />
+                  )}
                 </Button>
               </div>
             </div>
@@ -458,7 +493,8 @@ export function PaymentSummary() {
             {/* Payment Cards */}
             {allPayments.map(payment => {
               const isOverdue = payment.type === 'overdue'
-              const isSelected = isOverdue || selectedUpcomingIds.has(payment.id)
+              const isSelected =
+                isOverdue || selectedUpcomingIds.has(payment.id)
 
               return (
                 <div
@@ -472,12 +508,16 @@ export function PaymentSummary() {
                       : 'bg-white border-gray-200',
                     !isOverdue && 'active:scale-[0.98]'
                   )}
-                  onClick={() => !isOverdue && toggleUpcomingPayment(payment.id)}
+                  onClick={() =>
+                    !isOverdue && toggleUpcomingPayment(payment.id)
+                  }
                 >
                   <Checkbox
                     checked={isSelected}
                     disabled={isOverdue}
-                    onCheckedChange={() => !isOverdue && toggleUpcomingPayment(payment.id)}
+                    onCheckedChange={() =>
+                      !isOverdue && toggleUpcomingPayment(payment.id)
+                    }
                     className={cn(
                       'mt-1 shrink-0',
                       isOverdue
@@ -518,23 +558,34 @@ export function PaymentSummary() {
             <div className='space-y-2 text-sm'>
               <div className='flex justify-between'>
                 <span className='text-(--text-secondary)'>
-                  {summary.totalCount} payment{summary.totalCount !== 1 ? 's' : ''}
+                  {summary.totalCount} payment
+                  {summary.totalCount !== 1 ? 's' : ''}
                 </span>
-                <span className='font-medium'>{formatCurrency(summary.subtotal)}</span>
+                <span className='font-medium'>
+                  {formatCurrency(summary.subtotal)}
+                </span>
               </div>
               <div className='flex justify-between'>
                 <span className='text-(--text-secondary)'>Transaction Fee</span>
                 <span className='font-medium'>{formatCurrency(FPX_FEE)}</span>
               </div>
+              <div className='flex items-center gap-1 text-xs text-(--text-secondary)/70'>
+                <Info className='size-3 shrink-0' />
+                <span>Gateway fee — not charged by us</span>
+              </div>
               {summary.feeSavings > 0 && (
                 <div className='flex justify-between text-(--success-main) bg-(--success-main)/10 p-2 rounded'>
                   <span className='font-medium'>Saving</span>
-                  <span className='font-bold'>{formatCurrency(summary.feeSavings)}</span>
+                  <span className='font-bold'>
+                    {formatCurrency(summary.feeSavings)}
+                  </span>
                 </div>
               )}
               <div className='flex justify-between items-center pt-2 border-t'>
                 <span className='font-semibold text-lg'>Total</span>
-                <span className='text-xl font-bold'>{formatCurrency(summary.total)}</span>
+                <span className='text-xl font-bold'>
+                  {formatCurrency(summary.total)}
+                </span>
               </div>
             </div>
 
@@ -544,7 +595,11 @@ export function PaymentSummary() {
               onClick={handlePayAll}
               disabled={isProcessingPayment || summary.totalCount === 0}
             >
-              {isProcessingPayment ? (loadingState === 'checking' ? 'Processing...' : 'Redirecting...') : `Pay ${formatCurrency(summary.total)}`}
+              {isProcessingPayment
+                ? loadingState === 'checking'
+                  ? 'Processing...'
+                  : 'Redirecting...'
+                : `Pay ${formatCurrency(summary.total)}`}
               {!isProcessingPayment && <ArrowRight className='size-4' />}
             </Button>
           </div>

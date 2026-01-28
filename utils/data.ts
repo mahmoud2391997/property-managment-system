@@ -1197,3 +1197,9 @@ export const purchaseExpenseTypes: PaymentType[] = [
   { type: 'Office_Supplies' },
   { type: 'Miscellaneous_Others' }
 ]
+
+export const staffExpenseTypes: PaymentType[] = [
+  { type: 'Salary', isRecurrable: true, isFixedByDefault: true },
+  { type: 'Allowances' },
+  { type: 'Miscellaneous_Others' }
+]

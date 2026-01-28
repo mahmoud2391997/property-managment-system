@@ -59,7 +59,25 @@ export const expenseSelect = {
     }
   },
   company_expenses: { select: { type: true } },
-  purchase_expenses: { select: { type: true, is_asset: true } }
+  purchase_expenses: { select: { type: true, is_asset: true } },
+  staff_expenses: {
+    select: {
+      type: true,
+      staff_id: true,
+      month: true,
+      gross_salary: true,
+      epf_employer: true,
+      socso_employer: true,
+      epf_employee: true,
+      socso_employee: true,
+      staff: {
+        select: {
+          first_name: true,
+          last_name: true
+        }
+      }
+    }
+  }
 }
 
 export async function GET(request: NextRequest) {

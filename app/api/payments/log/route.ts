@@ -39,7 +39,8 @@ export async function POST(request: NextRequest) {
       payment_method,
       payment_date,
       payment_time,
-      receipt_image
+      receipt_image,
+      timezone_offset
     } = body
 
     // Validate required fields
@@ -130,8 +131,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Parse payment date and time using utility that preserves local timezone
-    const paymentDateTime = parseLocalDateTime(payment_date, payment_time)
+    // Parse payment date and time using client's timezone offset
+    const paymentDateTime = parseLocalDateTime(payment_date, payment_time, timezone_offset ?? 0)
 
     // Validate date is not in the future
     if (paymentDateTime > new Date()) {
