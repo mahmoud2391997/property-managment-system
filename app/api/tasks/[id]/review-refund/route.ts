@@ -97,7 +97,7 @@ export async function POST (
     }
 
     const flowInstance = await prisma.task_flow_instances.findUnique({
-      select: { id: true, lease_id: true, refund_request_task_id: true },
+      select: { id: true, lease_id: true, property_id: true, refund_request_task_id: true },
       where: { refund_finalization_task_id: taskId }
     })
 
@@ -230,12 +230,10 @@ export async function POST (
 
         // 5. Create expense & payment history
         // Create single charge for the refund amount (not the deductions)
-        await tx.expenses.create({
+        const refundExpense = await tx.expenses.create({
           data: {
             reference_id: expense_reference_id,
-            lease_id: flowInstance.lease_id,
             category: 'Property_Related',
-            type: 'Refund',
             status: 'Paid',
             due_payment_date: null,
             organization_id: staff.organization_id,
@@ -258,6 +256,16 @@ export async function POST (
                 status: 'Success'
               }
             }
+          }
+        })
+
+        // Create property_expenses subtype record
+        await tx.property_expenses.create({
+          data: {
+            id: refundExpense.id,
+            type: 'Refund',
+            property_id: flowInstance.property_id,
+            lease_id: flowInstance.lease_id
           }
         })
         return { approved: true }

@@ -3,7 +3,7 @@
 import {
   ColumnDef
 } from '@tanstack/react-table'
-import { MoreHorizontal, ChevronRight, ChevronDown, Calendar, Building2, Repeat, CreditCard } from 'lucide-react'
+import { MoreHorizontal, ChevronRight, ChevronDown, Calendar, Building2, FileText, User, Repeat, CreditCard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -22,7 +22,7 @@ import { formatCurrency } from '@/utils/formatCurrency'
 import { Progress } from '../ui/progress'
 import { Table } from '../costume-ui/table'
 import PaymentHistoryRow from './payment-history-row'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 import { FeedbackToasts } from '../costume-ui/feedback-toast'
@@ -30,6 +30,7 @@ import LogExpensePaymentDialog from '../dialogs/log-expense-payment-dialog'
 
 type Props = {
   data: ExpenseWithDetails[]
+  category?: string
   className?: string
   isLoading?: boolean
   currentPage?: number
@@ -41,8 +42,17 @@ type Props = {
   onPreviousPage?: () => void
 }
 
+const CONTEXT_COLUMN_HEADER: Record<string, string> = {
+  Property_Related: 'Property',
+  Contract_Related: 'Contract',
+  Staff_Related: 'Staff'
+}
+
+const CONTEXT_COLUMN_CATEGORIES = ['Property_Related', 'Contract_Related', 'Staff_Related']
+
 export default function ExpensesTable({
   data,
+  category = 'Property_Related',
   className = '',
   isLoading = false,
   currentPage = 1,
@@ -85,109 +95,125 @@ export default function ExpensesTable({
     }
   }
 
-  const columns: ColumnDef<ExpenseWithDetails>[] = [
-    // Checkbox
-    {
-      id: 'select',
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && 'indeterminate')
-          }
-          onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
-          aria-label='Select all'
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={value => row.toggleSelected(!!value)}
-          aria-label='Select row'
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false
-    },
+  const showContextColumn = CONTEXT_COLUMN_CATEGORIES.includes(category)
+  const contextHeader = CONTEXT_COLUMN_HEADER[category] || ''
 
-    // Expand
-    {
-      id: 'expand',
-      header: () => null,
-      cell: ({ row }) => {
-        const hasHistory = row.original.payment_percentage > 0
-
-        if (!hasHistory) {
-          return null
-        }
-
-        return (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => row.toggleExpanded()}
-            className="h-6 w-6 p-0"
-          >
-            {row.getIsExpanded() ? (
-              <ChevronDown strokeWidth={1.5} className='h-6! w-6!' />
-            ) : (
-              <ChevronRight strokeWidth={1.5} className='h-6! w-6!' />
-            )}
-          </Button>
-        )
+  const columns: ColumnDef<ExpenseWithDetails>[] = useMemo(() => {
+    const base: ColumnDef<ExpenseWithDetails>[] = [
+      // Checkbox
+      {
+        id: 'select',
+        header: ({ table }) => (
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && 'indeterminate')
+            }
+            onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
+            aria-label='Select all'
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={value => row.toggleSelected(!!value)}
+            aria-label='Select row'
+          />
+        ),
+        enableSorting: false,
+        enableHiding: false
       },
-      enableSorting: false,
-      enableHiding: false
-    },
 
-    {
-      accessorKey: 'type',
-      header: () => <div className='text-left'>Transaction</div>,
-      cell: ({ row }) => {
-        const { id, type } = row.original
+      // Expand
+      {
+        id: 'expand',
+        header: () => null,
+        cell: ({ row }) => {
+          const hasHistory = row.original.payment_percentage > 0
 
-        return (
-          <div>
-            <div className='text-left texts-table-cell-primary'>{id}</div>
-            <div className='text-left texts-table-cell-secondary text-(--text-secondary)'>
-              {type.replace(/_/g, ' ')}
-            </div>
-          </div>
-        )
-      }
-    },
+          if (!hasHistory) {
+            return null
+          }
 
-    {
-      accessorKey: 'property',
-      header: () => <div className='text-left'>Property</div>,
-      cell: ({ row }) => {
-        const { property, property_id, project } = row.original
-
-        const href = property_id ? `/properties/${property_id}/overview` : null
-
-        if (href) {
           return (
-            <Link href={href} className='block group hover:underline'>
-              <div className='text-left texts-table-cell-primary group-hover:underline'>
-                {property}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => row.toggleExpanded()}
+              className="h-6 w-6 p-0"
+            >
+              {row.getIsExpanded() ? (
+                <ChevronDown strokeWidth={1.5} className='h-6! w-6!' />
+              ) : (
+                <ChevronRight strokeWidth={1.5} className='h-6! w-6!' />
+              )}
+            </Button>
+          )
+        },
+        enableSorting: false,
+        enableHiding: false
+      },
+
+      // Transaction
+      {
+        accessorKey: 'type',
+        header: () => <div className='text-left'>Transaction</div>,
+        cell: ({ row }) => {
+          const { id, type, is_asset } = row.original
+
+          return (
+            <div>
+              <div className='text-left texts-table-cell-primary'>{id}</div>
+              <div className='flex items-center gap-1.5 text-left texts-table-cell-secondary text-(--text-secondary)'>
+                {type}
+                {is_asset && (
+                  <span className='px-1.5 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800'>
+                    Asset
+                  </span>
+                )}
               </div>
-              <div className='text-left texts-table-cell-secondary group-hover:underline'>
-                {project}
-              </div>
-            </Link>
+            </div>
           )
         }
-
-        return (
-          <div>
-            <div className='text-left texts-table-cell-primary'>{property}</div>
-            <div className='text-left texts-table-cell-secondary'>{project}</div>
-          </div>
-        )
       }
-    },
+    ]
 
-    {
+    // Context column (Property / Contract) — only for categories that have context
+    if (showContextColumn) {
+      base.push({
+        accessorKey: 'context_label',
+        header: () => <div className='text-left'>{contextHeader}</div>,
+        cell: ({ row }) => {
+          const { context_label, context_id, context_subtitle } = row.original
+          const href = context_id ? `/properties/${context_id}/overview` : null
+
+          if (href) {
+            return (
+              <Link href={href} className='block group hover:underline'>
+                <div className='text-left texts-table-cell-primary group-hover:underline'>
+                  {context_label}
+                </div>
+                <div className='text-left texts-table-cell-secondary group-hover:underline'>
+                  {context_subtitle}
+                </div>
+              </Link>
+            )
+          }
+
+          return (
+            <div>
+              <div className='text-left texts-table-cell-primary'>{context_label}</div>
+              {context_subtitle && (
+                <div className='text-left texts-table-cell-secondary'>{context_subtitle}</div>
+              )}
+            </div>
+          )
+        }
+      })
+    }
+
+    // Due Date
+    base.push({
       accessorKey: 'due_date',
       header: () => <div className='text-left'>Due Date</div>,
       cell: ({ row }) => {
@@ -225,9 +251,10 @@ export default function ExpensesTable({
           </>
         )
       }
-    },
+    })
 
-    {
+    // Amount
+    base.push({
       accessorKey: 'amount',
       header: () => <div className='text-left'>Amount</div>,
       cell: ({ row }) => {
@@ -290,9 +317,10 @@ export default function ExpensesTable({
           </>
         )
       }
-    },
+    })
 
-    {
+    // Payment
+    base.push({
       accessorKey: 'payment_percentage',
       header: () => <div className='text-left'>Payment</div>,
       cell: ({ row }) => {
@@ -313,9 +341,10 @@ export default function ExpensesTable({
           </div>
         )
       }
-    },
+    })
 
-    {
+    // Actions
+    base.push({
       id: 'actions',
       header: 'Actions',
       enableHiding: false,
@@ -381,8 +410,10 @@ export default function ExpensesTable({
           </DropdownMenu>
         )
       }
-    }
-  ]
+    })
+
+    return base
+  }, [category, showContextColumn, contextHeader])
 
   // Helper function to get display status
   const getDisplayStatus = (expense: ExpenseWithDetails) => {
@@ -435,9 +466,16 @@ export default function ExpensesTable({
                 {displayStatus}
               </div>
             </div>
-            <span className='texts-caption-large text-(--text-secondary)'>
-              {expense.type.replace(/_/g, ' ')}
-            </span>
+            <div className='flex items-center gap-1.5'>
+              <span className='texts-caption-large text-(--text-secondary)'>
+                {expense.type}
+              </span>
+              {expense.is_asset && (
+                <span className='px-1.5 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800'>
+                  Asset
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Actions Dropdown */}
@@ -514,17 +552,25 @@ export default function ExpensesTable({
 
         {/* Info Grid */}
         <div className='grid grid-cols-2 gap-3'>
-          {/* Property */}
-          {(() => {
-            const href = expense.property_id ? `/properties/${expense.property_id}/overview` : null
+          {/* Context (Property / Contract) */}
+          {showContextColumn && (() => {
+            const href = expense.context_id ? `/properties/${expense.context_id}/overview` : null
+            const iconMap: Record<string, React.ReactNode> = {
+              Property_Related: <Building2 className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />,
+              Contract_Related: <FileText className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />,
+              Staff_Related: <User className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
+            }
+            const icon = iconMap[category] || <Building2 className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
 
             const content = (
               <>
-                <Building2 className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
+                {icon}
                 <div className='min-w-0'>
-                  <div className='texts-caption-small text-(--text-secondary)'>Property</div>
-                  <div className='texts-body-small-medium text-(--text-primary) truncate group-hover:underline'>{expense.property}</div>
-                  <div className='texts-caption-small text-(--text-secondary) truncate group-hover:underline'>{expense.project}</div>
+                  <div className='texts-caption-small text-(--text-secondary)'>{contextHeader}</div>
+                  <div className='texts-body-small-medium text-(--text-primary) truncate group-hover:underline'>{expense.context_label}</div>
+                  {expense.context_subtitle && (
+                    <div className='texts-caption-small text-(--text-secondary) truncate group-hover:underline'>{expense.context_subtitle}</div>
+                  )}
                 </div>
               </>
             )

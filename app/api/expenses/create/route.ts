@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { parseLocalDateTime } from '@/utils/formatTime'
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,21 +28,46 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const {
-      property_id,
+      category,
       expense_type,
+      description,
       charges,
       is_paid,
       payment_method,
       payment_date,
       payment_time,
       receipt_image,
-      recurring_config
+      recurring_config,
+      // Category-specific fields
+      property_id,
+      lease_id,
+      contract_id,
+      is_asset,
+      depreciation_percentage,
+      // Staff-specific fields
+      staff_id,
+      staff_month,
+      gross_salary,
+      epf_employer,
+      socso_employer,
+      epf_employee,
+      socso_employee,
+      timezone_offset
     } = body
 
     // Validate required fields
-    if (!property_id || !expense_type || !charges || charges.length === 0) {
+    if (!category || !expense_type) {
       return NextResponse.json(
         { error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
+
+    // Staff Salary can have no charges (deductions are optional)
+    const isStaffSalary = category === 'Staff_Related' && expense_type === 'Salary'
+    if (!isStaffSalary && (!charges || charges.length === 0)) {
+      return NextResponse.json(
+        { error: 'At least one charge is required' },
         { status: 400 }
       )
     }
@@ -53,18 +79,69 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Combine date and time into timestamp
-    const paymentDateTime = new Date(`${payment_date}T${payment_time}`)
+    // Category-specific validation
+    if (category === 'Property_Related' && !property_id) {
+      return NextResponse.json(
+        { error: 'Property is required for property-related expenses' },
+        { status: 400 }
+      )
+    }
+
+    if (category === 'Contract_Related' && !contract_id) {
+      return NextResponse.json(
+        { error: 'Contract is required for contract-related expenses' },
+        { status: 400 }
+      )
+    }
+
+    if (category === 'Staff_Related' && !staff_id) {
+      return NextResponse.json(
+        { error: 'Staff member is required for staff expenses' },
+        { status: 400 }
+      )
+    }
+
+    if (category === 'Staff_Related' && !staff_month) {
+      return NextResponse.json(
+        { error: 'Month is required for staff expenses' },
+        { status: 400 }
+      )
+    }
+
+    if (isStaffSalary && (!gross_salary || parseFloat(gross_salary) <= 0)) {
+      return NextResponse.json(
+        { error: 'Gross salary is required for salary expenses' },
+        { status: 400 }
+      )
+    }
+
+    // Combine date and time into timestamp using client's timezone
+    const paymentDateTime = parseLocalDateTime(payment_date, payment_time, timezone_offset ?? 0)
 
     // Determine expense status
     const status = is_paid ? 'Paid' : 'Pending'
 
-    // Calculate total amount from charges
-    const totalAmount = charges.reduce((sum: number, charge: any) => {
-      const amount = parseFloat(charge.amount) || 0
-      const tax = charge.isTaxableChecked ? amount * 0.08 : 0
-      return sum + amount + tax
-    }, 0)
+    // Calculate total amount
+    let totalAmount: number
+
+    if (isStaffSalary) {
+      // Cost to Company = Gross + Employer EPF + Employer SOCSO
+      const gross = parseFloat(gross_salary) || 0
+      const epfEr = parseFloat(epf_employer) || 0
+      const socsoEr = parseFloat(socso_employer) || 0
+      totalAmount = gross + epfEr + socsoEr
+    } else if (category === 'Staff_Related' && expense_type === 'Allowances') {
+      // Sum of allowance charges
+      totalAmount = (charges || []).reduce((sum: number, charge: any) => {
+        return sum + (parseFloat(charge.amount) || 0)
+      }, 0)
+    } else {
+      totalAmount = (charges || []).reduce((sum: number, charge: any) => {
+        const amount = parseFloat(charge.amount) || 0
+        const tax = charge.isTaxableChecked ? amount * 0.08 : 0
+        return sum + amount + tax
+      }, 0)
+    }
 
     // Create expense with charges and payment_history in a transaction
     const result = await prisma.$transaction(async tx => {
@@ -98,28 +175,92 @@ export async function POST(request: NextRequest) {
       // Format: XP-YYYY00000001
       const expense_reference_id = `${yearPrefix}${nextSequence.toString().padStart(8, '0')}`
 
-      // Create expense
+      // Create base expense record
+      const hasCharges = charges && charges.length > 0
       const expense = await tx.expenses.create({
         data: {
           reference_id: expense_reference_id,
-          property_id: property_id,
-          category: 'Property_Related',
-          type: expense_type,
+          category,
+          description: description || null,
           status,
           due_payment_date: is_paid ? null : paymentDateTime,
           organization_id: staff.organization_id,
           created_by: staff.id,
-          charges: {
-            create: charges.map((charge: any) => ({
-              title: charge.type,
-              amount: parseFloat(charge.amount) || 0,
-              is_taxed: charge.isTaxableChecked || false,
-              is_refunded: charge.isRefundableChecked || false,
-              created_by: staff.id
-            }))
-          }
+          ...(hasCharges && {
+            charges: {
+              create: charges.map((charge: any) => ({
+                title: charge.type,
+                amount: parseFloat(charge.amount) || 0,
+                is_taxed: charge.isTaxableChecked || false,
+                is_refunded: charge.isRefundableChecked || false,
+                created_by: staff.id
+              }))
+            }
+          })
         }
       })
+
+      // Create category-specific subtype record
+      switch (category) {
+        case 'Property_Related':
+          await tx.property_expenses.create({
+            data: {
+              id: expense.id,
+              type: expense_type,
+              property_id,
+              lease_id: lease_id || null
+            }
+          })
+          break
+
+        case 'Contract_Related':
+          await tx.contract_expenses.create({
+            data: {
+              id: expense.id,
+              type: expense_type,
+              contract_id
+            }
+          })
+          break
+
+        case 'Company_Related':
+          await tx.company_expenses.create({
+            data: {
+              id: expense.id,
+              type: expense_type
+            }
+          })
+          break
+
+        case 'Purchase_Related':
+          await tx.purchase_expenses.create({
+            data: {
+              id: expense.id,
+              type: expense_type,
+              is_asset: is_asset || false,
+              depreciation_percentage: is_asset && depreciation_percentage
+                ? parseFloat(depreciation_percentage)
+                : null
+            }
+          })
+          break
+
+        case 'Staff_Related':
+          await tx.staff_expenses.create({
+            data: {
+              id: expense.id,
+              type: expense_type,
+              staff_id,
+              month: new Date(staff_month),
+              gross_salary: parseFloat(gross_salary) || 0,
+              epf_employer: parseFloat(epf_employer) || 0,
+              socso_employer: parseFloat(socso_employer) || 0,
+              epf_employee: parseFloat(epf_employee) || 0,
+              socso_employee: parseFloat(socso_employee) || 0
+            }
+          })
+          break
+      }
 
       // If paid, create payment_history entry
       if (is_paid) {
@@ -139,12 +280,10 @@ export async function POST(request: NextRequest) {
       }
 
       // If recurring config is provided and enabled
-      // Create recurring config linked to the property and organization
-      // Then link the expense to the recurring config
       if (recurring_config && recurring_config.enabled) {
         const newRecurringConfig = await tx.recurring_configs.create({
           data: {
-            property_id: property_id,
+            property_id: category === 'Property_Related' ? property_id : null,
             organization_id: staff.organization_id,
             title: recurring_config.title,
             every: recurring_config.every,

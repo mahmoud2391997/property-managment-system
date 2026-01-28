@@ -151,18 +151,34 @@ export async function GET(
         // Check for partial payments via payment history
         payment_history: {
           select: {
-            amount: true
+            amount: true,
+            status: true,
+            payment_method: true,
+            created_at: true
           }
         }
       }
     })
 
-    // Check for partially paid payment of ANY type (any payment with history entries = partial payment)
-    const partiallyPaidPayment = allPendingPayments.find(payment =>
-      payment.payment_history.length > 0
+    // Check for pending FPX payments added within the last 30 minutes (still being verified)
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
+    const pendingFpxPayment = allPendingPayments.find(payment =>
+      payment.payment_history.some(h =>
+        h.payment_method === 'FPX' && h.status === 'Pending' && h.created_at && new Date(h.created_at) > thirtyMinutesAgo
+      )
     )
 
-    // Check 3: No partially paid payments
+    // Check 3: FPX payment currently being verified
+    if (canTransfer && pendingFpxPayment) {
+      canTransfer = false
+      blockedReason = `An FPX payment for ${pendingFpxPayment.type.replace('_', ' ')} (${pendingFpxPayment.reference_id}) is currently being verified. Please wait for the verification to complete before transferring.`
+    }
+
+    // Check 4: No partially paid payments (only count successful payment history entries)
+    const partiallyPaidPayment = allPendingPayments.find(payment =>
+      payment.payment_history.some(h => h.status === 'Success')
+    )
+
     if (canTransfer && partiallyPaidPayment) {
       canTransfer = false
       blockedReason = `There is a partially paid ${partiallyPaidPayment.type.replace('_', ' ')} payment (${partiallyPaidPayment.reference_id}). Please settle it before transferring.`

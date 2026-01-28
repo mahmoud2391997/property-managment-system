@@ -1159,6 +1159,7 @@ export const chargeTypes: ChargeTypeType[] = [
 ]
 
 export const propertyExpenseTypes: PaymentType[] = [
+  { type: 'Refund' },
   { type: 'Maintenance', isRecurrable: true, isFixedByDefault: false },
   { type: 'Cleaning_Service', isRecurrable: true, isFixedByDefault: true },
   { type: 'Internet_Bill', isRecurrable: true, isFixedByDefault: true },
@@ -1166,26 +1167,39 @@ export const propertyExpenseTypes: PaymentType[] = [
   { type: 'Electricity_Bill', isRecurrable: true, isFixedByDefault: false },
   { type: 'Sewerage_Bill', isRecurrable: true, isFixedByDefault: false },
   { type: 'Management_Fees', isRecurrable: true, isFixedByDefault: true },
-  { type: 'Renovation', isRecurrable: true, isFixedByDefault: false },
-  { type: 'Furniture_Appliances', isRecurrable: true, isFixedByDefault: false },
+  { type: 'Renovation' },
+  { type: 'Furniture___Appliances' },
   { type: 'Miscellaneous_Others', isRecurrable: true, isFixedByDefault: false }
 ]
 
 export const contractExpenseTypes: PaymentType[] = [
-  { type: 'Contract Initial Charges' },
-  { type: 'Fines or Penalties' },
-  { type: 'Miscellaneous/Other', isRecurrable: true }
+  { type: 'Rental', isRecurrable: true },
+  { type: 'Contract_Initial_Charges' }
 ]
 
 export const companyExpenseTypes: PaymentType[] = [
-  { type: 'Office Rent', isRecurrable: true },
-  { type: 'Utilities', isRecurrable: true },
-  { type: 'Legal & Professional Fees', isRecurrable: true },
-  { type: 'Marketing & Advertising', isRecurrable: true },
-  { type: 'Travel & Transportation', isRecurrable: true },
-  { type: 'Office Supplies', isRecurrable: true },
-  { type: 'Equipment & Furniture', isRecurrable: true },
-  { type: 'Taxes & Licenses', isRecurrable: true },
-  { type: 'Fines or Penalties' },
-  { type: 'Miscellaneous/Other', isRecurrable: true }
+  { type: 'Office_Rent', isRecurrable: true },
+  { type: 'Software_Subscription', isRecurrable: true },
+  { type: 'Professional_Fees', isRecurrable: true },
+  { type: 'Bank_Charges', isRecurrable: true },
+  { type: 'Marketing___Advertising', isRecurrable: true },
+  { type: 'Insurance', isRecurrable: true },
+  { type: 'Licenses___Permits', isRecurrable: true },
+  { type: 'Miscellaneous_Others', isRecurrable: true }
+]
+
+export const purchaseExpenseTypes: PaymentType[] = [
+  { type: 'Plant___Machinery' },
+  { type: 'Furniture___Fixtures' },
+  { type: 'Office_Equipment' },
+  { type: 'Motor_Vehicles' },
+  { type: 'ICT_Equipment' },
+  { type: 'Office_Supplies' },
+  { type: 'Miscellaneous_Others' }
+]
+
+export const staffExpenseTypes: PaymentType[] = [
+  { type: 'Salary', isRecurrable: true, isFixedByDefault: true },
+  { type: 'Allowances' },
+  { type: 'Miscellaneous_Others' }
 ]

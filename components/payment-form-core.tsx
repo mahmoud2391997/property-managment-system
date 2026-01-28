@@ -195,7 +195,8 @@ export default function PaymentFormCore({
           payment_time: paymentTime,
           receipt_image: receiptUrl,
           payment_evidence: paymentEvidenceUrl,
-          recurring_config: recurringConfig
+          recurring_config: recurringConfig,
+          timezone_offset: new Date().getTimezoneOffset()
         })
       })
 

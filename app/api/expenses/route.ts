@@ -1,33 +1,16 @@
-'use server'
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { transformExpense } from '@/lib/expenses-utils'
 
 // Shared select for expense queries
-const expenseSelect = {
+export const expenseSelect = {
   reference_id: true,
-  type: true,
+  category: true,
+  description: true,
   status: true,
   due_payment_date: true,
   created_at: true,
-  properties: {
-    select: {
-      id: true,
-      code: true,
-      projects: {
-        select: {
-          title: true
-        }
-      }
-    }
-  },
-  leases: {
-    select: {
-      reference_id: true
-    }
-  },
   charges: {
     select: {
       amount: true,
@@ -49,6 +32,50 @@ const expenseSelect = {
       every: true,
       time_unit: true,
       event_on: true
+    }
+  },
+  property_expenses: {
+    select: {
+      type: true,
+      properties: {
+        select: {
+          id: true,
+          code: true,
+          projects: { select: { title: true } }
+        }
+      },
+      leases: { select: { reference_id: true } }
+    }
+  },
+  contract_expenses: {
+    select: {
+      type: true,
+      contracts: {
+        select: {
+          contract_id: true,
+          owners: { select: { first_name: true, last_name: true } }
+        }
+      }
+    }
+  },
+  company_expenses: { select: { type: true } },
+  purchase_expenses: { select: { type: true, is_asset: true } },
+  staff_expenses: {
+    select: {
+      type: true,
+      staff_id: true,
+      month: true,
+      gross_salary: true,
+      epf_employer: true,
+      socso_employer: true,
+      epf_employee: true,
+      socso_employee: true,
+      staff: {
+        select: {
+          first_name: true,
+          last_name: true
+        }
+      }
     }
   }
 }
@@ -91,9 +118,7 @@ export async function GET(request: NextRequest) {
         ...(search && {
           OR: [
             { reference_id: { contains: search, mode: 'insensitive' } },
-            { properties: { is: { code: { contains: search, mode: 'insensitive' } } } },
-            { leases: { is: { reference_id: { contains: search, mode: 'insensitive' } } } },
-            { type: { contains: search, mode: 'insensitive' } }
+            { description: { contains: search, mode: 'insensitive' } }
           ]
         })
       }
@@ -122,18 +147,10 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Legacy mode: Get optional propertyId filter
-    const propertyId = searchParams.get('propertyId')
-
-    // Build where clause
+    // Legacy mode: fetch all expenses for a category
     const whereClause: any = {
       organization_id: staff.organization_id,
       category: category
-    }
-
-    // If propertyId provided, filter expenses by property_id
-    if (propertyId) {
-      whereClause.property_id = propertyId
     }
 
     // Fetch expenses with related data

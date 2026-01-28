@@ -309,13 +309,15 @@ export async function GET(
         expenses: {
           select: {
             id: true,
-            type: true,
             due_payment_date: true,
             charges: {
               select: {
                 amount: true,
                 is_taxed: true
               }
+            },
+            property_expenses: {
+              select: { type: true }
             }
           },
           orderBy: {
@@ -359,7 +361,7 @@ export async function GET(
           ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastExpenseDate, null)
           : null,
         amount,
-        payment_type: latestExpense?.type || null, // expense_type
+        payment_type: latestExpense?.property_expenses?.type || null, // expense_type
         payments_count: 0, // TODO: Update when implementing expenses
         payments: [] // TODO: Update when implementing expenses
       }
