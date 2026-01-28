@@ -3,7 +3,7 @@
 import {
   ColumnDef
 } from '@tanstack/react-table'
-import { MoreHorizontal, ChevronRight, ChevronDown, Calendar, Building2, Repeat, CreditCard, History, Banknote, Wallet, Globe, X } from 'lucide-react'
+import { MoreHorizontal, ChevronRight, ChevronDown, Calendar, Building2, Repeat, CreditCard, History, Banknote, Wallet, Globe, X, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -645,7 +645,19 @@ export default function PaymentsTable ({
       accessorKey: 'amount',
       header: () => <div className='text-left'>Amount</div>,
       cell: ({ row }) => {
-        const { amount, due_date, payment_percentage, latest_payment_timestamp, status } = row.original
+        const { amount, due_date, payment_percentage, latest_payment_timestamp, status, late_payment_charges, type } = row.original
+
+        // Helper to build late charges tooltip content
+        const buildLateChargesContent = () => {
+          if (!late_payment_charges || late_payment_charges.length === 0) return ''
+          const chargesText = late_payment_charges
+            .map(c => `${formatCurrency(c.amount)} after ${c.days_after_due} days`)
+            .join(', ')
+          return `Late fee if not paid on time: ${chargesText}`
+        }
+
+        // Only show late charges info for Rental payments
+        const showLateChargesInfo = type === 'Rental' && late_payment_charges && late_payment_charges.length > 0
 
         // Check if cancelled first
         if (status === 'Cancelled') {
@@ -693,6 +705,7 @@ export default function PaymentsTable ({
         }
 
         const statusKey = displayStatus.toLowerCase().replace(/\s/g, '-')
+        const shouldShowLateChargesIcon = showLateChargesInfo && ['Pending', 'Partially Paid', 'Overdue'].includes(displayStatus)
 
         return (
           <>
@@ -708,10 +721,19 @@ export default function PaymentsTable ({
                   'data-[status=paid-late]:bg-yellow-100 data-[status=paid-late]:text-yellow-800',
                   'data-[status=pending]:bg-gray-100 data-[status=pending]:text-gray-800',
                   'data-[status=partially-paid]:bg-orange-100 data-[status=partially-paid]:text-orange-800',
-                  'data-[status=overdue]:bg-red-100 data-[status=overdue]:text-red-800'
+                  'data-[status=overdue]:bg-red-100 data-[status=overdue]:text-red-800',
+                  shouldShowLateChargesIcon && 'flex items-center gap-1'
                 )}
               >
                 {displayStatus}
+                {shouldShowLateChargesIcon && (
+                  <Tooltip
+                    variant='description'
+                    content={buildLateChargesContent()}
+                  >
+                    <Info size={12} strokeWidth={2} className='cursor-help' />
+                  </Tooltip>
+                )}
               </div>
             </div>
           </>
@@ -874,6 +896,11 @@ export default function PaymentsTable ({
     const statusKey = displayStatus.toLowerCase().replace(/\s/g, '-')
     const hasRemainingAmount = payment.payment_percentage < 100 || payment.has_pending_payments
     const patternKey = payment.recurring_pattern.toLowerCase().replace(/\s/g, '-')
+    // Only show late charges info for Rental payments
+    const showLateChargesInfo = payment.type === 'Rental' &&
+      payment.late_payment_charges &&
+      payment.late_payment_charges.length > 0 &&
+      ['Pending', 'Partially Paid', 'Overdue'].includes(displayStatus)
 
     return (
       <MobileCardContainer
@@ -979,6 +1006,25 @@ export default function PaymentsTable ({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {/* Late Payment Charges Info Banner - Mobile */}
+        {showLateChargesInfo && (
+          <div className='flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200'>
+            <Info size={14} className='text-amber-600 mt-0.5 shrink-0' />
+            <div className='flex flex-col gap-1'>
+              <span className='texts-caption-large font-medium text-amber-800'>
+                Late fee if not paid on time
+              </span>
+              <div className='flex flex-wrap gap-x-3 gap-y-1'>
+                {payment.late_payment_charges.map((charge, idx) => (
+                  <span key={idx} className='texts-caption-small text-amber-700'>
+                    {formatCurrency(charge.amount)} after {charge.days_after_due} days
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Amount - Prominent display */}
         <div className='flex items-baseline gap-2'>
