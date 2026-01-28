@@ -17,6 +17,11 @@ type RawRecurringConfig = {
   event_on: string | null
 }
 
+type RawLatePaymentCharge = {
+  days_after_due: number
+  amount: Decimal
+}
+
 type RawPayment = {
   reference_id: string
   type: string
@@ -50,10 +55,16 @@ type RawPayment = {
         company_name: string
       } | null
     } | null
+    late_payment_charges: RawLatePaymentCharge[]
   } | null
   charges: RawCharge[]
   payment_history: RawPaymentHistory[]
   recurring_configs: RawRecurringConfig | null
+}
+
+export type LatePaymentChargeInfo = {
+  days_after_due: number
+  amount: number
 }
 
 export type PaymentWithDetails = {
@@ -79,6 +90,7 @@ export type PaymentWithDetails = {
   tenant_color: string
   latest_payment_timestamp: string
   payment_evidence: string | null
+  late_payment_charges: LatePaymentChargeInfo[]
 }
 
 // Transform raw payment from database to display format
@@ -171,6 +183,12 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
   // Calculate remaining amount accurately
   const remainingAmount = totalAmount - totalPaid
 
+  // Transform late payment charges from lease
+  const latePaymentCharges: LatePaymentChargeInfo[] = payment.leases?.late_payment_charges?.map(lpc => ({
+    days_after_due: lpc.days_after_due,
+    amount: lpc.amount.toNumber()
+  })) || []
+
   return {
     id: payment.reference_id,
     type: payment.type,
@@ -193,6 +211,7 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
     tenant_picture: tenant?.profile_pic || '',
     tenant_color: '',
     latest_payment_timestamp: latestPaymentTimestamp,
-    payment_evidence: payment.payment_evidence
+    payment_evidence: payment.payment_evidence,
+    late_payment_charges: latePaymentCharges
   }
 }

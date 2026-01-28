@@ -51,6 +51,15 @@ const paymentSelect = {
             }
           }
         }
+      },
+      late_payment_charges: {
+        select: {
+          days_after_due: true,
+          amount: true
+        },
+        orderBy: {
+          days_after_due: 'asc' as const
+        }
       }
     }
   },
