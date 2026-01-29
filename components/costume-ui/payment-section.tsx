@@ -75,6 +75,11 @@ type Props = {
   defaultConfig?: DefaultPaymentConfig
   allowAllChargesRemovable?: boolean
   requiredFields?: boolean
+  showLateCharges?: boolean
+  chargesSubtitle?: string
+  chargesFlowType?: 'income' | 'outcome'
+  monthlyRentLabel?: string
+  paymentStatusLabel?: string
 }
 
 const PaymentSection = ({
@@ -86,7 +91,12 @@ const PaymentSection = ({
   defaultPayment = false,
   defaultConfig,
   allowAllChargesRemovable = false,
-  requiredFields=false
+  requiredFields = false,
+  showLateCharges = true,
+  chargesSubtitle = 'Set up one-time charges at lease signing',
+  chargesFlowType = 'income',
+  monthlyRentLabel = 'Subsequent Monthly Rental Payment',
+  paymentStatusLabel = 'Initial Charges Payment Status'
 }: Props) => {
   const [monthlyRent, setMonthlyRent] = useState<string>(defaultConfig?.monthlyRent || '')
   const [selectedDay, setSelectedDay] = useState<number>(defaultConfig?.paymentDay || 1)
@@ -144,8 +154,8 @@ const PaymentSection = ({
     <>
       <ChargesSection
         title='Initial Charges'
-        subtitle='Set up one-time charges at lease signing'
-        flowType='income'
+        subtitle={chargesSubtitle}
+        flowType={chargesFlowType}
         selectable={true}
         onChargesChange={onInitialChargesChange}
         defaultPayment={defaultPayment}
@@ -156,7 +166,7 @@ const PaymentSection = ({
       {/* Initial charges payment status and details */}
       {!defaultPayment && (
         <div className='flex flex-col gap-5'>
-          <InputGroup label='Initial Charges Payment Status'>
+          <InputGroup label={paymentStatusLabel}>
             <RadioGroup
               defaultOption={1}
               options={['Paid', 'Not Paid']}
@@ -236,7 +246,7 @@ const PaymentSection = ({
 
       <InnerSection>
         <InputGroup
-          label='Subsequent Monthly Rental Payment'
+          label={monthlyRentLabel}
           className='w-40 sm:w-75'
           isRequired={requiredFields}
         >
@@ -260,10 +270,12 @@ const PaymentSection = ({
         </InputGroup>
       </InnerSection>
 
-      <LateChargesSection
-        onLateChargesChange={onLateChargesChange}
-        defaultLateCharges={defaultConfig?.lateCharges}
-      />
+      {showLateCharges && (
+        <LateChargesSection
+          onLateChargesChange={onLateChargesChange}
+          defaultLateCharges={defaultConfig?.lateCharges}
+        />
+      )}
     </>
   )
 }

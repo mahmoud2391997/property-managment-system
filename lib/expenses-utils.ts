@@ -40,7 +40,7 @@ type RawExpense = {
   contract_expenses: {
     type: string
     contracts: {
-      contract_id: string
+      reference_id: string
       owners: { first_name: string; last_name: string | null }
     }
   } | null
@@ -114,7 +114,7 @@ function extractSubtypeInfo(expense: RawExpense): {
       const ownerName = [sub.contracts.owners.first_name, sub.contracts.owners.last_name].filter(Boolean).join(' ')
       return {
         type: sub.type,
-        context_label: sub.contracts.contract_id,
+        context_label: sub.contracts.reference_id,
         context_id: null,
         context_subtitle: ownerName,
         is_asset: false

@@ -1,39 +1,61 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
+    const { staff, error } = await getUserAndStaff()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (error) return error
+
+    const { searchParams } = new URL(request.url)
+    const propertyId = searchParams.get('propertyId')
+
+    if (!propertyId) {
+      return NextResponse.json(
+        { error: 'Property ID is required' },
+        { status: 400 }
+      )
     }
 
-    const staff = await prisma.staff.findUnique({
-      where: { id: user.id },
-      select: { organization_id: true }
+    // Verify property belongs to the organization
+    const property = await prisma.properties.findFirst({
+      where: {
+        id: propertyId,
+        organization_id: staff.organization_id
+      },
+      select: { id: true }
     })
 
-    if (!staff) {
-      return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
+    if (!property) {
+      return NextResponse.json(
+        { error: 'Property not found' },
+        { status: 404 }
+      )
     }
 
     const contracts = await prisma.contracts.findMany({
-      where: { organization_id: staff.organization_id },
+      where: {
+        property_id: propertyId,
+        organization_id: staff.organization_id
+      },
       select: {
         id: true,
-        contract_id: true,
-        owner_id: true,
+        reference_id: true,
+        start_date: true,
+        number_of_months: true,
+        monthly_rent: true,
+        payment_day: true,
+        status: true,
         property_id: true,
+        owner_id: true,
         owners: {
-          select: { first_name: true, last_name: true }
-        },
-        properties: {
-          select: { code: true }
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            profile_thumb: true
+          }
         }
       },
       orderBy: { created_at: 'desc' }

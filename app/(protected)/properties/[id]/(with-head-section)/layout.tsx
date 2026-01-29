@@ -22,8 +22,8 @@ import { useSingleSelectOption } from '@/hooks/useSingleSelectOption'
 import { useRouter, usePathname } from 'next/navigation'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import { toast } from 'sonner'
-import { useActionUnderDevelopment } from '@/components/costume-ui/under-development'
 import InitiatePreparationFlowDrawer from '@/components/dialogs/initiate-preparation-flow-drawer'
+import AssignOwnerDialog from '@/components/dialogs/assign-owner-dialog'
 
 type Props = {
   children: React.ReactNode
@@ -35,6 +35,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const [propertyCode, setPropertyCode] = useState<string | null>(null)
   const [propertyStatus, setPropertyStatus] = useState<string | null>(null)
   const [propertyImages, setPropertyImages] = useState<{ id: string; image_url: string; thumb_url: string }[]>([])
+  const [propertyOwnerId, setPropertyOwnerId] = useState<string | null>(null)
   const [isPropertyCodeLoading, setIsPropertyCodeLoading] =
     useState<boolean>(true)
 
@@ -48,8 +49,6 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const propertyData: Property | undefined = propertiesData.find(
     p => p.id === id
   )
-  const { showUnderDevelopment, ActionUnderDevelopmentOverlay } =
-    useActionUnderDevelopment()
   const {
     options: tabs,
     selectByIndex,
@@ -87,6 +86,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
       setPropertyCode(data.property)
       setPropertyStatus(data.status)
       setPropertyImages(data.images || [])
+      setPropertyOwnerId(data.assignedOwner?.id || null)
     }
   }
 
@@ -162,9 +162,16 @@ const WithHeadSectionLayout = ({ children }: Props) => {
               >
                 Edit Property
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={showUnderDevelopment}>
-                Assign owner
-              </DropdownMenuItem>
+              <AssignOwnerDialog
+                propertyId={propertyId}
+                currentOwnerId={propertyOwnerId}
+                onSuccess={() => window.location.reload()}
+                trigger={
+                  <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                    Assign owner
+                  </DropdownMenuItem>
+                }
+              />
               {propertyStatus === 'Vacant' && (
                 <InitiatePreparationFlowDrawer
                   propertyId={propertyId}
@@ -225,7 +232,6 @@ const WithHeadSectionLayout = ({ children }: Props) => {
       <section className='flex flex-col gap-5 -mx-7.5 -mb-7.5 p-7.5 py-5 bg-(--background-tertiary) min-h-full h-fit'>
         {children}
       </section>
-      <ActionUnderDevelopmentOverlay />
     </>
   )
 }

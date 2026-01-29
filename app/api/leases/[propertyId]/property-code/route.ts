@@ -20,6 +20,15 @@ export async function GET (
       select: {
         code: true,
         status: true,
+        owner_id: true,
+        owners: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            profile_thumb: true
+          }
+        },
         property_images: {
           where: { room_id: null },
           select: {
@@ -70,10 +79,19 @@ export async function GET (
       property.rooms
     )
 
+    const assignedOwner = property.owners
+      ? {
+          id: property.owners.id,
+          name: `${property.owners.first_name} ${property.owners.last_name || ''}`.trim(),
+          profile_thumb: property.owners.profile_thumb
+        }
+      : null
+
     return NextResponse.json({
       property: property.code,
       status: displayStatus,
-      images: property.property_images
+      images: property.property_images,
+      assignedOwner
     })
   } catch (error) {
     console.error('Error fetching properties:', error)

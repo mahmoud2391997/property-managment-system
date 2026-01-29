@@ -1,7 +1,13 @@
-import { SectionUnderDevelopment } from '@/components/costume-ui/under-development'
+import ContractsSection from '@/components/sections/contracts-section'
 
-function Contracts () {
-  return <SectionUnderDevelopment />
+type Props = {
+  params: Promise<{ id: string }>
+}
+
+const Contracts = async ({ params }: Props) => {
+  const { id } = await params
+
+  return <ContractsSection propertyId={id} />
 }
 
 export default Contracts

@@ -24,6 +24,15 @@ export async function GET(
         id: true,
         code: true,
         status: true,
+        owner_id: true,
+        owners: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            profile_thumb: true
+          }
+        },
         rooms: {
           select: {
             id: true,
@@ -425,12 +434,22 @@ export async function GET(
       }
     }
 
+    // Transform property owner data
+    const propertyOwner = property.owners
+      ? {
+          id: property.owners.id,
+          name: `${property.owners.first_name} ${property.owners.last_name || ''}`.trim(),
+          profile_thumb: property.owners.profile_thumb
+        }
+      : null
+
     return NextResponse.json({
       propertyCode: property.code,
       propertyStatus: displayStatus,
       lease: leaseData,
       contract: contractData,
       booking: bookingData,
+      propertyOwner,
       canAddLease,
       leaseBlockedReason
     })
