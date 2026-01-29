@@ -83,12 +83,19 @@ type BookingOverview = {
   }
 }
 
+type PropertyOwner = {
+  id: string
+  name: string
+  profile_thumb: string | null
+}
+
 type OverviewData = {
   propertyCode: string
   propertyStatus: string
   lease: LeaseOverview | null
   contract: ContractOverview | null
   booking: BookingOverview | null
+  propertyOwner: PropertyOwner | null
   canAddLease: boolean
   leaseBlockedReason: string | null
 }
@@ -236,6 +243,7 @@ type EmptyCardProps = {
   href?: string
   onClick?: () => void
   children?: React.ReactNode
+  footer?: React.ReactNode
 }
 
 const EmptyCard = ({
@@ -246,7 +254,8 @@ const EmptyCard = ({
   buttonLabel,
   href,
   onClick,
-  children
+  children,
+  footer
 }: EmptyCardProps) => {
   const content = (
     <>
@@ -263,9 +272,9 @@ const EmptyCard = ({
           strokeWidth={2}
         />
       </div>
-      <span className='texts-body-small-medium text-neutral-400 group-hover:text-neutral-500 transition-colors duration-200'>
+      {buttonLabel && <span className='texts-body-small-medium text-neutral-400 group-hover:text-neutral-500 transition-colors duration-200'>
         {buttonLabel}
-      </span>
+      </span>}
     </>
   )
 
@@ -321,6 +330,12 @@ const EmptyCard = ({
         </Link>
       ) : (
         <div className={containerClasses}>{content}</div>
+      )}
+      {/* Optional Footer */}
+      {footer && (
+        <div className='w-full pt-[15] border-t border-(--border-light) mt-auto'>
+          {footer}
+        </div>
       )}
     </div>
   )
@@ -713,18 +728,34 @@ export default function OverviewContent ({ propertyId }: Props) {
             user_avatar={overviewData.contract.owner.profile_thumb}
           />
         ) : (
-          <>
-            <EmptyCard
-              iconStyles='bg-(--warning-light) text-(--warning-dark)'
-              Icon={ArrowUpRight}
-              title='Contract Overview'
-              subtitle='Payment to owner'
-              buttonLabel='Add Contract'
-              href={`#`}
-              onClick={showUnderDevelopment}
-            />
-            <ActionUnderDevelopmentOverlay />
-          </>
+          <EmptyCard
+            iconStyles='bg-(--warning-light) text-(--warning-dark)'
+            Icon={ArrowUpRight}
+            title='Contract Overview'
+            subtitle='Payment to owner'
+            buttonLabel={overviewData?.propertyOwner ? undefined : 'Add Contract'}
+            href={`/properties/${propertyId}/contracts/add-contract`}
+            footer={
+              overviewData?.propertyOwner && (
+                <div className='flex items-center gap-2.5 select-none'>
+                  <UserAvatar
+                    imgSrc={overviewData.propertyOwner.profile_thumb}
+                    name={overviewData.propertyOwner.name}
+                    size={40}
+                    className='texts-body-large-medium'
+                  />
+                  <div className='flex-1 flex flex-col'>
+                    <span className='texts-body-large-medium'>
+                      {overviewData.propertyOwner.name}
+                    </span>
+                    <span className='texts-caption-large text-(--text-secondary)'>
+                      Owner
+                    </span>
+                  </div>
+                </div>
+              )
+            }
+          />
         )}
 
         {/* Booking Card */}

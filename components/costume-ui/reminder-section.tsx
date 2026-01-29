@@ -16,6 +16,16 @@ export type DefaultReminderConfig = {
   overdue_days_after_reminder?: number | null
 }
 
+type ReminderLabels = {
+  subtitle?: string
+  expiryLabel?: string
+  expiryDaysLabel?: string
+  rentReminderLabel?: string
+  rentDaysLabel?: string
+  overdueLabel?: string
+  overdueDaysLabel?: string
+}
+
 type Props = {
   title: string
   sectionNumber: number
@@ -24,6 +34,7 @@ type Props = {
   onOverdueReminderChange?: (enabled: boolean, days: string) => void
   defaultCollapse?: boolean
   defaultReminders?: DefaultReminderConfig
+  labels?: ReminderLabels
 }
 
 const ReminderSection = ({
@@ -33,8 +44,18 @@ const ReminderSection = ({
   onRentReminderChange,
   onOverdueReminderChange,
   defaultCollapse = false,
-  defaultReminders
+  defaultReminders,
+  labels
 }: Props) => {
+  const resolvedLabels = {
+    subtitle: labels?.subtitle ?? 'Set up automated reminders to keep everyone on track with key rental dates',
+    expiryLabel: labels?.expiryLabel ?? 'Lease expiry',
+    expiryDaysLabel: labels?.expiryDaysLabel ?? 'Lease expiry reminder days before',
+    rentReminderLabel: labels?.rentReminderLabel ?? 'Send rent reminders to tenants',
+    rentDaysLabel: labels?.rentDaysLabel ?? 'Tenant rent reminder days before',
+    overdueLabel: labels?.overdueLabel ?? 'Send rent overdue reminders to tenants',
+    overdueDaysLabel: labels?.overdueDaysLabel ?? 'Tenant rent reminder days after'
+  }
   const [remindersApplied, setRemindersApplied] = useState(false)
 
   const [activate, setActivate] = useState<{
@@ -101,10 +122,10 @@ const ReminderSection = ({
     <CollapsibleSection title={title} number={sectionNumber} defaultCollapse={defaultCollapse}>
       <InnerSection
         title='Reminders'
-        subtitle='Set up automated reminders to keep everyone on track with key rental dates'
+        subtitle={resolvedLabels.subtitle}
       >
         <div className='flex'>
-          <InputGroup label='Lease expiry'>
+          <InputGroup label={resolvedLabels.expiryLabel}>
             <RadioGroup
               defaultOption={1}
               options={['Yes', 'No']}
@@ -118,7 +139,7 @@ const ReminderSection = ({
           </InputGroup>
 
           <InputGroup
-            label='Lease expiry reminder days before'
+            label={resolvedLabels.expiryDaysLabel}
             className={inputGroupEffect(activate.expiry)}
             isRequired
           >
@@ -137,7 +158,7 @@ const ReminderSection = ({
           </InputGroup>
         </div>
         <div className='flex'>
-          <InputGroup label='Send rent reminders to tenants'>
+          <InputGroup label={resolvedLabels.rentReminderLabel}>
             <RadioGroup
               defaultOption={1}
               options={['Yes', 'No']}
@@ -150,7 +171,7 @@ const ReminderSection = ({
             />
           </InputGroup>
           <InputGroup
-            label='Tenant rent reminder days before'
+            label={resolvedLabels.rentDaysLabel}
             className={inputGroupEffect(activate.before)}
             isRequired
           >
@@ -169,7 +190,7 @@ const ReminderSection = ({
           </InputGroup>
         </div>
         <div className='flex'>
-          <InputGroup label='Send rent overdue reminders to tenants'>
+          <InputGroup label={resolvedLabels.overdueLabel}>
             <RadioGroup
               defaultOption={1}
               options={['Yes', 'No']}
@@ -182,7 +203,7 @@ const ReminderSection = ({
             />
           </InputGroup>
           <InputGroup
-            label='Tenant rent reminder days after'
+            label={resolvedLabels.overdueDaysLabel}
             className={inputGroupEffect(activate.after)}
             isRequired
           >

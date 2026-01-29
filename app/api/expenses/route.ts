@@ -52,7 +52,7 @@ export const expenseSelect = {
       type: true,
       contracts: {
         select: {
-          contract_id: true,
+          reference_id: true,
           owners: { select: { first_name: true, last_name: true } }
         }
       }
