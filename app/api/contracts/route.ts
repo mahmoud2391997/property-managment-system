@@ -11,32 +11,27 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const propertyId = searchParams.get('propertyId')
 
-    if (!propertyId) {
-      return NextResponse.json(
-        { error: 'Property ID is required' },
-        { status: 400 }
-      )
-    }
+    if (propertyId) {
+      // Verify property belongs to the organization
+      const property = await prisma.properties.findFirst({
+        where: {
+          id: propertyId,
+          organization_id: staff.organization_id
+        },
+        select: { id: true }
+      })
 
-    // Verify property belongs to the organization
-    const property = await prisma.properties.findFirst({
-      where: {
-        id: propertyId,
-        organization_id: staff.organization_id
-      },
-      select: { id: true }
-    })
-
-    if (!property) {
-      return NextResponse.json(
-        { error: 'Property not found' },
-        { status: 404 }
-      )
+      if (!property) {
+        return NextResponse.json(
+          { error: 'Property not found' },
+          { status: 404 }
+        )
+      }
     }
 
     const contracts = await prisma.contracts.findMany({
       where: {
-        property_id: propertyId,
+        ...(propertyId && { property_id: propertyId }),
         organization_id: staff.organization_id
       },
       select: {
@@ -55,6 +50,11 @@ export async function GET(request: Request) {
             first_name: true,
             last_name: true,
             profile_thumb: true
+          }
+        },
+        properties: {
+          select: {
+            code: true
           }
         }
       },

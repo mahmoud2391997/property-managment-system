@@ -264,7 +264,6 @@ export async function POST (
           data: {
             id: refundExpense.id,
             type: 'Refund',
-            property_id: flowInstance.property_id,
             lease_id: flowInstance.lease_id
           }
         })

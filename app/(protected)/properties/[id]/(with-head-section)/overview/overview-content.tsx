@@ -31,9 +31,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { buildWhatsAppLink } from '@/utils/functions'
-import { useActionUnderDevelopment } from '@/components/costume-ui/under-development'
 import { useScrollToSection } from '@/hooks/useScrollToSection'
 import ScheduleRentalChangeDialog from '@/components/dialogs/schedule-rental-change-dialog'
+import AddBookingWizard from '@/components/add-booking-wizard'
 import RentalHistoryDialog from '@/components/dialogs/rental-history-dialog'
 import ScheduledRentChangeBanner from '@/components/costume-ui/scheduled-rent-change-banner'
 
@@ -98,6 +98,8 @@ type OverviewData = {
   propertyOwner: PropertyOwner | null
   canAddLease: boolean
   leaseBlockedReason: string | null
+  canAddBooking: boolean
+  bookingBlockedReason: string | null
 }
 
 // Card component for displaying data
@@ -265,6 +267,7 @@ const EmptyCard = ({
           'bg-neutral-100 group-hover:bg-neutral-200/70',
           'transition-colors duration-200'
         )}
+        title={buttonLabel ? buttonLabel : 'Add Contract'}
       >
         <Plus
           className='text-neutral-400 group-hover:text-neutral-500 transition-colors duration-200'
@@ -562,8 +565,7 @@ export default function OverviewContent ({ propertyId }: Props) {
   const router = useRouter()
   const [overviewData, setOverviewData] = useState<OverviewData | null>(null)
   const [loading, setLoading] = useState(true)
-  const { showUnderDevelopment, ActionUnderDevelopmentOverlay } =
-    useActionUnderDevelopment()
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
 
   // Handle auto-scroll to section based on URL query parameter
   useScrollToSection(loading)
@@ -774,19 +776,23 @@ export default function OverviewContent ({ propertyId }: Props) {
             user_type='Tenant'
             user_avatar={overviewData.booking.tenant.profile_thumb}
           />
+        ) : overviewData?.canAddBooking ? (
+          <EmptyCard
+            iconStyles='bg-(--info-light) text-(--info-main)'
+            Icon={CalendarCheck2}
+            title='Booking Overview'
+            subtitle='Property reservation'
+            buttonLabel='Add Booking'
+            onClick={() => setBookingDialogOpen(true)}
+          />
         ) : (
-          <>
-            <EmptyCard
-              iconStyles='bg-(--info-light) text-(--info-main)'
-              Icon={CalendarCheck2}
-              title='Booking Overview'
-              subtitle='Property reservation'
-              buttonLabel='Add Booking'
-              href={`#`}
-              onClick={showUnderDevelopment}
-            />
-            <ActionUnderDevelopmentOverlay />
-          </>
+          <BlockedCard
+            iconStyles='bg-(--info-light) text-(--info-main)'
+            Icon={CalendarCheck2}
+            title='Booking Overview'
+            subtitle='Property reservation'
+            blockedReason={overviewData?.bookingBlockedReason || 'Cannot add booking'}
+          />
         )}
       </div>
 
@@ -808,6 +814,14 @@ export default function OverviewContent ({ propertyId }: Props) {
       />
       {/* Recurring Payments & Expenses */}
       <RecurringSection propertyId={propertyId} />
+
+      {/* Add Booking Wizard */}
+      <AddBookingWizard
+        propertyId={propertyId}
+        open={bookingDialogOpen}
+        onOpenChange={setBookingDialogOpen}
+        onSuccess={fetchOverviewData}
+      />
     </>
   )
 }

@@ -31,9 +31,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { buildWhatsAppLink } from '@/utils/functions'
-import { useActionUnderDevelopment } from '@/components/costume-ui/under-development'
 import { useScrollToSection } from '@/hooks/useScrollToSection'
 import ScheduleRentalChangeDialog from '@/components/dialogs/schedule-rental-change-dialog'
+import AddBookingWizard from '@/components/add-booking-wizard'
 import RentalHistoryDialog from '@/components/dialogs/rental-history-dialog'
 
 // Types for room overview data
@@ -80,6 +80,8 @@ type RoomOverviewData = {
   propertyId: string | null
   canAddLease: boolean
   leaseBlockedReason: string | null
+  canAddBooking: boolean
+  bookingBlockedReason: string | null
 }
 
 // Card component for displaying data
@@ -533,8 +535,7 @@ export default function RoomOverviewContent ({ roomId }: Props) {
     null
   )
   const [loading, setLoading] = useState(true)
-  const { showUnderDevelopment, ActionUnderDevelopmentOverlay } =
-    useActionUnderDevelopment()
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
 
   // Handle auto-scroll to section based on URL query parameter
   useScrollToSection(loading)
@@ -695,14 +696,22 @@ export default function RoomOverviewContent ({ roomId }: Props) {
             user_type='Tenant'
             user_avatar={overviewData.booking.tenant.profile_thumb}
           />
-        ) : (
+        ) : overviewData?.canAddBooking ? (
           <EmptyCard
             iconStyles='bg-(--info-light) text-(--info-main)'
             Icon={CalendarCheck2}
             title='Booking Overview'
             subtitle='Room reservation'
             buttonLabel='Add Booking'
-            onClick={showUnderDevelopment}
+            onClick={() => setBookingDialogOpen(true)}
+          />
+        ) : (
+          <BlockedCard
+            iconStyles='bg-(--info-light) text-(--info-main)'
+            Icon={CalendarCheck2}
+            title='Booking Overview'
+            subtitle='Room reservation'
+            blockedReason={overviewData?.bookingBlockedReason || 'Cannot add booking'}
           />
         )}
       </div>
@@ -721,7 +730,17 @@ export default function RoomOverviewContent ({ roomId }: Props) {
       <PaymentsSection roomId={roomId} hasActiveLease={!!overviewData?.lease} activeLeaseId={overviewData?.lease?.id} />
       {/* Recurring Payments */}
       <RecurringSectionRoom roomId={roomId} />
-      <ActionUnderDevelopmentOverlay />
+
+      {/* Add Booking Wizard */}
+      {overviewData?.propertyId && (
+        <AddBookingWizard
+          propertyId={overviewData.propertyId}
+          roomId={roomId}
+          open={bookingDialogOpen}
+          onOpenChange={setBookingDialogOpen}
+          onSuccess={fetchOverviewData}
+        />
+      )}
     </>
   )
 }

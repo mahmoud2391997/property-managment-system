@@ -1173,7 +1173,6 @@ export const propertyExpenseTypes: PaymentType[] = [
 ]
 
 export const contractExpenseTypes: PaymentType[] = [
-  { type: 'Rental', isRecurrable: true },
   { type: 'Contract_Initial_Charges' }
 ]
 
@@ -1199,7 +1198,6 @@ export const purchaseExpenseTypes: PaymentType[] = [
 ]
 
 export const staffExpenseTypes: PaymentType[] = [
-  { type: 'Salary', isRecurrable: true, isFixedByDefault: true },
-  { type: 'Allowances' },
-  { type: 'Miscellaneous_Others' }
+  { type: 'Salary' },
+  { type: 'Allowances' }
 ]

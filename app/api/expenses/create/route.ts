@@ -80,11 +80,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Category-specific validation
-    if (category === 'Property_Related' && !property_id) {
-      return NextResponse.json(
-        { error: 'Property is required for property-related expenses' },
-        { status: 400 }
-      )
+    if (category === 'Property_Related') {
+      if (!property_id && !lease_id) {
+        return NextResponse.json(
+          { error: 'Either a property or lease is required for property-related expenses' },
+          { status: 400 }
+        )
+      }
+      if (property_id && lease_id) {
+        return NextResponse.json(
+          { error: 'Cannot link expense to both a property and a lease' },
+          { status: 400 }
+        )
+      }
+      if (lease_id && expense_type !== 'Refund') {
+        return NextResponse.json(
+          { error: 'Only Refund type is allowed for lease-linked expenses' },
+          { status: 400 }
+        )
+      }
     }
 
     if (category === 'Contract_Related' && !contract_id) {
@@ -207,7 +221,7 @@ export async function POST(request: NextRequest) {
             data: {
               id: expense.id,
               type: expense_type,
-              property_id,
+              property_id: property_id || null,
               lease_id: lease_id || null
             }
           })
@@ -283,7 +297,7 @@ export async function POST(request: NextRequest) {
       if (recurring_config && recurring_config.enabled) {
         const newRecurringConfig = await tx.recurring_configs.create({
           data: {
-            property_id: category === 'Property_Related' ? property_id : null,
+            property_id: category === 'Property_Related' ? (property_id || null) : null,
             organization_id: staff.organization_id,
             title: recurring_config.title,
             every: recurring_config.every,
