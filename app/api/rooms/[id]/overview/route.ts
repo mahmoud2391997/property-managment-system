@@ -286,6 +286,29 @@ export async function GET(
       leaseBlockedReason = 'Property has an active property-level lease'
     }
 
+    // Check if room can have a new booking added
+    // Room can have a booking if:
+    // 1. No current booking for this room already exists
+    // 2. No current property-level booking on parent property (mutual exclusivity)
+    let canAddBooking = true
+    let bookingBlockedReason: string | null = null
+
+    if (!booking) {
+      // Only need to check mutual exclusivity when there's no existing booking shown
+      const propertyLevelBooking = await prisma.bookings.findFirst({
+        where: {
+          property_id: room.property_id!,
+          room_id: { equals: null },
+          status: 'Current'
+        },
+        select: { id: true }
+      })
+      if (propertyLevelBooking) {
+        canAddBooking = false
+        bookingBlockedReason = 'Property already has a current booking'
+      }
+    }
+
     return NextResponse.json({
       roomTitle: room.title,
       propertyCode: room.properties?.code || null,
@@ -294,7 +317,9 @@ export async function GET(
       booking: bookingData,
       propertyId: room.property_id,
       canAddLease,
-      leaseBlockedReason
+      leaseBlockedReason,
+      canAddBooking,
+      bookingBlockedReason
     })
   } catch (error: any) {
     console.error('Error fetching room overview:', error)

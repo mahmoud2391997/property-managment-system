@@ -406,21 +406,22 @@ model users {
 }
 
 model bookings {
-  id                String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id         String     @db.Uuid
-  property_id       String     @db.Uuid
-  room_id           String?    @db.Uuid
-  move_in_timestamp DateTime   @db.Timestamptz(6)
-  created_at        DateTime   @default(now()) @db.Timestamptz(6)
-  created_by        String?    @db.Uuid
-  booking_id        String
-  staff             staff?     @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  properties        properties @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  rooms             rooms?     @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  tenants           tenants    @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id         String         @db.Uuid
+  property_id       String         @db.Uuid
+  room_id           String?        @db.Uuid
+  move_in_timestamp DateTime       @db.Timestamptz(6)
+  created_at        DateTime       @default(now()) @db.Timestamptz(6)
+  created_by        String?        @db.Uuid
+  reference_id      String
+  status            booking_status @default(Current)
+  staff             staff?         @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  properties        properties     @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  rooms             rooms?         @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants           tenants        @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   payments          payments[]
 
-  @@unique([booking_id, property_id], map: "unique_booking_id_per_organization")
+  @@unique([reference_id, property_id], map: "unique_booking_id_per_organization")
   @@schema("public")
 }
 
@@ -1714,6 +1715,7 @@ enum payment_type {
   Miscellaneous_Others  @map("Miscellaneous/Others")
   Rental_Adjustment     @map("Rental Adjustment")
   Late_Payment_Charges  @map("Late Payment Charges")
+  Booking
 
   @@schema("public")
 }
@@ -1910,6 +1912,14 @@ enum staff_expense_type {
   Salary
   Allowances
   Miscellaneous_Others @map("Miscellaneous/Others")
+
+  @@schema("public")
+}
+
+enum booking_status {
+  Current
+  Cancelled
+  Converted
 
   @@schema("public")
 }

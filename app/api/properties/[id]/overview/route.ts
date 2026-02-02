@@ -434,6 +434,29 @@ export async function GET(
       }
     }
 
+    // Check if property can have a new booking added
+    // Property can have a booking if:
+    // 1. No current property-level booking already exists
+    // 2. No room under this property has a current booking (mutual exclusivity)
+    let canAddBooking = true
+    let bookingBlockedReason: string | null = null
+
+    if (!booking) {
+      // Only need to check mutual exclusivity when there's no existing booking shown
+      const roomWithCurrentBooking = await prisma.bookings.findFirst({
+        where: {
+          property_id: propertyId,
+          room_id: { not: null },
+          status: 'Current'
+        },
+        select: { id: true }
+      })
+      if (roomWithCurrentBooking) {
+        canAddBooking = false
+        bookingBlockedReason = 'One or more rooms already have current bookings'
+      }
+    }
+
     // Transform property owner data
     const propertyOwner = property.owners
       ? {
@@ -451,7 +474,9 @@ export async function GET(
       booking: bookingData,
       propertyOwner,
       canAddLease,
-      leaseBlockedReason
+      leaseBlockedReason,
+      canAddBooking,
+      bookingBlockedReason
     })
   } catch (error: any) {
     console.error('Error fetching property overview:', error)

@@ -12,6 +12,33 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const propertyId = searchParams.get('propertyId')
     const roomId = searchParams.get('roomId')
+    const all = searchParams.get('all')
+
+    // Fetch all active leases for the organization (lightweight)
+    if (all === 'true') {
+      const leases = await prisma.leases.findMany({
+        where: {
+          organization_id: staff.organization_id,
+          status: 'Current'
+        },
+        select: {
+          id: true,
+          reference_id: true,
+          properties: { select: { code: true } },
+          rooms: { select: { title: true } }
+        },
+        orderBy: { created_at: 'desc' }
+      })
+
+      return NextResponse.json({
+        leases: leases.map(l => ({
+          id: l.id,
+          reference_id: l.reference_id,
+          property: l.properties ? { code: l.properties.code } : null,
+          room: l.rooms ? { title: l.rooms.title } : null
+        }))
+      })
+    }
 
     if (!propertyId && !roomId) {
       return NextResponse.json(

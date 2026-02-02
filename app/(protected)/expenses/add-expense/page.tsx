@@ -229,7 +229,12 @@ const AddExpense = () => {
     e.preventDefault()
 
     // Category-specific validation
-    if (selectedIndex === 0 && !selectedPropertyId) {
+    if (selectedIndex === 0 && expenseType.type === 'Refund' && !selectedLeaseId) {
+      showAlert('Please select a lease', 'warning')
+      return
+    }
+
+    if (selectedIndex === 0 && expenseType.type !== 'Refund' && !selectedPropertyId) {
       showAlert('Please select a property', 'warning')
       return
     }
@@ -417,9 +422,11 @@ const AddExpense = () => {
           recurring_config: recurringConfig,
           timezone_offset: new Date().getTimezoneOffset(),
           // Category-specific fields
-          ...(selectedIndex === 0 && {
+          ...(selectedIndex === 0 && expenseType.type !== 'Refund' && {
             property_id: selectedPropertyId,
-            lease_id: selectedLeaseId
+          }),
+          ...(selectedIndex === 0 && expenseType.type === 'Refund' && {
+            lease_id: selectedLeaseId,
           }),
           ...(selectedIndex === 1 && {
             contract_id: selectedContractId
@@ -531,7 +538,7 @@ const AddExpense = () => {
         const data = await response.json()
         const items: ComboBoxitemsType[] = data.contracts.map((c: any) => ({
           id: c.id,
-          label: c.contract_id,
+          label: c.reference_id,
           subtitle: `${c.owners ? `${c.owners.first_name} ${c.owners.last_name || ''}`.trim() : 'No owner'} - ${c.properties?.code || 'No property'}`
         }))
         setContractItems(items)
@@ -570,9 +577,9 @@ const AddExpense = () => {
     fetchStaff()
   }, [selectedIndex])
 
-  // Fetch leases when a property is selected (for Property Related)
+  // Fetch all active leases when Property Related + Refund type is selected
   useEffect(() => {
-    if (selectedIndex !== 0 || !selectedPropertyId) {
+    if (selectedIndex !== 0 || expenseType.type !== 'Refund') {
       setLeaseItems([])
       setSelectedLeaseId(null)
       return
@@ -581,15 +588,15 @@ const AddExpense = () => {
     const fetchLeases = async () => {
       setLoadingLeases(true)
       try {
-        const response = await fetch(`/api/leases?propertyId=${selectedPropertyId}`)
+        const response = await fetch('/api/leases?all=true')
         if (!response.ok) throw new Error('Failed to fetch leases')
         const data = await response.json()
         const items: ComboBoxitemsType[] = data.leases.map((l: any) => ({
           id: l.id,
           label: l.reference_id,
-          subtitle: l.tenant
-            ? `${l.tenant.first_name} ${l.tenant.last_name || ''}`.trim()
-            : 'No tenant'
+          subtitle: l.room
+            ? `${l.property?.code || 'Unknown'} (${l.room.title})`
+            : l.property?.code || 'No property'
         }))
         setLeaseItems(items)
       } catch (error) {
@@ -600,7 +607,7 @@ const AddExpense = () => {
     }
 
     fetchLeases()
-  }, [selectedIndex, selectedPropertyId])
+  }, [selectedIndex, expenseType.type])
 
   // Clamp a value so it doesn't exceed gross salary
   const clampToGross = (newValue: string): string => {
@@ -670,8 +677,21 @@ const AddExpense = () => {
         </div>
 
         <div className='inputs-container'>
-          {/* Property selector — Property Related only */}
-          {selectedIndex === 0 && (
+          <InputGroup label='Expense Type'>
+            <Select
+              items={typesOfExpense}
+              label='Types'
+              placeholder='Select a type'
+              value={expenseType.type}
+              onValueChange={value => {
+                const type = expenseTypes.find(et => et.type === value)
+                if (type) setExpenseType(type)
+              }}
+            />
+          </InputGroup>
+
+          {/* Property selector — Property Related, non-Refund types only */}
+          {selectedIndex === 0 && expenseType.type !== 'Refund' && (
             <InputGroup label='Property' isRequired>
               <Combobox
                 items={propertyItems}
@@ -688,19 +708,20 @@ const AddExpense = () => {
             </InputGroup>
           )}
 
-          {/* Lease selector — Property Related only, optional, after property is selected */}
-          {selectedIndex === 0 && selectedPropertyId && (
-            <InputGroup label='Lease'>
+          {/* Lease selector — Property Related, Refund type only */}
+          {selectedIndex === 0 && expenseType.type === 'Refund' && (
+            <InputGroup label='Lease' isRequired>
               <Combobox
                 items={leaseItems}
                 variant='single'
                 searchPlaceholder='Search leases'
-                placeholder={loadingLeases ? 'Loading leases...' : 'Select a lease (optional)'}
+                placeholder={loadingLeases ? 'Loading leases...' : 'Select an active lease'}
                 isLoading={loadingLeases}
                 loadingMessage='Fetching leases...'
                 onValueChange={value => {
                   setSelectedLeaseId(value || null)
                 }}
+                required
               />
             </InputGroup>
           )}
@@ -745,19 +766,6 @@ const AddExpense = () => {
               </InputGroup>
             </>
           )}
-
-          <InputGroup label='Expense Type'>
-            <Select
-              items={typesOfExpense}
-              label='Types'
-              placeholder='Select a type'
-              value={expenseType.type}
-              onValueChange={value => {
-                const type = expenseTypes.find(et => et.type === value)
-                if (type) setExpenseType(type)
-              }}
-            />
-          </InputGroup>
         </div>
 
         {/* Description — all categories */}
@@ -808,8 +816,24 @@ const AddExpense = () => {
           </div>
         )}
 
-        {/* Info note — shown when property is selected (Property Related only) */}
-        {selectedIndex === 0 && selectedPropertyId && (
+        {/* Info note — Property Related only */}
+        {selectedIndex === 0 && expenseType.type === 'Refund' && selectedLeaseId && (
+          <div className='mt-3 p-3 rounded-md bg-blue-50 border border-blue-200'>
+            <div className='flex items-center gap-2 text-sm text-blue-800'>
+              <Info strokeWidth={1.5} size={20} />
+              This expense will be linked to lease{' '}
+              <span className='font-semibold'>
+                {leaseItems.find(l => l.id === selectedLeaseId)?.label || 'lease'}
+              </span>
+              {leaseItems.find(l => l.id === selectedLeaseId)?.subtitle && (
+                <> — <span className='font-semibold'>
+                  {leaseItems.find(l => l.id === selectedLeaseId)?.subtitle}
+                </span></>
+              )}
+            </div>
+          </div>
+        )}
+        {selectedIndex === 0 && expenseType.type !== 'Refund' && selectedPropertyId && (
           <div className='mt-3 p-3 rounded-md bg-blue-50 border border-blue-200'>
             <div className='flex items-center gap-2 text-sm text-blue-800'>
               <Info strokeWidth={1.5} size={20} />
