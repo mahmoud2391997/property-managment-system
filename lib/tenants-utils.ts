@@ -13,6 +13,7 @@ export type TenantWithDetails = {
   accountStatus: 'Activated' | 'Pending'
   inviteSent: boolean
   activeLeaseCount: number
+  activeBookingCount: number
   rental_status: 'Renting' | 'Not Renting'
 }
 
@@ -39,7 +40,8 @@ export function transformTenant(
   raw: RawTenant,
   email: string,
   accountStatus: 'Activated' | 'Pending',
-  activeLeaseCount: number = 0
+  activeLeaseCount: number = 0,
+  activeBookingCount: number = 0
 ): TenantWithDetails {
   const tenant = raw.tenants
   const individual = tenant.individual_tenants
@@ -58,6 +60,7 @@ export function transformTenant(
     accountStatus,
     inviteSent: tenant.invite_sent ?? false,
     activeLeaseCount,
+    activeBookingCount,
     rental_status: activeLeaseCount > 0 ? 'Renting' : 'Not Renting'
   }
 }

@@ -1169,6 +1169,10 @@ export const propertyExpenseTypes: PaymentType[] = [
   { type: 'Management_Fees', isRecurrable: true, isFixedByDefault: true },
   { type: 'Renovation' },
   { type: 'Furniture___Appliances' },
+  { type: 'Painting' },
+  { type: 'AC_Service_Installation' },
+  { type: 'Wiring_Electrical' },
+  { type: 'Replacement_Parts_Plumbing' },
   { type: 'Miscellaneous_Others', isRecurrable: true, isFixedByDefault: false }
 ]
 
@@ -1184,20 +1188,28 @@ export const companyExpenseTypes: PaymentType[] = [
   { type: 'Marketing___Advertising', isRecurrable: true },
   { type: 'Insurance', isRecurrable: true },
   { type: 'Licenses___Permits', isRecurrable: true },
+  { type: 'Plant___Machinery' },
+  { type: 'Company_Equipment' },
+  { type: 'Motor_Vehicles' },
+  { type: 'ICT_Equipment' },
+  { type: 'Office_Supplies' },
   { type: 'Miscellaneous_Others', isRecurrable: true }
 ]
 
 export const purchaseExpenseTypes: PaymentType[] = [
-  { type: 'Plant___Machinery' },
-  { type: 'Furniture___Fixtures' },
-  { type: 'Office_Equipment' },
-  { type: 'Motor_Vehicles' },
-  { type: 'ICT_Equipment' },
-  { type: 'Office_Supplies' },
+  { type: 'Furniture' },
+  { type: 'Tools' },
+  { type: 'Electrical_Items' },
+  { type: 'Plumbing_Items' },
+  { type: 'Lighting___Bulbs' },
+  { type: 'Paint___Renovation_Materials' },
+  { type: 'Maintenance_Consumables' },
+  { type: 'Safety_Items' },
   { type: 'Miscellaneous_Others' }
 ]
 
 export const staffExpenseTypes: PaymentType[] = [
   { type: 'Salary' },
-  { type: 'Allowances' }
+  { type: 'Allowances' },
+  { type: 'Miscellaneous_Others' }
 ]

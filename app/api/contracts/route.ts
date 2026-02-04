@@ -40,6 +40,7 @@ export async function GET(request: Request) {
         start_date: true,
         number_of_months: true,
         monthly_rent: true,
+        frequency: true,
         payment_day: true,
         status: true,
         property_id: true,

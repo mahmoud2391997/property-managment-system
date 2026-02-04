@@ -3,7 +3,7 @@
 import {
   ColumnDef
 } from '@tanstack/react-table'
-import { MoreHorizontal, ChevronRight, ChevronDown, Calendar, Building2, FileText, User, Repeat, CreditCard } from 'lucide-react'
+import { MoreHorizontal, ChevronRight, ChevronDown, Calendar, Building2, FileText, User, Repeat, CreditCard, Pencil, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -163,7 +163,9 @@ export default function ExpensesTable({
 
           return (
             <div>
-              <div className='text-left texts-table-cell-primary'>{id}</div>
+              <Link href={`/expenses/${id}`} className='text-left texts-table-cell-primary hover:underline hover:text-(--info-main)'>
+                {id}
+              </Link>
               <div className='flex items-center gap-1.5 text-left texts-table-cell-secondary text-(--text-secondary)'>
                 {type}
                 {is_asset && (
@@ -363,6 +365,20 @@ export default function ExpensesTable({
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href={`/expenses/${expense.id}`}>
+                  <Eye size={14} className='mr-2' />
+                  View details
+                </Link>
+              </DropdownMenuItem>
+              {expense.payment_percentage === 0 && !isCancelled && (
+                <DropdownMenuItem asChild>
+                  <Link href={`/expenses/${expense.id}/edit`}>
+                    <Pencil size={14} className='mr-2' />
+                    Edit expense
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={() => navigator.clipboard.writeText(expense.id)}
               >
@@ -487,6 +503,20 @@ export default function ExpensesTable({
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href={`/expenses/${expense.id}`}>
+                  <Eye size={14} className='mr-2' />
+                  View details
+                </Link>
+              </DropdownMenuItem>
+              {expense.payment_percentage === 0 && expense.status !== 'Cancelled' && (
+                <DropdownMenuItem asChild>
+                  <Link href={`/expenses/${expense.id}/edit`}>
+                    <Pencil size={14} className='mr-2' />
+                    Edit expense
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => navigator.clipboard.writeText(expense.id)}>
                 Copy expense ID
               </DropdownMenuItem>

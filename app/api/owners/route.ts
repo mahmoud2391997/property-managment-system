@@ -9,7 +9,7 @@ export async function GET () {
 
     if (error) return error
 
-    // Get owners with contracts count
+    // Get owners with properties count
     const owners = await prisma.owners.findMany({
       where: {
         organization_id: staff.organization_id
@@ -24,7 +24,7 @@ export async function GET () {
         profile_thumb: true,
         _count: {
           select: {
-            contracts: true
+            properties: true
           }
         }
       },
@@ -33,10 +33,35 @@ export async function GET () {
       }
     })
 
+    // Get current contract counts for all owners
+    const ownerIds = owners.map(o => o.id)
+    let contractCountMap = new Map<string, number>()
+
+    if (ownerIds.length > 0) {
+      const currentContracts = await prisma.contracts.findMany({
+        where: {
+          owner_id: { in: ownerIds },
+          organization_id: staff.organization_id,
+          status: 'Current'
+        },
+        select: { owner_id: true }
+      })
+
+      for (const contract of currentContracts) {
+        const count = contractCountMap.get(contract.owner_id) || 0
+        contractCountMap.set(contract.owner_id, count + 1)
+      }
+    }
+
+    const ownersWithDetails = owners.map(owner => ({
+      ...owner,
+      currentContractCount: contractCountMap.get(owner.id) || 0
+    }))
+
     return NextResponse.json(
       {
         success: true,
-        owners
+        owners: ownersWithDetails
       },
       { status: 200 }
     )

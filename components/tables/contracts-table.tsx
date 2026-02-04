@@ -22,6 +22,7 @@ export type ContractWithDetails = {
   start_date: string
   number_of_months: number | null
   monthly_rent: number
+  frequency: number
   payment_day: number
   property_id: string
   owner_id: string
@@ -143,11 +144,18 @@ const columns: ColumnDef<ContractWithDetails>[] = [
   {
     accessorKey: 'monthly_rent',
     header: () => <div className='text-left'>Rental</div>,
-    cell: ({ row }) => (
-      <div className='text-left'>
-        {formatCurrency(row.getValue('monthly_rent'))}
-      </div>
-    )
+    cell: ({ row }) => {
+      const contract = row.original
+      const freq = contract.frequency
+      return (
+        <div className='text-left'>
+          <span>{formatCurrency(row.getValue('monthly_rent'))}</span>
+          {freq > 1 && (
+            <span className='text-xs text-(--text-secondary) ml-1'>/ {freq} mo</span>
+          )}
+        </div>
+      )
+    }
   },
 
   {

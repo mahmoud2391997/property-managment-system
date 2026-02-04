@@ -87,6 +87,11 @@ async function getProperties(): Promise<{ data: PropertyWithDetails[]; total: nu
           },
           orderBy: { created_at: 'desc' },
           take: 1
+        },
+        bookings: {
+          where: { status: 'Current' },
+          select: { id: true },
+          take: 1
         }
       },
       orderBy: {

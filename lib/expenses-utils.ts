@@ -45,7 +45,15 @@ type RawExpense = {
     }
   } | null
   company_expenses: { type: string } | null
-  purchase_expenses: { type: string; is_asset: boolean } | null
+  purchase_expenses: {
+    type: string
+    is_asset: boolean
+    properties: {
+      id: string
+      code: string
+      projects: { title: string } | null
+    } | null
+  } | null
   staff_expenses: {
     type: string
     staff_id: string | null
@@ -55,6 +63,7 @@ type RawExpense = {
     socso_employer: Decimal
     epf_employee: Decimal
     socso_employee: Decimal
+    tax: Decimal | null
     staff: {
       first_name: string
       last_name: string | null
@@ -136,9 +145,9 @@ function extractSubtypeInfo(expense: RawExpense): {
       const sub = expense.purchase_expenses
       return {
         type: sub?.type || 'Unknown',
-        context_label: sub?.is_asset ? 'Asset' : '-',
-        context_id: null,
-        context_subtitle: '',
+        context_label: sub?.properties?.code || (sub?.is_asset ? 'Asset' : '-'),
+        context_id: sub?.properties?.id || null,
+        context_subtitle: sub?.properties?.projects?.title || '',
         is_asset: sub?.is_asset || false
       }
     }
@@ -172,11 +181,12 @@ export function transformExpense(expense: RawExpense): ExpenseWithDetails {
   let totalAmount: number
 
   if (expense.category === 'Staff_Related' && expense.staff_expenses?.type === 'Salary') {
-    // Cost to Company = Gross + Employer EPF + Employer SOCSO
+    // Cost to Company = Gross + Employer EPF + Employer SOCSO + Allowances
     const gross = expense.staff_expenses.gross_salary.toNumber()
     const epfEr = expense.staff_expenses.epf_employer.toNumber()
     const socsoEr = expense.staff_expenses.socso_employer.toNumber()
-    totalAmount = gross + epfEr + socsoEr
+    const allowancesTotal = expense.charges.reduce((sum, charge) => sum + charge.amount.toNumber(), 0)
+    totalAmount = gross + epfEr + socsoEr + allowancesTotal
   } else {
     totalAmount = expense.charges.reduce((sum, charge) => {
       const amount = charge.amount.toNumber()

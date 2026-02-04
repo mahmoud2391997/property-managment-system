@@ -156,29 +156,40 @@ export default function TenantsTable ({
       accessorKey: 'activeLeaseCount',
       header: () => <div className='text-left'>Rental</div>,
       cell: ({ row }) => {
-        const count = row.original.activeLeaseCount || 0
+        const leaseCount = row.original.activeLeaseCount || 0
+        const bookingCount = row.original.activeBookingCount || 0
 
-        const getRentalStatus = (leaseCount: number) => {
-          if (leaseCount === 0) return 'Not Renting'
-          if (leaseCount === 1) return 'Renting'
-          return `Renting (${leaseCount})`
+        const badges: { label: string; className: string }[] = []
+
+        if (leaseCount > 0) {
+          badges.push({
+            label: leaseCount === 1 ? 'Renting' : `Renting (${leaseCount})`,
+            className: 'bg-green-100 text-green-800'
+          })
+        }
+        if (bookingCount > 0) {
+          badges.push({
+            label: bookingCount === 1 ? 'Booking' : `Booking (${bookingCount})`,
+            className: 'bg-blue-100 text-blue-800'
+          })
+        }
+        if (badges.length === 0) {
+          badges.push({
+            label: 'Not Renting',
+            className: 'bg-gray-100 text-gray-800'
+          })
         }
 
-        const rentalStatus = getRentalStatus(count)
-        const isRenting = count > 0
-
         return (
-          <div className='texts-table-cell-primary text-left'>
-            <div
-              className={cn(
-                'status-styles',
-                isRenting
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-gray-100 text-gray-800'
-              )}
-            >
-              {rentalStatus}
-            </div>
+          <div className='texts-table-cell-primary text-left flex gap-1.5'>
+            {badges.map((badge) => (
+              <div
+                key={badge.label}
+                className={cn('status-styles', badge.className)}
+              >
+                {badge.label}
+              </div>
+            ))}
           </div>
         )
       }
@@ -363,13 +374,27 @@ export default function TenantsTable ({
     }`
     const statusKey = (tenant.accountStatus || 'Pending').toLowerCase()
     const leaseCount = tenant.activeLeaseCount || 0
-    const rentalStatus =
-      leaseCount === 0
-        ? 'Not Renting'
-        : leaseCount === 1
-        ? 'Renting'
-        : `Renting (${leaseCount})`
-    const isRenting = leaseCount > 0
+    const bookingCount = tenant.activeBookingCount || 0
+
+    const rentalBadges: { label: string; className: string }[] = []
+    if (leaseCount > 0) {
+      rentalBadges.push({
+        label: leaseCount === 1 ? 'Renting' : `Renting (${leaseCount})`,
+        className: 'bg-green-100 text-green-800'
+      })
+    }
+    if (bookingCount > 0) {
+      rentalBadges.push({
+        label: bookingCount === 1 ? 'Booking' : `Booking (${bookingCount})`,
+        className: 'bg-blue-100 text-blue-800'
+      })
+    }
+    if (rentalBadges.length === 0) {
+      rentalBadges.push({
+        label: 'Not Renting',
+        className: 'bg-gray-100 text-gray-800'
+      })
+    }
 
     const handleResendInvite = async () => {
       setIsResending(true)
@@ -452,16 +477,17 @@ export default function TenantsTable ({
                       </span>
                     )}
                   </div>
-                  <div
-                    className={cn(
-                      'px-2 py-1 rounded-full text-xs font-medium',
-                      isRenting
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    )}
-                  >
-                    {rentalStatus}
-                  </div>
+                  {rentalBadges.map((badge) => (
+                    <div
+                      key={badge.label}
+                      className={cn(
+                        'px-2 py-1 rounded-full text-xs font-medium',
+                        badge.className
+                      )}
+                    >
+                      {badge.label}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

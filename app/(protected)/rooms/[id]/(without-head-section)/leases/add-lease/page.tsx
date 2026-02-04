@@ -2,7 +2,7 @@
 
 import AddPageHead from '@/components/costume-ui/add-page-head'
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import InnerSection from '@/components/costume-ui/collapsible-inner-section'
 import InputGroup from '@/components/costume-ui/input-group'
 import DatePicker from '@/components/costume-ui/date-picker'
@@ -15,8 +15,19 @@ import { ComboBoxitemsType } from '@/types'
 import { ChargeData } from '@/components/costume-ui/charges-section'
 import Alert from '@/components/costume-ui/alert'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
-import { Info, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Info, Loader2, CheckCircle2, AlertCircle, CalendarCheck2 } from 'lucide-react'
 import { formatDate, formatDateForAPI } from '@/utils/formatTime'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from '@/components/ui/alert-dialog'
+import { UserAvatar } from '@/components/costume-ui/name-avatar'
 
 // Helper to calculate end date (end date is start_date + number_of_months, same day of month)
 const calculateEndDate = (startDate: Date, numberOfMonths: number): Date => {
@@ -33,8 +44,25 @@ type RoomConfig = {
 
 const AddRoomLease = () => {
   const { id: roomId } = useParams<{ id: string }>()
+  const searchParams = useSearchParams()
+  const bookingIdParam = searchParams.get('bookingId')
+
   const [roomConfig, setRoomConfig] = useState<RoomConfig | null>(null)
   const [isRoomConfigLoading, setIsRoomConfigLoading] = useState<boolean>(true)
+
+  // Booking conversion state
+  const [bookingId, setBookingId] = useState<string | null>(bookingIdParam)
+  const [bookingTenant, setBookingTenant] = useState<{
+    id: string
+    name: string
+    profile_thumb: string | null
+  } | null>(null)
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const [pendingBooking, setPendingBooking] = useState<{
+    id: string
+    tenant: { id: string; name: string; profile_thumb: string | null }
+  } | null>(null)
+  const [isCancellingBooking, setIsCancellingBooking] = useState(false)
 
   // Default config state
   const [defaultConfigStatus, setDefaultConfigStatus] = useState<'loading' | 'loaded' | 'empty' | 'error'>('loading')
@@ -175,6 +203,62 @@ const AddRoomLease = () => {
     fetchTenants()
   }, [])
 
+  // Check for existing booking on this room
+  useEffect(() => {
+    const checkBooking = async () => {
+      try {
+        const response = await fetch(`/api/bookings/check?roomId=${roomId}`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.booking) {
+            if (bookingIdParam) {
+              // Coming from "Convert to Lease" action — skip modal, preselect tenant
+              setBookingTenant(data.booking.tenant)
+              setSelectedTenantId(data.booking.tenant.id)
+              setBookingId(data.booking.id)
+            } else {
+              // Navigated to add-lease normally — show conversion modal
+              setPendingBooking(data.booking)
+              setShowBookingModal(true)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking booking:', error)
+      }
+    }
+
+    checkBooking()
+  }, [roomId, bookingIdParam])
+
+  const handleBookingConversionYes = () => {
+    if (!pendingBooking) return
+    setBookingTenant(pendingBooking.tenant)
+    setSelectedTenantId(pendingBooking.tenant.id)
+    setBookingId(pendingBooking.id)
+    setShowBookingModal(false)
+  }
+
+  const handleBookingConversionNo = async () => {
+    if (!pendingBooking) return
+    setIsCancellingBooking(true)
+    try {
+      const response = await fetch(`/api/bookings/${pendingBooking.id}/cancel`, {
+        method: 'PATCH'
+      })
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to cancel booking')
+      }
+      FeedbackToasts.updated('Booking', 'Booking has been cancelled')
+    } catch (err: any) {
+      FeedbackToasts.operationFailed('Cancel booking', err.message)
+    } finally {
+      setIsCancellingBooking(false)
+      setShowBookingModal(false)
+    }
+  }
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -280,6 +364,7 @@ const AddRoomLease = () => {
           property_id: roomConfig.propertyId,
           room_id: roomId, // This makes it a room lease
           tenant_id: selectedTenantId,
+          booking_id: bookingId || undefined,
           start_date: formattedStartDate,
           number_of_months: leaseDuration,
           payment_day: paymentDay,
@@ -437,21 +522,47 @@ const AddRoomLease = () => {
           </div>
           <div className='inputs-container'>
             <InputGroup label='Tenant' isRequired>
-              <Combobox
-                items={tenantItems}
-                searchPlaceholder='Search tenants'
-                variant='single'
-                placeholder={
-                  loadingTenants ? 'Loading tenants...' : 'Select tenant'
-                }
-                showAvatar
-                isLoading={loadingTenants}
-                loadingMessage='Fetching tenants...'
-                onValueChange={value => setSelectedTenantId(value || null)}
-                required
-              />
+              {bookingTenant ? (
+                <Combobox
+                  items={[{
+                    id: bookingTenant.id,
+                    label: bookingTenant.name,
+                    avatar: bookingTenant.profile_thumb || undefined
+                  }]}
+                  searchPlaceholder='Search tenants'
+                  variant='single'
+                  placeholder={bookingTenant.name}
+                  showAvatar
+                  value={bookingTenant.id}
+                  onValueChange={() => {}}
+                  disabled
+                  disabledReason='Tenant is from the booking being converted'
+                />
+              ) : (
+                <Combobox
+                  items={tenantItems}
+                  searchPlaceholder='Search tenants'
+                  variant='single'
+                  placeholder={
+                    loadingTenants ? 'Loading tenants...' : 'Select tenant'
+                  }
+                  showAvatar
+                  isLoading={loadingTenants}
+                  loadingMessage='Fetching tenants...'
+                  onValueChange={value => setSelectedTenantId(value || null)}
+                  required
+                />
+              )}
             </InputGroup>
           </div>
+          {bookingTenant && (
+            <div className='p-3 rounded-md bg-blue-50 border border-blue-200'>
+              <div className='flex items-start gap-2 text-sm text-blue-800'>
+                <Info strokeWidth={1.5} size={18} className='mt-0.5 shrink-0' />
+                <p>This lease is being converted from a booking. The tenant <span className='font-medium'>{bookingTenant.name}</span> has been automatically selected.</p>
+              </div>
+            </div>
+          )}
         </InnerSection>
         {/* Payment details */}
         <PaymentSection
@@ -489,6 +600,58 @@ const AddRoomLease = () => {
         message={alertMessage}
         type={alertType}
       />
+
+      {/* Booking Conversion Modal */}
+      <AlertDialog open={showBookingModal} onOpenChange={(open) => {
+        if (!isCancellingBooking) setShowBookingModal(open)
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className='mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 mb-2'>
+              <CalendarCheck2 className='h-6 w-6 text-blue-600' />
+            </div>
+            <AlertDialogTitle className='text-center'>Existing Booking Found</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className='text-center text-(--text-secondary)'>
+                <p className='mb-4'>This room has an active booking. Is the person adding this lease the same tenant who made the booking?</p>
+                {pendingBooking && (
+                  <div className='flex items-center justify-center gap-3 p-3 rounded-lg bg-(--bg-secondary) border border-(--border-main)'>
+                    <UserAvatar
+                      name={pendingBooking.tenant.name}
+                      imgSrc={pendingBooking.tenant.profile_thumb}
+                      size={40}
+                    />
+                    <div className='text-left'>
+                      <p className='font-medium text-(--text-primary)'>{pendingBooking.tenant.name}</p>
+                      <p className='text-xs text-(--text-secondary)'>Booked Tenant</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className='sm:justify-center gap-3'>
+            <AlertDialogCancel
+              disabled={isCancellingBooking}
+              onClick={(e) => {
+                e.preventDefault()
+                handleBookingConversionNo()
+              }}
+            >
+              {isCancellingBooking ? 'Cancelling booking...' : 'No, cancel booking'}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleBookingConversionYes()
+              }}
+              disabled={isCancellingBooking}
+            >
+              Yes, same person
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   )
 }

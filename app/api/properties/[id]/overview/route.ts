@@ -160,7 +160,8 @@ export async function GET(
     // Fetch active booking for this property
     const booking = await prisma.bookings.findFirst({
       where: {
-        property_id: propertyId
+        property_id: propertyId,
+        status: 'Current'
       },
       select: {
         id: true,

@@ -41,6 +41,7 @@ type PropertyWithDetails = {
   project: string | null
   type: string
   status: string | StatusCount[]
+  isBooked: boolean
   tenantPhone?: string | null
   features?: PropertyFeatures
 }
@@ -49,7 +50,8 @@ const statusStyles: Record<string, string> = {
   Occupied: 'bg-green-100 text-green-800',
   Under_Preparation: 'bg-yellow-100 text-yellow-800',
   Pending_Inspection: 'bg-orange-100 text-orange-800',
-  Vacant: 'bg-gray-100 text-gray-800'
+  Vacant: 'bg-gray-100 text-gray-800',
+  Booked: 'bg-blue-100 text-blue-800'
 }
 
 export const columns: ColumnDef<PropertyWithDetails>[] = [
@@ -142,22 +144,28 @@ export const columns: ColumnDef<PropertyWithDetails>[] = [
     header: () => <div className='text-left'>Status</div>,
     cell: ({ row }) => {
       const rawStatus = row.getValue('status') as string | StatusCount[]
+      const { isBooked } = row.original
 
       // If status is a string (single status)
       if (typeof rawStatus === 'string') {
         const displayStatus = rawStatus.replace(/_/g, ' ')
         return (
-          <div className='texts-table-cell-primary text-left'>
+          <div className='texts-table-cell-primary text-left grid grid-cols-[repeat(3,max-content)] gap-1'>
             <div className={cn('status-styles', statusStyles[rawStatus])}>
               {displayStatus}
             </div>
+            {isBooked && (
+              <div className={cn('status-styles', statusStyles['Booked'])}>
+                Booked
+              </div>
+            )}
           </div>
         )
       }
 
       // If status is an array (aggregated room statuses)
       return (
-        <div className='texts-table-cell-primary text-left flex flex-wrap gap-1'>
+        <div className='texts-table-cell-primary text-left grid grid-cols-[repeat(3,max-content)] gap-1'>
           {rawStatus.map((item, index) => (
             <div
               key={index}
@@ -166,6 +174,11 @@ export const columns: ColumnDef<PropertyWithDetails>[] = [
               {item.status.replace(/_/g, ' ')}({item.count}/{item.total})
             </div>
           ))}
+          {isBooked && (
+            <div className={cn('status-styles', statusStyles['Booked'])}>
+              Booked
+            </div>
+          )}
         </div>
       )
     }

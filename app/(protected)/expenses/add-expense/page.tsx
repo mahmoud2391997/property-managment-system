@@ -129,6 +129,7 @@ const AddExpense = () => {
   const [socsoEmployer, setSocsoEmployer] = useState<string>('')
   const [epfEmployee, setEpfEmployee] = useState<string>('')
   const [socsoEmployee, setSocsoEmployee] = useState<string>('')
+  const [tax, setTax] = useState<string>('')
   const [deductions, setDeductions] = useState<Deduction[]>([])
   const [allowances, setAllowances] = useState<Allowance[]>([])
 
@@ -147,14 +148,15 @@ const AddExpense = () => {
     const socsoEr = parseFloat(socsoEmployer) || 0
     const epfEe = parseFloat(epfEmployee) || 0
     const socsoEe = parseFloat(socsoEmployee) || 0
+    const taxAmount = parseFloat(tax) || 0
     const totalCustomDeductions = deductions.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
 
-    const totalDeductions = epfEe + socsoEe + totalCustomDeductions
+    const totalDeductions = epfEe + socsoEe + taxAmount + totalCustomDeductions
     const netSalary = gross - totalDeductions
     const costToCompany = gross + epfEr + socsoEr
 
-    return { gross, epfEr, socsoEr, epfEe, socsoEe, totalCustomDeductions, totalDeductions, netSalary, costToCompany }
-  }, [grossSalary, epfEmployer, socsoEmployer, epfEmployee, socsoEmployee, deductions])
+    return { gross, epfEr, socsoEr, epfEe, socsoEe, taxAmount, totalCustomDeductions, totalDeductions, netSalary, costToCompany }
+  }, [grossSalary, epfEmployer, socsoEmployer, epfEmployee, socsoEmployee, tax, deductions])
 
   // Allowance summary
   const allowancesTotal = useMemo(() => {
@@ -384,17 +386,9 @@ const AddExpense = () => {
       const category = CATEGORY_MAP[selectedIndex ?? 0]
 
       // Build charges for staff
+      // Allowances → charges table, Deductions → deduction_charges table
       let finalCharges = charges
-      if (isStaffSalary) {
-        // Custom deductions become charges
-        finalCharges = deductions
-          .filter(d => d.title.trim() && parseFloat(d.amount) > 0)
-          .map(d => ({
-            type: d.title,
-            amount: d.amount,
-            isTaxableChecked: false
-          }))
-      } else if (isStaffAllowances) {
+      if (isStaffSalary || isStaffAllowances) {
         finalCharges = allowances
           .filter(a => a.title.trim() && parseFloat(a.amount) > 0)
           .map(a => ({
@@ -439,14 +433,19 @@ const AddExpense = () => {
               epf_employer: epfEmployer,
               socso_employer: socsoEmployer,
               epf_employee: epfEmployee,
-              socso_employee: socsoEmployee
+              socso_employee: socsoEmployee,
+              tax: (parseFloat(grossSalary) || 0) >= 3000 ? tax : '0',
+              deduction_charges: deductions
+                .filter(d => d.title.trim() && (parseFloat(d.amount) || 0) > 0)
+                .map(d => ({ title: d.title, amount: d.amount }))
             })
           }),
           ...(selectedIndex === 4 && {
             is_asset: isAsset,
             depreciation_percentage: isAsset && expenseType.type === 'Miscellaneous_Others'
               ? depreciationPercentage
-              : null
+              : null,
+            property_id: selectedPropertyId
           })
         })
       })
@@ -486,6 +485,7 @@ const AddExpense = () => {
     setSocsoEmployer('')
     setEpfEmployee('')
     setSocsoEmployee('')
+    setTax('')
     setDeductions([])
     setAllowances([])
   }, [selectedIndex])
@@ -498,6 +498,7 @@ const AddExpense = () => {
       setSocsoEmployer('')
       setEpfEmployee('')
       setSocsoEmployee('')
+      setTax('')
       setDeductions([])
       setAllowances([])
     }
@@ -620,18 +621,19 @@ const AddExpense = () => {
   // Clamp employee deduction so total employee deductions don't exceed gross
   const clampEmployeeDeduction = (
     newValue: string,
-    excludeField: 'epfEe' | 'socsoEe' | number
+    excludeField: 'epfEe' | 'socsoEe' | 'tax' | number
   ): string => {
     const gross = parseFloat(grossSalary) || 0
     if (gross <= 0) return newValue
     const val = parseFloat(newValue) || 0
     const epfEe = excludeField === 'epfEe' ? 0 : (parseFloat(epfEmployee) || 0)
     const socsoEe = excludeField === 'socsoEe' ? 0 : (parseFloat(socsoEmployee) || 0)
+    const taxAmount = excludeField === 'tax' ? 0 : (parseFloat(tax) || 0)
     const customTotal = deductions.reduce((sum, d, i) => {
       if (typeof excludeField === 'number' && excludeField === i) return sum
       return sum + (parseFloat(d.amount) || 0)
     }, 0)
-    const remaining = gross - epfEe - socsoEe - customTotal
+    const remaining = gross - epfEe - socsoEe - taxAmount - customTotal
     return val > remaining ? (remaining > 0 ? remaining.toFixed(2) : '') : newValue
   }
 
@@ -778,6 +780,21 @@ const AddExpense = () => {
           />
         </InputGroup>
 
+        {/* Purchase-specific: optional property link */}
+        {selectedIndex === 4 && (
+          <InputGroup label='Property (Optional)'>
+            <Combobox
+              items={propertyItems}
+              variant='single'
+              searchPlaceholder='Search properties'
+              placeholder={loadingProperties ? 'Loading properties...' : 'Link to a property (optional)'}
+              isLoading={loadingProperties}
+              loadingMessage='Fetching properties...'
+              onValueChange={value => setSelectedPropertyId(value || null)}
+            />
+          </InputGroup>
+        )}
+
         {/* Purchase-specific fields */}
         {selectedIndex === 4 && (
           <div className='flex flex-col gap-3'>
@@ -909,6 +926,19 @@ const AddExpense = () => {
             </InputGroup>
           </div>
 
+          {/* Tax — shown when gross salary >= 3000 */}
+          {(parseFloat(grossSalary) || 0) >= 3000 && (
+            <InputGroup label='Tax (PCB)' isRequired>
+              <Input
+                currency
+                placeholder='0.00'
+                value={tax}
+                onValueChange={(value) => setTax(clampEmployeeDeduction(value || '', 'tax'))}
+                required
+              />
+            </InputGroup>
+          )}
+
           {/* Custom Deductions */}
           <div className='flex flex-col gap-3'>
             <div className='flex items-center justify-between'>
@@ -974,7 +1004,7 @@ const AddExpense = () => {
                 </div>
 
                 {/* Employee Deductions */}
-                {(salarySummary.epfEe > 0 || salarySummary.socsoEe > 0 || salarySummary.totalCustomDeductions > 0) && (
+                {(salarySummary.epfEe > 0 || salarySummary.socsoEe > 0 || salarySummary.taxAmount > 0 || salarySummary.totalCustomDeductions > 0) && (
                   <>
                     <div className='border-t border-dashed border-(--border-default) my-0.5' />
                     <span className='texts-caption-large text-(--text-tertiary) uppercase tracking-wide'>Employee Deductions</span>
@@ -988,6 +1018,12 @@ const AddExpense = () => {
                       <div className='flex items-center justify-between'>
                         <span className='texts-body-small text-(--text-secondary)'>SOCSO (Employee)</span>
                         <span className='texts-body-small text-red-600'>- {formatCurrency(salarySummary.socsoEe)}</span>
+                      </div>
+                    )}
+                    {salarySummary.taxAmount > 0 && (
+                      <div className='flex items-center justify-between'>
+                        <span className='texts-body-small text-(--text-secondary)'>Tax (PCB)</span>
+                        <span className='texts-body-small text-red-600'>- {formatCurrency(salarySummary.taxAmount)}</span>
                       </div>
                     )}
                     {deductions.filter(d => parseFloat(d.amount) > 0).map((d, i) => (
@@ -1057,8 +1093,8 @@ const AddExpense = () => {
         </InnerSection>
       )}
 
-      {/* Staff Allowances Section */}
-      {isStaffAllowances && (
+      {/* Staff Allowances Section — shown for both Salary and Allowances type */}
+      {(isStaffSalary || isStaffAllowances) && (
         <InnerSection title='Allowances' subtitle='Add allowance items for this staff member'>
           <div className='flex flex-col gap-3'>
             {allowances.map((allowance, index) => (

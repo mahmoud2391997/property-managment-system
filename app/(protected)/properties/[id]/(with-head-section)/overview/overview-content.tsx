@@ -34,6 +34,8 @@ import { buildWhatsAppLink } from '@/utils/functions'
 import { useScrollToSection } from '@/hooks/useScrollToSection'
 import ScheduleRentalChangeDialog from '@/components/dialogs/schedule-rental-change-dialog'
 import AddBookingWizard from '@/components/add-booking-wizard'
+import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
+import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import RentalHistoryDialog from '@/components/dialogs/rental-history-dialog'
 import ScheduledRentChangeBanner from '@/components/costume-ui/scheduled-rent-change-banner'
 
@@ -593,6 +595,22 @@ export default function OverviewContent ({ propertyId }: Props) {
     router.push(`/properties/${propertyId}/leases/add-lease`)
   }
 
+  const handleCancelBooking = async () => {
+    if (!overviewData?.booking) return
+    try {
+      const response = await fetch(`/api/bookings/${overviewData.booking.id}/cancel`, {
+        method: 'PATCH'
+      })
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to cancel booking')
+      }
+      FeedbackToasts.updated('Booking', 'Booking has been cancelled')
+      fetchOverviewData()
+    } catch (err: any) {
+      FeedbackToasts.operationFailed('Cancel booking', err.message)
+    }
+  }
 
   return (
     <>
@@ -775,6 +793,29 @@ export default function OverviewContent ({ propertyId }: Props) {
             user_name={overviewData.booking.tenant.name}
             user_type='Tenant'
             user_avatar={overviewData.booking.tenant.profile_thumb}
+            menuItems={
+              <>
+                <DropdownMenuItem
+                  onClick={() => router.push(`/properties/${propertyId}/leases/add-lease?bookingId=${overviewData!.booking!.id}`)}
+                >
+                  Convert to Lease
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <ConfirmationDialog
+                  openDialogButton={
+                    <button type='button' className='delete-dropdown-button'>
+                      Cancel Booking
+                    </button>
+                  }
+                  title='Cancel Booking'
+                  description='Are you sure you want to cancel this booking? This action cannot be undone.'
+                  onConfirm={handleCancelBooking}
+                  confirmButtonLabel='Cancel Booking'
+                  confirmButtonLoadingLabel='Cancelling...'
+                  variant='confirm'
+                />
+              </>
+            }
           />
         ) : overviewData?.canAddBooking ? (
           <EmptyCard

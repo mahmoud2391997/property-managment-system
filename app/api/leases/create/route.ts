@@ -43,6 +43,7 @@ export async function POST (request: Request) {
       property_id,
       room_id, // Optional - if provided, this is a room lease
       tenant_id,
+      booking_id, // Optional - if provided, this lease converts a booking
       start_date,
       number_of_months,
       payment_day,
@@ -201,9 +202,18 @@ export async function POST (request: Request) {
           room_id: room_id || null, // null for property leases, set for room leases
           tenant_id: tenant_id,
           organization_id: staff.organization_id,
-          created_by: staff.id
+          created_by: staff.id,
+          booking_id: booking_id || null
         }
       })
+
+      // If converting from a booking, update booking status to Converted
+      if (booking_id) {
+        await tx.bookings.update({
+          where: { id: booking_id },
+          data: { status: 'Converted' }
+        })
+      }
 
       // ============================================
       // STEP 2: Create Initial Charges Payment (excluding First Month Rental)

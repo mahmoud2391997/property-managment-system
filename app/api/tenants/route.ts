@@ -155,6 +155,27 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      // Get active booking counts for all tenants in one query
+      let bookingCountMap = new Map<string, number>()
+
+      if (tenantIds.length > 0) {
+        const activeBookings = await prisma.bookings.findMany({
+          where: {
+            tenant_id: { in: tenantIds },
+            properties: {
+              organization_id: currentStaff.organization_id
+            },
+            status: 'Current'
+          },
+          select: { tenant_id: true }
+        })
+
+        for (const booking of activeBookings) {
+          const currentCount = bookingCountMap.get(booking.tenant_id) || 0
+          bookingCountMap.set(booking.tenant_id, currentCount + 1)
+        }
+      }
+
       // Get account activation status and email from Supabase Auth for this page of tenants
       const supabaseAdmin = createAdminClient()
       const tenantsWithStatus = await Promise.all(
@@ -167,8 +188,9 @@ export async function GET(request: NextRequest) {
           const email = authUser?.user?.email || ''
           const accountStatus = isActivated ? 'Activated' as const : 'Pending' as const
           const activeLeaseCount = leaseCountMap.get(ot.tenants.id) || 0
+          const activeBookingCount = bookingCountMap.get(ot.tenants.id) || 0
 
-          return transformTenant(ot, email, accountStatus, activeLeaseCount)
+          return transformTenant(ot, email, accountStatus, activeLeaseCount, activeBookingCount)
         })
       )
 
@@ -243,6 +265,27 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Get active booking counts for all tenants in one query
+    let bookingCountMap = new Map<string, number>()
+
+    if (tenantIds.length > 0) {
+      const activeBookings = await prisma.bookings.findMany({
+        where: {
+          tenant_id: { in: tenantIds },
+          properties: {
+            organization_id: currentStaff.organization_id
+          },
+          status: 'Current'
+        },
+        select: { tenant_id: true }
+      })
+
+      for (const booking of activeBookings) {
+        const currentCount = bookingCountMap.get(booking.tenant_id) || 0
+        bookingCountMap.set(booking.tenant_id, currentCount + 1)
+      }
+    }
+
     // Get account activation status and email from Supabase Auth
     const supabaseAdmin = createAdminClient()
     const tenantsWithStatus = await Promise.all(
@@ -255,8 +298,9 @@ export async function GET(request: NextRequest) {
         const email = authUser?.user?.email || ''
         const accountStatus = isActivated ? 'Activated' as const : 'Pending' as const
         const activeLeaseCount = leaseCountMap.get(ot.tenants.id) || 0
+        const activeBookingCount = bookingCountMap.get(ot.tenants.id) || 0
 
-        return transformTenant(ot, email, accountStatus, activeLeaseCount)
+        return transformTenant(ot, email, accountStatus, activeLeaseCount, activeBookingCount)
       })
     )
 
