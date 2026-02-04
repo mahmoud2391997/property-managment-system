@@ -134,6 +134,11 @@ export async function GET(request: Request) {
               },
               orderBy: { created_at: 'desc' as const },
               take: 1
+            },
+            bookings: {
+              where: { status: 'Current' as const },
+              select: { id: true },
+              take: 1
             }
           }
         },
@@ -154,6 +159,11 @@ export async function GET(request: Request) {
             }
           },
           orderBy: { created_at: 'desc' as const },
+          take: 1
+        },
+        bookings: {
+          where: { status: 'Current' as const },
+          select: { id: true },
           take: 1
         }
       }

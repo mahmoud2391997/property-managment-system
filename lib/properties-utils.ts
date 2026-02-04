@@ -54,6 +54,7 @@ type RawProperty = {
   } | null
   rooms: RoomWithLease[]
   leases: PropertyLease[]
+  bookings?: { id: string }[]
 }
 
 export type PropertyWithDetails = {
@@ -63,6 +64,7 @@ export type PropertyWithDetails = {
   project: string | null
   type: string
   status: string | StatusCount[]
+  isBooked: boolean
   tenantPhone?: string | null
   features?: PropertyFeatures
 }
@@ -180,6 +182,9 @@ export function transformProperty(property: RawProperty): PropertyWithDetails {
   // Get tenant phone from property lease (whole-unit rental)
   const tenantPhone = propertyLease?.tenants?.individual_tenants?.phone_number || null
 
+  // Check if property has any current booking
+  const isBooked = (property.bookings?.length ?? 0) > 0
+
   return {
     id: property.id,
     code: property.code,
@@ -187,6 +192,7 @@ export function transformProperty(property: RawProperty): PropertyWithDetails {
     project: property.projects?.title || null,
     type: property.type,
     status: displayStatus,
+    isBooked,
     tenantPhone,
     features: {
       wifi: property.wifi || false,

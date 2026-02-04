@@ -3,29 +3,11 @@
 import { useState, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
-import OwnersTable from '@/components/tables/owners-table'
+import OwnersTable, { OwnerWithDetails } from '@/components/tables/owners-table'
 import AddOwnerDialog from '@/components/dialogs/add-owner-dialog'
-import { Prisma } from '@prisma/client'
-
-type OwnerWithCount = Prisma.ownersGetPayload<{
-  select: {
-    id: true
-    first_name: true
-    last_name: true
-    phone_number: true
-    email: true
-    profile_pic: true
-    profile_thumb: true
-    _count: {
-      select: {
-        contracts: true
-      }
-    }
-  }
-}>
 
 interface OwnersSectionProps {
-  owners: OwnerWithCount[]
+  owners: OwnerWithDetails[]
 }
 
 export default function OwnersSection({ owners }: OwnersSectionProps) {
@@ -54,7 +36,7 @@ export default function OwnersSection({ owners }: OwnersSectionProps) {
       const emailMatch = owner.email?.toLowerCase().includes(lowerSearch)
 
       // Search by property count
-      const propertyCountMatch = owner._count.contracts.toString().includes(lowerSearch)
+      const propertyCountMatch = owner._count.properties.toString().includes(lowerSearch)
 
       return nameMatch || phoneMatch || emailMatch || propertyCountMatch
     })

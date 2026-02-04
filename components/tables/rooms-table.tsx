@@ -43,6 +43,7 @@ type RoomTableData = {
     | 'Under_Preparation'
     | 'Property_Rented'
     | 'Property_Not_Ready'
+  isBooked: boolean
   tenantPhone?: string | null
   features?: RoomFeatures
 }
@@ -133,6 +134,7 @@ export const columns: ColumnDef<RoomTableData>[] = [
     header: () => <div className='text-left'>Status</div>,
     cell: ({ row }) => {
       const rawStatus: RoomTableData['status'] = row.getValue('status') // e.g., "Under_Preparation"
+      const { isBooked } = row.original
 
       const displayStatus = rawStatus.replace(/_/g, ' ')
 
@@ -142,13 +144,19 @@ export const columns: ColumnDef<RoomTableData>[] = [
         Pending_Inspection: 'bg-orange-100 text-orange-800',
         Vacant: 'bg-gray-100 text-gray-800',
         Property_Rented: 'bg-blue-100 text-blue-800',
-        Property_Not_Ready: 'bg-red-100 text-red-800'
+        Property_Not_Ready: 'bg-red-100 text-red-800',
+        Booked: 'bg-blue-100 text-blue-800'
       }
       return (
-        <div className='texts-table-cell-primary text-left'>
+        <div className='texts-table-cell-primary text-left flex flex-wrap gap-1'>
           <div className={cn('status-styles', statusStyles[rawStatus])}>
             {displayStatus}
           </div>
+          {isBooked && (
+            <div className={cn('status-styles', statusStyles['Booked'])}>
+              Booked
+            </div>
+          )}
         </div>
       )
     }

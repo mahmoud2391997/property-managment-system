@@ -18,9 +18,11 @@ import { Table } from '../costume-ui/table'
 import { cn } from '@/lib/utils'
 import { UserAvatar } from '../costume-ui/name-avatar'
 import { Prisma } from '@prisma/client'
+import EditOwnerDialog from '../dialogs/edit-owner-dialog'
+import Link from 'next/link'
 
-// Infer the type from Prisma query
-type OwnerWithCount = Prisma.ownersGetPayload<{
+// Infer the type from Prisma query and extend with computed fields
+export type OwnerWithDetails = Prisma.ownersGetPayload<{
   select: {
     id: true
     first_name: true
@@ -31,13 +33,15 @@ type OwnerWithCount = Prisma.ownersGetPayload<{
     profile_thumb: true
     _count: {
       select: {
-        contracts: true
+        properties: true
       }
     }
   }
-}>
+}> & {
+  currentContractCount: number
+}
 
-export const columns: ColumnDef<OwnerWithCount>[] = [
+export const columns: ColumnDef<OwnerWithDetails>[] = [
   //Checkbox
   {
     id: 'select',
@@ -66,10 +70,10 @@ export const columns: ColumnDef<OwnerWithCount>[] = [
     accessorKey: 'first_name',
     header: () => <div className='text-left'>Name</div>,
     cell: ({ row }) => {
-      const { first_name, last_name, profile_thumb } = row.original
+      const { id, first_name, last_name, profile_thumb } = row.original
       const fullName = `${first_name}${last_name ? ` ${last_name}` : ''}`
       return (
-        <div className={cn('flex items-center gap-[5]', 'text-left')}>
+        <Link href={`/owners/${id}/overview`} className={cn('flex items-center gap-[5]', 'text-left')}>
           {profile_thumb ? (
             <img
               src={profile_thumb}
@@ -79,8 +83,8 @@ export const columns: ColumnDef<OwnerWithCount>[] = [
           ) : (
             <UserAvatar name={fullName} size={25} className='text-[11px]!' />
           )}
-          <span className='texts-table-cell-primary'>{fullName}</span>
-        </div>
+          <span className='texts-table-cell-primary hover:underline'>{fullName}</span>
+        </Link>
       )
     }
   },
@@ -107,12 +111,38 @@ export const columns: ColumnDef<OwnerWithCount>[] = [
 
   {
     accessorKey: '_count',
-    header: () => <div className='text-left'>Property Count</div>,
+    header: () => <div className='text-left'>Properties</div>,
     cell: ({ row }) => {
       const { _count } = row.original
 
       return (
-        <div className='text-left texts-table-cell-data'>{_count.contracts}</div>
+        <div className='text-left texts-table-cell-data'>{_count.properties}</div>
+      )
+    }
+  },
+
+  {
+    accessorKey: 'currentContractCount',
+    header: () => <div className='text-left'>Contracts</div>,
+    cell: ({ row }) => {
+      const contractCount = row.original.currentContractCount || 0
+
+      const badge = contractCount > 0
+        ? {
+            label: contractCount === 1 ? 'Active' : `Active (${contractCount})`,
+            className: 'bg-green-100 text-green-800'
+          }
+        : {
+            label: 'None',
+            className: 'bg-gray-100 text-gray-800'
+          }
+
+      return (
+        <div className='texts-table-cell-primary text-left'>
+          <div className={cn('status-styles', badge.className)}>
+            {badge.label}
+          </div>
+        </div>
       )
     }
   },
@@ -122,7 +152,7 @@ export const columns: ColumnDef<OwnerWithCount>[] = [
     header: 'Actions',
     enableHiding: false,
     cell: ({ row }) => {
-      const property = row.original
+      const owner = row.original
 
       return (
         <DropdownMenu>
@@ -134,14 +164,38 @@ export const columns: ColumnDef<OwnerWithCount>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end'>
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(property.id)}
-            >
-              Copy payment ID
-            </DropdownMenuItem>
+            <EditOwnerDialog
+              ownerId={owner.id}
+              initialData={{
+                id: owner.id,
+                first_name: owner.first_name,
+                last_name: owner.last_name,
+                phone_number: owner.phone_number,
+                email: owner.email,
+                profile_pic: owner.profile_pic,
+                profile_thumb: owner.profile_thumb
+              }}
+              trigger={
+                <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                  Edit Owner
+                </DropdownMenuItem>
+              }
+              onSuccess={() => window.location.reload()}
+            />
+            <Link href={`/owners/${owner.id}/overview`}>
+              <DropdownMenuItem>View details</DropdownMenuItem>
+            </Link>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>View customer</DropdownMenuItem>
-            <DropdownMenuItem>View payment details</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => navigator.clipboard.writeText(owner.phone_number)}
+            >
+              Copy phone number
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => navigator.clipboard.writeText(owner.email ?? '')}
+            >
+              Copy email
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )
@@ -150,7 +204,7 @@ export const columns: ColumnDef<OwnerWithCount>[] = [
 ]
 
 type OwnersTableProps = {
-  data: OwnerWithCount[]
+  data: OwnerWithDetails[]
 }
 
 export default function OwnersTable({ data }: OwnersTableProps) {

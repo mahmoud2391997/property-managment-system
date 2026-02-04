@@ -225,7 +225,6 @@ export default function AddBookingWizard({
         `Booking ${data.booking.referenceId} has been created.`
       )
 
-      router.refresh()
       onOpenChange(false)
       onSuccess()
     } catch (err: any) {
@@ -288,9 +287,8 @@ export default function AddBookingWizard({
         {/* Step Indicator */}
         <StepIndicator steps={STEPS} currentStep={currentStep} />
 
-        {/* Step 1: Tenant */}
-        {currentStep === 1 && (
-          <div className='flex flex-col gap-5'>
+        {/* Step 1: Tenant (kept mounted but hidden on step 2 to preserve form ref) */}
+        <div className={cn('flex flex-col gap-5', currentStep !== 1 && 'hidden')}>
             {/* Tenant Mode Toggle */}
             <div className='flex gap-0 rounded-lg border border-(--border-strong) overflow-hidden'>
               <button
@@ -357,8 +355,7 @@ export default function AddBookingWizard({
                 />
               </form>
             )}
-          </div>
-        )}
+        </div>
 
         {/* Step 2: Booking Details */}
         {currentStep === 2 && (

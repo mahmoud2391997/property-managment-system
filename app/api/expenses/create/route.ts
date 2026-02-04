@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
       socso_employer,
       epf_employee,
       socso_employee,
+      tax,
+      deduction_charges: deductionChargesInput,
       timezone_offset
     } = body
 
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Staff Salary can have no charges (deductions are optional)
+    // Staff Salary can have no charges (allowances are optional with salary)
     const isStaffSalary = category === 'Staff_Related' && expense_type === 'Salary'
     if (!isStaffSalary && (!charges || charges.length === 0)) {
       return NextResponse.json(
@@ -139,11 +141,14 @@ export async function POST(request: NextRequest) {
     let totalAmount: number
 
     if (isStaffSalary) {
-      // Cost to Company = Gross + Employer EPF + Employer SOCSO
+      // Cost to Company = Gross + Employer EPF + Employer SOCSO + Allowances
       const gross = parseFloat(gross_salary) || 0
       const epfEr = parseFloat(epf_employer) || 0
       const socsoEr = parseFloat(socso_employer) || 0
-      totalAmount = gross + epfEr + socsoEr
+      const allowancesTotal = (charges || []).reduce((sum: number, charge: any) => {
+        return sum + (parseFloat(charge.amount) || 0)
+      }, 0)
+      totalAmount = gross + epfEr + socsoEr + allowancesTotal
     } else if (category === 'Staff_Related' && expense_type === 'Allowances') {
       // Sum of allowance charges
       totalAmount = (charges || []).reduce((sum: number, charge: any) => {
@@ -254,7 +259,8 @@ export async function POST(request: NextRequest) {
               is_asset: is_asset || false,
               depreciation_percentage: is_asset && depreciation_percentage
                 ? parseFloat(depreciation_percentage)
-                : null
+                : null,
+              property_id: property_id || null
             }
           })
           break
@@ -270,9 +276,24 @@ export async function POST(request: NextRequest) {
               epf_employer: parseFloat(epf_employer) || 0,
               socso_employer: parseFloat(socso_employer) || 0,
               epf_employee: parseFloat(epf_employee) || 0,
-              socso_employee: parseFloat(socso_employee) || 0
+              socso_employee: parseFloat(socso_employee) || 0,
+              tax: parseFloat(tax) || 0
             }
           })
+
+          // Store deduction charges for salary
+          if (isStaffSalary && deductionChargesInput && deductionChargesInput.length > 0) {
+            await tx.deduction_charges.createMany({
+              data: deductionChargesInput
+                .filter((d: any) => d.title && (parseFloat(d.amount) || 0) > 0)
+                .map((d: any) => ({
+                  expense_id: expense.id,
+                  title: d.title,
+                  amount: parseFloat(d.amount) || 0,
+                  created_by: staff.id
+                }))
+            })
+          }
           break
       }
 

@@ -76,6 +76,11 @@ async function getRoomsWithTotal(): Promise<{ rooms: RoomWithDetails[], total: n
               },
               orderBy: { created_at: 'desc' },
               take: 1
+            },
+            bookings: {
+              where: { status: 'Current' as const },
+              select: { id: true },
+              take: 1
             }
           }
         },
@@ -96,6 +101,11 @@ async function getRoomsWithTotal(): Promise<{ rooms: RoomWithDetails[], total: n
             }
           },
           orderBy: { created_at: 'desc' },
+          take: 1
+        },
+        bookings: {
+          where: { status: 'Current' as const },
+          select: { id: true },
           take: 1
         }
       },

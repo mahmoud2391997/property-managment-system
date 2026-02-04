@@ -142,6 +142,11 @@ export async function GET (req: Request) {
               },
               orderBy: { created_at: 'desc' },
               take: 1
+            },
+            bookings: {
+              where: { status: 'Current' },
+              select: { id: true },
+              take: 1
             }
           },
           orderBy: { created_at: 'desc' },

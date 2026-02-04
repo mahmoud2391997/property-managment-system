@@ -53,8 +53,10 @@ type RawRoom = {
       title: string
     } | null
     leases: PropertyLease[]
+    bookings?: { id: string }[]
   } | null
   leases: RoomLease[]
+  bookings?: { id: string }[]
 }
 
 export type RoomWithDetails = {
@@ -64,6 +66,7 @@ export type RoomWithDetails = {
   property: string
   project: string | null
   status: DisplayStatus
+  isBooked: boolean
   tenantPhone?: string | null
   features?: RoomFeatures
 }
@@ -112,6 +115,9 @@ export function transformRoom(room: RawRoom): RoomWithDetails {
     tenantPhone = propertyLease.tenants?.individual_tenants?.phone_number || null
   }
 
+  // Check if room has a current booking, or property has a property-level booking
+  const isBooked = (room.bookings?.length ?? 0) > 0 || (room.properties?.bookings?.length ?? 0) > 0
+
   return {
     id: room.id,
     title: room.title,
@@ -119,6 +125,7 @@ export function transformRoom(room: RawRoom): RoomWithDetails {
     property: room.properties?.code || 'No Property',
     project: room.properties?.projects?.title || null,
     status: displayStatus,
+    isBooked,
     tenantPhone,
     features: {
       wifi: room.wifi || false,

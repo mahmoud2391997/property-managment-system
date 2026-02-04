@@ -59,7 +59,19 @@ export const expenseSelect = {
     }
   },
   company_expenses: { select: { type: true } },
-  purchase_expenses: { select: { type: true, is_asset: true } },
+  purchase_expenses: {
+    select: {
+      type: true,
+      is_asset: true,
+      properties: {
+        select: {
+          id: true,
+          code: true,
+          projects: { select: { title: true } }
+        }
+      }
+    }
+  },
   staff_expenses: {
     select: {
       type: true,
@@ -70,6 +82,7 @@ export const expenseSelect = {
       socso_employer: true,
       epf_employee: true,
       socso_employee: true,
+      tax: true,
       staff: {
         select: {
           first_name: true,
