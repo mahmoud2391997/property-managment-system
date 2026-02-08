@@ -29,7 +29,16 @@ import {
 } from '@/utils/data'
 import { formatPaymentTypeLabel } from '@/utils/functions'
 import { formatCurrency } from '@/utils/formatCurrency'
-import { House, FileText, User, Building2, ShoppingCart, Info, Plus, X } from 'lucide-react'
+import {
+  House,
+  FileText,
+  User,
+  Building2,
+  ShoppingCart,
+  Info,
+  Plus,
+  X
+} from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { formatDateForAPI } from '@/utils/formatTime'
@@ -49,6 +58,29 @@ const EXPENSE_TYPES_MAP: Record<number, PaymentType[]> = {
   3: companyExpenseTypes,
   4: purchaseExpenseTypes
 }
+
+// Claimable expense types by category
+const CLAIMABLE_PROPERTY_TYPES = [
+  'Maintenance',
+  'Cleaning_Service',
+  'Renovation',
+  'Painting',
+  'AC_Service_Installation',
+  'Wiring_Electrical',
+  'Replacement_Parts_Plumbing',
+  'Furniture___Appliances',
+  'Miscellaneous_Others'
+]
+
+const CLAIMABLE_COMPANY_TYPES = [
+  'Office_Supplies',
+  'Company_Equipment',
+  'ICT_Equipment',
+  'Software_Subscription',
+  'Professional_Fees',
+  'Marketing___Advertising',
+  'Miscellaneous_Others'
+]
 
 type Deduction = { title: string; amount: string }
 type Allowance = { title: string; amount: string }
@@ -88,18 +120,25 @@ const AddExpense = () => {
   ])
 
   // Expense types based on selected category
-  const expenseTypes = EXPENSE_TYPES_MAP[selectedIndex ?? 0] ?? propertyExpenseTypes
-  const typesOfExpense: { label: string; value: string }[] = expenseTypes.map(et => ({
-    label: formatPaymentTypeLabel(et.type),
-    value: et.type
-  }))
+  const expenseTypes =
+    EXPENSE_TYPES_MAP[selectedIndex ?? 0] ?? propertyExpenseTypes
+  const typesOfExpense: { label: string; value: string }[] = expenseTypes.map(
+    et => ({
+      label: formatPaymentTypeLabel(et.type),
+      value: et.type
+    })
+  )
 
   // Form state
   const [expenseType, setExpenseType] = useState<PaymentType>(expenseTypes[0])
   const [description, setDescription] = useState<string>('')
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null)
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(
+    null
+  )
   const [selectedLeaseId, setSelectedLeaseId] = useState<string | null>(null)
-  const [selectedContractId, setSelectedContractId] = useState<string | null>(null)
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(
+    null
+  )
   const [loadingProperties, setLoadingProperties] = useState<boolean>(true)
   const [loadingContracts, setLoadingContracts] = useState<boolean>(false)
   const [loadingLeases, setLoadingLeases] = useState<boolean>(false)
@@ -107,7 +146,9 @@ const AddExpense = () => {
   const [contractItems, setContractItems] = useState<ComboBoxitemsType[]>([])
   const [leaseItems, setLeaseItems] = useState<ComboBoxitemsType[]>([])
   const [isPaid, setIsPaid] = useState<boolean>(false)
-  const [paymentMethod, setPaymentMethod] = useState<string | 'Cash' | 'Bank Transfer'>('Cash')
+  const [paymentMethod, setPaymentMethod] = useState<
+    string | 'Cash' | 'Bank Transfer'
+  >('Cash')
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(undefined)
   const [paymentTime, setPaymentTime] = useState<string>('10:30:00')
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
@@ -117,7 +158,14 @@ const AddExpense = () => {
 
   // Purchase-specific state
   const [isAsset, setIsAsset] = useState<boolean>(false)
-  const [depreciationPercentage, setDepreciationPercentage] = useState<string>('')
+  const [depreciationPercentage, setDepreciationPercentage] =
+    useState<string>('')
+
+  // Staff claim state (for property, company, and purchase expenses)
+  const [isClaimed, setIsClaimed] = useState<boolean>(false)
+  const [claimerId, setClaimerId] = useState<string | null>(null)
+  const [claimerStaffItems, setClaimerStaffItems] = useState<ComboBoxitemsType[]>([])
+  const [loadingClaimerStaff, setLoadingClaimerStaff] = useState<boolean>(false)
 
   // Staff-specific state
   const [staffItems, setStaffItems] = useState<ComboBoxitemsType[]>([])
@@ -134,11 +182,30 @@ const AddExpense = () => {
   const [allowances, setAllowances] = useState<Allowance[]>([])
 
   // For contract related
-  const selectable: boolean = expenseType === expenseTypes[0] && selectedIndex === 1
+  const selectable: boolean =
+    expenseType === expenseTypes[0] && selectedIndex === 1
+
+  // Check if current expense type is claimable
+  const isClaimable = useMemo(() => {
+    if (selectedIndex === 0) {
+      // Property Related
+      return CLAIMABLE_PROPERTY_TYPES.includes(expenseType.type)
+    }
+    if (selectedIndex === 3) {
+      // Company Related
+      return CLAIMABLE_COMPANY_TYPES.includes(expenseType.type)
+    }
+    if (selectedIndex === 4) {
+      // Purchase Related - all types are claimable
+      return true
+    }
+    return false
+  }, [selectedIndex, expenseType.type])
 
   // Derived: is this a staff salary type?
   const isStaffSalary = selectedIndex === 2 && expenseType.type === 'Salary'
-  const isStaffAllowances = selectedIndex === 2 && expenseType.type === 'Allowances'
+  const isStaffAllowances =
+    selectedIndex === 2 && expenseType.type === 'Allowances'
   // Miscellaneous_Others uses regular ChargesSection
 
   // Salary summary calculations
@@ -149,14 +216,36 @@ const AddExpense = () => {
     const epfEe = parseFloat(epfEmployee) || 0
     const socsoEe = parseFloat(socsoEmployee) || 0
     const taxAmount = parseFloat(tax) || 0
-    const totalCustomDeductions = deductions.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
+    const totalCustomDeductions = deductions.reduce(
+      (sum, d) => sum + (parseFloat(d.amount) || 0),
+      0
+    )
 
     const totalDeductions = epfEe + socsoEe + taxAmount + totalCustomDeductions
     const netSalary = gross - totalDeductions
     const costToCompany = gross + epfEr + socsoEr
 
-    return { gross, epfEr, socsoEr, epfEe, socsoEe, taxAmount, totalCustomDeductions, totalDeductions, netSalary, costToCompany }
-  }, [grossSalary, epfEmployer, socsoEmployer, epfEmployee, socsoEmployee, tax, deductions])
+    return {
+      gross,
+      epfEr,
+      socsoEr,
+      epfEe,
+      socsoEe,
+      taxAmount,
+      totalCustomDeductions,
+      totalDeductions,
+      netSalary,
+      costToCompany
+    }
+  }, [
+    grossSalary,
+    epfEmployer,
+    socsoEmployer,
+    epfEmployee,
+    socsoEmployee,
+    tax,
+    deductions
+  ])
 
   // Allowance summary
   const allowancesTotal = useMemo(() => {
@@ -166,7 +255,9 @@ const AddExpense = () => {
   // Alert state
   const [alertOpen, setAlertOpen] = useState(false)
   const [alertMessage, setAlertMessage] = useState('')
-  const [alertType, setAlertType] = useState<'info' | 'error' | 'success' | 'warning'>('info')
+  const [alertType, setAlertType] = useState<
+    'info' | 'error' | 'success' | 'warning'
+  >('info')
 
   const showAlert = (
     message: string,
@@ -179,16 +270,19 @@ const AddExpense = () => {
 
   // Helper to translate week day codes to full names
   const weekDayFullNames: Record<string, string> = {
-    'Su': 'Sunday',
-    'Mo': 'Monday',
-    'Tu': 'Tuesday',
-    'We': 'Wednesday',
-    'Th': 'Thursday',
-    'Fr': 'Friday',
-    'Sa': 'Saturday'
+    Su: 'Sunday',
+    Mo: 'Monday',
+    Tu: 'Tuesday',
+    We: 'Wednesday',
+    Th: 'Thursday',
+    Fr: 'Friday',
+    Sa: 'Saturday'
   }
   const translateWeekDays = (codes: string) => {
-    return codes.split(',').map(code => weekDayFullNames[code] || code).join(', ')
+    return codes
+      .split(',')
+      .map(code => weekDayFullNames[code] || code)
+      .join(', ')
   }
 
   // Helper to calculate next expense date based on recurring config
@@ -202,20 +296,36 @@ const AddExpense = () => {
         break
       case 'Week':
         if (event_on) {
-          const weekDayMap: Record<string, number> = { 'Su': 0, 'Mo': 1, 'Tu': 2, 'We': 3, 'Th': 4, 'Fr': 5, 'Sa': 6 }
-          const selectedDays = event_on.split(',').map((d: string) => weekDayMap[d]).sort((a: number, b: number) => a - b)
-          next.setDate(next.getDate() + (every * 7))
-          const daysUntilNext = selectedDays.find((d: number) => d >= next.getDay()) ?? selectedDays[0]
+          const weekDayMap: Record<string, number> = {
+            Su: 0,
+            Mo: 1,
+            Tu: 2,
+            We: 3,
+            Th: 4,
+            Fr: 5,
+            Sa: 6
+          }
+          const selectedDays = event_on
+            .split(',')
+            .map((d: string) => weekDayMap[d])
+            .sort((a: number, b: number) => a - b)
+          next.setDate(next.getDate() + every * 7)
+          const daysUntilNext =
+            selectedDays.find((d: number) => d >= next.getDay()) ??
+            selectedDays[0]
           const diff = daysUntilNext - next.getDay()
           next.setDate(next.getDate() + (diff >= 0 ? diff : 7 + diff))
         } else {
-          next.setDate(next.getDate() + (every * 7))
+          next.setDate(next.getDate() + every * 7)
         }
         break
       case 'Month':
         next.setMonth(next.getMonth() + every)
         if (event_on) {
-          const selectedDays = event_on.split(',').map(Number).sort((a: number, b: number) => a - b)
+          const selectedDays = event_on
+            .split(',')
+            .map(Number)
+            .sort((a: number, b: number) => a - b)
           next.setDate(selectedDays[0])
         }
         break
@@ -231,12 +341,20 @@ const AddExpense = () => {
     e.preventDefault()
 
     // Category-specific validation
-    if (selectedIndex === 0 && expenseType.type === 'Refund' && !selectedLeaseId) {
+    if (
+      selectedIndex === 0 &&
+      expenseType.type === 'Refund' &&
+      !selectedLeaseId
+    ) {
       showAlert('Please select a lease', 'warning')
       return
     }
 
-    if (selectedIndex === 0 && expenseType.type !== 'Refund' && !selectedPropertyId) {
+    if (
+      selectedIndex === 0 &&
+      expenseType.type !== 'Refund' &&
+      !selectedPropertyId
+    ) {
       showAlert('Please select a property', 'warning')
       return
     }
@@ -291,6 +409,12 @@ const AddExpense = () => {
       }
     }
 
+    // Validate claimer selection if expense is claimed
+    if (isClaimable && isClaimed && !claimerId) {
+      showAlert('Please select the staff member who paid', 'warning')
+      return
+    }
+
     // Non-staff: require charges
     if (selectedIndex !== 2 && charges.length === 0) {
       showAlert('Please add at least one charge', 'warning')
@@ -298,7 +422,12 @@ const AddExpense = () => {
     }
 
     // Staff Miscellaneous_Others: require charges
-    if (selectedIndex === 2 && !isStaffSalary && !isStaffAllowances && charges.length === 0) {
+    if (
+      selectedIndex === 2 &&
+      !isStaffSalary &&
+      !isStaffAllowances &&
+      charges.length === 0
+    ) {
       showAlert('Please add at least one charge', 'warning')
       return
     }
@@ -331,10 +460,22 @@ const AddExpense = () => {
     }
 
     // Validate depreciation percentage for purchase assets with Miscellaneous_Others type
-    if (selectedIndex === 4 && isAsset && expenseType.type === 'Miscellaneous_Others') {
+    if (
+      selectedIndex === 4 &&
+      isAsset &&
+      expenseType.type === 'Miscellaneous_Others'
+    ) {
       const depValue = parseFloat(depreciationPercentage)
-      if (!depreciationPercentage || isNaN(depValue) || depValue <= 0 || depValue > 100) {
-        showAlert('Please enter a valid depreciation percentage (0-100)', 'warning')
+      if (
+        !depreciationPercentage ||
+        isNaN(depValue) ||
+        depValue <= 0 ||
+        depValue > 100
+      ) {
+        showAlert(
+          'Please enter a valid depreciation percentage (0-100)',
+          'warning'
+        )
         return
       }
     }
@@ -416,14 +557,24 @@ const AddExpense = () => {
           recurring_config: recurringConfig,
           timezone_offset: new Date().getTimezoneOffset(),
           // Category-specific fields
-          ...(selectedIndex === 0 && expenseType.type !== 'Refund' && {
-            property_id: selectedPropertyId,
-          }),
-          ...(selectedIndex === 0 && expenseType.type === 'Refund' && {
-            lease_id: selectedLeaseId,
-          }),
+          ...(selectedIndex === 0 &&
+            expenseType.type !== 'Refund' && {
+              property_id: selectedPropertyId,
+              is_claimed: isClaimed,
+              claimer_id: isClaimed ? claimerId : null
+            }),
+          ...(selectedIndex === 0 &&
+            expenseType.type === 'Refund' && {
+              lease_id: selectedLeaseId,
+              is_claimed: isClaimed,
+              claimer_id: isClaimed ? claimerId : null
+            }),
           ...(selectedIndex === 1 && {
             contract_id: selectedContractId
+          }),
+          ...(selectedIndex === 3 && {
+            is_claimed: isClaimed,
+            claimer_id: isClaimed ? claimerId : null
           }),
           ...(selectedIndex === 2 && {
             staff_id: selectedStaffId,
@@ -442,10 +593,13 @@ const AddExpense = () => {
           }),
           ...(selectedIndex === 4 && {
             is_asset: isAsset,
-            depreciation_percentage: isAsset && expenseType.type === 'Miscellaneous_Others'
-              ? depreciationPercentage
-              : null,
-            property_id: selectedPropertyId
+            depreciation_percentage:
+              isAsset && expenseType.type === 'Miscellaneous_Others'
+                ? depreciationPercentage
+                : null,
+            property_id: selectedPropertyId,
+            is_claimed: isClaimed,
+            claimer_id: isClaimed ? claimerId : null
           })
         })
       })
@@ -488,7 +642,16 @@ const AddExpense = () => {
     setTax('')
     setDeductions([])
     setAllowances([])
+    // Reset claim state
+    setIsClaimed(false)
+    setClaimerId(null)
   }, [selectedIndex])
+
+  // Reset claim state when expense type changes
+  useEffect(() => {
+    setIsClaimed(false)
+    setClaimerId(null)
+  }, [expenseType.type])
 
   // Reset staff salary/allowance state when expense type changes within Staff
   useEffect(() => {
@@ -508,7 +671,9 @@ const AddExpense = () => {
   useEffect(() => {
     const fetchProperties = async () => {
       try {
-        const response = await fetch('/api/properties?fields=id,code&includeProject=true')
+        const response = await fetch(
+          '/api/properties?fields=id,code&includeProject=true'
+        )
         if (!response.ok) throw new Error('Failed to fetch properties')
         const data = await response.json()
         const items: ComboBoxitemsType[] = data.properties.map((p: any) => ({
@@ -540,7 +705,11 @@ const AddExpense = () => {
         const items: ComboBoxitemsType[] = data.contracts.map((c: any) => ({
           id: c.id,
           label: c.reference_id,
-          subtitle: `${c.owners ? `${c.owners.first_name} ${c.owners.last_name || ''}`.trim() : 'No owner'} - ${c.properties?.code || 'No property'}`
+          subtitle: `${
+            c.owners
+              ? `${c.owners.first_name} ${c.owners.last_name || ''}`.trim()
+              : 'No owner'
+          } - ${c.properties?.code || 'No property'}`
         }))
         setContractItems(items)
       } catch (error) {
@@ -560,7 +729,9 @@ const AddExpense = () => {
     const fetchStaff = async () => {
       setLoadingStaff(true)
       try {
-        const response = await fetch('/api/staff?select=id,first_name,last_name')
+        const response = await fetch(
+          '/api/staff?select=id,first_name,last_name'
+        )
         if (!response.ok) throw new Error('Failed to fetch staff')
         const data = await response.json()
         const items: ComboBoxitemsType[] = data.staff.map((s: any) => ({
@@ -577,6 +748,36 @@ const AddExpense = () => {
 
     fetchStaff()
   }, [selectedIndex])
+
+  // Fetch staff for claimer selection when expense is claimable
+  useEffect(() => {
+    if (!isClaimable) {
+      setClaimerStaffItems([])
+      return
+    }
+
+    const fetchClaimerStaff = async () => {
+      setLoadingClaimerStaff(true)
+      try {
+        const response = await fetch(
+          '/api/staff?select=id,first_name,last_name'
+        )
+        if (!response.ok) throw new Error('Failed to fetch staff')
+        const data = await response.json()
+        const items: ComboBoxitemsType[] = data.staff.map((s: any) => ({
+          id: s.id,
+          label: `${s.first_name} ${s.last_name || ''}`.trim()
+        }))
+        setClaimerStaffItems(items)
+      } catch (error) {
+        console.error('Error fetching staff for claimer:', error)
+      } finally {
+        setLoadingClaimerStaff(false)
+      }
+    }
+
+    fetchClaimerStaff()
+  }, [isClaimable])
 
   // Fetch all active leases when Property Related + Refund type is selected
   useEffect(() => {
@@ -626,29 +827,50 @@ const AddExpense = () => {
     const gross = parseFloat(grossSalary) || 0
     if (gross <= 0) return newValue
     const val = parseFloat(newValue) || 0
-    const epfEe = excludeField === 'epfEe' ? 0 : (parseFloat(epfEmployee) || 0)
-    const socsoEe = excludeField === 'socsoEe' ? 0 : (parseFloat(socsoEmployee) || 0)
-    const taxAmount = excludeField === 'tax' ? 0 : (parseFloat(tax) || 0)
+    const epfEe = excludeField === 'epfEe' ? 0 : parseFloat(epfEmployee) || 0
+    const socsoEe =
+      excludeField === 'socsoEe' ? 0 : parseFloat(socsoEmployee) || 0
+    const taxAmount = excludeField === 'tax' ? 0 : parseFloat(tax) || 0
     const customTotal = deductions.reduce((sum, d, i) => {
       if (typeof excludeField === 'number' && excludeField === i) return sum
       return sum + (parseFloat(d.amount) || 0)
     }, 0)
     const remaining = gross - epfEe - socsoEe - taxAmount - customTotal
-    return val > remaining ? (remaining > 0 ? remaining.toFixed(2) : '') : newValue
+    return val > remaining
+      ? remaining > 0
+        ? remaining.toFixed(2)
+        : ''
+      : newValue
   }
 
   // Deduction helpers
-  const addDeduction = () => setDeductions(prev => [...prev, { title: '', amount: '' }])
-  const removeDeduction = (index: number) => setDeductions(prev => prev.filter((_, i) => i !== index))
-  const updateDeduction = (index: number, field: keyof Deduction, value: string) => {
-    setDeductions(prev => prev.map((d, i) => i === index ? { ...d, [field]: value } : d))
+  const addDeduction = () =>
+    setDeductions(prev => [...prev, { title: '', amount: '' }])
+  const removeDeduction = (index: number) =>
+    setDeductions(prev => prev.filter((_, i) => i !== index))
+  const updateDeduction = (
+    index: number,
+    field: keyof Deduction,
+    value: string
+  ) => {
+    setDeductions(prev =>
+      prev.map((d, i) => (i === index ? { ...d, [field]: value } : d))
+    )
   }
 
   // Allowance helpers
-  const addAllowance = () => setAllowances(prev => [...prev, { title: '', amount: '' }])
-  const removeAllowance = (index: number) => setAllowances(prev => prev.filter((_, i) => i !== index))
-  const updateAllowance = (index: number, field: keyof Allowance, value: string) => {
-    setAllowances(prev => prev.map((a, i) => i === index ? { ...a, [field]: value } : a))
+  const addAllowance = () =>
+    setAllowances(prev => [...prev, { title: '', amount: '' }])
+  const removeAllowance = (index: number) =>
+    setAllowances(prev => prev.filter((_, i) => i !== index))
+  const updateAllowance = (
+    index: number,
+    field: keyof Allowance,
+    value: string
+  ) => {
+    setAllowances(prev =>
+      prev.map((a, i) => (i === index ? { ...a, [field]: value } : a))
+    )
   }
 
   return (
@@ -692,6 +914,25 @@ const AddExpense = () => {
             />
           </InputGroup>
 
+          {/* Purchase-specific: optional property link */}
+          {selectedIndex === 4 && (
+            <InputGroup label='Property (Optional)'>
+              <Combobox
+                items={propertyItems}
+                variant='single'
+                searchPlaceholder='Search properties'
+                placeholder={
+                  loadingProperties
+                    ? 'Loading properties...'
+                    : 'Link to a property (optional)'
+                }
+                isLoading={loadingProperties}
+                loadingMessage='Fetching properties...'
+                onValueChange={value => setSelectedPropertyId(value || null)}
+              />
+            </InputGroup>
+          )}
+
           {/* Property selector — Property Related, non-Refund types only */}
           {selectedIndex === 0 && expenseType.type !== 'Refund' && (
             <InputGroup label='Property' isRequired>
@@ -699,7 +940,11 @@ const AddExpense = () => {
                 items={propertyItems}
                 variant='single'
                 searchPlaceholder='Search properties'
-                placeholder={loadingProperties ? 'Loading properties...' : 'Select a property'}
+                placeholder={
+                  loadingProperties
+                    ? 'Loading properties...'
+                    : 'Select a property'
+                }
                 isLoading={loadingProperties}
                 loadingMessage='Fetching properties...'
                 onValueChange={value => {
@@ -717,7 +962,9 @@ const AddExpense = () => {
                 items={leaseItems}
                 variant='single'
                 searchPlaceholder='Search leases'
-                placeholder={loadingLeases ? 'Loading leases...' : 'Select an active lease'}
+                placeholder={
+                  loadingLeases ? 'Loading leases...' : 'Select an active lease'
+                }
                 isLoading={loadingLeases}
                 loadingMessage='Fetching leases...'
                 onValueChange={value => {
@@ -735,7 +982,11 @@ const AddExpense = () => {
                 items={contractItems}
                 variant='single'
                 searchPlaceholder='Search contracts'
-                placeholder={loadingContracts ? 'Loading contracts...' : 'Select a contract'}
+                placeholder={
+                  loadingContracts
+                    ? 'Loading contracts...'
+                    : 'Select a contract'
+                }
                 isLoading={loadingContracts}
                 loadingMessage='Fetching contracts...'
                 onValueChange={value => {
@@ -754,7 +1005,9 @@ const AddExpense = () => {
                   items={staffItems}
                   variant='single'
                   searchPlaceholder='Search staff'
-                  placeholder={loadingStaff ? 'Loading staff...' : 'Select a staff member'}
+                  placeholder={
+                    loadingStaff ? 'Loading staff...' : 'Select a staff member'
+                  }
                   isLoading={loadingStaff}
                   loadingMessage='Fetching staff...'
                   onValueChange={value => {
@@ -780,36 +1033,24 @@ const AddExpense = () => {
           />
         </InputGroup>
 
-        {/* Purchase-specific: optional property link */}
-        {selectedIndex === 4 && (
-          <InputGroup label='Property (Optional)'>
-            <Combobox
-              items={propertyItems}
-              variant='single'
-              searchPlaceholder='Search properties'
-              placeholder={loadingProperties ? 'Loading properties...' : 'Link to a property (optional)'}
-              isLoading={loadingProperties}
-              loadingMessage='Fetching properties...'
-              onValueChange={value => setSelectedPropertyId(value || null)}
-            />
-          </InputGroup>
-        )}
-
         {/* Purchase-specific fields */}
         {selectedIndex === 4 && (
           <div className='flex flex-col gap-3'>
             <div className='flex items-center gap-2'>
               <Checkbox
                 checked={isAsset}
-                onCheckedChange={(checked) => {
+                onCheckedChange={checked => {
                   setIsAsset(checked === true)
                   if (!checked) setDepreciationPercentage('')
                 }}
               />
-              <label className='texts-label-large cursor-pointer' onClick={() => {
-                setIsAsset(!isAsset)
-                if (isAsset) setDepreciationPercentage('')
-              }}>
+              <label
+                className='texts-label-large cursor-pointer'
+                onClick={() => {
+                  setIsAsset(!isAsset)
+                  if (isAsset) setDepreciationPercentage('')
+                }}
+              >
                 This is an asset
               </label>
             </div>
@@ -824,7 +1065,11 @@ const AddExpense = () => {
                   step={0.01}
                   placeholder='e.g. 10.00'
                   value={depreciationPercentage}
-                  onChange={e => setDepreciationPercentage((e.target as HTMLInputElement).value)}
+                  onChange={e =>
+                    setDepreciationPercentage(
+                      (e.target as HTMLInputElement).value
+                    )
+                  }
                   note='Annual depreciation rate for this asset (%)'
                   required
                 />
@@ -833,51 +1078,133 @@ const AddExpense = () => {
           </div>
         )}
 
+        {/* Staff Claim Section — for claimable expense types */}
+        {isClaimable && (
+          <div className='flex flex-col gap-3'>
+            <div className='flex items-center gap-2'>
+              <Checkbox
+                checked={isClaimed}
+                onCheckedChange={checked => {
+                  setIsClaimed(checked === true)
+                  if (!checked) setClaimerId(null)
+                }}
+              />
+              <label
+                className='texts-label-large cursor-pointer'
+                onClick={() => {
+                  const newValue = !isClaimed
+                  setIsClaimed(newValue)
+                  if (!newValue) setClaimerId(null)
+                }}
+              >
+                Paid by staff
+              </label>
+            </div>
+
+            {isClaimed && (
+              <InputGroup label='Staff who paid' isRequired>
+                <Combobox
+                  items={claimerStaffItems}
+                  variant='single'
+                  searchPlaceholder='Search staff'
+                  placeholder={
+                    loadingClaimerStaff
+                      ? 'Loading staff...'
+                      : 'Select staff member'
+                  }
+                  isLoading={loadingClaimerStaff}
+                  loadingMessage='Fetching staff...'
+                  onValueChange={value => {
+                    setClaimerId(value || null)
+                  }}
+                  required
+                />
+              </InputGroup>
+            )}
+
+            {isClaimed && claimerId && (
+              <div className='p-3 rounded-md bg-amber-50 border border-amber-200'>
+                <div className='flex items-center gap-2 text-sm text-amber-800'>
+                  <Info strokeWidth={1.5} size={20} />
+                  This expense was paid by{' '}
+                  <span className='font-semibold'>
+                    {claimerStaffItems.find(s => s.id === claimerId)?.label ||
+                      'staff'}
+                  </span>
+                  . When you log payment for this expense, it will be recorded
+                  as reimbursement to the staff.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Info note — Property Related only */}
-        {selectedIndex === 0 && expenseType.type === 'Refund' && selectedLeaseId && (
-          <div className='mt-3 p-3 rounded-md bg-blue-50 border border-blue-200'>
-            <div className='flex items-center gap-2 text-sm text-blue-800'>
-              <Info strokeWidth={1.5} size={20} />
-              This expense will be linked to lease{' '}
-              <span className='font-semibold'>
-                {leaseItems.find(l => l.id === selectedLeaseId)?.label || 'lease'}
-              </span>
-              {leaseItems.find(l => l.id === selectedLeaseId)?.subtitle && (
-                <> — <span className='font-semibold'>
-                  {leaseItems.find(l => l.id === selectedLeaseId)?.subtitle}
-                </span></>
-              )}
+        {selectedIndex === 0 &&
+          expenseType.type === 'Refund' &&
+          selectedLeaseId && (
+            <div className='mt-3 p-3 rounded-md bg-blue-50 border border-blue-200'>
+              <div className='flex items-center gap-2 text-sm text-blue-800'>
+                <Info strokeWidth={1.5} size={20} />
+                This expense will be linked to lease{' '}
+                <span className='font-semibold'>
+                  {leaseItems.find(l => l.id === selectedLeaseId)?.label ||
+                    'lease'}
+                </span>
+                {leaseItems.find(l => l.id === selectedLeaseId)?.subtitle && (
+                  <>
+                    {' '}
+                    —{' '}
+                    <span className='font-semibold'>
+                      {leaseItems.find(l => l.id === selectedLeaseId)?.subtitle}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-        {selectedIndex === 0 && expenseType.type !== 'Refund' && selectedPropertyId && (
-          <div className='mt-3 p-3 rounded-md bg-blue-50 border border-blue-200'>
-            <div className='flex items-center gap-2 text-sm text-blue-800'>
-              <Info strokeWidth={1.5} size={20} />
-              This expense will be recorded for property{' '}
-              <span className='font-semibold'>
-                {propertyItems.find(p => p.id === selectedPropertyId)?.label || 'property'}
-              </span>
-              {propertyItems.find(p => p.id === selectedPropertyId)?.subtitle && (
-                <> in <span className='font-semibold'>
-                  {propertyItems.find(p => p.id === selectedPropertyId)?.subtitle}
-                </span></>
-              )}
+          )}
+        {selectedIndex === 0 &&
+          expenseType.type !== 'Refund' &&
+          selectedPropertyId && (
+            <div className='mt-3 p-3 rounded-md bg-blue-50 border border-blue-200'>
+              <div className='flex items-center gap-2 text-sm text-blue-800'>
+                <Info strokeWidth={1.5} size={20} />
+                This expense will be recorded for property{' '}
+                <span className='font-semibold'>
+                  {propertyItems.find(p => p.id === selectedPropertyId)
+                    ?.label || 'property'}
+                </span>
+                {propertyItems.find(p => p.id === selectedPropertyId)
+                  ?.subtitle && (
+                  <>
+                    {' '}
+                    in{' '}
+                    <span className='font-semibold'>
+                      {
+                        propertyItems.find(p => p.id === selectedPropertyId)
+                          ?.subtitle
+                      }
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </InnerSection>
 
       {/* Staff Salary Section */}
       {isStaffSalary && (
-        <InnerSection title='Salary Breakdown' subtitle='Enter salary components and deductions'>
+        <InnerSection
+          title='Salary Breakdown'
+          subtitle='Enter salary components and deductions'
+        >
           {/* Gross Salary */}
           <InputGroup label='Gross Salary' isRequired>
             <Input
               currency
               placeholder='0.00'
               value={grossSalary}
-              onValueChange={(value) => setGrossSalary(value || '')}
+              onValueChange={value => setGrossSalary(value || '')}
               required
             />
           </InputGroup>
@@ -889,7 +1216,9 @@ const AddExpense = () => {
                 currency
                 placeholder='0.00'
                 value={epfEmployer}
-                onValueChange={(value) => setEpfEmployer(clampToGross(value || ''))}
+                onValueChange={value =>
+                  setEpfEmployer(clampToGross(value || ''))
+                }
                 required
               />
             </InputGroup>
@@ -898,7 +1227,9 @@ const AddExpense = () => {
                 currency
                 placeholder='0.00'
                 value={socsoEmployer}
-                onValueChange={(value) => setSocsoEmployer(clampToGross(value || ''))}
+                onValueChange={value =>
+                  setSocsoEmployer(clampToGross(value || ''))
+                }
                 required
               />
             </InputGroup>
@@ -911,7 +1242,9 @@ const AddExpense = () => {
                 currency
                 placeholder='0.00'
                 value={epfEmployee}
-                onValueChange={(value) => setEpfEmployee(clampEmployeeDeduction(value || '', 'epfEe'))}
+                onValueChange={value =>
+                  setEpfEmployee(clampEmployeeDeduction(value || '', 'epfEe'))
+                }
                 required
               />
             </InputGroup>
@@ -920,7 +1253,11 @@ const AddExpense = () => {
                 currency
                 placeholder='0.00'
                 value={socsoEmployee}
-                onValueChange={(value) => setSocsoEmployee(clampEmployeeDeduction(value || '', 'socsoEe'))}
+                onValueChange={value =>
+                  setSocsoEmployee(
+                    clampEmployeeDeduction(value || '', 'socsoEe')
+                  )
+                }
                 required
               />
             </InputGroup>
@@ -933,7 +1270,9 @@ const AddExpense = () => {
                 currency
                 placeholder='0.00'
                 value={tax}
-                onValueChange={(value) => setTax(clampEmployeeDeduction(value || '', 'tax'))}
+                onValueChange={value =>
+                  setTax(clampEmployeeDeduction(value || '', 'tax'))
+                }
                 required
               />
             </InputGroup>
@@ -964,7 +1303,13 @@ const AddExpense = () => {
                   <Input
                     placeholder='Deduction title'
                     value={deduction.title}
-                    onChange={e => updateDeduction(index, 'title', (e.target as HTMLInputElement).value)}
+                    onChange={e =>
+                      updateDeduction(
+                        index,
+                        'title',
+                        (e.target as HTMLInputElement).value
+                      )
+                    }
                   />
                 </div>
                 <div className='w-48'>
@@ -972,7 +1317,13 @@ const AddExpense = () => {
                     currency
                     placeholder='0.00'
                     value={deduction.amount}
-                    onValueChange={(value) => updateDeduction(index, 'amount', clampEmployeeDeduction(value || '', index))}
+                    onValueChange={value =>
+                      updateDeduction(
+                        index,
+                        'amount',
+                        clampEmployeeDeduction(value || '', index)
+                      )
+                    }
                   />
                 </div>
                 <button
@@ -986,7 +1337,9 @@ const AddExpense = () => {
             ))}
 
             {deductions.length === 0 && (
-              <p className='texts-caption-large text-(--text-tertiary)'>No additional deductions</p>
+              <p className='texts-caption-large text-(--text-tertiary)'>
+                No additional deductions
+              </p>
             )}
           </div>
 
@@ -994,55 +1347,93 @@ const AddExpense = () => {
           {salarySummary.gross > 0 && (
             <div className='rounded-lg border border-(--border-default) overflow-hidden'>
               <div className='bg-neutral-50 px-4 py-3 border-b border-(--border-default)'>
-                <span className='texts-body-medium-semibold text-(--text-primary)'>Summary</span>
+                <span className='texts-body-medium-semibold text-(--text-primary)'>
+                  Summary
+                </span>
               </div>
               <div className='px-4 py-3 flex flex-col gap-2.5'>
                 {/* Gross */}
                 <div className='flex items-center justify-between'>
-                  <span className='texts-body-small text-(--text-secondary)'>Gross Salary</span>
-                  <span className='texts-body-small-medium'>{formatCurrency(salarySummary.gross)}</span>
+                  <span className='texts-body-small text-(--text-secondary)'>
+                    Gross Salary
+                  </span>
+                  <span className='texts-body-small-medium'>
+                    {formatCurrency(salarySummary.gross)}
+                  </span>
                 </div>
 
                 {/* Employee Deductions */}
-                {(salarySummary.epfEe > 0 || salarySummary.socsoEe > 0 || salarySummary.taxAmount > 0 || salarySummary.totalCustomDeductions > 0) && (
+                {(salarySummary.epfEe > 0 ||
+                  salarySummary.socsoEe > 0 ||
+                  salarySummary.taxAmount > 0 ||
+                  salarySummary.totalCustomDeductions > 0) && (
                   <>
                     <div className='border-t border-dashed border-(--border-default) my-0.5' />
-                    <span className='texts-caption-large text-(--text-tertiary) uppercase tracking-wide'>Employee Deductions</span>
+                    <span className='texts-caption-large text-(--text-tertiary) uppercase tracking-wide'>
+                      Employee Deductions
+                    </span>
                     {salarySummary.epfEe > 0 && (
                       <div className='flex items-center justify-between'>
-                        <span className='texts-body-small text-(--text-secondary)'>EPF (Employee)</span>
-                        <span className='texts-body-small text-red-600'>- {formatCurrency(salarySummary.epfEe)}</span>
+                        <span className='texts-body-small text-(--text-secondary)'>
+                          EPF (Employee)
+                        </span>
+                        <span className='texts-body-small text-red-600'>
+                          - {formatCurrency(salarySummary.epfEe)}
+                        </span>
                       </div>
                     )}
                     {salarySummary.socsoEe > 0 && (
                       <div className='flex items-center justify-between'>
-                        <span className='texts-body-small text-(--text-secondary)'>SOCSO (Employee)</span>
-                        <span className='texts-body-small text-red-600'>- {formatCurrency(salarySummary.socsoEe)}</span>
+                        <span className='texts-body-small text-(--text-secondary)'>
+                          SOCSO (Employee)
+                        </span>
+                        <span className='texts-body-small text-red-600'>
+                          - {formatCurrency(salarySummary.socsoEe)}
+                        </span>
                       </div>
                     )}
                     {salarySummary.taxAmount > 0 && (
                       <div className='flex items-center justify-between'>
-                        <span className='texts-body-small text-(--text-secondary)'>Tax (PCB)</span>
-                        <span className='texts-body-small text-red-600'>- {formatCurrency(salarySummary.taxAmount)}</span>
+                        <span className='texts-body-small text-(--text-secondary)'>
+                          Tax (PCB)
+                        </span>
+                        <span className='texts-body-small text-red-600'>
+                          - {formatCurrency(salarySummary.taxAmount)}
+                        </span>
                       </div>
                     )}
-                    {deductions.filter(d => parseFloat(d.amount) > 0).map((d, i) => (
-                      <div key={i} className='flex items-center justify-between'>
-                        <span className='texts-body-small text-(--text-secondary)'>{d.title || 'Untitled'}</span>
-                        <span className='texts-body-small text-red-600'>- {formatCurrency(parseFloat(d.amount) || 0)}</span>
-                      </div>
-                    ))}
+                    {deductions
+                      .filter(d => parseFloat(d.amount) > 0)
+                      .map((d, i) => (
+                        <div
+                          key={i}
+                          className='flex items-center justify-between'
+                        >
+                          <span className='texts-body-small text-(--text-secondary)'>
+                            {d.title || 'Untitled'}
+                          </span>
+                          <span className='texts-body-small text-red-600'>
+                            - {formatCurrency(parseFloat(d.amount) || 0)}
+                          </span>
+                        </div>
+                      ))}
                   </>
                 )}
 
                 {/* Net Salary */}
                 <div className='border-t border-(--border-default) pt-2.5'>
                   <div className='flex items-center justify-between'>
-                    <span className='texts-body-medium-semibold text-(--text-primary)'>Salary Received</span>
-                    <span className={cn(
-                      'texts-body-medium-semibold',
-                      salarySummary.netSalary < 0 ? 'text-red-600' : 'text-(--success-dark)'
-                    )}>
+                    <span className='texts-body-medium-semibold text-(--text-primary)'>
+                      Salary Received
+                    </span>
+                    <span
+                      className={cn(
+                        'texts-body-medium-semibold',
+                        salarySummary.netSalary < 0
+                          ? 'text-red-600'
+                          : 'text-(--success-dark)'
+                      )}
+                    >
                       {formatCurrency(salarySummary.netSalary)}
                     </span>
                   </div>
@@ -1052,17 +1443,27 @@ const AddExpense = () => {
                 {(salarySummary.epfEr > 0 || salarySummary.socsoEr > 0) && (
                   <>
                     <div className='border-t border-dashed border-(--border-default) my-0.5' />
-                    <span className='texts-caption-large text-(--text-tertiary) uppercase tracking-wide'>Employer Contributions</span>
+                    <span className='texts-caption-large text-(--text-tertiary) uppercase tracking-wide'>
+                      Employer Contributions
+                    </span>
                     {salarySummary.epfEr > 0 && (
                       <div className='flex items-center justify-between'>
-                        <span className='texts-body-small text-(--text-secondary)'>EPF (Employer)</span>
-                        <span className='texts-body-small'>{formatCurrency(salarySummary.epfEr)}</span>
+                        <span className='texts-body-small text-(--text-secondary)'>
+                          EPF (Employer)
+                        </span>
+                        <span className='texts-body-small'>
+                          {formatCurrency(salarySummary.epfEr)}
+                        </span>
                       </div>
                     )}
                     {salarySummary.socsoEr > 0 && (
                       <div className='flex items-center justify-between'>
-                        <span className='texts-body-small text-(--text-secondary)'>SOCSO (Employer)</span>
-                        <span className='texts-body-small'>{formatCurrency(salarySummary.socsoEr)}</span>
+                        <span className='texts-body-small text-(--text-secondary)'>
+                          SOCSO (Employer)
+                        </span>
+                        <span className='texts-body-small'>
+                          {formatCurrency(salarySummary.socsoEr)}
+                        </span>
                       </div>
                     )}
                   </>
@@ -1071,7 +1472,9 @@ const AddExpense = () => {
                 {/* Cost to Company */}
                 <div className='border-t border-(--border-default) pt-2.5'>
                   <div className='flex items-center justify-between'>
-                    <span className='texts-body-medium-semibold text-(--text-primary)'>Cost to Company</span>
+                    <span className='texts-body-medium-semibold text-(--text-primary)'>
+                      Cost to Company
+                    </span>
                     <span className='texts-body-medium-semibold text-(--text-primary)'>
                       {formatCurrency(salarySummary.costToCompany)}
                     </span>
@@ -1082,20 +1485,26 @@ const AddExpense = () => {
           )}
 
           {/* Deduction exceeds gross warning */}
-          {salarySummary.gross > 0 && salarySummary.totalDeductions > salarySummary.gross && (
-            <div className='p-3 rounded-md bg-red-50 border border-red-200'>
-              <div className='flex items-center gap-2 text-sm text-red-800'>
-                <Info strokeWidth={1.5} size={20} />
-                Total deductions ({formatCurrency(salarySummary.totalDeductions)}) exceed gross salary ({formatCurrency(salarySummary.gross)})
+          {salarySummary.gross > 0 &&
+            salarySummary.totalDeductions > salarySummary.gross && (
+              <div className='p-3 rounded-md bg-red-50 border border-red-200'>
+                <div className='flex items-center gap-2 text-sm text-red-800'>
+                  <Info strokeWidth={1.5} size={20} />
+                  Total deductions (
+                  {formatCurrency(salarySummary.totalDeductions)}) exceed gross
+                  salary ({formatCurrency(salarySummary.gross)})
+                </div>
               </div>
-            </div>
-          )}
+            )}
         </InnerSection>
       )}
 
       {/* Staff Allowances Section — shown for both Salary and Allowances type */}
       {(isStaffSalary || isStaffAllowances) && (
-        <InnerSection title='Allowances' subtitle='Add allowance items for this staff member'>
+        <InnerSection
+          title='Allowances'
+          subtitle='Add allowance items for this staff member'
+        >
           <div className='flex flex-col gap-3'>
             {allowances.map((allowance, index) => (
               <div key={index} className='flex items-start gap-3'>
@@ -1103,7 +1512,13 @@ const AddExpense = () => {
                   <Input
                     placeholder='Allowance title'
                     value={allowance.title}
-                    onChange={e => updateAllowance(index, 'title', (e.target as HTMLInputElement).value)}
+                    onChange={e =>
+                      updateAllowance(
+                        index,
+                        'title',
+                        (e.target as HTMLInputElement).value
+                      )
+                    }
                     required
                   />
                 </div>
@@ -1112,7 +1527,9 @@ const AddExpense = () => {
                     currency
                     placeholder='0.00'
                     value={allowance.amount}
-                    onValueChange={(value) => updateAllowance(index, 'amount', value || '')}
+                    onValueChange={value =>
+                      updateAllowance(index, 'amount', value || '')
+                    }
                     required
                   />
                 </div>
@@ -1145,7 +1562,9 @@ const AddExpense = () => {
             {allowancesTotal > 0 && (
               <div className='rounded-lg border border-(--border-default) px-4 py-3'>
                 <div className='flex items-center justify-between'>
-                  <span className='texts-body-medium-semibold text-(--text-primary)'>Total Allowances</span>
+                  <span className='texts-body-medium-semibold text-(--text-primary)'>
+                    Total Allowances
+                  </span>
                   <span className='texts-body-medium-semibold text-(--text-primary)'>
                     {formatCurrency(allowancesTotal)}
                   </span>

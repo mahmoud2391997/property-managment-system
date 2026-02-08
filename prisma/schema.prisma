@@ -839,6 +839,7 @@ model staff {
   phone_number                                               String
   bookings                                                   bookings[]
   charges                                                    charges[]
+  company_expenses                                           company_expenses[]
   company_tenants                                            company_tenants[]
   contracts                                                  contracts[]
   deduction_charges                                          deduction_charges[]
@@ -853,7 +854,9 @@ model staff {
   properties                                                 properties[]
   property_default_initial_charges                           property_default_initial_charges[]
   property_default_lease_config                              property_default_lease_config[]
+  property_expenses                                          property_expenses[]
   property_images                                            property_images[]
+  purchase_expenses                                          purchase_expenses[]
   recurring_configs                                          recurring_configs[]
   refund_decisions_refund_decisions_reviewed_byTostaff       refund_decisions[]                 @relation("refund_decisions_reviewed_byTostaff")
   refund_decisions_refund_decisions_submitted_byTostaff      refund_decisions[]                 @relation("refund_decisions_submitted_byTostaff")
@@ -1489,9 +1492,12 @@ model property_images {
 }
 
 model company_expenses {
-  id       String               @id @db.Uuid
-  type     company_expense_type
-  expenses expenses             @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id         String               @id @db.Uuid
+  type       company_expense_type
+  is_claimed Boolean              @default(false)
+  claimer_id String?              @db.Uuid
+  staff      staff?               @relation(fields: [claimer_id], references: [id], onUpdate: NoAction)
+  expenses   expenses             @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@schema("public")
 }
@@ -1502,6 +1508,9 @@ model property_expenses {
   property_id String?               @db.Uuid
   type        property_expense_type
   lease_id    String?               @db.Uuid
+  is_claimed  Boolean               @default(false)
+  claimer_id  String?               @db.Uuid
+  staff       staff?                @relation(fields: [claimer_id], references: [id], onUpdate: NoAction)
   expenses    expenses              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   leases      leases?               @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   properties  properties?           @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -1516,6 +1525,9 @@ model purchase_expenses {
   is_asset                Boolean               @default(false)
   depreciation_percentage Decimal?              @db.Decimal(5, 2)
   property_id             String?               @db.Uuid
+  is_claimed              Boolean               @default(false)
+  claimer_id              String?               @db.Uuid
+  staff                   staff?                @relation(fields: [claimer_id], references: [id], onUpdate: NoAction)
   expenses                expenses              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   properties              properties?           @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
