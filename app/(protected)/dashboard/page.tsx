@@ -4,40 +4,29 @@ import { Suspense } from 'react'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import { Card } from '@/components/ui/card'
 import {
-  getDashboardMetrics,
-  getMonthlyRevenue,
-  getPaymentStatusDistribution,
-  getOccupancyData,
-  getRecentPayments,
-  getExpiringLeases,
-  getOpenTasks,
-  getDashboardAlerts,
-  getPropertyStatusCounts,
-  getRoomStatusCounts,
-  getLeaseStatusCounts,
-  getContractStatusCounts,
-  STATUS_COLORS
-} from '@/lib/dashboard-data'
-import {
-  StatusMetricCard,
-  StatusMetricsContainer,
-  StatusMetricsContainerSkeleton,
-  RevenueChart,
-  RevenueChartSkeleton,
-  PaymentStatusChart,
-  PaymentStatusChartSkeleton,
-  OccupancyChart,
-  OccupancyChartSkeleton,
-  RecentPayments,
-  RecentPaymentsSkeleton,
-  ExpiringLeases,
-  ExpiringLeasesSkeleton,
-  OpenTasks,
-  OpenTasksSkeleton,
-  AlertsSection,
-  AlertsSectionSkeleton
+  FinancialKpiCardSkeleton,
+  FinancialMonthlyOverviewSkeleton,
+  FinancialExpenseBreakdownSkeleton,
+  RentalOverviewChartSkeleton,
+  PaymentTypeBreakdownSkeleton,
+  TopExpensePropertiesSkeleton,
+  PropertyProfitHeatmapSkeleton,
 } from '@/components/dashboard'
+import { FinancialDashboardClient } from './financial-dashboard-client'
+import {
+  getProjects,
+  getAvailableYears,
+  getAvailableExpenseTypes,
+  getKpiData,
+  getMonthlyOverviewData,
+  getExpenseBreakdownData,
+  getRentalOverviewData,
+  getPaymentTypeData,
+  getTopExpensePropertiesData,
+  getPropertyProfitHeatmapData,
+} from '@/lib/financial-dashboard-actions'
 
 async function getOrganizationId(): Promise<string | null> {
   const supabase = await createClient()
@@ -53,165 +42,90 @@ async function getOrganizationId(): Promise<string | null> {
   return staff?.organization_id || null
 }
 
-// Metric Cards Section - single card with 4 metrics separated by dividers
-async function MetricsSection({ organizationId }: { organizationId: string }) {
-  const [propertyStatus, roomStatus, leaseStatus, contractStatus] = await Promise.all([
-    getPropertyStatusCounts(organizationId),
-    getRoomStatusCounts(organizationId),
-    getLeaseStatusCounts(organizationId),
-    getContractStatusCounts(organizationId)
+// Fetch all initial data and render the client component
+async function DashboardContent({ organizationId }: { organizationId: string }) {
+  const currentYear = new Date().getFullYear()
+  const currentMonth = new Date().getMonth()
+
+  const [
+    projects,
+    years,
+    categoryTypeMap,
+    kpi,
+    monthlyOverview,
+    expenseBreakdown,
+    rentalOverview,
+    paymentTypes,
+    topExpProperties,
+    heatmapData,
+  ] = await Promise.all([
+    getProjects(organizationId),
+    getAvailableYears(organizationId),
+    getAvailableExpenseTypes(organizationId),
+    getKpiData(organizationId),
+    getMonthlyOverviewData(organizationId, currentYear),
+    getExpenseBreakdownData(organizationId, currentYear, currentMonth),
+    getRentalOverviewData(organizationId, currentYear),
+    getPaymentTypeData(organizationId, currentYear, currentMonth),
+    getTopExpensePropertiesData(organizationId),
+    getPropertyProfitHeatmapData(organizationId, currentYear),
   ])
 
   return (
-    <StatusMetricsContainer>
-      <div className="flex">
-        <StatusMetricCard
-          title="Properties"
-          value={propertyStatus.total}
-          statuses={[
-            { label: 'Vacant', count: propertyStatus.vacant, color: STATUS_COLORS.vacant },
-            { label: 'Occupied', count: propertyStatus.occupied, color: STATUS_COLORS.occupied },
-            { label: 'Under Preparation', count: propertyStatus.underPreparation, color: STATUS_COLORS.underPreparation },
-            { label: 'Pending Inspection', count: propertyStatus.pendingInspection, color: STATUS_COLORS.pendingInspection },
-          ]}
-        />
-      </div>
-
-      <div className=" h-10 border  border-gray-200">
-        <StatusMetricCard
-          title="Rooms"
-          value={roomStatus.total}
-          statuses={[
-            { label: 'Vacant', count: roomStatus.vacant, color: STATUS_COLORS.vacant },
-            { label: 'Occupied', count: roomStatus.occupied, color: STATUS_COLORS.occupied },
-            { label: 'Under Preparation', count: roomStatus.underPreparation, color: STATUS_COLORS.underPreparation },
-            { label: 'Pending Inspection', count: roomStatus.pendingInspection, color: STATUS_COLORS.pendingInspection },
-          ]}
-        />
-      </div>
-
-      <div className="flex-1 border-l border-gray-200">
-        <StatusMetricCard
-          title="Active Leases"
-          value={leaseStatus.total}
-          statuses={[
-            { label: 'Active', count: leaseStatus.active, color: STATUS_COLORS.active },
-            { label: 'Expiring Soon', count: leaseStatus.expiringSoon, color: STATUS_COLORS.expiringSoon },
-            { label: 'Expired', count: leaseStatus.expired, color: STATUS_COLORS.expired },
-          ]}
-        />
-      </div>
-
-      <div className="flex-1 border-l border-gray-200">
-        <StatusMetricCard
-          title="Active Contracts"
-          value={contractStatus.total}
-          statuses={[
-            { label: 'Active', count: contractStatus.active, color: STATUS_COLORS.active },
-            { label: 'Expiring Soon', count: contractStatus.expiringSoon, color: STATUS_COLORS.expiringSoon },
-            { label: 'Expired', count: contractStatus.expired, color: STATUS_COLORS.expired },
-          ]}
-        />
-      </div>
-    </StatusMetricsContainer>
+    <FinancialDashboardClient
+      organizationId={organizationId}
+      projects={projects}
+      years={years}
+      categoryTypeMap={categoryTypeMap}
+      initialKpi={kpi}
+      initialMonthlyOverview={monthlyOverview}
+      initialExpenseBreakdown={expenseBreakdown}
+      initialRentalOverview={rentalOverview}
+      initialPaymentTypes={paymentTypes}
+      initialTopExpenseProperties={topExpProperties}
+      initialHeatmapData={heatmapData}
+    />
   )
 }
 
-function MetricsSkeleton() {
+function DashboardSkeleton() {
   return (
-    <StatusMetricsContainerSkeleton />
-  )
-}
-
-// Charts Section
-async function ChartsSection({ organizationId }: { organizationId: string }) {
-  const [revenueData, paymentStatus] = await Promise.all([
-    getMonthlyRevenue(organizationId, 6),
-    getPaymentStatusDistribution(organizationId)
-  ])
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <RevenueChart data={revenueData} className="lg:col-span-2" />
-      <PaymentStatusChart data={paymentStatus} />
-    </div>
-  )
-}
-
-function ChartsSkeleton() {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <div className="lg:col-span-2">
-        <RevenueChartSkeleton />
-      </div>
-      <PaymentStatusChartSkeleton />
-    </div>
-  )
-}
-
-// Second Row: Occupancy + Expiring Leases + Alerts
-async function SecondRowSection({ organizationId }: { organizationId: string }) {
-  const [occupancyData, metrics, expiringLeases, alerts] = await Promise.all([
-    getOccupancyData(organizationId),
-    getDashboardMetrics(organizationId),
-    getExpiringLeases(organizationId, 30),
-    getDashboardAlerts(organizationId)
-  ])
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <OccupancyChart data={occupancyData} occupancyRate={metrics.occupancyRate} />
-      <ExpiringLeases leases={expiringLeases} />
-      {alerts.length > 0 ? (
-        <AlertsSection alerts={alerts} />
-      ) : (
-        <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-5 flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-3xl mb-2">✓</div>
-            <p className="text-sm font-medium text-gray-600">All Clear!</p>
-            <p className="text-xs text-gray-400">No alerts at this time</p>
-          </div>
+    <>
+      {/* KPI Cards Skeleton */}
+      <Card className="gap-0 p-0 shadow-xs overflow-hidden">
+        <div className="flex flex-row py-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className={`flex-1 ${i > 0 ? 'border-l border-(--border-default)' : ''}`}
+            >
+              <FinancialKpiCardSkeleton />
+            </div>
+          ))}
         </div>
-      )}
-    </div>
+      </Card>
+
+      {/* Row 2 Skeleton */}
+      <div className="flex gap-5">
+        <FinancialMonthlyOverviewSkeleton />
+        <FinancialExpenseBreakdownSkeleton />
+      </div>
+
+      {/* Row 3 Skeleton */}
+      <RentalOverviewChartSkeleton />
+
+      {/* Row 4 Skeleton */}
+      <div className="flex gap-5">
+        <PaymentTypeBreakdownSkeleton />
+        <TopExpensePropertiesSkeleton />
+      </div>
+
+      {/* Row 5 Skeleton */}
+      <PropertyProfitHeatmapSkeleton />
+    </>
   )
 }
 
-function SecondRowSkeleton() {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <OccupancyChartSkeleton />
-      <ExpiringLeasesSkeleton />
-      <AlertsSectionSkeleton />
-    </div>
-  )
-}
-
-// Third Row: Tasks + Recent Payments
-async function ThirdRowSection({ organizationId }: { organizationId: string }) {
-  const [openTasks, recentPayments] = await Promise.all([
-    getOpenTasks(organizationId, 5),
-    getRecentPayments(organizationId, 5)
-  ])
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <OpenTasks tasks={openTasks} />
-      <RecentPayments payments={recentPayments} />
-    </div>
-  )
-}
-
-function ThirdRowSkeleton() {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <OpenTasksSkeleton />
-      <RecentPaymentsSkeleton />
-    </div>
-  )
-}
-
-// Main Dashboard Page
 export default async function Dashboard() {
   const organizationId = await getOrganizationId()
 
@@ -229,24 +143,8 @@ export default async function Dashboard() {
         </p>
       </div>
 
-      {/* Metrics - 4 status cards */}
-      <Suspense fallback={<MetricsSkeleton />}>
-        <MetricsSection organizationId={organizationId} />
-      </Suspense>
-
-      {/* Charts Row: Revenue + Payment Status */}
-      <Suspense fallback={<ChartsSkeleton />}>
-        <ChartsSection organizationId={organizationId} />
-      </Suspense>
-
-      {/* Second Row: Occupancy + Expiring Leases + Alerts */}
-      <Suspense fallback={<SecondRowSkeleton />}>
-        <SecondRowSection organizationId={organizationId} />
-      </Suspense>
-
-      {/* Third Row: Tasks + Recent Payments */}
-      <Suspense fallback={<ThirdRowSkeleton />}>
-        <ThirdRowSection organizationId={organizationId} />
+      <Suspense fallback={<DashboardSkeleton />}>
+        <DashboardContent organizationId={organizationId} />
       </Suspense>
     </div>
   )

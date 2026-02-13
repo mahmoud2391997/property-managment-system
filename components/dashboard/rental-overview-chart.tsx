@@ -30,10 +30,10 @@ import {
 
 export interface RentalOverviewData {
   month: string
-  rentalReceived: number
-  ownerPaid: number
-  occupancyRate: number   // percentage 0–100
-  propertyCount: number   // avg properties for tooltip
+  rentalReceived: number | null
+  ownerPaid: number | null
+  occupancyRate: number | null   // percentage 0–100
+  propertyCount: number | null   // avg properties for tooltip
 }
 
 export interface ProjectOption {
@@ -68,47 +68,61 @@ const CHART_COLORS = {
 
 function CustomTooltip({ active, payload, label }: any) {
   if (active && payload && payload.length) {
-    const received = payload.find((p: any) => p.dataKey === 'rentalReceived')?.value ?? 0
-    const paid = payload.find((p: any) => p.dataKey === 'ownerPaid')?.value ?? 0
-    const diff = received - paid
+    const received = payload.find((p: any) => p.dataKey === 'rentalReceived')?.value
+    const paid = payload.find((p: any) => p.dataKey === 'ownerPaid')?.value
+    const hasRentalData = received != null && paid != null
+    const diff = hasRentalData ? received - paid : null
     const occupancy = payload.find((p: any) => p.dataKey === 'occupancyRate')?.value
     const properties = payload[0]?.payload?.propertyCount
+
+    if (!hasRentalData && occupancy == null) {
+      return (
+        <div className="bg-white border border-(--border-default) rounded-lg px-4 py-3 shadow-lg min-w-[160px]">
+          <p className="texts-label-small text-(--text-muted) mb-1">{label}</p>
+          <p className="texts-caption-large text-(--text-muted)">No data</p>
+        </div>
+      )
+    }
 
     return (
       <div className="bg-white border border-(--border-default) rounded-lg px-4 py-3 shadow-lg min-w-[200px]">
         <p className="texts-label-small text-(--text-muted) mb-2">{label}</p>
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS.rentalReceived }} />
-              <span className="texts-caption-large text-(--text-secondary)">Received</span>
-            </div>
-            <span className="texts-label-small text-(--text-primary)">
-              RM {received.toLocaleString('en-MY')}
-            </span>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS.ownerPaid }} />
-              <span className="texts-caption-large text-(--text-secondary)">Owner Paid</span>
-            </div>
-            <span className="texts-label-small text-(--text-primary)">
-              RM {paid.toLocaleString('en-MY')}
-            </span>
-          </div>
-          <div className="border-t border-(--border-default) mt-1 pt-1.5">
-            <div className="flex items-center justify-between gap-4">
-              <span className="texts-caption-large text-(--text-secondary)">Difference</span>
-              <span
-                className="texts-label-small font-bold"
-                style={{ color: diff >= 0 ? '#0d9488' : '#ef4444' }}
-              >
-                {diff >= 0 ? '+' : ''}RM {diff.toLocaleString('en-MY')}
-              </span>
-            </div>
-          </div>
-          {occupancy !== undefined && (
-            <div className="border-t border-(--border-default) mt-1 pt-1.5">
+          {hasRentalData && (
+            <>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS.rentalReceived }} />
+                  <span className="texts-caption-large text-(--text-secondary)">Received</span>
+                </div>
+                <span className="texts-label-small text-(--text-primary)">
+                  RM {received.toLocaleString('en-MY')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS.ownerPaid }} />
+                  <span className="texts-caption-large text-(--text-secondary)">Owner Paid</span>
+                </div>
+                <span className="texts-label-small text-(--text-primary)">
+                  RM {paid.toLocaleString('en-MY')}
+                </span>
+              </div>
+              <div className="border-t border-(--border-default) mt-1 pt-1.5">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="texts-caption-large text-(--text-secondary)">Difference</span>
+                  <span
+                    className="texts-label-small font-bold"
+                    style={{ color: diff! >= 0 ? '#0d9488' : '#ef4444' }}
+                  >
+                    {diff! >= 0 ? '+' : ''}RM {diff!.toLocaleString('en-MY')}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
+          {occupancy != null && (
+            <div className={hasRentalData ? 'border-t border-(--border-default) mt-1 pt-1.5' : ''}>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS.occupancy }} />
@@ -118,7 +132,7 @@ function CustomTooltip({ active, payload, label }: any) {
                   {occupancy.toFixed(1)}%
                 </span>
               </div>
-              {properties !== undefined && (
+              {properties != null && (
                 <div className="flex items-center justify-between gap-4 mt-1">
                   <span className="texts-caption-large text-(--text-muted) pl-4">Properties</span>
                   <span className="texts-label-small text-(--text-secondary)">

@@ -32,8 +32,8 @@ import {
 
 export interface MonthlyOverviewData {
   month: string
-  income: number
-  outcome: number
+  income: number | null
+  outcome: number | null
 }
 
 export interface ProjectOption {
@@ -70,10 +70,20 @@ const CHART_COLORS = {
 
 function CustomTooltip({ active, payload, label }: any) {
   if (active && payload && payload.length) {
-    const income = payload.find((p: any) => p.dataKey === 'income')?.value ?? 0
-    const outcome = payload.find((p: any) => p.dataKey === 'outcome')?.value ?? 0
-    const profit = income - outcome
+    const income = payload.find((p: any) => p.dataKey === 'income')?.value
+    const outcome = payload.find((p: any) => p.dataKey === 'outcome')?.value
+    const hasData = income != null && outcome != null
+    const profit = hasData ? income - outcome : null
     const balance = payload.find((p: any) => p.dataKey === 'balance')?.value
+
+    if (!hasData) {
+      return (
+        <div className="bg-white border border-(--border-default) rounded-lg px-4 py-3 shadow-lg min-w-[160px]">
+          <p className="texts-label-small text-(--text-muted) mb-1">{label}</p>
+          <p className="texts-caption-large text-(--text-muted)">No data</p>
+        </div>
+      )
+    }
 
     return (
       <div className="bg-white border border-(--border-default) rounded-lg px-4 py-3 shadow-lg min-w-[180px]">
@@ -102,9 +112,9 @@ function CustomTooltip({ active, payload, label }: any) {
               <span className="texts-caption-large text-(--text-secondary)">Profit</span>
               <span
                 className="texts-label-small font-bold"
-                style={{ color: profit >= 0 ? CHART_COLORS.profit : CHART_COLORS.loss }}
+                style={{ color: profit! >= 0 ? CHART_COLORS.profit : CHART_COLORS.loss }}
               >
-                {profit >= 0 ? '+' : ''}RM {profit.toLocaleString('en-MY')}
+                {profit! >= 0 ? '+' : ''}RM {profit!.toLocaleString('en-MY')}
               </span>
             </div>
           </div>
@@ -140,10 +150,13 @@ export function FinancialMonthlyOverview({
 }: FinancialMonthlyOverviewProps) {
   const isProjectFiltered = selectedProject !== 'all'
 
-  // Compute cumulative balance for the line
+  // Compute cumulative balance for the line (skip months with no data)
   const dataWithBalance = useMemo(() => {
     let cumulative = 0
     return data.map((d) => {
+      if (d.income == null || d.outcome == null) {
+        return { ...d, balance: null }
+      }
       cumulative += d.income - d.outcome
       return { ...d, balance: cumulative }
     })

@@ -22,9 +22,9 @@ import {
 
 export interface PropertyMonthData {
   month: string
-  income: number
-  outcome: number
-  profit: number
+  income: number | null
+  outcome: number | null
+  profit: number | null
 }
 
 export interface PropertyMonthlyData {
@@ -136,11 +136,13 @@ export function PropertyProfitHeatmap({
   const pageData = sortedData.slice(currentPage * pageSize, (currentPage + 1) * pageSize)
 
   // Global min/max for color normalization (across ALL data, not just page)
+  // Uses diverging scale centered on 0: negative → red, 0 → neutral, positive → teal
   const { minProfit, maxProfit } = useMemo(() => {
     let min = Infinity
     let max = -Infinity
     data.forEach((p) =>
       p.months.forEach((m) => {
+        if (m.profit == null) return
         if (m.profit < min) min = m.profit
         if (m.profit > max) max = m.profit
       }),
@@ -268,7 +270,8 @@ export function PropertyProfitHeatmap({
             {/* Data rows */}
             {pageData.map((property, rowIdx) => {
               const isRowHovered = hovered?.row === rowIdx
-              const totalProfit = property.months.reduce((sum, m) => sum + m.profit, 0)
+              const validMonths = property.months.filter(m => m.profit != null)
+              const totalProfit = validMonths.reduce((sum, m) => sum + m.profit!, 0)
 
               return (
                 <React.Fragment key={property.propertyCode}>
@@ -284,35 +287,57 @@ export function PropertyProfitHeatmap({
 
                   {/* Month cells */}
                   {property.months.map((month, colIdx) => {
-                    const t = maxProfit === minProfit ? 0.5 : (month.profit - minProfit) / (maxProfit - minProfit)
-                    const bgColor = interpolateColor(t)
-                    const txtColor = getTextColor(t)
+                    const isNull = month.profit == null
                     const isHovered = hovered?.row === rowIdx && hovered?.col === colIdx
                     const isCrossHighlight =
                       (hovered?.row === rowIdx || hovered?.col === colIdx) &&
                       !(hovered?.row === rowIdx && hovered?.col === colIdx)
 
+                    // Diverging color: 0 → 0.5 (neutral)
+                    // Positive: scale 0.5–1.0 relative to maxProfit
+                    // Negative: scale 0.0–0.5 relative to minProfit
+                    let t = 0.5
+                    if (!isNull) {
+                      const p = month.profit!
+                      if (p > 0 && maxProfit > 0) {
+                        t = 0.5 + (p / maxProfit) * 0.5
+                      } else if (p < 0 && minProfit < 0) {
+                        t = 0.5 - (Math.abs(p) / Math.abs(minProfit)) * 0.5
+                      }
+                    }
+                    const bgColor = isNull ? undefined : interpolateColor(t)
+                    const txtColor = isNull ? undefined : getTextColor(t)
+
                     return (
                       <div
                         key={`${property.propertyCode}-${month.month}`}
                         className={cn(
-                          'relative min-h-[38px] rounded-md cursor-help transition-all duration-150 flex items-center justify-center',
-                          isHovered && 'ring-2 ring-offset-1 ring-(--text-primary) z-10',
-                          isCrossHighlight && 'brightness-90',
+                          'relative min-h-[38px] rounded-md transition-all duration-150 flex items-center justify-center',
+                          isNull
+                            ? 'bg-(--background-tertiary) border border-dashed border-(--border-default)'
+                            : 'cursor-help',
+                          isHovered && !isNull && 'ring-2 ring-offset-1 ring-(--text-primary) z-10',
+                          isCrossHighlight && !isNull && 'brightness-90',
                         )}
-                        style={{ backgroundColor: bgColor }}
-                        onMouseEnter={() => setHovered({ row: rowIdx, col: colIdx })}
+                        style={bgColor ? { backgroundColor: bgColor } : undefined}
+                        onMouseEnter={() => !isNull && setHovered({ row: rowIdx, col: colIdx })}
                         onMouseLeave={() => setHovered(null)}
                       >
-                        <span
-                          className="texts-caption-small font-semibold leading-none"
-                          style={{ color: txtColor }}
-                        >
-                          {formatCompact(month.profit)}
-                        </span>
+                        {isNull ? (
+                          <span className="texts-caption-small text-(--text-muted) leading-none">
+                            N/A
+                          </span>
+                        ) : (
+                          <span
+                            className="texts-caption-small font-semibold leading-none"
+                            style={{ color: txtColor }}
+                          >
+                            {formatCompact(month.profit!)}
+                          </span>
+                        )}
 
                         {/* Hover tooltip */}
-                        {isHovered && (
+                        {isHovered && !isNull && (
                           <div
                             className={cn(
                               'absolute z-50 bottom-full mb-2 bg-white border border-(--border-default) rounded-lg px-3 py-2 shadow-lg min-w-[160px] pointer-events-none',
@@ -328,25 +353,25 @@ export function PropertyProfitHeatmap({
                               <div className="flex items-center justify-between gap-3">
                                 <span className="texts-caption-large text-(--text-secondary)">Income</span>
                                 <span className="texts-caption-large text-(--text-primary)">
-                                  RM {month.income.toLocaleString('en-MY')}
+                                  RM {month.income!.toLocaleString('en-MY')}
                                 </span>
                               </div>
                               <div className="flex items-center justify-between gap-3">
                                 <span className="texts-caption-large text-(--text-secondary)">Outcome</span>
                                 <span className="texts-caption-large text-(--text-primary)">
-                                  RM {month.outcome.toLocaleString('en-MY')}
+                                  RM {month.outcome!.toLocaleString('en-MY')}
                                 </span>
                               </div>
                               <div className="border-t border-(--border-default) pt-1 mt-0.5">
                                 <div className="flex items-center justify-between gap-3">
                                   <span className="texts-caption-large text-(--text-secondary)">
-                                    {month.profit >= 0 ? 'Profit' : 'Loss'}
+                                    {month.profit! >= 0 ? 'Profit' : 'Loss'}
                                   </span>
                                   <span
                                     className="texts-caption-large font-bold"
-                                    style={{ color: month.profit >= 0 ? '#0d9488' : '#ef4444' }}
+                                    style={{ color: month.profit! >= 0 ? '#0d9488' : '#ef4444' }}
                                   >
-                                    {month.profit >= 0 ? '+' : ''}RM {month.profit.toLocaleString('en-MY')}
+                                    {month.profit! >= 0 ? '+' : ''}RM {month.profit!.toLocaleString('en-MY')}
                                   </span>
                                 </div>
                               </div>
