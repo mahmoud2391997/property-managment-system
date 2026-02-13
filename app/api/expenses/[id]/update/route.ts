@@ -68,6 +68,9 @@ export async function PUT(
       contract_id,
       is_asset,
       depreciation_percentage,
+      // Staff claim fields
+      is_claimed,
+      claimer_id,
       // Staff-specific fields
       staff_id,
       staff_month,
@@ -132,7 +135,9 @@ export async function PUT(
             data: {
               type: expense_type,
               property_id: property_id || null,
-              lease_id: lease_id || null
+              lease_id: lease_id || null,
+              is_claimed: is_claimed || false,
+              claimer_id: is_claimed ? claimer_id : null
             }
           })
           break
@@ -150,7 +155,11 @@ export async function PUT(
         case 'Company_Related':
           await tx.company_expenses.update({
             where: { id: expense.id },
-            data: { type: expense_type }
+            data: {
+              type: expense_type,
+              is_claimed: is_claimed || false,
+              claimer_id: is_claimed ? claimer_id : null
+            }
           })
           break
 
@@ -163,7 +172,9 @@ export async function PUT(
               depreciation_percentage: is_asset && depreciation_percentage
                 ? parseFloat(depreciation_percentage)
                 : null,
-              property_id: property_id || null
+              property_id: property_id || null,
+              is_claimed: is_claimed || false,
+              claimer_id: is_claimed ? claimer_id : null
             }
           })
           break

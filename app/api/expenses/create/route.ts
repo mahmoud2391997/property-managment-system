@@ -44,6 +44,9 @@ export async function POST(request: NextRequest) {
       contract_id,
       is_asset,
       depreciation_percentage,
+      // Staff claim fields
+      is_claimed,
+      claimer_id,
       // Staff-specific fields
       staff_id,
       staff_month,
@@ -227,7 +230,9 @@ export async function POST(request: NextRequest) {
               id: expense.id,
               type: expense_type,
               property_id: property_id || null,
-              lease_id: lease_id || null
+              lease_id: lease_id || null,
+              is_claimed: is_claimed || false,
+              claimer_id: is_claimed ? claimer_id : null
             }
           })
           break
@@ -246,7 +251,9 @@ export async function POST(request: NextRequest) {
           await tx.company_expenses.create({
             data: {
               id: expense.id,
-              type: expense_type
+              type: expense_type,
+              is_claimed: is_claimed || false,
+              claimer_id: is_claimed ? claimer_id : null
             }
           })
           break
@@ -260,7 +267,9 @@ export async function POST(request: NextRequest) {
               depreciation_percentage: is_asset && depreciation_percentage
                 ? parseFloat(depreciation_percentage)
                 : null,
-              property_id: property_id || null
+              property_id: property_id || null,
+              is_claimed: is_claimed || false,
+              claimer_id: is_claimed ? claimer_id : null
             }
           })
           break

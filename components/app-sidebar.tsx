@@ -73,9 +73,16 @@ export default function AppSidebar () {
     const fetchUserInfo = async () => {
       try {
         const response = await fetch('/api/user/info')
+
+        if (!response.ok) {
+          console.error(`Failed to fetch user info: HTTP ${response.status}`)
+          setUserType('staff') // Fallback to staff on error
+          return
+        }
+
         const data = await response.json()
 
-        if (response.ok && data.userType) {
+        if (data.userType) {
           setUserType(data.userType)
           setUserInfo({
             firstName: data.firstName,
@@ -84,7 +91,7 @@ export default function AppSidebar () {
             role: data.role
           })
         } else {
-          console.error('Failed to fetch user info:', data)
+          console.error('Failed to fetch user info: No userType in response', data.error || '')
           setUserType('staff') // Fallback to staff on error
         }
       } catch (error) {
@@ -567,8 +574,7 @@ export default function AppSidebar () {
               confirmButtonClassName='bg-primary-main! hover:bg-primary-main/90!'
               onConfirm={async () => {
                 setIsLoggingOut(true)
-                const redirectPath = userType === 'tenant' ? '/login' : '/login/staff'
-                await logout(redirectPath)
+                await logout('/login')
               }}
             />
           </div>

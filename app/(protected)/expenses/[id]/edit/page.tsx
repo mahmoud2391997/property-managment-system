@@ -19,6 +19,8 @@ export type EditExpenseData = {
     type: string
     property_id: string | null
     lease_id: string | null
+    is_claimed: boolean
+    claimer_id: string | null
   } | null
   contract_expense: {
     type: string
@@ -28,12 +30,16 @@ export type EditExpenseData = {
   } | null
   company_expense: {
     type: string
+    is_claimed: boolean
+    claimer_id: string | null
   } | null
   purchase_expense: {
     type: string
     is_asset: boolean
     depreciation_percentage: number | null
     property_id: string | null
+    is_claimed: boolean
+    claimer_id: string | null
   } | null
   staff_expense: {
     type: string
@@ -110,7 +116,9 @@ async function getExpenseForEdit(referenceId: string): Promise<EditExpenseData |
           select: {
             type: true,
             property_id: true,
-            lease_id: true
+            lease_id: true,
+            is_claimed: true,
+            claimer_id: true
           }
         },
         contract_expenses: {
@@ -131,14 +139,20 @@ async function getExpenseForEdit(referenceId: string): Promise<EditExpenseData |
           }
         },
         company_expenses: {
-          select: { type: true }
+          select: {
+            type: true,
+            is_claimed: true,
+            claimer_id: true
+          }
         },
         purchase_expenses: {
           select: {
             type: true,
             is_asset: true,
             depreciation_percentage: true,
-            property_id: true
+            property_id: true,
+            is_claimed: true,
+            claimer_id: true
           }
         },
         staff_expenses: {
@@ -170,7 +184,9 @@ async function getExpenseForEdit(referenceId: string): Promise<EditExpenseData |
       property_expense: expense.property_expenses ? {
         type: expense.property_expenses.type,
         property_id: expense.property_expenses.property_id,
-        lease_id: expense.property_expenses.lease_id
+        lease_id: expense.property_expenses.lease_id,
+        is_claimed: expense.property_expenses.is_claimed,
+        claimer_id: expense.property_expenses.claimer_id
       } : null,
       contract_expense: expense.contract_expenses ? {
         type: expense.contract_expenses.type,
@@ -182,13 +198,17 @@ async function getExpenseForEdit(referenceId: string): Promise<EditExpenseData |
         ].filter(Boolean).join(' ')
       } : null,
       company_expense: expense.company_expenses ? {
-        type: expense.company_expenses.type
+        type: expense.company_expenses.type,
+        is_claimed: expense.company_expenses.is_claimed,
+        claimer_id: expense.company_expenses.claimer_id
       } : null,
       purchase_expense: expense.purchase_expenses ? {
         type: expense.purchase_expenses.type,
         is_asset: expense.purchase_expenses.is_asset,
         depreciation_percentage: expense.purchase_expenses.depreciation_percentage?.toNumber() ?? null,
-        property_id: expense.purchase_expenses.property_id
+        property_id: expense.purchase_expenses.property_id,
+        is_claimed: expense.purchase_expenses.is_claimed,
+        claimer_id: expense.purchase_expenses.claimer_id
       } : null,
       staff_expense: expense.staff_expenses ? {
         type: expense.staff_expenses.type,

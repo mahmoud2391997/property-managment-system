@@ -90,7 +90,7 @@ export default function ResetPasswordPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/login/staff" className="w-full">
+              <Link href="/login" className="w-full">
                 <Button className="w-full">
                   Go to Login
                 </Button>
@@ -169,7 +169,7 @@ export default function ResetPasswordPage() {
                   {isLoading ? 'Resetting Password...' : 'Reset Password'}
                 </Button>
 
-                <Link href="/login/staff" className="w-full">
+                <Link href="/login" className="w-full">
                   <Button variant="ghost" className="w-full">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Login
@@ -189,9 +189,9 @@ function PasswordRequirement({ met, text }: { met: boolean; text: string }) {
   return (
     <div className="flex items-center gap-2">
       {met ? (
-        <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+        <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
       ) : (
-        <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30 flex-shrink-0" />
+        <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />
       )}
       <span className={cn("text-sm", met ? "text-green-700" : "text-muted-foreground")}>
         {text}

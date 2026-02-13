@@ -87,12 +87,7 @@ export default function SetupPasswordPage() {
       // Sign out the user
       await supabase.auth.signOut()
 
-      // Redirect based on user type
-      if (userType === 'staff') {
-        router.push('/login/staff?message=password_set')
-      } else {
-        router.push('/login?message=password_set')
-      }
+      router.push('/login?message=password_set')
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to set password')
       setIsLoading(false)
@@ -179,9 +174,9 @@ function PasswordRequirement({ met, text }: { met: boolean; text: string }) {
   return (
     <div className="flex items-center gap-2">
       {met ? (
-        <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+        <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
       ) : (
-        <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30 flex-shrink-0" />
+        <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />
       )}
       <span className={cn("text-sm", met ? "text-green-700" : "text-muted-foreground")}>
         {text}

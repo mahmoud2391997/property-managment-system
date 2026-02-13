@@ -24,7 +24,16 @@ import {
 } from '@/utils/data'
 import { formatPaymentTypeLabel } from '@/utils/functions'
 import { formatCurrency } from '@/utils/formatCurrency'
-import { House, FileText, User, Building2, ShoppingCart, Info, Plus, X } from 'lucide-react'
+import {
+  House,
+  FileText,
+  User,
+  Building2,
+  ShoppingCart,
+  Info,
+  Plus,
+  X
+} from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { useRouter } from 'next/navigation'
@@ -46,6 +55,29 @@ const EXPENSE_TYPES_MAP: Record<number, PaymentType[]> = {
   4: purchaseExpenseTypes
 }
 
+// Claimable expense types by category
+const CLAIMABLE_PROPERTY_TYPES = [
+  'Maintenance',
+  'Cleaning_Service',
+  'Renovation',
+  'Painting',
+  'AC_Service_Installation',
+  'Wiring_Electrical',
+  'Replacement_Parts_Plumbing',
+  'Furniture___Appliances',
+  'Miscellaneous_Others'
+]
+
+const CLAIMABLE_COMPANY_TYPES = [
+  'Office_Supplies',
+  'Company_Equipment',
+  'ICT_Equipment',
+  'Software_Subscription',
+  'Professional_Fees',
+  'Marketing___Advertising',
+  'Miscellaneous_Others'
+]
+
 type Deduction = { title: string; amount: string }
 type Allowance = { title: string; amount: string }
 
@@ -53,11 +85,13 @@ type Props = {
   expense: EditExpenseData
 }
 
-export default function EditExpenseContent({ expense }: Props) {
+export default function EditExpenseContent ({ expense }: Props) {
   const router = useRouter()
 
   // Determine category index
-  const categoryIndex = CATEGORY_MAP.indexOf(expense.category as typeof CATEGORY_MAP[number])
+  const categoryIndex = CATEGORY_MAP.indexOf(
+    expense.category as typeof CATEGORY_MAP[number]
+  )
 
   // Get the current expense type from the category-specific data
   const getCurrentType = (): string => {
@@ -77,7 +111,9 @@ export default function EditExpenseContent({ expense }: Props) {
 
     if (expense.category === 'Staff_Related') {
       // Staff: type locked
-      return [{ label: formatPaymentTypeLabel(currentType), value: currentType }]
+      return [
+        { label: formatPaymentTypeLabel(currentType), value: currentType }
+      ]
     }
 
     if (expense.category === 'Property_Related') {
@@ -91,20 +127,31 @@ export default function EditExpenseContent({ expense }: Props) {
         .map(t => ({ label: formatPaymentTypeLabel(t.type), value: t.type }))
     }
 
-    return allTypes.map(t => ({ label: formatPaymentTypeLabel(t.type), value: t.type }))
+    return allTypes.map(t => ({
+      label: formatPaymentTypeLabel(t.type),
+      value: t.type
+    }))
   }
 
   const typeOptions = getTypeOptions()
-  const isTypeLocked = expense.category === 'Staff_Related' || (expense.category === 'Property_Related' && currentType === 'Refund')
+  const isTypeLocked =
+    expense.category === 'Staff_Related' ||
+    (expense.category === 'Property_Related' && currentType === 'Refund')
 
   // Form state
   const allExpenseTypes = EXPENSE_TYPES_MAP[categoryIndex] ?? []
   const [expenseType, setExpenseType] = useState<string>(currentType)
-  const [description, setDescription] = useState<string>(expense.description || '')
+  const [description, setDescription] = useState<string>(
+    expense.description || ''
+  )
 
   // Property related
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(expense.property_expense?.property_id || null)
-  const [selectedLeaseId, setSelectedLeaseId] = useState<string | null>(expense.property_expense?.lease_id || null)
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(
+    expense.property_expense?.property_id || null
+  )
+  const [selectedLeaseId, setSelectedLeaseId] = useState<string | null>(
+    expense.property_expense?.lease_id || null
+  )
   const [loadingProperties, setLoadingProperties] = useState<boolean>(false)
   const [loadingLeases, setLoadingLeases] = useState<boolean>(false)
   const [propertyItems, setPropertyItems] = useState<ComboBoxitemsType[]>([])
@@ -116,46 +163,121 @@ export default function EditExpenseContent({ expense }: Props) {
   // Staff related
   const [staffItems, setStaffItems] = useState<ComboBoxitemsType[]>([])
   const [loadingStaff, setLoadingStaff] = useState<boolean>(false)
-  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(expense.staff_expense?.staff_id || null)
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(
+    expense.staff_expense?.staff_id || null
+  )
   const [staffMonth, setStaffMonth] = useState<Date | undefined>(
     expense.staff_expense ? new Date(expense.staff_expense.month) : undefined
   )
-  const [grossSalary, setGrossSalary] = useState<string>(expense.staff_expense?.gross_salary?.toString() || '')
-  const [epfEmployer, setEpfEmployer] = useState<string>(expense.staff_expense?.epf_employer?.toString() || '')
-  const [socsoEmployer, setSocsoEmployer] = useState<string>(expense.staff_expense?.socso_employer?.toString() || '')
-  const [epfEmployee, setEpfEmployee] = useState<string>(expense.staff_expense?.epf_employee?.toString() || '')
-  const [socsoEmployee, setSocsoEmployee] = useState<string>(expense.staff_expense?.socso_employee?.toString() || '')
-  const [tax, setTax] = useState<string>(expense.staff_expense?.tax?.toString() || '')
+  const [grossSalary, setGrossSalary] = useState<string>(
+    expense.staff_expense?.gross_salary?.toString() || ''
+  )
+  const [epfEmployer, setEpfEmployer] = useState<string>(
+    expense.staff_expense?.epf_employer?.toString() || ''
+  )
+  const [socsoEmployer, setSocsoEmployer] = useState<string>(
+    expense.staff_expense?.socso_employer?.toString() || ''
+  )
+  const [epfEmployee, setEpfEmployee] = useState<string>(
+    expense.staff_expense?.epf_employee?.toString() || ''
+  )
+  const [socsoEmployee, setSocsoEmployee] = useState<string>(
+    expense.staff_expense?.socso_employee?.toString() || ''
+  )
+  const [tax, setTax] = useState<string>(
+    expense.staff_expense?.tax?.toString() || ''
+  )
   const [deductions, setDeductions] = useState<Deduction[]>(
-    expense.deduction_charges.map(d => ({ title: d.title, amount: d.amount.toString() }))
+    expense.deduction_charges.map(d => ({
+      title: d.title,
+      amount: d.amount.toString()
+    }))
   )
   const [allowances, setAllowances] = useState<Allowance[]>(
     // For staff expenses (Salary or Allowances type), charges are the allowances
-    expense.category === 'Staff_Related' && (currentType === 'Allowances' || currentType === 'Salary')
-      ? expense.charges.map(c => ({ title: c.title, amount: c.amount.toString() }))
+    expense.category === 'Staff_Related' &&
+      (currentType === 'Allowances' || currentType === 'Salary')
+      ? expense.charges.map(c => ({
+          title: c.title,
+          amount: c.amount.toString()
+        }))
       : []
   )
 
   // Purchase related
-  const [isAsset, setIsAsset] = useState<boolean>(expense.purchase_expense?.is_asset || false)
+  const [isAsset, setIsAsset] = useState<boolean>(
+    expense.purchase_expense?.is_asset || false
+  )
   const [depreciationPercentage, setDepreciationPercentage] = useState<string>(
     expense.purchase_expense?.depreciation_percentage?.toString() || ''
   )
   const [purchasePropertyId, setPurchasePropertyId] = useState<string | null>(
     expense.purchase_expense?.property_id || null
   )
-  const [purchasePropertyItems, setPurchasePropertyItems] = useState<ComboBoxitemsType[]>([])
-  const [loadingPurchaseProperties, setLoadingPurchaseProperties] = useState<boolean>(false)
+  const [purchasePropertyItems, setPurchasePropertyItems] = useState<
+    ComboBoxitemsType[]
+  >([])
+  const [loadingPurchaseProperties, setLoadingPurchaseProperties] =
+    useState<boolean>(false)
 
   // Charges for non-staff categories (or staff non-salary/non-allowances)
   const [charges, setCharges] = useState<any[]>([])
 
+  // Staff claim state (for property, company, and purchase expenses)
+  const getInitialClaimState = () => {
+    if (expense.property_expense) {
+      return {
+        isClaimed: expense.property_expense.is_claimed,
+        claimerId: expense.property_expense.claimer_id
+      }
+    }
+    if (expense.company_expense) {
+      return {
+        isClaimed: expense.company_expense.is_claimed,
+        claimerId: expense.company_expense.claimer_id
+      }
+    }
+    if (expense.purchase_expense) {
+      return {
+        isClaimed: expense.purchase_expense.is_claimed,
+        claimerId: expense.purchase_expense.claimer_id
+      }
+    }
+    return { isClaimed: false, claimerId: null }
+  }
+
+  const initialClaimState = getInitialClaimState()
+  const [isClaimed, setIsClaimed] = useState<boolean>(initialClaimState.isClaimed)
+  const [claimerId, setClaimerId] = useState<string | null>(initialClaimState.claimerId)
+  const [claimerStaffItems, setClaimerStaffItems] = useState<ComboBoxitemsType[]>([])
+  const [loadingClaimerStaff, setLoadingClaimerStaff] = useState<boolean>(false)
+
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Derived flags
-  const isStaffSalary = expense.category === 'Staff_Related' && currentType === 'Salary'
-  const isStaffAllowances = expense.category === 'Staff_Related' && currentType === 'Allowances'
-  const isRefund = expense.category === 'Property_Related' && currentType === 'Refund'
+  const isStaffSalary =
+    expense.category === 'Staff_Related' && currentType === 'Salary'
+  const isStaffAllowances =
+    expense.category === 'Staff_Related' && currentType === 'Allowances'
+  const isRefund =
+    expense.category === 'Property_Related' && currentType === 'Refund'
+
+  // Check if current expense type is claimable
+  const isClaimable = useMemo(() => {
+    if (categoryIndex === 0) {
+      // Property Related
+      return CLAIMABLE_PROPERTY_TYPES.includes(expenseType)
+    }
+    if (categoryIndex === 3) {
+      // Company Related
+      return CLAIMABLE_COMPANY_TYPES.includes(expenseType)
+    }
+    if (categoryIndex === 4) {
+      // Purchase Related - all types are claimable
+      return true
+    }
+    return false
+  }, [categoryIndex, expenseType])
 
   // Salary summary
   const salarySummary = useMemo(() => {
@@ -165,14 +287,36 @@ export default function EditExpenseContent({ expense }: Props) {
     const epfEe = parseFloat(epfEmployee) || 0
     const socsoEe = parseFloat(socsoEmployee) || 0
     const taxAmount = parseFloat(tax) || 0
-    const totalCustomDeductions = deductions.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
+    const totalCustomDeductions = deductions.reduce(
+      (sum, d) => sum + (parseFloat(d.amount) || 0),
+      0
+    )
 
     const totalDeductions = epfEe + socsoEe + taxAmount + totalCustomDeductions
     const netSalary = gross - totalDeductions
     const costToCompany = gross + epfEr + socsoEr
 
-    return { gross, epfEr, socsoEr, epfEe, socsoEe, taxAmount, totalCustomDeductions, totalDeductions, netSalary, costToCompany }
-  }, [grossSalary, epfEmployer, socsoEmployer, epfEmployee, socsoEmployee, tax, deductions])
+    return {
+      gross,
+      epfEr,
+      socsoEr,
+      epfEe,
+      socsoEe,
+      taxAmount,
+      totalCustomDeductions,
+      totalDeductions,
+      netSalary,
+      costToCompany
+    }
+  }, [
+    grossSalary,
+    epfEmployer,
+    socsoEmployer,
+    epfEmployee,
+    socsoEmployee,
+    tax,
+    deductions
+  ])
 
   // Allowance total
   const allowancesTotal = useMemo(() => {
@@ -182,9 +326,14 @@ export default function EditExpenseContent({ expense }: Props) {
   // Alert state
   const [alertOpen, setAlertOpen] = useState(false)
   const [alertMessage, setAlertMessage] = useState('')
-  const [alertType, setAlertType] = useState<'info' | 'error' | 'success' | 'warning'>('info')
+  const [alertType, setAlertType] = useState<
+    'info' | 'error' | 'success' | 'warning'
+  >('info')
 
-  const showAlert = (message: string, type: 'info' | 'error' | 'success' | 'warning' = 'info') => {
+  const showAlert = (
+    message: string,
+    type: 'info' | 'error' | 'success' | 'warning' = 'info'
+  ) => {
     setAlertMessage(message)
     setAlertType(type)
     setAlertOpen(true)
@@ -205,40 +354,62 @@ export default function EditExpenseContent({ expense }: Props) {
     const gross = parseFloat(grossSalary) || 0
     if (gross <= 0) return newValue
     const val = parseFloat(newValue) || 0
-    const epfEe = excludeField === 'epfEe' ? 0 : (parseFloat(epfEmployee) || 0)
-    const socsoEe = excludeField === 'socsoEe' ? 0 : (parseFloat(socsoEmployee) || 0)
-    const taxAmount = excludeField === 'tax' ? 0 : (parseFloat(tax) || 0)
+    const epfEe = excludeField === 'epfEe' ? 0 : parseFloat(epfEmployee) || 0
+    const socsoEe =
+      excludeField === 'socsoEe' ? 0 : parseFloat(socsoEmployee) || 0
+    const taxAmount = excludeField === 'tax' ? 0 : parseFloat(tax) || 0
     const customTotal = deductions.reduce((sum, d, i) => {
       if (typeof excludeField === 'number' && excludeField === i) return sum
       return sum + (parseFloat(d.amount) || 0)
     }, 0)
     const remaining = gross - epfEe - socsoEe - taxAmount - customTotal
-    return val > remaining ? (remaining > 0 ? remaining.toFixed(2) : '') : newValue
+    return val > remaining
+      ? remaining > 0
+        ? remaining.toFixed(2)
+        : ''
+      : newValue
   }
 
   // Deduction helpers
-  const addDeduction = () => setDeductions(prev => [...prev, { title: '', amount: '' }])
-  const removeDeduction = (index: number) => setDeductions(prev => prev.filter((_, i) => i !== index))
-  const updateDeduction = (index: number, field: keyof Deduction, value: string) => {
-    setDeductions(prev => prev.map((d, i) => i === index ? { ...d, [field]: value } : d))
+  const addDeduction = () =>
+    setDeductions(prev => [...prev, { title: '', amount: '' }])
+  const removeDeduction = (index: number) =>
+    setDeductions(prev => prev.filter((_, i) => i !== index))
+  const updateDeduction = (
+    index: number,
+    field: keyof Deduction,
+    value: string
+  ) => {
+    setDeductions(prev =>
+      prev.map((d, i) => (i === index ? { ...d, [field]: value } : d))
+    )
   }
 
   // Allowance helpers
-  const addAllowance = () => setAllowances(prev => [...prev, { title: '', amount: '' }])
-  const removeAllowance = (index: number) => setAllowances(prev => prev.filter((_, i) => i !== index))
-  const updateAllowance = (index: number, field: keyof Allowance, value: string) => {
-    setAllowances(prev => prev.map((a, i) => i === index ? { ...a, [field]: value } : a))
+  const addAllowance = () =>
+    setAllowances(prev => [...prev, { title: '', amount: '' }])
+  const removeAllowance = (index: number) =>
+    setAllowances(prev => prev.filter((_, i) => i !== index))
+  const updateAllowance = (
+    index: number,
+    field: keyof Allowance,
+    value: string
+  ) => {
+    setAllowances(prev =>
+      prev.map((a, i) => (i === index ? { ...a, [field]: value } : a))
+    )
   }
 
   // Default charges for ChargesSection
-  const defaultCharges: DefaultCharge[] | undefined = (
+  const defaultCharges: DefaultCharge[] | undefined =
     !isStaffSalary && !isStaffAllowances && expense.charges.length > 0
-  ) ? expense.charges.map(c => ({
-    type: c.title,
-    amount: c.amount,
-    is_taxed: c.is_taxed,
-    is_refundable: c.is_refunded
-  })) : undefined
+      ? expense.charges.map(c => ({
+          type: c.title,
+          amount: c.amount,
+          is_taxed: c.is_taxed,
+          is_refundable: c.is_refunded
+        }))
+      : undefined
 
   // Fetch properties
   useEffect(() => {
@@ -345,16 +516,54 @@ export default function EditExpenseContent({ expense }: Props) {
     fetchStaff()
   }, [])
 
+  // Fetch staff for claimer selection when expense is claimable
+  useEffect(() => {
+    if (!isClaimable) {
+      setClaimerStaffItems([])
+      return
+    }
+
+    const fetchClaimerStaff = async () => {
+      setLoadingClaimerStaff(true)
+      try {
+        const response = await fetch(
+          '/api/staff?select=id,first_name,last_name'
+        )
+        if (!response.ok) throw new Error('Failed to fetch staff')
+        const data = await response.json()
+        const items: ComboBoxitemsType[] = data.staff.map((s: any) => ({
+          id: s.id,
+          label: `${s.first_name} ${s.last_name || ''}`.trim()
+        }))
+        setClaimerStaffItems(items)
+      } catch (error) {
+        console.error('Error fetching staff for claimer:', error)
+      } finally {
+        setLoadingClaimerStaff(false)
+      }
+    }
+
+    fetchClaimerStaff()
+  }, [isClaimable])
+
   // Handle submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     // Validation
-    if (expense.category === 'Property_Related' && isRefund && !selectedLeaseId) {
+    if (
+      expense.category === 'Property_Related' &&
+      isRefund &&
+      !selectedLeaseId
+    ) {
       showAlert('Please select a lease', 'warning')
       return
     }
-    if (expense.category === 'Property_Related' && !isRefund && !selectedPropertyId) {
+    if (
+      expense.category === 'Property_Related' &&
+      !isRefund &&
+      !selectedPropertyId
+    ) {
       showAlert('Please select a property', 'warning')
       return
     }
@@ -372,6 +581,12 @@ export default function EditExpenseContent({ expense }: Props) {
     }
     if (isStaffAllowances && allowances.length === 0) {
       showAlert('At least one allowance is required', 'warning')
+      return
+    }
+
+    // Validate claimer selection if expense is claimed
+    if (isClaimable && isClaimed && !claimerId) {
+      showAlert('Please select the staff member who paid', 'warning')
       return
     }
 
@@ -399,11 +614,21 @@ export default function EditExpenseContent({ expense }: Props) {
         description,
         charges: chargesPayload,
         // Category-specific
-        ...(expense.category === 'Property_Related' && !isRefund && {
-          property_id: selectedPropertyId
-        }),
-        ...(expense.category === 'Property_Related' && isRefund && {
-          lease_id: selectedLeaseId
+        ...(expense.category === 'Property_Related' &&
+          !isRefund && {
+            property_id: selectedPropertyId,
+            is_claimed: isClaimed,
+            claimer_id: isClaimed ? claimerId : null
+          }),
+        ...(expense.category === 'Property_Related' &&
+          isRefund && {
+            lease_id: selectedLeaseId,
+            is_claimed: isClaimed,
+            claimer_id: isClaimed ? claimerId : null
+          }),
+        ...(expense.category === 'Company_Related' && {
+          is_claimed: isClaimed,
+          claimer_id: isClaimed ? claimerId : null
         }),
         ...(expense.category === 'Staff_Related' && {
           staff_id: selectedStaffId,
@@ -420,18 +645,24 @@ export default function EditExpenseContent({ expense }: Props) {
         }),
         ...(expense.category === 'Purchase_Related' && {
           is_asset: isAsset,
-          depreciation_percentage: isAsset && expenseType === 'Miscellaneous_Others'
-            ? depreciationPercentage
-            : null,
-          property_id: purchasePropertyId
+          depreciation_percentage:
+            isAsset && expenseType === 'Miscellaneous_Others'
+              ? depreciationPercentage
+              : null,
+          property_id: purchasePropertyId,
+          is_claimed: isClaimed,
+          claimer_id: isClaimed ? claimerId : null
         })
       }
 
-      const response = await fetch(`/api/expenses/${expense.reference_id}/update`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
+      const response = await fetch(
+        `/api/expenses/${expense.reference_id}/update`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }
+      )
 
       const result = await response.json()
 
@@ -463,7 +694,10 @@ export default function EditExpenseContent({ expense }: Props) {
       <AddPageHead
         crumb_items={[
           { label: 'Expenses', href: '/expenses' },
-          { label: expense.reference_id, href: `/expenses/${expense.reference_id}` },
+          {
+            label: expense.reference_id,
+            href: `/expenses/${expense.reference_id}`
+          },
           { label: 'Edit' }
         ]}
         title='Edit expense'
@@ -499,6 +733,25 @@ export default function EditExpenseContent({ expense }: Props) {
               disabled={isTypeLocked}
             />
           </InputGroup>
+          {/* Purchase-specific: optional property link */}
+          {expense.category === 'Purchase_Related' && (
+            <InputGroup label='Property (Optional)'>
+              <Combobox
+                items={purchasePropertyItems}
+                variant='single'
+                searchPlaceholder='Search properties'
+                placeholder={
+                  loadingPurchaseProperties
+                    ? 'Loading properties...'
+                    : 'Link to a property (optional)'
+                }
+                isLoading={loadingPurchaseProperties}
+                loadingMessage='Fetching properties...'
+                value={purchasePropertyId || undefined}
+                onValueChange={value => setPurchasePropertyId(value || null)}
+              />
+            </InputGroup>
+          )}
 
           {/* Property selector — Property Related, non-Refund types only */}
           {expense.category === 'Property_Related' && !isRefund && (
@@ -507,7 +760,11 @@ export default function EditExpenseContent({ expense }: Props) {
                 items={propertyItems}
                 variant='single'
                 searchPlaceholder='Search properties'
-                placeholder={loadingProperties ? 'Loading properties...' : 'Select a property'}
+                placeholder={
+                  loadingProperties
+                    ? 'Loading properties...'
+                    : 'Select a property'
+                }
                 isLoading={loadingProperties}
                 loadingMessage='Fetching properties...'
                 value={selectedPropertyId || undefined}
@@ -524,7 +781,9 @@ export default function EditExpenseContent({ expense }: Props) {
                 items={leaseItems}
                 variant='single'
                 searchPlaceholder='Search leases'
-                placeholder={loadingLeases ? 'Loading leases...' : 'Select an active lease'}
+                placeholder={
+                  loadingLeases ? 'Loading leases...' : 'Select an active lease'
+                }
                 isLoading={loadingLeases}
                 loadingMessage='Fetching leases...'
                 value={selectedLeaseId || undefined}
@@ -538,11 +797,13 @@ export default function EditExpenseContent({ expense }: Props) {
           {expense.category === 'Contract_Related' && expense.contract_expense && (
             <InputGroup label='Contract' isRequired>
               <Combobox
-                items={[{
-                  id: expense.contract_expense.contract_id,
-                  label: expense.contract_expense.contract_reference_id,
-                  subtitle: expense.contract_expense.contract_owner_name
-                }]}
+                items={[
+                  {
+                    id: expense.contract_expense.contract_id,
+                    label: expense.contract_expense.contract_reference_id,
+                    subtitle: expense.contract_expense.contract_owner_name
+                  }
+                ]}
                 variant='single'
                 searchPlaceholder='Search contracts'
                 placeholder='Contract'
@@ -562,7 +823,9 @@ export default function EditExpenseContent({ expense }: Props) {
                   items={staffItems}
                   variant='single'
                   searchPlaceholder='Search staff'
-                  placeholder={loadingStaff ? 'Loading staff...' : 'Select a staff member'}
+                  placeholder={
+                    loadingStaff ? 'Loading staff...' : 'Select a staff member'
+                  }
                   isLoading={loadingStaff}
                   loadingMessage='Fetching staff...'
                   value={selectedStaffId || undefined}
@@ -587,37 +850,24 @@ export default function EditExpenseContent({ expense }: Props) {
           />
         </InputGroup>
 
-        {/* Purchase-specific: optional property link */}
-        {expense.category === 'Purchase_Related' && (
-          <InputGroup label='Property (Optional)'>
-            <Combobox
-              items={purchasePropertyItems}
-              variant='single'
-              searchPlaceholder='Search properties'
-              placeholder={loadingPurchaseProperties ? 'Loading properties...' : 'Link to a property (optional)'}
-              isLoading={loadingPurchaseProperties}
-              loadingMessage='Fetching properties...'
-              value={purchasePropertyId || undefined}
-              onValueChange={value => setPurchasePropertyId(value || null)}
-            />
-          </InputGroup>
-        )}
-
         {/* Purchase-specific fields */}
         {expense.category === 'Purchase_Related' && (
           <div className='flex flex-col gap-3'>
             <div className='flex items-center gap-2'>
               <Checkbox
                 checked={isAsset}
-                onCheckedChange={(checked) => {
+                onCheckedChange={checked => {
                   setIsAsset(checked === true)
                   if (!checked) setDepreciationPercentage('')
                 }}
               />
-              <label className='texts-label-large cursor-pointer' onClick={() => {
-                setIsAsset(!isAsset)
-                if (isAsset) setDepreciationPercentage('')
-              }}>
+              <label
+                className='texts-label-large cursor-pointer'
+                onClick={() => {
+                  setIsAsset(!isAsset)
+                  if (isAsset) setDepreciationPercentage('')
+                }}
+              >
                 This is an asset
               </label>
             </div>
@@ -631,7 +881,11 @@ export default function EditExpenseContent({ expense }: Props) {
                   step={0.01}
                   placeholder='e.g. 10.00'
                   value={depreciationPercentage}
-                  onChange={e => setDepreciationPercentage((e.target as HTMLInputElement).value)}
+                  onChange={e =>
+                    setDepreciationPercentage(
+                      (e.target as HTMLInputElement).value
+                    )
+                  }
                   note='Annual depreciation rate for this asset (%)'
                   required
                 />
@@ -639,17 +893,82 @@ export default function EditExpenseContent({ expense }: Props) {
             )}
           </div>
         )}
+
+        {/* Staff Claim Section — for claimable expense types */}
+        {isClaimable && (
+          <div className='flex flex-col gap-3'>
+            <div className='flex items-center gap-2'>
+              <Checkbox
+                checked={isClaimed}
+                onCheckedChange={checked => {
+                  setIsClaimed(checked === true)
+                  if (!checked) setClaimerId(null)
+                }}
+              />
+              <label
+                className='texts-label-large cursor-pointer'
+                onClick={() => {
+                  const newValue = !isClaimed
+                  setIsClaimed(newValue)
+                  if (!newValue) setClaimerId(null)
+                }}
+              >
+                Paid by staff
+              </label>
+            </div>
+
+            {isClaimed && (
+              <InputGroup label='Staff who paid' isRequired>
+                <Combobox
+                  items={claimerStaffItems}
+                  variant='single'
+                  searchPlaceholder='Search staff'
+                  placeholder={
+                    loadingClaimerStaff
+                      ? 'Loading staff...'
+                      : 'Select staff member'
+                  }
+                  isLoading={loadingClaimerStaff}
+                  loadingMessage='Fetching staff...'
+                  value={claimerId || undefined}
+                  onValueChange={value => {
+                    setClaimerId(value || null)
+                  }}
+                  required
+                />
+              </InputGroup>
+            )}
+
+            {isClaimed && claimerId && (
+              <div className='p-3 rounded-md bg-amber-50 border border-amber-200'>
+                <div className='flex items-center gap-2 text-sm text-amber-800'>
+                  <Info strokeWidth={1.5} size={20} />
+                  This expense was paid by{' '}
+                  <span className='font-semibold'>
+                    {claimerStaffItems.find(s => s.id === claimerId)?.label ||
+                      'staff'}
+                  </span>
+                  . When you log payment for this expense, it will be recorded
+                  as reimbursement to the staff.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </InnerSection>
 
       {/* Staff Salary Section */}
       {isStaffSalary && (
-        <InnerSection title='Salary Breakdown' subtitle='Enter salary components and deductions'>
+        <InnerSection
+          title='Salary Breakdown'
+          subtitle='Enter salary components and deductions'
+        >
           <InputGroup label='Gross Salary' isRequired>
             <Input
               currency
               placeholder='0.00'
               value={grossSalary}
-              onValueChange={(value) => setGrossSalary(value || '')}
+              onValueChange={value => setGrossSalary(value || '')}
               required
             />
           </InputGroup>
@@ -660,7 +979,9 @@ export default function EditExpenseContent({ expense }: Props) {
                 currency
                 placeholder='0.00'
                 value={epfEmployer}
-                onValueChange={(value) => setEpfEmployer(clampToGross(value || ''))}
+                onValueChange={value =>
+                  setEpfEmployer(clampToGross(value || ''))
+                }
                 required
               />
             </InputGroup>
@@ -669,7 +990,9 @@ export default function EditExpenseContent({ expense }: Props) {
                 currency
                 placeholder='0.00'
                 value={socsoEmployer}
-                onValueChange={(value) => setSocsoEmployer(clampToGross(value || ''))}
+                onValueChange={value =>
+                  setSocsoEmployer(clampToGross(value || ''))
+                }
                 required
               />
             </InputGroup>
@@ -681,7 +1004,9 @@ export default function EditExpenseContent({ expense }: Props) {
                 currency
                 placeholder='0.00'
                 value={epfEmployee}
-                onValueChange={(value) => setEpfEmployee(clampEmployeeDeduction(value || '', 'epfEe'))}
+                onValueChange={value =>
+                  setEpfEmployee(clampEmployeeDeduction(value || '', 'epfEe'))
+                }
                 required
               />
             </InputGroup>
@@ -690,7 +1015,11 @@ export default function EditExpenseContent({ expense }: Props) {
                 currency
                 placeholder='0.00'
                 value={socsoEmployee}
-                onValueChange={(value) => setSocsoEmployee(clampEmployeeDeduction(value || '', 'socsoEe'))}
+                onValueChange={value =>
+                  setSocsoEmployee(
+                    clampEmployeeDeduction(value || '', 'socsoEe')
+                  )
+                }
                 required
               />
             </InputGroup>
@@ -702,7 +1031,9 @@ export default function EditExpenseContent({ expense }: Props) {
                 currency
                 placeholder='0.00'
                 value={tax}
-                onValueChange={(value) => setTax(clampEmployeeDeduction(value || '', 'tax'))}
+                onValueChange={value =>
+                  setTax(clampEmployeeDeduction(value || '', 'tax'))
+                }
                 required
               />
             </InputGroup>
@@ -733,7 +1064,13 @@ export default function EditExpenseContent({ expense }: Props) {
                   <Input
                     placeholder='Deduction title'
                     value={deduction.title}
-                    onChange={e => updateDeduction(index, 'title', (e.target as HTMLInputElement).value)}
+                    onChange={e =>
+                      updateDeduction(
+                        index,
+                        'title',
+                        (e.target as HTMLInputElement).value
+                      )
+                    }
                   />
                 </div>
                 <div className='w-48'>
@@ -741,7 +1078,13 @@ export default function EditExpenseContent({ expense }: Props) {
                     currency
                     placeholder='0.00'
                     value={deduction.amount}
-                    onValueChange={(value) => updateDeduction(index, 'amount', clampEmployeeDeduction(value || '', index))}
+                    onValueChange={value =>
+                      updateDeduction(
+                        index,
+                        'amount',
+                        clampEmployeeDeduction(value || '', index)
+                      )
+                    }
                   />
                 </div>
                 <button
@@ -755,7 +1098,9 @@ export default function EditExpenseContent({ expense }: Props) {
             ))}
 
             {deductions.length === 0 && (
-              <p className='texts-caption-large text-(--text-tertiary)'>No additional deductions</p>
+              <p className='texts-caption-large text-(--text-tertiary)'>
+                No additional deductions
+              </p>
             )}
           </div>
 
@@ -763,52 +1108,90 @@ export default function EditExpenseContent({ expense }: Props) {
           {salarySummary.gross > 0 && (
             <div className='rounded-lg border border-(--border-default) overflow-hidden'>
               <div className='bg-neutral-50 px-4 py-3 border-b border-(--border-default)'>
-                <span className='texts-body-medium-semibold text-(--text-primary)'>Summary</span>
+                <span className='texts-body-medium-semibold text-(--text-primary)'>
+                  Summary
+                </span>
               </div>
               <div className='px-4 py-3 flex flex-col gap-2.5'>
                 <div className='flex items-center justify-between'>
-                  <span className='texts-body-small text-(--text-secondary)'>Gross Salary</span>
-                  <span className='texts-body-small-medium'>{formatCurrency(salarySummary.gross)}</span>
+                  <span className='texts-body-small text-(--text-secondary)'>
+                    Gross Salary
+                  </span>
+                  <span className='texts-body-small-medium'>
+                    {formatCurrency(salarySummary.gross)}
+                  </span>
                 </div>
 
-                {(salarySummary.epfEe > 0 || salarySummary.socsoEe > 0 || salarySummary.taxAmount > 0 || salarySummary.totalCustomDeductions > 0) && (
+                {(salarySummary.epfEe > 0 ||
+                  salarySummary.socsoEe > 0 ||
+                  salarySummary.taxAmount > 0 ||
+                  salarySummary.totalCustomDeductions > 0) && (
                   <>
                     <div className='border-t border-dashed border-(--border-default) my-0.5' />
-                    <span className='texts-caption-large text-(--text-tertiary) uppercase tracking-wide'>Employee Deductions</span>
+                    <span className='texts-caption-large text-(--text-tertiary) uppercase tracking-wide'>
+                      Employee Deductions
+                    </span>
                     {salarySummary.epfEe > 0 && (
                       <div className='flex items-center justify-between'>
-                        <span className='texts-body-small text-(--text-secondary)'>EPF (Employee)</span>
-                        <span className='texts-body-small text-red-600'>- {formatCurrency(salarySummary.epfEe)}</span>
+                        <span className='texts-body-small text-(--text-secondary)'>
+                          EPF (Employee)
+                        </span>
+                        <span className='texts-body-small text-red-600'>
+                          - {formatCurrency(salarySummary.epfEe)}
+                        </span>
                       </div>
                     )}
                     {salarySummary.socsoEe > 0 && (
                       <div className='flex items-center justify-between'>
-                        <span className='texts-body-small text-(--text-secondary)'>SOCSO (Employee)</span>
-                        <span className='texts-body-small text-red-600'>- {formatCurrency(salarySummary.socsoEe)}</span>
+                        <span className='texts-body-small text-(--text-secondary)'>
+                          SOCSO (Employee)
+                        </span>
+                        <span className='texts-body-small text-red-600'>
+                          - {formatCurrency(salarySummary.socsoEe)}
+                        </span>
                       </div>
                     )}
                     {salarySummary.taxAmount > 0 && (
                       <div className='flex items-center justify-between'>
-                        <span className='texts-body-small text-(--text-secondary)'>Tax (PCB)</span>
-                        <span className='texts-body-small text-red-600'>- {formatCurrency(salarySummary.taxAmount)}</span>
+                        <span className='texts-body-small text-(--text-secondary)'>
+                          Tax (PCB)
+                        </span>
+                        <span className='texts-body-small text-red-600'>
+                          - {formatCurrency(salarySummary.taxAmount)}
+                        </span>
                       </div>
                     )}
-                    {deductions.filter(d => parseFloat(d.amount) > 0).map((d, i) => (
-                      <div key={i} className='flex items-center justify-between'>
-                        <span className='texts-body-small text-(--text-secondary)'>{d.title || 'Untitled'}</span>
-                        <span className='texts-body-small text-red-600'>- {formatCurrency(parseFloat(d.amount) || 0)}</span>
-                      </div>
-                    ))}
+                    {deductions
+                      .filter(d => parseFloat(d.amount) > 0)
+                      .map((d, i) => (
+                        <div
+                          key={i}
+                          className='flex items-center justify-between'
+                        >
+                          <span className='texts-body-small text-(--text-secondary)'>
+                            {d.title || 'Untitled'}
+                          </span>
+                          <span className='texts-body-small text-red-600'>
+                            - {formatCurrency(parseFloat(d.amount) || 0)}
+                          </span>
+                        </div>
+                      ))}
                   </>
                 )}
 
                 <div className='border-t border-(--border-default) pt-2.5'>
                   <div className='flex items-center justify-between'>
-                    <span className='texts-body-medium-semibold text-(--text-primary)'>Salary Received</span>
-                    <span className={cn(
-                      'texts-body-medium-semibold',
-                      salarySummary.netSalary < 0 ? 'text-red-600' : 'text-(--success-dark)'
-                    )}>
+                    <span className='texts-body-medium-semibold text-(--text-primary)'>
+                      Salary Received
+                    </span>
+                    <span
+                      className={cn(
+                        'texts-body-medium-semibold',
+                        salarySummary.netSalary < 0
+                          ? 'text-red-600'
+                          : 'text-(--success-dark)'
+                      )}
+                    >
                       {formatCurrency(salarySummary.netSalary)}
                     </span>
                   </div>
@@ -817,17 +1200,27 @@ export default function EditExpenseContent({ expense }: Props) {
                 {(salarySummary.epfEr > 0 || salarySummary.socsoEr > 0) && (
                   <>
                     <div className='border-t border-dashed border-(--border-default) my-0.5' />
-                    <span className='texts-caption-large text-(--text-tertiary) uppercase tracking-wide'>Employer Contributions</span>
+                    <span className='texts-caption-large text-(--text-tertiary) uppercase tracking-wide'>
+                      Employer Contributions
+                    </span>
                     {salarySummary.epfEr > 0 && (
                       <div className='flex items-center justify-between'>
-                        <span className='texts-body-small text-(--text-secondary)'>EPF (Employer)</span>
-                        <span className='texts-body-small'>{formatCurrency(salarySummary.epfEr)}</span>
+                        <span className='texts-body-small text-(--text-secondary)'>
+                          EPF (Employer)
+                        </span>
+                        <span className='texts-body-small'>
+                          {formatCurrency(salarySummary.epfEr)}
+                        </span>
                       </div>
                     )}
                     {salarySummary.socsoEr > 0 && (
                       <div className='flex items-center justify-between'>
-                        <span className='texts-body-small text-(--text-secondary)'>SOCSO (Employer)</span>
-                        <span className='texts-body-small'>{formatCurrency(salarySummary.socsoEr)}</span>
+                        <span className='texts-body-small text-(--text-secondary)'>
+                          SOCSO (Employer)
+                        </span>
+                        <span className='texts-body-small'>
+                          {formatCurrency(salarySummary.socsoEr)}
+                        </span>
                       </div>
                     )}
                   </>
@@ -835,7 +1228,9 @@ export default function EditExpenseContent({ expense }: Props) {
 
                 <div className='border-t border-(--border-default) pt-2.5'>
                   <div className='flex items-center justify-between'>
-                    <span className='texts-body-medium-semibold text-(--text-primary)'>Cost to Company</span>
+                    <span className='texts-body-medium-semibold text-(--text-primary)'>
+                      Cost to Company
+                    </span>
                     <span className='texts-body-medium-semibold text-(--text-primary)'>
                       {formatCurrency(salarySummary.costToCompany)}
                     </span>
@@ -845,20 +1240,26 @@ export default function EditExpenseContent({ expense }: Props) {
             </div>
           )}
 
-          {salarySummary.gross > 0 && salarySummary.totalDeductions > salarySummary.gross && (
-            <div className='p-3 rounded-md bg-red-50 border border-red-200'>
-              <div className='flex items-center gap-2 text-sm text-red-800'>
-                <Info strokeWidth={1.5} size={20} />
-                Total deductions ({formatCurrency(salarySummary.totalDeductions)}) exceed gross salary ({formatCurrency(salarySummary.gross)})
+          {salarySummary.gross > 0 &&
+            salarySummary.totalDeductions > salarySummary.gross && (
+              <div className='p-3 rounded-md bg-red-50 border border-red-200'>
+                <div className='flex items-center gap-2 text-sm text-red-800'>
+                  <Info strokeWidth={1.5} size={20} />
+                  Total deductions (
+                  {formatCurrency(salarySummary.totalDeductions)}) exceed gross
+                  salary ({formatCurrency(salarySummary.gross)})
+                </div>
               </div>
-            </div>
-          )}
+            )}
         </InnerSection>
       )}
 
       {/* Staff Allowances Section — shown for both Salary and Allowances type */}
       {(isStaffSalary || isStaffAllowances) && (
-        <InnerSection title='Allowances' subtitle='Add allowance items for this staff member'>
+        <InnerSection
+          title='Allowances'
+          subtitle='Add allowance items for this staff member'
+        >
           <div className='flex flex-col gap-3'>
             {allowances.map((allowance, index) => (
               <div key={index} className='flex items-start gap-3'>
@@ -866,7 +1267,13 @@ export default function EditExpenseContent({ expense }: Props) {
                   <Input
                     placeholder='Allowance title'
                     value={allowance.title}
-                    onChange={e => updateAllowance(index, 'title', (e.target as HTMLInputElement).value)}
+                    onChange={e =>
+                      updateAllowance(
+                        index,
+                        'title',
+                        (e.target as HTMLInputElement).value
+                      )
+                    }
                     required
                   />
                 </div>
@@ -875,7 +1282,9 @@ export default function EditExpenseContent({ expense }: Props) {
                     currency
                     placeholder='0.00'
                     value={allowance.amount}
-                    onValueChange={(value) => updateAllowance(index, 'amount', value || '')}
+                    onValueChange={value =>
+                      updateAllowance(index, 'amount', value || '')
+                    }
                     required
                   />
                 </div>
@@ -907,7 +1316,9 @@ export default function EditExpenseContent({ expense }: Props) {
             {allowancesTotal > 0 && (
               <div className='rounded-lg border border-(--border-default) px-4 py-3'>
                 <div className='flex items-center justify-between'>
-                  <span className='texts-body-medium-semibold text-(--text-primary)'>Total Allowances</span>
+                  <span className='texts-body-medium-semibold text-(--text-primary)'>
+                    Total Allowances
+                  </span>
                   <span className='texts-body-medium-semibold text-(--text-primary)'>
                     {formatCurrency(allowancesTotal)}
                   </span>
