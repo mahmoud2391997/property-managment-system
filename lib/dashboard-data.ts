@@ -1,6 +1,16 @@
 import { prisma } from '@/lib/prisma'
 import { payment_status, lease_status_new, property_status_new, task_state, payment_record_status } from '@prisma/client'
 import { startOfMonth, endOfMonth, subMonths, format, addDays } from 'date-fns'
+// Dev cache: prevents re-fetching on every hot reload (30s TTL)
+const devCache = new Map<string, { data: unknown; expires: number }>()
+async function cachedQuery<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  if (process.env.NODE_ENV !== 'development') return fn()
+  const cached = devCache.get(key)
+  if (cached && Date.now() < cached.expires) return cached.data as T
+  const data = await fn()
+  devCache.set(key, { data, expires: Date.now() + 30_000 })
+  return data
+}
 
 export interface DashboardMetrics {
   totalProperties: number
@@ -45,17 +55,20 @@ export interface OccupancyData {
   color: string
 }
 
-// Status colors for consistency
+// Dashboard palette — built around primary #1f1f1f + secondary #0d9488 (teal)
 export const STATUS_COLORS = {
   // Property/Room statuses
-  vacant: '#6b7280',      // Gray - Ready but no lease
-  occupied: '#10b981',    // Green - Has active lease
-  underPreparation: '#f59e0b', // Amber - Under preparation
-  pendingInspection: '#3b82f6', // Blue - Pending inspection
-  // Lease statuses
-  active: '#10b981',      // Green - Current
-  expiringSoon: '#f59e0b', // Amber - Expiring in 30 days
-  expired: '#ef4444',     // Red - Already expired but status still Current
+  vacant: '#64748b',       // Slate-500 — cool neutral that pairs with teal
+  occupied: '#0d9488',     // Teal-600 — brand secondary = "good / active"
+  underPreparation: '#0284c7', // Sky-600 — cool blue, same family as teal
+  pendingInspection: '#7c3aed', // Violet-600 — cool accent, complements teal
+  // Lease/Contract statuses
+  active: '#0d9488',       // Teal-600 — brand "good"
+  expiringSoon: '#d97706', // Amber-600 — warm but muted, not harsh
+  expired: '#dc2626',      // Red-600 — deeper, more refined
+  // Summary card statuses
+  overdue: '#dc2626',      // Red-600 — consistent with expired
+  pending: '#d97706',      // Amber-600 — consistent with expiringSoon
 }
 
 export interface PropertyStatusCounts {
@@ -146,6 +159,7 @@ const PROPERTY_STATUS_COLORS: Record<string, string> = {
 }
 
 export async function getDashboardMetrics(organizationId: string): Promise<DashboardMetrics> {
+  return cachedQuery(`dashboard-metrics-${organizationId}`, async () => {
   const now = new Date()
   const startOfCurrentMonth = startOfMonth(now)
   const endOfCurrentMonth = endOfMonth(now)
@@ -339,9 +353,11 @@ export async function getDashboardMetrics(organizationId: string): Promise<Dashb
     previousMonthRevenue: Number(previousMonthPayments._sum?.amount) || 0,
     pendingPaymentsAmount: Number(pendingPaymentsAmount._sum?.amount) || 0
   }
+  })
 }
 
 export async function getMonthlyRevenue(organizationId: string, months: number = 6): Promise<MonthlyRevenue[]> {
+  return cachedQuery(`monthly-revenue-${organizationId}-${months}`, async () => {
   const now = new Date()
   const results: MonthlyRevenue[] = []
 
@@ -371,9 +387,11 @@ export async function getMonthlyRevenue(organizationId: string, months: number =
   }
 
   return results
+  })
 }
 
 export async function getPaymentStatusDistribution(organizationId: string): Promise<PaymentStatusDistribution[]> {
+  return cachedQuery(`payment-status-${organizationId}`, async () => {
   const payments = await prisma.payments.groupBy({
     by: ['status'],
     where: {
@@ -408,9 +426,11 @@ export async function getPaymentStatusDistribution(organizationId: string): Prom
     amount: statusAmounts.find(a => a.status === p.status)?.amount || 0,
     color: PAYMENT_STATUS_COLORS[p.status] || 'var(--muted)'
   }))
+  })
 }
 
 export async function getOccupancyData(organizationId: string): Promise<OccupancyData[]> {
+  return cachedQuery(`occupancy-${organizationId}`, async () => {
   const [properties, rooms] = await Promise.all([
     prisma.properties.groupBy({
       by: ['status'],
@@ -442,9 +462,11 @@ export async function getOccupancyData(organizationId: string): Promise<Occupanc
     count,
     color: PROPERTY_STATUS_COLORS[status] || 'var(--muted)'
   }))
+  })
 }
 
 export async function getRecentPayments(organizationId: string, limit: number = 5): Promise<RecentPayment[]> {
+  return cachedQuery(`recent-payments-${organizationId}-${limit}`, async () => {
   const payments = await prisma.payments.findMany({
     where: {
       organization_id: organizationId,
@@ -509,9 +531,11 @@ export async function getRecentPayments(organizationId: string, limit: number = 
       paidAt: p.payment_history[0]?.paid_at || null
     }
   })
+  })
 }
 
 export async function getExpiringLeases(organizationId: string, daysAhead: number = 30): Promise<ExpiringLease[]> {
+  return cachedQuery(`expiring-leases-${organizationId}-${daysAhead}`, async () => {
   const now = new Date()
 
   const leases = await prisma.leases.findMany({
@@ -576,9 +600,11 @@ export async function getExpiringLeases(organizationId: string, daysAhead: numbe
     .slice(0, 5)
 
   return expiringLeases
+  })
 }
 
 export async function getOpenTasks(organizationId: string, limit: number = 5): Promise<OpenTask[]> {
+  return cachedQuery(`open-tasks-${organizationId}-${limit}`, async () => {
   const tasks = await prisma.tasks.findMany({
     where: {
       organization_id: organizationId,
@@ -647,9 +673,11 @@ export async function getOpenTasks(organizationId: string, limit: number = 5): P
       assignedTo
     }
   })
+  })
 }
 
 export async function getDashboardAlerts(organizationId: string): Promise<DashboardAlert[]> {
+  return cachedQuery(`dashboard-alerts-${organizationId}`, async () => {
   const now = new Date()
   const alerts: DashboardAlert[] = []
 
@@ -760,6 +788,7 @@ export async function getDashboardAlerts(organizationId: string): Promise<Dashbo
   // Sort by severity
   const severityOrder = { high: 0, medium: 1, low: 2 }
   return alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
+  })
 }
 
 // ============================================
@@ -767,6 +796,7 @@ export async function getDashboardAlerts(organizationId: string): Promise<Dashbo
 // ============================================
 
 export async function getPropertyStatusCounts(organizationId: string): Promise<PropertyStatusCounts> {
+  return cachedQuery(`property-status-${organizationId}`, async () => {
   const [
     totalProperties,
     underPreparation,
@@ -814,9 +844,11 @@ export async function getPropertyStatusCounts(organizationId: string): Promise<P
     underPreparation,
     pendingInspection
   }
+  })
 }
 
 export async function getRoomStatusCounts(organizationId: string): Promise<RoomStatusCounts> {
+  return cachedQuery(`room-status-${organizationId}`, async () => {
   const [
     totalRooms,
     underPreparation,
@@ -864,9 +896,11 @@ export async function getRoomStatusCounts(organizationId: string): Promise<RoomS
     underPreparation,
     pendingInspection
   }
+  })
 }
 
 export async function getLeaseStatusCounts(organizationId: string): Promise<LeaseStatusCounts> {
+  return cachedQuery(`lease-status-${organizationId}`, async () => {
   const now = new Date()
   const thirtyDaysFromNow = addDays(now, 30)
 
@@ -915,9 +949,11 @@ export async function getLeaseStatusCounts(organizationId: string): Promise<Leas
     expiringSoon,
     expired
   }
+  })
 }
 
 export async function getContractStatusCounts(organizationId: string): Promise<ContractStatusCounts> {
+  return cachedQuery(`contract-status-${organizationId}`, async () => {
   const now = new Date()
   const thirtyDaysFromNow = addDays(now, 30)
 
@@ -966,4 +1002,5 @@ export async function getContractStatusCounts(organizationId: string): Promise<C
     expiringSoon,
     expired
   }
+  })
 }

@@ -24,9 +24,12 @@ type Props = {
   className?: string
   onValueChange?: (date: Date | undefined) => void
   value?: Date
+  /** "default" keeps the current look; "compact" is smaller for chart headers */
+  variant?: 'default' | 'compact'
 } & Omit<React.ComponentProps<'button'>, 'value'>
 
-export default function MonthPicker ({ className, onValueChange, value, ...props }: Props) {
+export default function MonthPicker ({ className, onValueChange, value, variant = 'default', ...props }: Props) {
+  const isCompact = variant === 'compact'
   const [open, setOpen] = React.useState(false)
   const [date, setDate] = React.useState<Date | undefined>(value)
   const [viewYear, setViewYear] = React.useState(value?.getFullYear() ?? new Date().getFullYear())
@@ -60,42 +63,47 @@ export default function MonthPicker ({ className, onValueChange, value, ...props
           variant='outline'
           className={cn(
             'flex items-center justify-between',
-            'w-full h-10!',
+            isCompact
+              ? 'h-8 px-2.5 gap-1.5 texts-caption-large'
+              : 'w-full h-10! texts-body-medium',
             'hover:bg-neutral-100',
-            'texts-body-medium',
             !date && 'text-(--text-secondary)',
             'transition-colors duration-200',
-            'rounded-[5]',
+            isCompact ? 'rounded-md' : 'rounded-[5]',
             className
           )}
           {...props}
         >
-          {date ? `${MONTH_FULL[date.getMonth()]} ${date.getFullYear()}` : 'Select month'}
-          <CalendarIcon size={18} />
+          {date
+            ? isCompact
+              ? `${MONTHS[date.getMonth()]} ${date.getFullYear()}`
+              : `${MONTH_FULL[date.getMonth()]} ${date.getFullYear()}`
+            : isCompact ? 'Month' : 'Select month'}
+          <CalendarIcon className={isCompact ? 'w-[13px]! h-[13px]! mb-0.5 text-gray-800' : 'w-[18px]! h-[18px]!'} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='w-64 p-3' align='start'>
+      <PopoverContent className={cn(isCompact ? 'w-56 p-2.5' : 'w-64 p-3')} align='start'>
         {/* Year navigation */}
-        <div className='flex items-center justify-between mb-3'>
+        <div className={cn('flex items-center justify-between', isCompact ? 'mb-2' : 'mb-3')}>
           <button
             type='button'
             onClick={() => setViewYear(prev => prev - 1)}
             className='p-1 rounded-md hover:bg-neutral-100 transition-colors cursor-pointer'
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={isCompact ? 14 : 16} />
           </button>
-          <span className='texts-body-medium-semibold'>{viewYear}</span>
+          <span className={isCompact ? 'texts-label-small font-semibold' : 'texts-body-medium-semibold'}>{viewYear}</span>
           <button
             type='button'
             onClick={() => setViewYear(prev => prev + 1)}
             className='p-1 rounded-md hover:bg-neutral-100 transition-colors cursor-pointer'
           >
-            <ChevronRight size={16} />
+            <ChevronRight size={isCompact ? 14 : 16} />
           </button>
         </div>
 
         {/* Month grid */}
-        <div className='grid grid-cols-3 gap-1.5'>
+        <div className={cn('grid grid-cols-3', isCompact ? 'gap-1' : 'gap-1.5')}>
           {MONTHS.map((month, index) => {
             const isSelected = selectedMonth === index && selectedYear === viewYear
             return (
@@ -104,7 +112,8 @@ export default function MonthPicker ({ className, onValueChange, value, ...props
                 type='button'
                 onClick={() => handleSelect(index)}
                 className={cn(
-                  'py-2 rounded-md texts-body-small-medium transition-colors cursor-pointer',
+                  'rounded-md transition-colors cursor-pointer',
+                  isCompact ? 'py-1.5 texts-caption-large font-medium' : 'py-2 texts-body-small-medium',
                   isSelected
                     ? 'bg-(--secondary-color) text-white'
                     : 'hover:bg-neutral-100 text-(--text-secondary)'

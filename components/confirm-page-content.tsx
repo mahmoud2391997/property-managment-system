@@ -50,7 +50,7 @@ export default function ConfirmPageContent() {
         }
       })
     } else if (!urlStatus) {
-      router.replace('/login/staff')
+      router.replace('/login')
     }
   }, [router, searchParams])
 
@@ -63,7 +63,7 @@ export default function ConfirmPageContent() {
     }, 1000)
 
     const redirectTimer = setTimeout(() => {
-      router.push('/login/staff')
+      router.push('/login')
     }, 5000)
 
     return () => {

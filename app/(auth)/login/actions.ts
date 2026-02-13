@@ -4,12 +4,13 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/utils/supabase/server'
+import { prisma } from '@/lib/prisma'
 
-export async function tenantLogin(formData: FormData): Promise<string | void> {
+export async function login(formData: FormData): Promise<string | void> {
   const supabase = await createClient()
 
   const data = {
-    email: formData.get('username') as string,
+    email: formData.get('email') as string,
     password: formData.get('password') as string,
   }
 
@@ -19,21 +20,36 @@ export async function tenantLogin(formData: FormData): Promise<string | void> {
     return 'Invalid email or password'
   }
 
-  // Check if user_type is tenant
-  const userType = authData.user?.user_metadata?.user_type
+  const userId = authData.user.id
 
-  if (userType === 'staff') {
-    // Sign out the user since they're on the wrong login page
-    await supabase.auth.signOut()
-    return 'This email is registered as a staff account. Please use the staff login page.'
+  // Check tenant table first
+  const tenant = await prisma.tenants.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  })
+
+  if (tenant) {
+    revalidatePath('/', 'layout')
+    redirect('/payments')
   }
 
-  if (userType !== 'tenant') {
-    // Sign out the user if user_type is not set or invalid
-    await supabase.auth.signOut()
-    return 'Invalid email or password'
+  // Then check staff table
+  const staff = await prisma.staff.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  })
+
+  if (staff) {
+    revalidatePath('/', 'layout')
+    redirect('/projects')
   }
 
-  revalidatePath('/', 'layout')
-  redirect('/payments')
+  // User exists in auth but not in either table — something is wrong
+  await supabase.auth.signOut()
+  return 'There was a problem signing in. Please contact support.'
+}
+
+// Keep for backwards compatibility (other files may import this)
+export async function tenantLogin(formData: FormData): Promise<string | void> {
+  return login(formData)
 }

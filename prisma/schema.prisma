@@ -592,31 +592,37 @@ model leases {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model organizations {
-  id                           String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  title                        String
-  type                         organization_type
-  created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
-  created_by                   String?                        @db.Uuid
-  contracts                    contracts[]
-  expenses                     expenses[]
-  leases                       leases[]
-  notifications                notifications[]
-  users                        users?                         @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations_tenants        organizations_tenants[]
-  owners                       owners[]
-  payment_late_charges_applied payment_late_charges_applied[]
-  payments                     payments[]
-  projects                     projects[]
-  properties                   properties[]
-  property_images              property_images[]
-  recurring_configs            recurring_configs[]
-  refund_decisions             refund_decisions[]
-  reminders                    reminders[]
-  roles                        roles[]
-  staff                        staff[]
-  task_flow_instances          task_flow_instances[]
-  tasks                        tasks[]
-  tickets                      tickets[]
+  id                               String                             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title                            String
+  type                             organization_type
+  created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
+  created_by                       String?                            @db.Uuid
+  contracts                        contracts[]
+  expenses                         expenses[]
+  financial_daily_expense_category financial_daily_expense_category[]
+  financial_daily_occupancy        financial_daily_occupancy[]
+  financial_daily_payment_type     financial_daily_payment_type[]
+  financial_daily_property         financial_daily_property[]
+  financial_daily_property_expense financial_daily_property_expense[]
+  financial_daily_summary          financial_daily_summary[]
+  leases                           leases[]
+  notifications                    notifications[]
+  users                            users?                             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  organizations_tenants            organizations_tenants[]
+  owners                           owners[]
+  payment_late_charges_applied     payment_late_charges_applied[]
+  payments                         payments[]
+  projects                         projects[]
+  properties                       properties[]
+  property_images                  property_images[]
+  recurring_configs                recurring_configs[]
+  refund_decisions                 refund_decisions[]
+  reminders                        reminders[]
+  roles                            roles[]
+  staff                            staff[]
+  task_flow_instances              task_flow_instances[]
+  tasks                            tasks[]
+  tickets                          tickets[]
 
   @@schema("public")
 }
@@ -708,15 +714,16 @@ model permissions {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model projects {
-  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  title           String
-  state           String
-  organization_id String        @db.Uuid
-  created_at      DateTime      @default(now()) @db.Timestamptz(6)
-  created_by      String?       @db.Uuid
-  staff           staff?        @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  properties      properties[]
+  id                           String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title                        String
+  state                        String
+  organization_id              String                         @db.Uuid
+  created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+  created_by                   String?                        @db.Uuid
+  financial_daily_payment_type financial_daily_payment_type[]
+  staff                        staff?                         @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  organizations                organizations                  @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties                   properties[]
 
   @@unique([organization_id, title])
   @@schema("public")
@@ -742,6 +749,8 @@ model properties {
   owner_id                         String?                            @db.Uuid
   bookings                         bookings[]
   contracts                        contracts[]
+  financial_daily_property         financial_daily_property[]
+  financial_daily_property_expense financial_daily_property_expense[]
   late_payment_charges             late_payment_charges[]
   leases                           leases[]
   owners                           owners?                            @relation(fields: [owner_id], references: [id], onUpdate: NoAction, map: "fk_owner")
@@ -1575,6 +1584,115 @@ model deduction_charges {
   staff      staff?   @relation(fields: [created_by], references: [id], onUpdate: NoAction)
   expenses   expenses @relation(fields: [expense_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "deduction_charges_expense_fkey")
 
+  @@schema("public")
+}
+
+model financial_daily_expense_category {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date            DateTime      @db.Date
+  organization_id String        @db.Uuid
+  category        String
+  amount          Decimal       @default(0) @db.Decimal(12, 2)
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([organization_id, date, category], map: "financial_daily_expense_categ_organization_id_date_category_key")
+  @@index([organization_id, date(sort: Desc)], map: "idx_fdec_org_date")
+  @@schema("public")
+}
+
+model financial_daily_occupancy {
+  id                      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date                    DateTime      @db.Date
+  organization_id         String        @db.Uuid
+  properties_count        Int
+  rooms_count             Int
+  properties_leased_count Int
+  rooms_leased_count      Int
+  occupancy_rate          Decimal       @db.Decimal(5, 2)
+  created_at              DateTime      @default(now()) @db.Timestamptz(6)
+  organizations           organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([organization_id, date])
+  @@index([organization_id, date(sort: Desc)], map: "idx_fdo_org_date")
+  @@schema("public")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model financial_daily_payment_type {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date            DateTime      @db.Date
+  organization_id String        @db.Uuid
+  project_id      String?       @db.Uuid
+  type            String
+  amount          Decimal       @default(0) @db.Decimal(12, 2)
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects        projects?     @relation(fields: [project_id], references: [id], onUpdate: NoAction)
+
+  @@index([organization_id, date(sort: Desc)], map: "idx_fdpt_org_date")
+  @@schema("public")
+}
+
+model financial_daily_property {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date            DateTime      @db.Date
+  property_id     String        @db.Uuid
+  organization_id String        @db.Uuid
+  income          Decimal       @default(0) @db.Decimal(12, 2)
+  outcome         Decimal       @default(0) @db.Decimal(12, 2)
+  rental_received Decimal       @default(0) @db.Decimal(12, 2)
+  owner_paid      Decimal       @default(0) @db.Decimal(12, 2)
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties      properties    @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([property_id, date])
+  @@index([organization_id, date(sort: Desc)], map: "idx_fdp_org_date")
+  @@schema("public")
+}
+
+model financial_daily_property_expense {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date            DateTime      @db.Date
+  property_id     String        @db.Uuid
+  organization_id String        @db.Uuid
+  category        String
+  type            String
+  amount          Decimal       @default(0) @db.Decimal(12, 2)
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties      properties    @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([property_id, date, category, type], map: "financial_daily_property_expe_property_id_date_category_typ_key")
+  @@index([organization_id, date(sort: Desc)], map: "idx_fdpe_org_date")
+  @@schema("public")
+}
+
+model financial_daily_summary {
+  id                              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date                            DateTime      @db.Date
+  organization_id                 String        @db.Uuid
+  total_income                    Decimal       @default(0) @db.Decimal(12, 2)
+  total_outcome                   Decimal       @default(0) @db.Decimal(12, 2)
+  rental_due                      Decimal       @default(0) @db.Decimal(12, 2)
+  rental_received                 Decimal       @default(0) @db.Decimal(12, 2)
+  owner_paid                      Decimal       @default(0) @db.Decimal(12, 2)
+  rental_overdue_amount           Decimal       @default(0) @db.Decimal(12, 2)
+  rental_overdue_count            Int           @default(0)
+  rental_overdue_this_month       Decimal       @default(0) @db.Decimal(12, 2)
+  rental_overdue_previous_months  Decimal       @default(0) @db.Decimal(12, 2)
+  expense_total                   Decimal       @default(0) @db.Decimal(12, 2)
+  expense_paid                    Decimal       @default(0) @db.Decimal(12, 2)
+  expense_overdue_amount          Decimal       @default(0) @db.Decimal(12, 2)
+  expense_overdue_count           Int           @default(0)
+  expense_overdue_this_month      Decimal       @default(0) @db.Decimal(12, 2)
+  expense_overdue_previous_months Decimal       @default(0) @db.Decimal(12, 2)
+  created_at                      DateTime      @default(now()) @db.Timestamptz(6)
+  organizations                   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([organization_id, date])
+  @@index([organization_id, date(sort: Desc)], map: "idx_fds_org_date")
   @@schema("public")
 }
 

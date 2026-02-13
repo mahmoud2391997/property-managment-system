@@ -49,7 +49,7 @@ export default function ErrorPageContent() {
     }, 1000)
 
     const redirectTimer = setTimeout(() => {
-      router.push('/login/staff')
+      router.push('/login')
     }, 3000)
 
     return () => {

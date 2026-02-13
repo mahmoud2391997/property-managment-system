@@ -21,7 +21,8 @@ import {
 } from '@/lib/dashboard-data'
 import {
   StatusMetricCard,
-  StatusMetricCardSkeleton,
+  StatusMetricsContainer,
+  StatusMetricsContainerSkeleton,
   RevenueChart,
   RevenueChartSkeleton,
   PaymentStatusChart,
@@ -52,7 +53,7 @@ async function getOrganizationId(): Promise<string | null> {
   return staff?.organization_id || null
 }
 
-// Metric Cards Section - 4 cards with status indicators
+// Metric Cards Section - single card with 4 metrics separated by dividers
 async function MetricsSection({ organizationId }: { organizationId: string }) {
   const [propertyStatus, roomStatus, leaseStatus, contractStatus] = await Promise.all([
     getPropertyStatusCounts(organizationId),
@@ -62,71 +63,63 @@ async function MetricsSection({ organizationId }: { organizationId: string }) {
   ])
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Properties */}
-      <StatusMetricCard
-        title="Properties"
-        value={propertyStatus.total}
-        icon="Building2"
-        variant="warning"
-        statuses={[
-          { label: 'Vacant', count: propertyStatus.vacant, color: STATUS_COLORS.vacant },
-          { label: 'Occupied', count: propertyStatus.occupied, color: STATUS_COLORS.occupied },
-          { label: 'Under Preparation', count: propertyStatus.underPreparation, color: STATUS_COLORS.underPreparation },
-          { label: 'Pending Inspection', count: propertyStatus.pendingInspection, color: STATUS_COLORS.pendingInspection },
-        ]}
-      />
+    <StatusMetricsContainer>
+      <div className="flex">
+        <StatusMetricCard
+          title="Properties"
+          value={propertyStatus.total}
+          statuses={[
+            { label: 'Vacant', count: propertyStatus.vacant, color: STATUS_COLORS.vacant },
+            { label: 'Occupied', count: propertyStatus.occupied, color: STATUS_COLORS.occupied },
+            { label: 'Under Preparation', count: propertyStatus.underPreparation, color: STATUS_COLORS.underPreparation },
+            { label: 'Pending Inspection', count: propertyStatus.pendingInspection, color: STATUS_COLORS.pendingInspection },
+          ]}
+        />
+      </div>
 
-      {/* Rooms */}
-      <StatusMetricCard
-        title="Rooms"
-        value={roomStatus.total}
-        icon="DoorOpen"
-        variant="info"
-        statuses={[
-          { label: 'Vacant', count: roomStatus.vacant, color: STATUS_COLORS.vacant },
-          { label: 'Occupied', count: roomStatus.occupied, color: STATUS_COLORS.occupied },
-          { label: 'Under Preparation', count: roomStatus.underPreparation, color: STATUS_COLORS.underPreparation },
-          { label: 'Pending Inspection', count: roomStatus.pendingInspection, color: STATUS_COLORS.pendingInspection },
-        ]}
-      />
+      <div className=" h-10 border  border-gray-200">
+        <StatusMetricCard
+          title="Rooms"
+          value={roomStatus.total}
+          statuses={[
+            { label: 'Vacant', count: roomStatus.vacant, color: STATUS_COLORS.vacant },
+            { label: 'Occupied', count: roomStatus.occupied, color: STATUS_COLORS.occupied },
+            { label: 'Under Preparation', count: roomStatus.underPreparation, color: STATUS_COLORS.underPreparation },
+            { label: 'Pending Inspection', count: roomStatus.pendingInspection, color: STATUS_COLORS.pendingInspection },
+          ]}
+        />
+      </div>
 
-      {/* Active Leases */}
-      <StatusMetricCard
-        title="Active Leases"
-        value={leaseStatus.total}
-        icon="FileText"
-        variant="purple"
-        statuses={[
-          { label: 'Active', count: leaseStatus.active, color: STATUS_COLORS.active },
-          { label: 'Expiring Soon', count: leaseStatus.expiringSoon, color: STATUS_COLORS.expiringSoon },
-          { label: 'Expired', count: leaseStatus.expired, color: STATUS_COLORS.expired },
-        ]}
-      />
+      <div className="flex-1 border-l border-gray-200">
+        <StatusMetricCard
+          title="Active Leases"
+          value={leaseStatus.total}
+          statuses={[
+            { label: 'Active', count: leaseStatus.active, color: STATUS_COLORS.active },
+            { label: 'Expiring Soon', count: leaseStatus.expiringSoon, color: STATUS_COLORS.expiringSoon },
+            { label: 'Expired', count: leaseStatus.expired, color: STATUS_COLORS.expired },
+          ]}
+        />
+      </div>
 
-      {/* Active Owner Contracts */}
-      <StatusMetricCard
-        title="Active Contracts"
-        value={contractStatus.total}
-        icon="ScrollText"
-        variant="success"
-        statuses={[
-          { label: 'Active', count: contractStatus.active, color: STATUS_COLORS.active },
-          { label: 'Expiring Soon', count: contractStatus.expiringSoon, color: STATUS_COLORS.expiringSoon },
-          { label: 'Expired', count: contractStatus.expired, color: STATUS_COLORS.expired },
-        ]}
-      />
-    </div>
+      <div className="flex-1 border-l border-gray-200">
+        <StatusMetricCard
+          title="Active Contracts"
+          value={contractStatus.total}
+          statuses={[
+            { label: 'Active', count: contractStatus.active, color: STATUS_COLORS.active },
+            { label: 'Expiring Soon', count: contractStatus.expiringSoon, color: STATUS_COLORS.expiringSoon },
+            { label: 'Expired', count: contractStatus.expired, color: STATUS_COLORS.expired },
+          ]}
+        />
+      </div>
+    </StatusMetricsContainer>
   )
 }
 
 function MetricsSkeleton() {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {[1, 2, 3, 4].map((i) => (
-        <StatusMetricCardSkeleton key={i} />
-      ))}
-    </div>
+    <StatusMetricsContainerSkeleton />
   )
 }
 
@@ -227,7 +220,7 @@ export default async function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-6 border -m-7.5 p-7.5 h-fit bg-[#FAFAFA]">
+    <div className="flex flex-col gap-6 border -m-7.5 p-7.5 h-fit">
       {/* Header */}
       <div>
         <h1>Dashboard</h1>

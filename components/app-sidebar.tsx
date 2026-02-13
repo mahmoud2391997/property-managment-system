@@ -574,8 +574,7 @@ export default function AppSidebar () {
               confirmButtonClassName='bg-primary-main! hover:bg-primary-main/90!'
               onConfirm={async () => {
                 setIsLoggingOut(true)
-                const redirectPath = userType === 'tenant' ? '/login' : '/login/staff'
-                await logout(redirectPath)
+                await logout('/login')
               }}
             />
           </div>
