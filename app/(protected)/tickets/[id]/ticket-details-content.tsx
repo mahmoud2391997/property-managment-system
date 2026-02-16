@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useMemo } from 'react'
 import Breadcrumb from '@/components/costume-ui/breadcrumb'
 import { TicketHeader, TicketTimeline, TicketSidebar, PendingAssignmentBanner, TenantStatusActions } from '@/components/ticket-ui'
 import type { TimelineEvent } from '@/components/ticket-ui'
@@ -204,6 +204,41 @@ export default function TicketDetailsContent({
   useEffect(() => {
     setCurrentType(ticket.ticket_types[ticket.ticket_types.length - 1]?.type || 'Other')
   }, [ticket.ticket_types])
+
+  // Calculate auto-resolve deadline when status is Pending_Tenant
+  const autoResolveInfo = useMemo(() => {
+    if (rawStatus !== 'Pending_Tenant') return null
+
+    const latestStatus = ticket.ticket_statuses[ticket.ticket_statuses.length - 1]
+    if (!latestStatus) return null
+
+    const pendingDate = new Date(latestStatus.created_at)
+    const deadline = new Date(pendingDate.getTime() + 3 * 24 * 60 * 60 * 1000)
+    const now = new Date()
+    const remainingMs = deadline.getTime() - now.getTime()
+
+    if (remainingMs <= 0) return { expired: true, isUrgent: true }
+
+    const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60))
+    const remainingDays = Math.floor(remainingHours / 24)
+    const hours = remainingHours % 24
+
+    let remainingText: string
+    if (remainingDays > 0) {
+      remainingText = `${remainingDays} day${remainingDays > 1 ? 's' : ''}${hours > 0 ? ` and ${hours} hour${hours > 1 ? 's' : ''}` : ''}`
+    } else {
+      remainingText = `${hours} hour${hours !== 1 ? 's' : ''}`
+    }
+
+    const deadlineStr = deadline.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    })
+
+    return { deadlineStr, remainingText, isUrgent: remainingDays === 0 }
+  }, [rawStatus, ticket.ticket_statuses])
 
   // Get tenant name from lease
   const tenant = ticket.leases?.tenants
@@ -630,6 +665,32 @@ export default function TicketDetailsContent({
         creatorName={tenantName}
         createdAt={formatDate(ticket.created_at)}
       />
+
+      {/* Auto-resolve notice - shown to all users when Pending Tenant */}
+      {autoResolveInfo && (
+        <div className={`flex items-start gap-2 mb-4 px-3 py-2.5 rounded-md ${autoResolveInfo.isUrgent ? 'bg-amber-50 border border-amber-200' : 'bg-neutral-50 border border-neutral-200'}`}>
+          <svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' className={`shrink-0 mt-0.5 ${autoResolveInfo.isUrgent ? 'text-amber-600' : 'text-neutral-400'}`}><circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/></svg>
+          <div>
+            {autoResolveInfo.expired ? (
+              <p className='texts-body-small text-amber-700'>
+                The response window has passed. This ticket will be automatically resolved shortly.
+              </p>
+            ) : (
+              <>
+                <p className={`texts-body-small ${autoResolveInfo.isUrgent ? 'text-amber-700' : 'text-(--text-primary)'}`}>
+                  Auto-resolves on {autoResolveInfo.deadlineStr}
+                  <span className={`ml-1.5 ${autoResolveInfo.isUrgent ? 'text-amber-600' : 'text-(--text-secondary)'}`}>
+                    ({autoResolveInfo.remainingText})
+                  </span>
+                </p>
+                <p className='texts-body-small text-(--text-secondary) mt-0.5'>
+                  Tenant must confirm or reject before this date.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Tenant Status Actions - shown to tenants only */}
       {userType === 'tenant' && (

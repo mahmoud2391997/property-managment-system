@@ -763,6 +763,12 @@ export default function ExpenseDetailsContent({ expense }: Props) {
                   <span className='texts-body-small text-(--text-secondary)'>Type</span>
                   <span className='texts-body-small-medium'>{formatPaymentTypeLabel(expense.company_expense.type)}</span>
                 </div>
+                {expense.company_expense.is_asset && (
+                  <div className='flex items-center justify-between pt-3 border-t border-(--border-light)'>
+                    <span className='texts-body-small text-(--text-secondary)'>Asset</span>
+                    <span className='px-1.5 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800'>Asset</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

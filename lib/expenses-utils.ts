@@ -44,7 +44,7 @@ type RawExpense = {
       owners: { first_name: string; last_name: string | null }
     }
   } | null
-  company_expenses: { type: string } | null
+  company_expenses: { type: string; is_asset: boolean } | null
   purchase_expenses: {
     type: string
     is_asset: boolean
@@ -137,7 +137,7 @@ function extractSubtypeInfo(expense: RawExpense): {
         context_label: '-',
         context_id: null,
         context_subtitle: '',
-        is_asset: false
+        is_asset: sub?.is_asset || false
       }
     }
 

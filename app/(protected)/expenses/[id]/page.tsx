@@ -78,6 +78,7 @@ export type ExpenseDetailsData = {
   } | null
   company_expense: {
     type: string
+    is_asset: boolean
   } | null
   purchase_expense: {
     type: string
@@ -216,7 +217,7 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
           }
         },
         company_expenses: {
-          select: { type: true }
+          select: { type: true, is_asset: true }
         },
         purchase_expenses: {
           select: {
@@ -345,7 +346,8 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
     } : null
 
     const companyExpense = expense.company_expenses ? {
-      type: expense.company_expenses.type
+      type: expense.company_expenses.type,
+      is_asset: expense.company_expenses.is_asset
     } : null
 
     const purchaseExpense = expense.purchase_expenses ? {

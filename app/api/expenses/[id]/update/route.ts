@@ -157,6 +157,7 @@ export async function PUT(
             where: { id: expense.id },
             data: {
               type: expense_type,
+              is_asset: is_asset || false,
               is_claimed: is_claimed || false,
               claimer_id: is_claimed ? claimer_id : null
             }

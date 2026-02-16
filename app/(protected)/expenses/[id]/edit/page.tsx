@@ -30,6 +30,7 @@ export type EditExpenseData = {
   } | null
   company_expense: {
     type: string
+    is_asset: boolean
     is_claimed: boolean
     claimer_id: string | null
   } | null
@@ -141,6 +142,7 @@ async function getExpenseForEdit(referenceId: string): Promise<EditExpenseData |
         company_expenses: {
           select: {
             type: true,
+            is_asset: true,
             is_claimed: true,
             claimer_id: true
           }
@@ -199,6 +201,7 @@ async function getExpenseForEdit(referenceId: string): Promise<EditExpenseData |
       } : null,
       company_expense: expense.company_expenses ? {
         type: expense.company_expenses.type,
+        is_asset: expense.company_expenses.is_asset,
         is_claimed: expense.company_expenses.is_claimed,
         claimer_id: expense.company_expenses.claimer_id
       } : null,

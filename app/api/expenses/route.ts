@@ -58,7 +58,7 @@ export const expenseSelect = {
       }
     }
   },
-  company_expenses: { select: { type: true } },
+  company_expenses: { select: { type: true, is_asset: true } },
   purchase_expenses: {
     select: {
       type: true,

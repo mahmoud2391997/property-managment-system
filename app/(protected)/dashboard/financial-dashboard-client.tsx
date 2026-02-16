@@ -260,6 +260,7 @@ export function FinancialDashboardClient({
             <BalanceCard
               totalPayments={kpi.totalPayments}
               totalExpenses={kpi.totalExpenses}
+              previousBalance={kpi.previousBalance}
             />
           </div>
           <div className="flex-1 border-l border-(--border-default)">

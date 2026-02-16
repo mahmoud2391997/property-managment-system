@@ -81,6 +81,14 @@ const CLAIMABLE_COMPANY_TYPES = [
   'Miscellaneous_Others'
 ]
 
+const ASSET_COMPANY_TYPES = [
+  'ICT_Equipment',
+  'Plant___Machinery',
+  'Company_Equipment',
+  'Vehicle_Purchase',
+  'Property_Purchase'
+]
+
 type Deduction = { title: string; amount: string }
 type Allowance = { title: string; amount: string }
 
@@ -155,7 +163,7 @@ const AddExpense = () => {
   const [recurringConfig, setRecurringConfig] = useState<any>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Purchase-specific state
+  // Asset state (purchase & company)
   const [isAsset, setIsAsset] = useState<boolean>(false)
   const [depreciationPercentage, setDepreciationPercentage] =
     useState<string>('')
@@ -572,6 +580,7 @@ const AddExpense = () => {
             contract_id: selectedContractId
           }),
           ...(selectedIndex === 3 && {
+            is_asset: ASSET_COMPANY_TYPES.includes(expenseType.type) ? isAsset : false,
             is_claimed: isClaimed,
             claimer_id: isClaimed ? claimerId : null
           }),
@@ -1031,6 +1040,22 @@ const AddExpense = () => {
             className='texts-body-small bg-(--background-secondary) hover:bg-neutral-100 focus:hover:bg-neutral-50 focus:border-neutral-400 border border-(--border-strong) transition-colors duration-200 rounded-[5] shadows-xs'
           />
         </InputGroup>
+
+        {/* Company asset checkbox — only for asset-eligible types */}
+        {selectedIndex === 3 && ASSET_COMPANY_TYPES.includes(expenseType.type) && (
+          <div className='flex items-center gap-2'>
+            <Checkbox
+              checked={isAsset}
+              onCheckedChange={checked => setIsAsset(checked === true)}
+            />
+            <label
+              className='texts-label-large cursor-pointer'
+              onClick={() => setIsAsset(!isAsset)}
+            >
+              This is an asset
+            </label>
+          </div>
+        )}
 
         {/* Purchase-specific fields */}
         {selectedIndex === 4 && (
