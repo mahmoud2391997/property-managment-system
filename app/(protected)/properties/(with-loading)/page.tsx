@@ -44,6 +44,7 @@ async function getProperties(): Promise<{ data: PropertyWithDetails[]; total: nu
         cleaning_service: true,
         water_heater: true,
         female: true,
+        dryer: true,
         projects: {
           select: {
             title: true,

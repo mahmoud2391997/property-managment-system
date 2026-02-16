@@ -2,7 +2,7 @@
 
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
-import { Wifi, SprayCan, Bath, Fence, AirVent, Flame, BedDouble } from 'lucide-react'
+import { Wifi, SprayCan, Bath, Fence, AirVent, Flame, BedDouble, Wind } from 'lucide-react'
 import InnerSection from './collapsible-inner-section'
 
 // Venus symbol (♀) as a custom icon component
@@ -29,6 +29,7 @@ export const PROPERTY_FEATURES = [
   { key: 'wifi', label: 'WiFi', description: 'WiFi internet available', Icon: Wifi },
   { key: 'cleaning_service', label: 'Cleaning Service', description: 'Cleaning service included', Icon: SprayCan },
   { key: 'water_heater', label: 'Water Heater', description: 'Water heater in bathrooms', Icon: Flame },
+  { key: 'dryer', label: 'Dryer', description: 'Clothes dryer available', Icon: Wind },
   { key: 'female', label: 'Female Only', description: 'For female tenants only', Icon: VenusIcon }
 ] as const
 
@@ -46,6 +47,7 @@ export type PropertyFeatures = {
   wifi: boolean
   cleaning_service: boolean
   water_heater: boolean
+  dryer: boolean
   female: boolean
 }
 

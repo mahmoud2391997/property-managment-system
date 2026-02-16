@@ -201,14 +201,21 @@ export async function getExpenseBreakdownData(
       date: monthStart,
     },
     select: { category: true, amount: true },
-    orderBy: { amount: 'desc' },
   })
 
-  return rows.map(r => ({
-    category: r.category.replace(/_/g, ' '),
-    amount: Number(r.amount),
-    color: EXPENSE_CATEGORY_COLORS[r.category] || '#6b7280',
-  }))
+  const categoryAmounts = new Map<string, number>()
+  rows.forEach(r => {
+    categoryAmounts.set(r.category, Number(r.amount))
+  })
+
+  // Always return all known categories, even if 0
+  return Object.entries(EXPENSE_CATEGORY_COLORS)
+    .map(([category, color]) => ({
+      category: category.replace(/_/g, ' '),
+      amount: categoryAmounts.get(category) || 0,
+      color,
+    }))
+    .sort((a, b) => b.amount - a.amount)
 }
 
 // ── Rental Overview (received vs owner paid + occupancy line) ────────────
@@ -298,6 +305,7 @@ export async function getPaymentTypeData(
   })
 
   return Array.from(typeMap.entries())
+    .filter(([, amount]) => amount > 0)
     .sort((a, b) => b[1] - a[1])
     .map(([type, amount], i) => ({
       type,

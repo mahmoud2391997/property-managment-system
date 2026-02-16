@@ -64,6 +64,7 @@ const AddProperty = () => {
     wifi: false,
     cleaning_service: false,
     water_heater: false,
+    dryer: false,
     female: false
   })
   const [images, setImages] = useState<ImageData[]>([])
@@ -128,6 +129,7 @@ const AddProperty = () => {
           wifi: features.wifi,
           cleaning_service: features.cleaning_service,
           water_heater: features.water_heater,
+          dryer: features.dryer,
           female: features.female
         },
 
@@ -243,7 +245,7 @@ const AddProperty = () => {
       setPostalCode('')
       setIsPropertyReady(false)
       setRooms([])
-      setFeatures({ wifi: false, cleaning_service: false, water_heater: false, female: false })
+      setFeatures({ wifi: false, cleaning_service: false, water_heater: false, dryer: false, female: false })
       setImages([])
       setInitialCharges([])
       setLateCharges([])

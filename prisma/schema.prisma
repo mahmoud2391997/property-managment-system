@@ -567,7 +567,9 @@ model leases {
   transferred_to                               String?                    @db.Uuid
   is_transferred_to                            Boolean                    @default(false)
   booking_id                                   String?                    @db.Uuid
+  agent_id                                     String?                    @db.Uuid
   late_payment_charges                         late_payment_charges[]
+  agents                                       agents?                    @relation(fields: [agent_id], references: [id], onUpdate: NoAction)
   bookings                                     bookings?                  @relation(fields: [booking_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   staff                                        staff?                     @relation(fields: [created_by], references: [id], onUpdate: NoAction)
   organizations                                organizations              @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -597,6 +599,7 @@ model organizations {
   type                             organization_type
   created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
   created_by                       String?                            @db.Uuid
+  agents                           agents[]
   contracts                        contracts[]
   expenses                         expenses[]
   financial_daily_expense_category financial_daily_expense_category[]
@@ -623,6 +626,7 @@ model organizations {
   task_flow_instances              task_flow_instances[]
   tasks                            tasks[]
   tickets                          tickets[]
+  vendors                          vendors[]
 
   @@schema("public")
 }
@@ -747,6 +751,7 @@ model properties {
   female                           Boolean?                           @default(false)
   water_heater                     Boolean?                           @default(false)
   owner_id                         String?                            @db.Uuid
+  dryer                            Boolean                            @default(false)
   bookings                         bookings[]
   contracts                        contracts[]
   financial_daily_property         financial_daily_property[]
@@ -1505,6 +1510,7 @@ model company_expenses {
   type       company_expense_type
   is_claimed Boolean              @default(false)
   claimer_id String?              @db.Uuid
+  is_asset   Boolean              @default(false)
   staff      staff?               @relation(fields: [claimer_id], references: [id], onUpdate: NoAction)
   expenses   expenses             @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -1693,6 +1699,32 @@ model financial_daily_summary {
 
   @@unique([organization_id, date])
   @@index([organization_id, date(sort: Desc)], map: "idx_fds_org_date")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model agents {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  first_name      String         @db.VarChar(50)
+  last_name       String?        @db.VarChar(30)
+  phone_number    String
+  email           String?
+  organization_id String?        @db.Uuid
+  organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  leases          leases[]
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model vendors {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String         @db.VarChar(50)
+  phone_number    String
+  email           String?
+  organization_id String?        @db.Uuid
+  organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
   @@schema("public")
 }
 
@@ -2026,19 +2058,24 @@ enum scheduled_change_status {
 }
 
 enum company_expense_type {
-  Office_Rent             @map("Office Rent")
-  Software_Subscription   @map("Software Subscription")
-  Professional_Fees       @map("Professional Fees")
-  Bank_Charges            @map("Bank Charges")
-  Marketing___Advertising @map("Marketing & Advertising")
+  Office_Rent                @map("Office Rent")
+  ICT_Equipment              @map("ICT Equipment")
+  Office_Stationary          @map("Office Stationary")
+  Software_Subscription      @map("Software Subscription")
+  Professional_Fees          @map("Professional Fees")
+  Bank_Charges               @map("Bank Charges")
+  Marketing___Advertising    @map("Marketing & Advertising")
   Insurance
-  Licenses___Permits      @map("Licenses & Permits")
-  Miscellaneous_Others    @map("Miscellaneous/Others")
-  Plant___Machinery       @map("Plant & Machinery")
-  Company_Equipment       @map("Company Equipment")
-  Motor_Vehicles          @map("Motor Vehicles")
-  ICT_Equipment           @map("ICT Equipment")
-  Office_Supplies         @map("Office Supplies")
+  Licenses___Government_Fees @map("Licenses & Government Fees")
+  Plant___Machinery          @map("Plant & Machinery")
+  Company_Equipment          @map("Company Equipment")
+  Vehicle_Repair___Servicing @map("Vehicle Repair & Servicing")
+  Transportation
+  Vehicle_Purchase           @map("Vehicle Purchase")
+  Property_Purchase          @map("Property Purchase")
+  Loan
+  Tax
+  Miscellaneous_Others       @map("Miscellaneous/Others")
 
   @@schema("public")
 }
@@ -2052,26 +2089,28 @@ enum contract_expense_type {
 
 enum property_expense_type {
   Refund
+  Agent_Commission        @map("Agent Commission")
   Maintenance
-  Cleaning_Service           @map("Cleaning Service")
-  Internet_Bill              @map("Internet Bill")
-  Water_Bill                 @map("Water Bill")
-  Electricity_Bill           @map("Electricity Bill")
-  Sewerage_Bill              @map("Sewerage Bill")
-  Management_Fees            @map("Management Fees")
+  Cleaning_Service        @map("Cleaning Service")
+  Internet_Bill           @map("Internet Bill")
+  Water_Bill              @map("Water Bill")
+  Electricity_Bill        @map("Electricity Bill")
+  Sewerage_Bill           @map("Sewerage Bill")
+  Management_Fees         @map("Management Fees")
   Renovation
-  Furniture___Appliances     @map("Furniture & Appliances")
-  Miscellaneous_Others       @map("Miscellaneous/Others")
-  Painting
-  AC_Service_Installation    @map("AC Service/Installation")
-  Wiring_Electrical          @map("Wiring/Electrical")
-  Replacement_Parts_Plumbing @map("Replacement Parts/Plumbing")
+  Painting_Service        @map("Painting Service")
+  AC_Service_Installation @map("AC Service/Installation")
+  Wiring_Electrical       @map("Wiring/Electrical")
+  Plumbing
+  Miscellaneous_Others    @map("Miscellaneous/Others")
 
   @@schema("public")
 }
 
 enum purchase_expense_type {
   Furniture
+  Home_Appliances              @map("Home Appliances")
+  Office_Appliances            @map("Office Appliances")
   Tools
   Electrical_Items             @map("Electrical Items")
   Plumbing_Items               @map("Plumbing Items")

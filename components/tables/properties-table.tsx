@@ -32,6 +32,7 @@ type PropertyFeatures = {
   wifi?: boolean
   cleaning_service?: boolean
   female?: boolean
+  dryer?: boolean
 }
 
 type PropertyWithDetails = {

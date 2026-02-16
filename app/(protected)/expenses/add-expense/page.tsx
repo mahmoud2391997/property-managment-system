@@ -64,16 +64,15 @@ const CLAIMABLE_PROPERTY_TYPES = [
   'Maintenance',
   'Cleaning_Service',
   'Renovation',
-  'Painting',
+  'Painting_Service',
   'AC_Service_Installation',
   'Wiring_Electrical',
-  'Replacement_Parts_Plumbing',
-  'Furniture___Appliances',
+  'Plumbing',
   'Miscellaneous_Others'
 ]
 
 const CLAIMABLE_COMPANY_TYPES = [
-  'Office_Supplies',
+  'Office_Stationary',
   'Company_Equipment',
   'ICT_Equipment',
   'Software_Subscription',
