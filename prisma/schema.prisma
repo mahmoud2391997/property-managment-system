@@ -163,6 +163,17 @@ model oauth_authorizations {
   @@schema("auth")
 }
 
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model oauth_client_states {
+  id            String   @id @db.Uuid
+  provider_type String
+  code_verifier String?
+  created_at    DateTime @db.Timestamptz(6)
+
+  @@index([created_at], map: "idx_oauth_client_states_created_at")
+  @@schema("auth")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model oauth_clients {
   id                         String                  @id @db.Uuid
@@ -290,6 +301,7 @@ model schema_migrations {
   @@schema("auth")
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model sessions {
@@ -411,6 +423,22 @@ model users {
   @@schema("auth")
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model agents {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  first_name      String         @db.VarChar(50)
+  last_name       String?        @db.VarChar(30)
+  phone_number    String
+  email           String?
+  organization_id String?        @db.Uuid
+  organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  leases          leases[]
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model bookings {
   id                String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenant_id         String         @db.Uuid
@@ -433,6 +461,7 @@ model bookings {
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model charges {
   id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   title       String
@@ -450,7 +479,23 @@ model charges {
   @@schema("public")
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model company_expenses {
+  id         String               @id @db.Uuid
+  type       company_expense_type
+  is_claimed Boolean              @default(false)
+  claimer_id String?              @db.Uuid
+  is_asset   Boolean              @default(false)
+  vendor_id  String?              @db.Uuid
+  staff      staff?               @relation(fields: [claimer_id], references: [id], onUpdate: NoAction)
+  expenses   expenses             @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  vendors    vendors?             @relation(fields: [vendor_id], references: [id], onUpdate: NoAction)
+
+  @@schema("public")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model company_tenants {
   tenant_id                 String   @id @db.Uuid
   registration_no           String   @unique
@@ -466,7 +511,20 @@ model company_tenants {
   @@schema("public")
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model contract_expenses {
+  id              String                @id(map: "owner_expenses_pkey") @db.Uuid
+  contract_id     String                @db.Uuid
+  type            contract_expense_type
+  is_first_rental Boolean               @default(false)
+  contracts       contracts             @relation(fields: [contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "owner_expenses_contract_id_fkey")
+  expenses        expenses              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "owner_expenses_id_fkey")
+
+  @@schema("public")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model contracts {
   id                          String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   start_date                  DateTime               @db.Timestamptz(6)
@@ -500,7 +558,37 @@ model contracts {
   @@schema("public")
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model cron_logs {
+  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  job_name          String
+  executed_at       DateTime @default(now()) @db.Timestamptz(6)
+  status            String
+  records_processed Int      @default(0)
+  charges_applied   Int      @default(0)
+  error_message     String?
+  execution_time_ms Int?
+
+  @@schema("public")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model deduction_charges {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title      String
+  amount     Decimal  @db.Decimal(10, 2)
+  expense_id String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  created_by String?  @db.Uuid
+  staff      staff?   @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  expenses   expenses @relation(fields: [expense_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "deduction_charges_expense_fkey")
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model expenses {
   id                  String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   due_payment_date    DateTime?           @db.Timestamptz(6)
@@ -523,1066 +611,6 @@ model expenses {
   property_expenses   property_expenses?
   purchase_expenses   purchase_expenses?
   staff_expenses      staff_expenses?
-
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model individual_tenants {
-  tenant_id       String        @id @db.Uuid
-  identity_type   identity_type
-  identity_number String        @unique
-  first_name      String
-  last_name       String?
-  phone_number    String
-  tenants         tenants       @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model leases {
-  id                                           String                     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  start_date                                   DateTime                   @db.Timestamptz(6)
-  number_of_months                             Int?
-  payment_day                                  Int
-  monthly_rent                                 Decimal                    @db.Decimal(10, 2)
-  is_expiry_reminder                           Boolean                    @default(false)
-  expiry_days_before_reminder                  Int?
-  is_rent_reminder                             Boolean                    @default(false)
-  rent_reminder_days_before                    Int?
-  is_overdue_rent_reminder                     Boolean                    @default(false)
-  overdue_days_after_reminder                  Int?
-  property_id                                  String                     @db.Uuid
-  room_id                                      String?                    @db.Uuid
-  tenant_id                                    String                     @db.Uuid
-  organization_id                              String                     @db.Uuid
-  created_at                                   DateTime                   @default(now()) @db.Timestamptz(6)
-  created_by                                   String?                    @db.Uuid
-  status                                       lease_status_new
-  reference_id                                 String
-  ended_at                                     DateTime?                  @db.Timestamptz(6)
-  transferred_from                             String?                    @db.Uuid
-  is_transferred_from                          Boolean                    @default(false)
-  transferred_to                               String?                    @db.Uuid
-  is_transferred_to                            Boolean                    @default(false)
-  booking_id                                   String?                    @db.Uuid
-  late_payment_charges                         late_payment_charges[]
-  bookings                                     bookings?                  @relation(fields: [booking_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  staff                                        staff?                     @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations                                organizations              @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  properties                                   properties                 @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  rooms                                        rooms?                     @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  tenants                                      tenants                    @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  leases_leases_transferred_fromToleases       leases?                    @relation("leases_transferred_fromToleases", fields: [transferred_from], references: [id], onUpdate: NoAction)
-  other_leases_leases_transferred_fromToleases leases[]                   @relation("leases_transferred_fromToleases")
-  leases_leases_transferred_toToleases         leases?                    @relation("leases_transferred_toToleases", fields: [transferred_to], references: [id], onUpdate: NoAction)
-  other_leases_leases_transferred_toToleases   leases[]                   @relation("leases_transferred_toToleases")
-  payments                                     payments[]
-  property_expenses                            property_expenses[]
-  recurring_configs                            recurring_configs[]
-  refund_decisions                             refund_decisions[]
-  scheduled_rental_changes                     scheduled_rental_changes[]
-  task_flow_instances                          task_flow_instances[]
-  tickets                                      tickets[]
-
-  @@unique([organization_id, reference_id], map: "unique_reference_id_per_organization")
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model organizations {
-  id                               String                             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  title                            String
-  type                             organization_type
-  created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
-  created_by                       String?                            @db.Uuid
-  contracts                        contracts[]
-  expenses                         expenses[]
-  financial_daily_expense_category financial_daily_expense_category[]
-  financial_daily_occupancy        financial_daily_occupancy[]
-  financial_daily_payment_type     financial_daily_payment_type[]
-  financial_daily_property         financial_daily_property[]
-  financial_daily_property_expense financial_daily_property_expense[]
-  financial_daily_summary          financial_daily_summary[]
-  leases                           leases[]
-  notifications                    notifications[]
-  users                            users?                             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations_tenants            organizations_tenants[]
-  owners                           owners[]
-  payment_late_charges_applied     payment_late_charges_applied[]
-  payments                         payments[]
-  projects                         projects[]
-  properties                       properties[]
-  property_images                  property_images[]
-  recurring_configs                recurring_configs[]
-  refund_decisions                 refund_decisions[]
-  reminders                        reminders[]
-  roles                            roles[]
-  staff                            staff[]
-  task_flow_instances              task_flow_instances[]
-  tasks                            tasks[]
-  tickets                          tickets[]
-
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model owners {
-  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  first_name      String
-  last_name       String?
-  email           String?
-  phone_number    String
-  profile_pic     String?
-  profile_thumb   String?
-  organization_id String        @db.Uuid
-  created_at      DateTime      @default(now()) @db.Timestamptz(6)
-  created_by      String?       @db.Uuid
-  contracts       contracts[]
-  staff           staff?        @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  properties      properties[]
-
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model payment_history {
-  id                     String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  amount                 Decimal               @db.Decimal(10, 2)
-  payment_method         payment_method
-  paid_at                DateTime              @db.Timestamptz(6)
-  registrar_role         registrar_role
-  registrar              String?               @db.Uuid
-  expense_id             String?               @db.Uuid
-  payment_id             String?               @db.Uuid
-  receipt_image          String?
-  billplz_bill_id        String?
-  billplz_transaction_id String?
-  status                 payment_record_status
-  created_at             DateTime?             @default(now()) @db.Timestamptz(6)
-  group_payment          Boolean?              @default(false)
-  is_checked             Boolean?              @default(false)
-  expenses               expenses?             @relation(fields: [expense_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  payments               payments?             @relation(fields: [payment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  staff                  staff?                @relation(fields: [registrar], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model payments {
-  id                                                                                         String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  due_payment_timestamp                                                                      DateTime?                      @db.Timestamptz(6)
-  lease_id                                                                                   String?                        @db.Uuid
-  booking_id                                                                                 String?                        @db.Uuid
-  organization_id                                                                            String                         @db.Uuid
-  created_at                                                                                 DateTime                       @default(now()) @db.Timestamptz(6)
-  created_by                                                                                 String?                        @db.Uuid
-  status                                                                                     payment_status
-  type                                                                                       payment_type
-  reference_id                                                                               String                         @default("PY-202500000001")
-  recurring_config_id                                                                        String?                        @db.Uuid
-  payment_evidence                                                                           String?
-  charges                                                                                    charges[]
-  payment_history                                                                            payment_history[]
-  payment_late_charges_applied_payment_late_charges_applied_late_charge_payment_idTopayments payment_late_charges_applied[] @relation("payment_late_charges_applied_late_charge_payment_idTopayments")
-  payment_late_charges_applied_payment_late_charges_applied_rental_payment_idTopayments      payment_late_charges_applied[] @relation("payment_late_charges_applied_rental_payment_idTopayments")
-  bookings                                                                                   bookings?                      @relation(fields: [booking_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  staff                                                                                      staff?                         @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  leases                                                                                     leases?                        @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  organizations                                                                              organizations                  @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  recurring_configs                                                                          recurring_configs?             @relation(fields: [recurring_config_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@unique([organization_id, reference_id], map: "unique_org_reference")
-  @@unique([organization_id, lease_id, recurring_config_id, due_payment_timestamp], map: "unique_recurring_payment_per_cycle")
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model permissions {
-  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  module            String
-  action            String
-  title             String
-  description       String
-  roles_permissions roles_permissions[]
-
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model projects {
-  id                           String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  title                        String
-  state                        String
-  organization_id              String                         @db.Uuid
-  created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
-  created_by                   String?                        @db.Uuid
-  financial_daily_payment_type financial_daily_payment_type[]
-  staff                        staff?                         @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations                organizations                  @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  properties                   properties[]
-
-  @@unique([organization_id, title])
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model properties {
-  id                               String                             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  code                             String
-  street_address                   String
-  postal_code                      String
-  type                             property_type
-  project_id                       String?                            @db.Uuid
-  organization_id                  String                             @db.Uuid
-  created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
-  created_by                       String?                            @db.Uuid
-  status                           property_status_new                @default(Ready)
-  city                             String
-  wifi                             Boolean?                           @default(false)
-  cleaning_service                 Boolean?                           @default(false)
-  female                           Boolean?                           @default(false)
-  water_heater                     Boolean?                           @default(false)
-  owner_id                         String?                            @db.Uuid
-  bookings                         bookings[]
-  contracts                        contracts[]
-  financial_daily_property         financial_daily_property[]
-  financial_daily_property_expense financial_daily_property_expense[]
-  late_payment_charges             late_payment_charges[]
-  leases                           leases[]
-  owners                           owners?                            @relation(fields: [owner_id], references: [id], onUpdate: NoAction, map: "fk_owner")
-  staff                            staff?                             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations                    organizations                      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  projects                         projects?                          @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  property_default_initial_charges property_default_initial_charges[]
-  property_default_lease_config    property_default_lease_config?
-  property_expenses                property_expenses[]
-  property_images                  property_images[]
-  purchase_expenses                purchase_expenses[]
-  recurring_configs                recurring_configs[]
-  rooms                            rooms[]
-  task_flow_instances              task_flow_instances[]
-  tasks                            tasks[]
-  views                            views[]
-
-  @@unique([project_id, code])
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model roles {
-  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  title             String
-  organization_id   String              @db.Uuid
-  created_at        DateTime            @default(now()) @db.Timestamptz(6)
-  created_by        String?             @db.Uuid
-  users             users?              @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations     organizations       @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  roles_permissions roles_permissions[]
-  staff             staff[]
-
-  @@unique([title, organization_id])
-  @@schema("public")
-}
-
-model roles_permissions {
-  id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  role_id       String      @db.Uuid
-  permission_id String      @db.Uuid
-  created_at    DateTime    @default(now()) @db.Timestamptz(6)
-  created_by    String?     @db.Uuid
-  staff         staff?      @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  roles         roles       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([role_id, permission_id])
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model rooms {
-  id                               String                             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  title                            String
-  property_id                      String?                            @db.Uuid
-  created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
-  created_by                       String?                            @db.Uuid
-  status                           property_status_new                @default(Ready)
-  wifi                             Boolean?                           @default(false)
-  cleaning_service                 Boolean?                           @default(false)
-  toilet                           Boolean?                           @default(false)
-  balcony                          Boolean?                           @default(false)
-  female                           Boolean?                           @default(false)
-  ac                               Boolean?                           @default(false)
-  queen_bed                        Boolean?                           @default(false)
-  bookings                         bookings[]
-  late_payment_charges             late_payment_charges[]
-  leases                           leases[]
-  property_default_initial_charges property_default_initial_charges[]
-  property_default_lease_config    property_default_lease_config?
-  property_images                  property_images[]
-  staff                            staff?                             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  properties                       properties?                        @relation(fields: [property_id], references: [id], onUpdate: NoAction)
-  task_flow_instances              task_flow_instances[]
-  tasks                            tasks[]
-  views                            views[]
-
-  @@unique([property_id, title])
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model staff {
-  id                                                         String                             @id @db.Uuid
-  staff_id                                                   String
-  first_name                                                 String
-  last_name                                                  String?
-  role_id                                                    String                             @db.Uuid
-  profile_pic                                                String?
-  profile_thumb                                              String?
-  organization_id                                            String                             @db.Uuid
-  created_at                                                 DateTime                           @default(now()) @db.Timestamptz(6)
-  created_by                                                 String?                            @db.Uuid
-  phone_number                                               String
-  bookings                                                   bookings[]
-  charges                                                    charges[]
-  company_expenses                                           company_expenses[]
-  company_tenants                                            company_tenants[]
-  contracts                                                  contracts[]
-  deduction_charges                                          deduction_charges[]
-  expenses                                                   expenses[]
-  late_payment_charges                                       late_payment_charges[]
-  leases                                                     leases[]
-  organizations_tenants                                      organizations_tenants[]
-  owners                                                     owners[]
-  payment_history                                            payment_history[]
-  payments                                                   payments[]
-  projects                                                   projects[]
-  properties                                                 properties[]
-  property_default_initial_charges                           property_default_initial_charges[]
-  property_default_lease_config                              property_default_lease_config[]
-  property_expenses                                          property_expenses[]
-  property_images                                            property_images[]
-  purchase_expenses                                          purchase_expenses[]
-  recurring_configs                                          recurring_configs[]
-  refund_decisions_refund_decisions_reviewed_byTostaff       refund_decisions[]                 @relation("refund_decisions_reviewed_byTostaff")
-  refund_decisions_refund_decisions_submitted_byTostaff      refund_decisions[]                 @relation("refund_decisions_submitted_byTostaff")
-  roles_permissions                                          roles_permissions[]
-  rooms                                                      rooms[]
-  scheduled_rental_changes                                   scheduled_rental_changes[]
-  staff                                                      staff?                             @relation("staffTostaff", fields: [created_by], references: [id], onUpdate: NoAction)
-  other_staff                                                staff[]                            @relation("staffTostaff")
-  users                                                      users                              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  organizations                                              organizations                      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  roles                                                      roles                              @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  staff_expenses                                             staff_expenses[]
-  task_assignments_task_assignments_assigned_idTostaff       task_assignments[]                 @relation("task_assignments_assigned_idTostaff")
-  task_assignments_task_assignments_assigner_idTostaff       task_assignments[]                 @relation("task_assignments_assigner_idTostaff")
-  task_assignments_task_assignments_responded_byTostaff      task_assignments[]                 @relation("task_assignments_responded_byTostaff")
-  task_assignments_task_assignments_unassigned_byTostaff     task_assignments[]                 @relation("task_assignments_unassigned_byTostaff")
-  task_comments                                              task_comments[]
-  task_due_dates                                             task_due_dates[]
-  task_flow_instances                                        task_flow_instances[]
-  task_priorities                                            task_priorities[]
-  task_reports                                               task_reports[]
-  task_types                                                 task_types[]
-  tasks                                                      tasks[]
-  tenants                                                    tenants[]
-  ticket_assignments_ticket_assignments_assigned_idTostaff   ticket_assignments[]               @relation("ticket_assignments_assigned_idTostaff")
-  ticket_assignments_ticket_assignments_assigner_idTostaff   ticket_assignments[]               @relation("ticket_assignments_assigner_idTostaff")
-  ticket_assignments_ticket_assignments_cancelled_byTostaff  ticket_assignments[]               @relation("ticket_assignments_cancelled_byTostaff")
-  ticket_assignments_ticket_assignments_unassigned_byTostaff ticket_assignments[]               @relation("ticket_assignments_unassigned_byTostaff")
-  ticket_types                                               ticket_types[]
-  views                                                      views[]
-
-  @@unique([staff_id, organization_id])
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model tenants {
-  id                    String                  @id @db.Uuid
-  type                  tenant_type
-  profile_pic           String?
-  profile_thumb         String?
-  created_at            DateTime                @default(now()) @db.Timestamptz(6)
-  created_by            String?                 @db.Uuid
-  invite_sent           Boolean?                @default(false)
-  bookings              bookings[]
-  company_tenants       company_tenants?
-  individual_tenants    individual_tenants?
-  leases                leases[]
-  organizations_tenants organizations_tenants[]
-  staff                 staff?                  @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  users                 users                   @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model views {
-  id           String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  first_name   String
-  last_name    String?
-  phone_number String?
-  email        String?
-  property_id  String?     @db.Uuid
-  room_id      String?     @db.Uuid
-  created_at   DateTime    @default(now()) @db.Timestamptz(6)
-  created_by   String?     @db.Uuid
-  reference_id String
-  viewed_at    DateTime    @db.Timestamptz(6)
-  staff        staff?      @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  properties   properties? @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  rooms        rooms?      @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([reference_id, property_id], map: "unique_reference_id_per_property")
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model late_payment_charges {
-  id                           String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  property_id                  String?                        @db.Uuid
-  days_after_due               Int
-  amount                       Decimal                        @db.Decimal(10, 2)
-  created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
-  created_by                   String?                        @db.Uuid
-  room_id                      String?                        @db.Uuid
-  lease_id                     String?                        @db.Uuid
-  leases                       leases?                        @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_lease")
-  properties                   properties?                    @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_property")
-  rooms                        rooms?                         @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_room")
-  staff                        staff?                         @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  payment_late_charges_applied payment_late_charges_applied[]
-
-  @@unique([property_id, days_after_due], map: "unique_property_days")
-  @@unique([room_id, days_after_due], map: "unique_room_days")
-  @@index([property_id], map: "idx_late_payment_charges")
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model property_default_initial_charges {
-  id            String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  property_id   String?             @db.Uuid
-  charge_type   initial_charge_type
-  amount        Decimal             @db.Decimal(10, 2)
-  is_taxed      Boolean             @default(false)
-  created_at    DateTime            @default(now()) @db.Timestamptz(6)
-  created_by    String?             @db.Uuid
-  room_id       String?             @db.Uuid
-  is_refundable Boolean             @default(false)
-  staff         staff?              @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  properties    properties?         @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  rooms         rooms?              @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([property_id, charge_type], map: "unique_property_charge_type")
-  @@unique([room_id, charge_type], map: "unique_room_charge_type")
-  @@index([property_id], map: "idx_property_initial_charges")
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model property_default_lease_config {
-  id                          String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  property_id                 String?     @unique(map: "unique_property_config") @db.Uuid
-  default_monthly_rent        Decimal?    @db.Decimal(10, 2)
-  default_payment_day         Int?
-  is_expiry_reminder          Boolean     @default(false)
-  expiry_days_before_reminder Int?
-  is_rent_reminder            Boolean     @default(false)
-  rent_reminder_days_before   Int?
-  is_overdue_rent_reminder    Boolean     @default(false)
-  overdue_days_after_reminder Int?
-  created_at                  DateTime    @default(now()) @db.Timestamptz(6)
-  created_by                  String?     @db.Uuid
-  updated_at                  DateTime    @default(now()) @db.Timestamptz(6)
-  room_id                     String?     @unique(map: "unique_room_config") @db.Uuid
-  staff                       staff?      @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  properties                  properties? @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  rooms                       rooms?      @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([property_id], map: "idx_property_default_config")
-  @@schema("public")
-}
-
-model organizations_tenants {
-  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenant_id       String        @db.Uuid
-  organization_id String        @db.Uuid
-  created_at      DateTime      @default(now()) @db.Timestamptz(6)
-  created_by      String?       @db.Uuid
-  staff           staff?        @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  tenants         tenants       @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model recurring_configs {
-  id               String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  every            Int?
-  time_unit        time_unit?
-  event_on         String?
-  title            String
-  lease_id         String?       @db.Uuid
-  organization_id  String        @db.Uuid
-  is_payment_fixed Boolean
-  is_active        Boolean       @default(true)
-  created_at       DateTime      @default(now()) @db.Timestamptz(6)
-  created_by       String?       @db.Uuid
-  property_id      String?       @db.Uuid
-  expenses         expenses[]
-  payments         payments[]
-  staff            staff?        @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  leases           leases?       @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  organizations    organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  properties       properties?   @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@index([organization_id], map: "idx_recurring_configs_organization_id")
-  @@schema("public")
-}
-
-model notifications {
-  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organization_id String?         @db.Uuid
-  user_id         String          @db.Uuid
-  title           String
-  message         String
-  reference_id    String?         @db.Uuid
-  reference_type  String?
-  performer_id    String?         @db.Uuid
-  performer_type  performer_type?
-  is_read         Boolean?        @default(false)
-  created_at      DateTime?       @default(now()) @db.Timestamptz(6)
-  page            String?
-  affected_type   affected_type?
-  affected_id     String?         @db.Uuid
-  organizations   organizations?  @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users           users           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-model reminder_recipients {
-  id             String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  reminder_id    String?                 @db.Uuid
-  recipient_type reminder_recipient_type
-  recipient_id   String?                 @db.Uuid
-  role           String?
-  created_at     DateTime?               @default(now()) @db.Timestamptz(6)
-  reminders      reminders?              @relation(fields: [reminder_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([reminder_id], map: "idx_reminder_recipients_reminder")
-  @@schema("public")
-}
-
-model reminders {
-  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organization_id     String?               @db.Uuid
-  type                String
-  reference_id        String?               @db.Uuid
-  reference_type      String?
-  remind_at           DateTime              @db.Timestamptz(6)
-  sent                Boolean?              @default(false)
-  created_at          DateTime?             @default(now()) @db.Timestamptz(6)
-  reminder_recipients reminder_recipients[]
-  organizations       organizations?        @relation(fields: [organization_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model ticket_assignments {
-  id                                            String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  assigner_id                                   String?                  @db.Uuid
-  assigned_id                                   String?                  @db.Uuid
-  status                                        ticket_assignment_status @default(Pending)
-  requested_at                                  DateTime                 @default(now()) @db.Timestamptz(6)
-  responded_at                                  DateTime?                @db.Timestamptz(6)
-  unassigned_at                                 DateTime?                @db.Timestamptz(6)
-  ticket_id                                     String                   @db.Uuid
-  cancelled_at                                  DateTime?                @db.Timestamptz(6)
-  unassigned_by                                 String?                  @db.Uuid
-  cancelled_by                                  String?                  @db.Uuid
-  staff_ticket_assignments_assigned_idTostaff   staff?                   @relation("ticket_assignments_assigned_idTostaff", fields: [assigned_id], references: [id], onUpdate: NoAction)
-  staff_ticket_assignments_assigner_idTostaff   staff?                   @relation("ticket_assignments_assigner_idTostaff", fields: [assigner_id], references: [id], onUpdate: NoAction)
-  staff_ticket_assignments_cancelled_byTostaff  staff?                   @relation("ticket_assignments_cancelled_byTostaff", fields: [cancelled_by], references: [id], onUpdate: NoAction)
-  tickets                                       tickets                  @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  staff_ticket_assignments_unassigned_byTostaff staff?                   @relation("ticket_assignments_unassigned_byTostaff", fields: [unassigned_by], references: [id], onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model ticket_comments {
-  id          String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  message     String
-  attachment  String?
-  sender_type ticket_participant_type
-  sender_id   String                  @db.Uuid
-  created_at  DateTime                @default(now()) @db.Timestamptz(6)
-  ticket_id   String                  @db.Uuid
-  tickets     tickets                 @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model ticket_statuses {
-  id             String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  state          ticket_state
-  performer_type ticket_participant_type
-  performer_id   String?                 @db.Uuid
-  created_at     DateTime                @default(now()) @db.Timestamptz(6)
-  ticket_id      String                  @db.Uuid
-  tickets        tickets                 @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model tickets {
-  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title              String
-  description        String
-  attachment         String?
-  created_at         DateTime             @default(now()) @db.Timestamptz(6)
-  reference_id       String
-  organization_id    String               @db.Uuid
-  lease_id           String?              @db.Uuid
-  ticket_assignments ticket_assignments[]
-  ticket_comments    ticket_comments[]
-  ticket_statuses    ticket_statuses[]
-  ticket_types       ticket_types[]
-  leases             leases?              @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  organizations      organizations        @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([reference_id, organization_id])
-  @@schema("public")
-}
-
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model ticket_types {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  type       String
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  created_by String?  @db.Uuid
-  ticket_id  String   @db.Uuid
-  staff      staff?   @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  tickets    tickets  @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model oauth_client_states {
-  id            String   @id @db.Uuid
-  provider_type String
-  code_verifier String?
-  created_at    DateTime @db.Timestamptz(6)
-
-  @@index([created_at], map: "idx_oauth_client_states_created_at")
-  @@schema("auth")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model task_assignments {
-  id                                          String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  task_id                                     String                 @db.Uuid
-  assigner_id                                 String?                @db.Uuid
-  assigned_id                                 String?                @db.Uuid
-  status                                      task_assignment_status @default(Pending)
-  requested_at                                DateTime               @default(now()) @db.Timestamptz(6)
-  responded_at                                DateTime?              @db.Timestamptz(6)
-  responded_by                                String?                @db.Uuid
-  rejection_reason                            String?
-  cancel_reason                               String?
-  unassigned_at                               DateTime?              @db.Timestamptz(6)
-  unassigned_by                               String?                @db.Uuid
-  unassign_reason                             String?
-  staff_task_assignments_assigned_idTostaff   staff?                 @relation("task_assignments_assigned_idTostaff", fields: [assigned_id], references: [id], onUpdate: NoAction)
-  staff_task_assignments_assigner_idTostaff   staff?                 @relation("task_assignments_assigner_idTostaff", fields: [assigner_id], references: [id], onUpdate: NoAction)
-  staff_task_assignments_responded_byTostaff  staff?                 @relation("task_assignments_responded_byTostaff", fields: [responded_by], references: [id], onUpdate: NoAction)
-  tasks                                       tasks                  @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  staff_task_assignments_unassigned_byTostaff staff?                 @relation("task_assignments_unassigned_byTostaff", fields: [unassigned_by], references: [id], onUpdate: NoAction)
-
-  @@index([task_id], map: "idx_task_assignments_task")
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model task_comments {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  task_id    String   @db.Uuid
-  message    String?
-  attachment String?
-  sender_id  String   @db.Uuid
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  staff      staff    @relation(fields: [sender_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  tasks      tasks    @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([task_id], map: "idx_task_comments_task")
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model task_due_dates {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  task_id    String    @db.Uuid
-  due_date   DateTime? @db.Timestamptz(6)
-  reason     String?
-  created_at DateTime  @default(now()) @db.Timestamptz(6)
-  created_by String?   @db.Uuid
-  staff      staff?    @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  tasks      tasks     @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([task_id], map: "idx_task_due_dates_task")
-  @@schema("public")
-}
-
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model task_priorities {
-  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  task_id    String        @db.Uuid
-  priority   task_priority
-  created_at DateTime      @default(now()) @db.Timestamptz(6)
-  created_by String?       @db.Uuid
-  staff      staff?        @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  tasks      tasks         @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([task_id], map: "idx_task_priorities_task")
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model task_reports {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  task_id      String   @db.Uuid
-  content      String
-  attachment   String?
-  submitted_by String   @db.Uuid
-  created_at   DateTime @default(now()) @db.Timestamptz(6)
-  is_resolved  Boolean? @default(true)
-  staff        staff    @relation(fields: [submitted_by], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  tasks        tasks    @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model task_statuses {
-  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  task_id    String     @db.Uuid
-  state      task_state
-  created_at DateTime   @default(now()) @db.Timestamptz(6)
-  tasks      tasks      @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([task_id], map: "idx_task_statuses_task")
-  @@schema("public")
-}
-
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model task_types {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  task_id    String    @db.Uuid
-  type       task_type
-  created_at DateTime  @default(now()) @db.Timestamptz(6)
-  created_by String?   @db.Uuid
-  staff      staff?    @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  tasks      tasks     @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([task_id], map: "idx_task_types_task")
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model tasks {
-  id                                                                         String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title                                                                      String
-  description                                                                String
-  attachment                                                                 String?
-  reference_id                                                               String
-  property_id                                                                String?              @db.Uuid
-  room_id                                                                    String?              @db.Uuid
-  created_at                                                                 DateTime             @default(now()) @db.Timestamptz(6)
-  created_by                                                                 String?              @db.Uuid
-  organization_id                                                            String               @db.Uuid
-  flow_instance_id                                                           String?              @db.Uuid
-  refund_decisions                                                           refund_decisions[]
-  task_assignments                                                           task_assignments[]
-  task_comments                                                              task_comments[]
-  task_due_dates                                                             task_due_dates[]
-  task_flow_instances_task_flow_instances_inspection_task_idTotasks          task_flow_instances? @relation("task_flow_instances_inspection_task_idTotasks")
-  task_flow_instances_task_flow_instances_refund_finalization_task_idTotasks task_flow_instances? @relation("task_flow_instances_refund_finalization_task_idTotasks")
-  task_flow_instances_task_flow_instances_refund_request_task_idTotasks      task_flow_instances? @relation("task_flow_instances_refund_request_task_idTotasks")
-  task_priorities                                                            task_priorities[]
-  task_reports                                                               task_reports[]
-  task_statuses                                                              task_statuses[]
-  task_types                                                                 task_types[]
-  staff                                                                      staff?               @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  task_flow_instances_tasks_flow_instance_idTotask_flow_instances            task_flow_instances? @relation("tasks_flow_instance_idTotask_flow_instances", fields: [flow_instance_id], references: [id], onUpdate: NoAction)
-  organizations                                                              organizations        @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  properties                                                                 properties?          @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  rooms                                                                      rooms?               @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([reference_id, organization_id], map: "tasks_reference_id_organization_id_unique")
-  @@index([organization_id], map: "idx_tasks_org")
-  @@index([property_id], map: "idx_tasks_property")
-  @@index([room_id], map: "idx_tasks_room")
-  @@index([flow_instance_id], map: "idx_tasks_flow_instance")
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model task_flow_instances {
-  id                                                           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  flow_type                                                    task_flow_type
-  lease_id                                                     String?            @db.Uuid
-  property_id                                                  String?            @db.Uuid
-  room_id                                                      String?            @db.Uuid
-  status                                                       String             @default("In Progress")
-  inspection_task_id                                           String?            @unique(map: "unique_inspection_task_id") @db.Uuid
-  refund_request_task_id                                       String?            @unique(map: "unique_refund_request_task_id") @db.Uuid
-  refund_finalization_task_id                                  String?            @unique(map: "unique_refund_finalization_task_id") @db.Uuid
-  created_at                                                   DateTime           @default(now()) @db.Timestamptz(6)
-  created_by                                                   String?            @db.Uuid
-  organization_id                                              String             @db.Uuid
-  refund_decisions                                             refund_decisions[]
-  staff                                                        staff?             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  tasks_task_flow_instances_inspection_task_idTotasks          tasks?             @relation("task_flow_instances_inspection_task_idTotasks", fields: [inspection_task_id], references: [id], onUpdate: NoAction)
-  leases                                                       leases?            @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  organizations                                                organizations      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  properties                                                   properties?        @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  tasks_task_flow_instances_refund_finalization_task_idTotasks tasks?             @relation("task_flow_instances_refund_finalization_task_idTotasks", fields: [refund_finalization_task_id], references: [id], onUpdate: NoAction)
-  tasks_task_flow_instances_refund_request_task_idTotasks      tasks?             @relation("task_flow_instances_refund_request_task_idTotasks", fields: [refund_request_task_id], references: [id], onUpdate: NoAction)
-  rooms                                                        rooms?             @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  tasks_tasks_flow_instance_idTotask_flow_instances            tasks[]            @relation("tasks_flow_instance_idTotask_flow_instances")
-
-  @@index([lease_id], map: "idx_task_flow_instances_lease")
-  @@index([organization_id], map: "idx_task_flow_instances_org")
-  @@index([property_id], map: "idx_task_flow_instances_property")
-  @@index([room_id], map: "idx_task_flow_instances_room")
-  @@index([flow_type], map: "idx_task_flow_instances_type")
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model refunded_charges {
-  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  refund_decision_id String           @db.Uuid
-  title              String
-  amount             Decimal          @db.Decimal
-  created_at         DateTime         @default(now()) @db.Timestamptz(6)
-  refund_decisions   refund_decisions @relation(fields: [refund_decision_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_refunded_charges_refund_decision")
-
-  @@schema("public")
-}
-
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model refund_decisions {
-  id                                         String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  task_id                                    String              @db.Uuid
-  flow_instance_id                           String              @db.Uuid
-  lease_id                                   String              @db.Uuid
-  decision                                   decision
-  original_deposit                           Decimal             @db.Decimal
-  total_charges                              Decimal             @db.Decimal
-  final_refund_amount                        Decimal             @db.Decimal
-  status                                     String              @default("pending")
-  submitted_by                               String              @db.Uuid
-  submitted_at                               DateTime            @default(now()) @db.Timestamptz(6)
-  reviewed_by                                String?             @db.Uuid
-  reviewed_at                                DateTime?           @db.Timestamptz(6)
-  organization_id                            String              @db.Uuid
-  task_flow_instances                        task_flow_instances @relation(fields: [flow_instance_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_refund_decisions_flow_instance")
-  leases                                     leases              @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_refund_decisions_lease")
-  organizations                              organizations       @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_refund_decisions_organization")
-  staff_refund_decisions_reviewed_byTostaff  staff?              @relation("refund_decisions_reviewed_byTostaff", fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_refund_decisions_reviewed")
-  staff_refund_decisions_submitted_byTostaff staff               @relation("refund_decisions_submitted_byTostaff", fields: [submitted_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_refund_decisions_submitted")
-  tasks                                      tasks               @relation(fields: [task_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_refund_decisions_task")
-  refunded_charges                           refunded_charges[]
-
-  @@schema("public")
-}
-
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model scheduled_rental_changes {
-  id               String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  lease_id         String                  @db.Uuid
-  new_monthly_rent Decimal                 @db.Decimal(10, 2)
-  old_monthly_rent Decimal                 @db.Decimal(10, 2)
-  effective_from   DateTime                @db.Timestamptz(6)
-  status           scheduled_change_status @default(Scheduled)
-  applied_at       DateTime?               @db.Timestamptz(6)
-  cancelled_at     DateTime?               @db.Timestamptz(6)
-  created_at       DateTime                @default(now()) @db.Timestamptz(6)
-  created_by       String?                 @db.Uuid
-  staff            staff?                  @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  leases           leases                  @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([effective_from], map: "idx_scheduled_rental_changes_effective_from")
-  @@index([lease_id], map: "idx_scheduled_rental_changes_lease_id")
-  @@index([status], map: "idx_scheduled_rental_changes_status")
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model payment_late_charges_applied {
-  id                                                                     String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  rental_payment_id                                                      String               @db.Uuid
-  late_charge_config_id                                                  String               @db.Uuid
-  late_charge_payment_id                                                 String               @db.Uuid
-  applied_at                                                             DateTime             @default(now()) @db.Timestamptz(6)
-  days_overdue_when_applied                                              Int
-  organization_id                                                        String               @db.Uuid
-  late_payment_charges                                                   late_payment_charges @relation(fields: [late_charge_config_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payment_late_charges_applied_late_charge_config_fkey")
-  payments_payment_late_charges_applied_late_charge_payment_idTopayments payments             @relation("payment_late_charges_applied_late_charge_payment_idTopayments", fields: [late_charge_payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payment_late_charges_applied_late_charge_payment_fkey")
-  organizations                                                          organizations        @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payment_late_charges_applied_organization_fkey")
-  payments_payment_late_charges_applied_rental_payment_idTopayments      payments             @relation("payment_late_charges_applied_rental_payment_idTopayments", fields: [rental_payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payment_late_charges_applied_rental_payment_fkey")
-
-  @@unique([rental_payment_id, late_charge_config_id], map: "unique_rental_payment_late_charge")
-  @@index([late_charge_payment_id], map: "idx_payment_late_charges_late_charge_payment")
-  @@index([organization_id], map: "idx_payment_late_charges_organization")
-  @@index([rental_payment_id], map: "idx_payment_late_charges_rental_payment")
-  @@schema("public")
-}
-
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model cron_logs {
-  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  job_name          String
-  executed_at       DateTime @default(now()) @db.Timestamptz(6)
-  status            String
-  records_processed Int      @default(0)
-  charges_applied   Int      @default(0)
-  error_message     String?
-  execution_time_ms Int?
-
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model property_images {
-  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  image_url       String
-  property_id     String?        @db.Uuid
-  room_id         String?        @db.Uuid
-  organization_id String?        @db.Uuid
-  created_at      DateTime?      @default(now()) @db.Timestamptz(6)
-  created_by      String?        @db.Uuid
-  thumb_url       String
-  staff           staff?         @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  properties      properties?    @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  rooms           rooms?         @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-model company_expenses {
-  id         String               @id @db.Uuid
-  type       company_expense_type
-  is_claimed Boolean              @default(false)
-  claimer_id String?              @db.Uuid
-  staff      staff?               @relation(fields: [claimer_id], references: [id], onUpdate: NoAction)
-  expenses   expenses             @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model property_expenses {
-  id          String                @id @db.Uuid
-  property_id String?               @db.Uuid
-  type        property_expense_type
-  lease_id    String?               @db.Uuid
-  is_claimed  Boolean               @default(false)
-  claimer_id  String?               @db.Uuid
-  staff       staff?                @relation(fields: [claimer_id], references: [id], onUpdate: NoAction)
-  expenses    expenses              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  leases      leases?               @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  properties  properties?           @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model purchase_expenses {
-  id                      String                @id @db.Uuid
-  type                    purchase_expense_type
-  is_asset                Boolean               @default(false)
-  depreciation_percentage Decimal?              @db.Decimal(5, 2)
-  property_id             String?               @db.Uuid
-  is_claimed              Boolean               @default(false)
-  claimer_id              String?               @db.Uuid
-  staff                   staff?                @relation(fields: [claimer_id], references: [id], onUpdate: NoAction)
-  expenses                expenses              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  properties              properties?           @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model staff_expenses {
-  id             String             @id @db.Uuid
-  staff_id       String?            @db.Uuid
-  type           staff_expense_type
-  month          DateTime           @db.Date
-  gross_salary   Decimal            @db.Decimal(10, 2)
-  epf_employer   Decimal            @db.Decimal(10, 2)
-  socso_employer Decimal            @db.Decimal(10, 2)
-  epf_employee   Decimal            @db.Decimal(10, 2)
-  socso_employee Decimal            @db.Decimal(10, 2)
-  tax            Decimal?           @default(0) @db.Decimal(10, 2)
-  expenses       expenses           @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  staff          staff?             @relation(fields: [staff_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@schema("public")
-}
-
-model contract_expenses {
-  id              String                @id(map: "owner_expenses_pkey") @db.Uuid
-  contract_id     String                @db.Uuid
-  type            contract_expense_type
-  is_first_rental Boolean               @default(false)
-  contracts       contracts             @relation(fields: [contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "owner_expenses_contract_id_fkey")
-  expenses        expenses              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "owner_expenses_id_fkey")
-
-  @@schema("public")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model deduction_charges {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  title      String
-  amount     Decimal  @db.Decimal(10, 2)
-  expense_id String   @db.Uuid
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  created_by String?  @db.Uuid
-  staff      staff?   @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  expenses   expenses @relation(fields: [expense_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "deduction_charges_expense_fkey")
 
   @@schema("public")
 }
@@ -1696,6 +724,1077 @@ model financial_daily_summary {
   @@schema("public")
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model individual_tenants {
+  tenant_id       String        @id @db.Uuid
+  identity_type   identity_type
+  identity_number String        @unique
+  first_name      String
+  last_name       String?
+  phone_number    String
+  tenants         tenants       @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model late_payment_charges {
+  id                           String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  property_id                  String?                        @db.Uuid
+  days_after_due               Int
+  amount                       Decimal                        @db.Decimal(10, 2)
+  created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+  created_by                   String?                        @db.Uuid
+  room_id                      String?                        @db.Uuid
+  lease_id                     String?                        @db.Uuid
+  leases                       leases?                        @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_lease")
+  properties                   properties?                    @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_property")
+  rooms                        rooms?                         @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_room")
+  staff                        staff?                         @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  payment_late_charges_applied payment_late_charges_applied[]
+
+  @@unique([property_id, days_after_due], map: "unique_property_days")
+  @@unique([room_id, days_after_due], map: "unique_room_days")
+  @@index([property_id], map: "idx_late_payment_charges")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model leases {
+  id                                           String                     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  start_date                                   DateTime                   @db.Timestamptz(6)
+  number_of_months                             Int?
+  payment_day                                  Int
+  monthly_rent                                 Decimal                    @db.Decimal(10, 2)
+  is_expiry_reminder                           Boolean                    @default(false)
+  expiry_days_before_reminder                  Int?
+  is_rent_reminder                             Boolean                    @default(false)
+  rent_reminder_days_before                    Int?
+  is_overdue_rent_reminder                     Boolean                    @default(false)
+  overdue_days_after_reminder                  Int?
+  property_id                                  String                     @db.Uuid
+  room_id                                      String?                    @db.Uuid
+  tenant_id                                    String                     @db.Uuid
+  organization_id                              String                     @db.Uuid
+  created_at                                   DateTime                   @default(now()) @db.Timestamptz(6)
+  created_by                                   String?                    @db.Uuid
+  status                                       lease_status_new
+  reference_id                                 String
+  ended_at                                     DateTime?                  @db.Timestamptz(6)
+  transferred_from                             String?                    @db.Uuid
+  is_transferred_from                          Boolean                    @default(false)
+  transferred_to                               String?                    @db.Uuid
+  is_transferred_to                            Boolean                    @default(false)
+  booking_id                                   String?                    @db.Uuid
+  agent_id                                     String?                    @db.Uuid
+  late_payment_charges                         late_payment_charges[]
+  lease_end_schedule                           lease_end_schedule[]
+  agents                                       agents?                    @relation(fields: [agent_id], references: [id], onUpdate: NoAction)
+  bookings                                     bookings?                  @relation(fields: [booking_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  staff                                        staff?                     @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  organizations                                organizations              @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties                                   properties                 @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rooms                                        rooms?                     @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                                      tenants                    @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  leases_leases_transferred_fromToleases       leases?                    @relation("leases_transferred_fromToleases", fields: [transferred_from], references: [id], onUpdate: NoAction)
+  other_leases_leases_transferred_fromToleases leases[]                   @relation("leases_transferred_fromToleases")
+  leases_leases_transferred_toToleases         leases?                    @relation("leases_transferred_toToleases", fields: [transferred_to], references: [id], onUpdate: NoAction)
+  other_leases_leases_transferred_toToleases   leases[]                   @relation("leases_transferred_toToleases")
+  payments                                     payments[]
+  property_expenses                            property_expenses[]
+  recurring_configs                            recurring_configs[]
+  refund_decisions                             refund_decisions[]
+  scheduled_rental_changes                     scheduled_rental_changes[]
+  task_flow_instances                          task_flow_instances[]
+  tickets                                      tickets[]
+  views                                        views[]
+
+  @@unique([organization_id, reference_id], map: "unique_reference_id_per_organization")
+  @@schema("public")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model notifications {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String?         @db.Uuid
+  user_id         String          @db.Uuid
+  title           String
+  message         String
+  reference_id    String?         @db.Uuid
+  reference_type  String?
+  performer_id    String?         @db.Uuid
+  performer_type  performer_type?
+  is_read         Boolean?        @default(false)
+  created_at      DateTime?       @default(now()) @db.Timestamptz(6)
+  page            String?
+  affected_type   affected_type?
+  affected_id     String?         @db.Uuid
+  organizations   organizations?  @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users           users           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model organizations {
+  id                               String                             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title                            String
+  type                             organization_type
+  created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
+  created_by                       String?                            @db.Uuid
+  agents                           agents[]
+  contracts                        contracts[]
+  expenses                         expenses[]
+  financial_daily_expense_category financial_daily_expense_category[]
+  financial_daily_occupancy        financial_daily_occupancy[]
+  financial_daily_payment_type     financial_daily_payment_type[]
+  financial_daily_property         financial_daily_property[]
+  financial_daily_property_expense financial_daily_property_expense[]
+  financial_daily_summary          financial_daily_summary[]
+  lease_end_schedule               lease_end_schedule[]
+  leases                           leases[]
+  notifications                    notifications[]
+  users                            users?                             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  organizations_tenants            organizations_tenants[]
+  owners                           owners[]
+  payment_late_charges_applied     payment_late_charges_applied[]
+  payments                         payments[]
+  projects                         projects[]
+  properties                       properties[]
+  property_images                  property_images[]
+  recurring_configs                recurring_configs[]
+  refund_decisions                 refund_decisions[]
+  reminders                        reminders[]
+  roles                            roles[]
+  staff                            staff[]
+  task_flow_instances              task_flow_instances[]
+  tasks                            tasks[]
+  tickets                          tickets[]
+  vendors                          vendors[]
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model organizations_tenants {
+  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id       String        @db.Uuid
+  organization_id String        @db.Uuid
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  created_by      String?       @db.Uuid
+  staff           staff?        @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants         tenants       @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model owners {
+  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  first_name      String
+  last_name       String?
+  email           String?
+  phone_number    String
+  profile_pic     String?
+  profile_thumb   String?
+  organization_id String        @db.Uuid
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  created_by      String?       @db.Uuid
+  contracts       contracts[]
+  staff           staff?        @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties      properties[]
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model payment_history {
+  id                     String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  amount                 Decimal               @db.Decimal(10, 2)
+  payment_method         payment_method
+  paid_at                DateTime              @db.Timestamptz(6)
+  registrar_role         registrar_role
+  registrar              String?               @db.Uuid
+  expense_id             String?               @db.Uuid
+  payment_id             String?               @db.Uuid
+  receipt_image          String?
+  billplz_bill_id        String?
+  billplz_transaction_id String?
+  status                 payment_record_status
+  created_at             DateTime?             @default(now()) @db.Timestamptz(6)
+  group_payment          Boolean?              @default(false)
+  is_checked             Boolean?              @default(false)
+  expenses               expenses?             @relation(fields: [expense_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payments               payments?             @relation(fields: [payment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  staff                  staff?                @relation(fields: [registrar], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model payment_late_charges_applied {
+  id                                                                     String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  rental_payment_id                                                      String               @db.Uuid
+  late_charge_config_id                                                  String               @db.Uuid
+  late_charge_payment_id                                                 String               @db.Uuid
+  applied_at                                                             DateTime             @default(now()) @db.Timestamptz(6)
+  days_overdue_when_applied                                              Int
+  organization_id                                                        String               @db.Uuid
+  late_payment_charges                                                   late_payment_charges @relation(fields: [late_charge_config_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payment_late_charges_applied_late_charge_config_fkey")
+  payments_payment_late_charges_applied_late_charge_payment_idTopayments payments             @relation("payment_late_charges_applied_late_charge_payment_idTopayments", fields: [late_charge_payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payment_late_charges_applied_late_charge_payment_fkey")
+  organizations                                                          organizations        @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payment_late_charges_applied_organization_fkey")
+  payments_payment_late_charges_applied_rental_payment_idTopayments      payments             @relation("payment_late_charges_applied_rental_payment_idTopayments", fields: [rental_payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payment_late_charges_applied_rental_payment_fkey")
+
+  @@unique([rental_payment_id, late_charge_config_id], map: "unique_rental_payment_late_charge")
+  @@index([late_charge_payment_id], map: "idx_payment_late_charges_late_charge_payment")
+  @@index([organization_id], map: "idx_payment_late_charges_organization")
+  @@index([rental_payment_id], map: "idx_payment_late_charges_rental_payment")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model payments {
+  id                                                                                         String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  due_payment_timestamp                                                                      DateTime?                      @db.Timestamptz(6)
+  lease_id                                                                                   String?                        @db.Uuid
+  booking_id                                                                                 String?                        @db.Uuid
+  organization_id                                                                            String                         @db.Uuid
+  created_at                                                                                 DateTime                       @default(now()) @db.Timestamptz(6)
+  created_by                                                                                 String?                        @db.Uuid
+  status                                                                                     payment_status
+  type                                                                                       payment_type
+  reference_id                                                                               String                         @default("PY-202500000001")
+  recurring_config_id                                                                        String?                        @db.Uuid
+  payment_evidence                                                                           String?
+  charges                                                                                    charges[]
+  payment_history                                                                            payment_history[]
+  payment_late_charges_applied_payment_late_charges_applied_late_charge_payment_idTopayments payment_late_charges_applied[] @relation("payment_late_charges_applied_late_charge_payment_idTopayments")
+  payment_late_charges_applied_payment_late_charges_applied_rental_payment_idTopayments      payment_late_charges_applied[] @relation("payment_late_charges_applied_rental_payment_idTopayments")
+  bookings                                                                                   bookings?                      @relation(fields: [booking_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  staff                                                                                      staff?                         @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  leases                                                                                     leases?                        @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations                                                                              organizations                  @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  recurring_configs                                                                          recurring_configs?             @relation(fields: [recurring_config_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([organization_id, reference_id], map: "unique_org_reference")
+  @@unique([organization_id, lease_id, recurring_config_id, due_payment_timestamp], map: "unique_recurring_payment_per_cycle")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model permissions {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  module            String
+  action            String
+  title             String
+  description       String
+  roles_permissions roles_permissions[]
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model projects {
+  id                           String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title                        String
+  state                        String
+  organization_id              String                         @db.Uuid
+  created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+  created_by                   String?                        @db.Uuid
+  financial_daily_payment_type financial_daily_payment_type[]
+  staff                        staff?                         @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  organizations                organizations                  @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties                   properties[]
+
+  @@unique([organization_id, title])
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model properties {
+  id                               String                             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code                             String
+  street_address                   String
+  postal_code                      String
+  type                             property_type
+  project_id                       String?                            @db.Uuid
+  organization_id                  String                             @db.Uuid
+  created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
+  created_by                       String?                            @db.Uuid
+  status                           property_status_new                @default(Ready)
+  city                             String
+  wifi                             Boolean?                           @default(false)
+  cleaning_service                 Boolean?                           @default(false)
+  female                           Boolean?                           @default(false)
+  water_heater                     Boolean?                           @default(false)
+  owner_id                         String?                            @db.Uuid
+  dryer                            Boolean                            @default(false)
+  bookings                         bookings[]
+  contracts                        contracts[]
+  financial_daily_property         financial_daily_property[]
+  financial_daily_property_expense financial_daily_property_expense[]
+  late_payment_charges             late_payment_charges[]
+  leases                           leases[]
+  owners                           owners?                            @relation(fields: [owner_id], references: [id], onUpdate: NoAction, map: "fk_owner")
+  staff                            staff?                             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  organizations                    organizations                      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects                         projects?                          @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  property_default_initial_charges property_default_initial_charges[]
+  property_default_lease_config    property_default_lease_config?
+  property_expenses                property_expenses[]
+  property_images                  property_images[]
+  purchase_expenses                purchase_expenses[]
+  recurring_configs                recurring_configs[]
+  rooms                            rooms[]
+  task_flow_instances              task_flow_instances[]
+  tasks                            tasks[]
+  views                            views[]
+
+  @@unique([project_id, code])
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model property_default_initial_charges {
+  id            String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  property_id   String?             @db.Uuid
+  charge_type   initial_charge_type
+  amount        Decimal             @db.Decimal(10, 2)
+  is_taxed      Boolean             @default(false)
+  created_at    DateTime            @default(now()) @db.Timestamptz(6)
+  created_by    String?             @db.Uuid
+  room_id       String?             @db.Uuid
+  is_refundable Boolean             @default(false)
+  staff         staff?              @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  properties    properties?         @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rooms         rooms?              @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([property_id, charge_type], map: "unique_property_charge_type")
+  @@unique([room_id, charge_type], map: "unique_room_charge_type")
+  @@index([property_id], map: "idx_property_initial_charges")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model property_default_lease_config {
+  id                          String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  property_id                 String?     @unique(map: "unique_property_config") @db.Uuid
+  default_monthly_rent        Decimal?    @db.Decimal(10, 2)
+  default_payment_day         Int?
+  is_expiry_reminder          Boolean     @default(false)
+  expiry_days_before_reminder Int?
+  is_rent_reminder            Boolean     @default(false)
+  rent_reminder_days_before   Int?
+  is_overdue_rent_reminder    Boolean     @default(false)
+  overdue_days_after_reminder Int?
+  created_at                  DateTime    @default(now()) @db.Timestamptz(6)
+  created_by                  String?     @db.Uuid
+  updated_at                  DateTime    @default(now()) @db.Timestamptz(6)
+  room_id                     String?     @unique(map: "unique_room_config") @db.Uuid
+  staff                       staff?      @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  properties                  properties? @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rooms                       rooms?      @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([property_id], map: "idx_property_default_config")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model property_expenses {
+  id          String                @id @db.Uuid
+  property_id String?               @db.Uuid
+  type        property_expense_type
+  lease_id    String?               @db.Uuid
+  is_claimed  Boolean               @default(false)
+  claimer_id  String?               @db.Uuid
+  vendor_id   String?               @db.Uuid
+  staff       staff?                @relation(fields: [claimer_id], references: [id], onUpdate: NoAction)
+  expenses    expenses              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  leases      leases?               @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  properties  properties?           @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendors     vendors?              @relation(fields: [vendor_id], references: [id], onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model property_images {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  image_url       String
+  property_id     String?        @db.Uuid
+  room_id         String?        @db.Uuid
+  organization_id String?        @db.Uuid
+  created_at      DateTime?      @default(now()) @db.Timestamptz(6)
+  created_by      String?        @db.Uuid
+  thumb_url       String
+  staff           staff?         @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  properties      properties?    @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  rooms           rooms?         @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model purchase_expenses {
+  id                      String                @id @db.Uuid
+  type                    purchase_expense_type
+  is_asset                Boolean               @default(false)
+  depreciation_percentage Decimal?              @db.Decimal(5, 2)
+  property_id             String?               @db.Uuid
+  is_claimed              Boolean               @default(false)
+  claimer_id              String?               @db.Uuid
+  vendor_id               String?               @db.Uuid
+  staff                   staff?                @relation(fields: [claimer_id], references: [id], onUpdate: NoAction)
+  expenses                expenses              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties              properties?           @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendors                 vendors?              @relation(fields: [vendor_id], references: [id], onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model recurring_configs {
+  id               String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  every            Int?
+  time_unit        time_unit?
+  event_on         String?
+  title            String
+  lease_id         String?       @db.Uuid
+  organization_id  String        @db.Uuid
+  is_payment_fixed Boolean
+  is_active        Boolean       @default(true)
+  created_at       DateTime      @default(now()) @db.Timestamptz(6)
+  created_by       String?       @db.Uuid
+  property_id      String?       @db.Uuid
+  expenses         expenses[]
+  payments         payments[]
+  staff            staff?        @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  leases           leases?       @relation(fields: [lease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations    organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties       properties?   @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([organization_id], map: "idx_recurring_configs_organization_id")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model refund_decisions {
+  id                                         String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id                                    String              @db.Uuid
+  flow_instance_id                           String              @db.Uuid
+  lease_id                                   String              @db.Uuid
+  decision                                   decision
+  original_deposit                           Decimal             @db.Decimal
+  total_charges                              Decimal             @db.Decimal
+  final_refund_amount                        Decimal             @db.Decimal
+  status                                     String              @default("pending")
+  submitted_by                               String              @db.Uuid
+  submitted_at                               DateTime            @default(now()) @db.Timestamptz(6)
+  reviewed_by                                String?             @db.Uuid
+  reviewed_at                                DateTime?           @db.Timestamptz(6)
+  organization_id                            String              @db.Uuid
+  task_flow_instances                        task_flow_instances @relation(fields: [flow_instance_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_refund_decisions_flow_instance")
+  leases                                     leases              @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_refund_decisions_lease")
+  organizations                              organizations       @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_refund_decisions_organization")
+  staff_refund_decisions_reviewed_byTostaff  staff?              @relation("refund_decisions_reviewed_byTostaff", fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_refund_decisions_reviewed")
+  staff_refund_decisions_submitted_byTostaff staff               @relation("refund_decisions_submitted_byTostaff", fields: [submitted_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_refund_decisions_submitted")
+  tasks                                      tasks               @relation(fields: [task_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_refund_decisions_task")
+  refunded_charges                           refunded_charges[]
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model refunded_charges {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  refund_decision_id String           @db.Uuid
+  title              String
+  amount             Decimal          @db.Decimal
+  created_at         DateTime         @default(now()) @db.Timestamptz(6)
+  refund_decisions   refund_decisions @relation(fields: [refund_decision_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_refunded_charges_refund_decision")
+
+  @@schema("public")
+}
+
+model reminder_recipients {
+  id             String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reminder_id    String?                 @db.Uuid
+  recipient_type reminder_recipient_type
+  recipient_id   String?                 @db.Uuid
+  role           String?
+  created_at     DateTime?               @default(now()) @db.Timestamptz(6)
+  reminders      reminders?              @relation(fields: [reminder_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([reminder_id], map: "idx_reminder_recipients_reminder")
+  @@schema("public")
+}
+
+model reminders {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id     String?               @db.Uuid
+  type                String
+  reference_id        String?               @db.Uuid
+  reference_type      String?
+  remind_at           DateTime              @db.Timestamptz(6)
+  sent                Boolean?              @default(false)
+  created_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  reminder_recipients reminder_recipients[]
+  organizations       organizations?        @relation(fields: [organization_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model roles {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title             String
+  organization_id   String              @db.Uuid
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  created_by        String?             @db.Uuid
+  users             users?              @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  organizations     organizations       @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roles_permissions roles_permissions[]
+  staff             staff[]
+
+  @@unique([title, organization_id])
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model roles_permissions {
+  id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  role_id       String      @db.Uuid
+  permission_id String      @db.Uuid
+  created_at    DateTime    @default(now()) @db.Timestamptz(6)
+  created_by    String?     @db.Uuid
+  staff         staff?      @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roles         roles       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([role_id, permission_id])
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model rooms {
+  id                               String                             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title                            String
+  property_id                      String?                            @db.Uuid
+  created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
+  created_by                       String?                            @db.Uuid
+  status                           property_status_new                @default(Ready)
+  wifi                             Boolean?                           @default(false)
+  cleaning_service                 Boolean?                           @default(false)
+  toilet                           Boolean?                           @default(false)
+  balcony                          Boolean?                           @default(false)
+  female                           Boolean?                           @default(false)
+  ac                               Boolean?                           @default(false)
+  queen_bed                        Boolean?                           @default(false)
+  bookings                         bookings[]
+  late_payment_charges             late_payment_charges[]
+  leases                           leases[]
+  property_default_initial_charges property_default_initial_charges[]
+  property_default_lease_config    property_default_lease_config?
+  property_images                  property_images[]
+  staff                            staff?                             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  properties                       properties?                        @relation(fields: [property_id], references: [id], onUpdate: NoAction)
+  task_flow_instances              task_flow_instances[]
+  tasks                            tasks[]
+  views                            views[]
+
+  @@unique([property_id, title])
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model scheduled_rental_changes {
+  id               String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  lease_id         String                  @db.Uuid
+  new_monthly_rent Decimal                 @db.Decimal(10, 2)
+  old_monthly_rent Decimal                 @db.Decimal(10, 2)
+  effective_from   DateTime                @db.Timestamptz(6)
+  status           scheduled_change_status @default(Scheduled)
+  applied_at       DateTime?               @db.Timestamptz(6)
+  cancelled_at     DateTime?               @db.Timestamptz(6)
+  created_at       DateTime                @default(now()) @db.Timestamptz(6)
+  created_by       String?                 @db.Uuid
+  staff            staff?                  @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  leases           leases                  @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([effective_from], map: "idx_scheduled_rental_changes_effective_from")
+  @@index([lease_id], map: "idx_scheduled_rental_changes_lease_id")
+  @@index([status], map: "idx_scheduled_rental_changes_status")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model staff {
+  id                                                         String                             @id @db.Uuid
+  staff_id                                                   String
+  first_name                                                 String
+  last_name                                                  String?
+  role_id                                                    String                             @db.Uuid
+  profile_pic                                                String?
+  profile_thumb                                              String?
+  organization_id                                            String                             @db.Uuid
+  created_at                                                 DateTime                           @default(now()) @db.Timestamptz(6)
+  created_by                                                 String?                            @db.Uuid
+  phone_number                                               String
+  bookings                                                   bookings[]
+  charges                                                    charges[]
+  company_expenses                                           company_expenses[]
+  company_tenants                                            company_tenants[]
+  contracts                                                  contracts[]
+  deduction_charges                                          deduction_charges[]
+  expenses                                                   expenses[]
+  late_payment_charges                                       late_payment_charges[]
+  lease_end_schedule_lease_end_schedule_cancelled_byTostaff  lease_end_schedule[]               @relation("lease_end_schedule_cancelled_byTostaff")
+  lease_end_schedule_lease_end_schedule_created_byTostaff    lease_end_schedule[]               @relation("lease_end_schedule_created_byTostaff")
+  leases                                                     leases[]
+  organizations_tenants                                      organizations_tenants[]
+  owners                                                     owners[]
+  payment_history                                            payment_history[]
+  payments                                                   payments[]
+  projects                                                   projects[]
+  properties                                                 properties[]
+  property_default_initial_charges                           property_default_initial_charges[]
+  property_default_lease_config                              property_default_lease_config[]
+  property_expenses                                          property_expenses[]
+  property_images                                            property_images[]
+  purchase_expenses                                          purchase_expenses[]
+  recurring_configs                                          recurring_configs[]
+  refund_decisions_refund_decisions_reviewed_byTostaff       refund_decisions[]                 @relation("refund_decisions_reviewed_byTostaff")
+  refund_decisions_refund_decisions_submitted_byTostaff      refund_decisions[]                 @relation("refund_decisions_submitted_byTostaff")
+  roles_permissions                                          roles_permissions[]
+  rooms                                                      rooms[]
+  scheduled_rental_changes                                   scheduled_rental_changes[]
+  staff                                                      staff?                             @relation("staffTostaff", fields: [created_by], references: [id], onUpdate: NoAction)
+  other_staff                                                staff[]                            @relation("staffTostaff")
+  users                                                      users                              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  organizations                                              organizations                      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roles                                                      roles                              @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  staff_expenses                                             staff_expenses[]
+  task_assignments_task_assignments_assigned_idTostaff       task_assignments[]                 @relation("task_assignments_assigned_idTostaff")
+  task_assignments_task_assignments_assigner_idTostaff       task_assignments[]                 @relation("task_assignments_assigner_idTostaff")
+  task_assignments_task_assignments_responded_byTostaff      task_assignments[]                 @relation("task_assignments_responded_byTostaff")
+  task_assignments_task_assignments_unassigned_byTostaff     task_assignments[]                 @relation("task_assignments_unassigned_byTostaff")
+  task_comments                                              task_comments[]
+  task_due_dates                                             task_due_dates[]
+  task_flow_instances                                        task_flow_instances[]
+  task_priorities                                            task_priorities[]
+  task_reports                                               task_reports[]
+  task_types                                                 task_types[]
+  tasks                                                      tasks[]
+  tenants                                                    tenants[]
+  ticket_assignments_ticket_assignments_assigned_idTostaff   ticket_assignments[]               @relation("ticket_assignments_assigned_idTostaff")
+  ticket_assignments_ticket_assignments_assigner_idTostaff   ticket_assignments[]               @relation("ticket_assignments_assigner_idTostaff")
+  ticket_assignments_ticket_assignments_cancelled_byTostaff  ticket_assignments[]               @relation("ticket_assignments_cancelled_byTostaff")
+  ticket_assignments_ticket_assignments_unassigned_byTostaff ticket_assignments[]               @relation("ticket_assignments_unassigned_byTostaff")
+  ticket_types                                               ticket_types[]
+  views                                                      views[]
+
+  @@unique([staff_id, organization_id])
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model staff_expenses {
+  id             String             @id @db.Uuid
+  staff_id       String?            @db.Uuid
+  type           staff_expense_type
+  month          DateTime           @db.Date
+  gross_salary   Decimal            @db.Decimal(10, 2)
+  epf_employer   Decimal            @db.Decimal(10, 2)
+  socso_employer Decimal            @db.Decimal(10, 2)
+  epf_employee   Decimal            @db.Decimal(10, 2)
+  socso_employee Decimal            @db.Decimal(10, 2)
+  tax            Decimal?           @default(0) @db.Decimal(10, 2)
+  expenses       expenses           @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  staff          staff?             @relation(fields: [staff_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model task_assignments {
+  id                                          String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id                                     String                 @db.Uuid
+  assigner_id                                 String?                @db.Uuid
+  assigned_id                                 String?                @db.Uuid
+  status                                      task_assignment_status @default(Pending)
+  requested_at                                DateTime               @default(now()) @db.Timestamptz(6)
+  responded_at                                DateTime?              @db.Timestamptz(6)
+  responded_by                                String?                @db.Uuid
+  rejection_reason                            String?
+  cancel_reason                               String?
+  unassigned_at                               DateTime?              @db.Timestamptz(6)
+  unassigned_by                               String?                @db.Uuid
+  unassign_reason                             String?
+  staff_task_assignments_assigned_idTostaff   staff?                 @relation("task_assignments_assigned_idTostaff", fields: [assigned_id], references: [id], onUpdate: NoAction)
+  staff_task_assignments_assigner_idTostaff   staff?                 @relation("task_assignments_assigner_idTostaff", fields: [assigner_id], references: [id], onUpdate: NoAction)
+  staff_task_assignments_responded_byTostaff  staff?                 @relation("task_assignments_responded_byTostaff", fields: [responded_by], references: [id], onUpdate: NoAction)
+  tasks                                       tasks                  @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  staff_task_assignments_unassigned_byTostaff staff?                 @relation("task_assignments_unassigned_byTostaff", fields: [unassigned_by], references: [id], onUpdate: NoAction)
+
+  @@index([task_id], map: "idx_task_assignments_task")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model task_comments {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id    String   @db.Uuid
+  message    String?
+  attachment String?
+  sender_id  String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  staff      staff    @relation(fields: [sender_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  tasks      tasks    @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([task_id], map: "idx_task_comments_task")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model task_due_dates {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id    String    @db.Uuid
+  due_date   DateTime? @db.Timestamptz(6)
+  reason     String?
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  created_by String?   @db.Uuid
+  staff      staff?    @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  tasks      tasks     @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([task_id], map: "idx_task_due_dates_task")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model task_flow_instances {
+  id                                                           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  flow_type                                                    task_flow_type
+  lease_id                                                     String?            @db.Uuid
+  property_id                                                  String?            @db.Uuid
+  room_id                                                      String?            @db.Uuid
+  status                                                       String             @default("In Progress")
+  inspection_task_id                                           String?            @unique(map: "unique_inspection_task_id") @db.Uuid
+  refund_request_task_id                                       String?            @unique(map: "unique_refund_request_task_id") @db.Uuid
+  refund_finalization_task_id                                  String?            @unique(map: "unique_refund_finalization_task_id") @db.Uuid
+  created_at                                                   DateTime           @default(now()) @db.Timestamptz(6)
+  created_by                                                   String?            @db.Uuid
+  organization_id                                              String             @db.Uuid
+  refund_decisions                                             refund_decisions[]
+  staff                                                        staff?             @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  tasks_task_flow_instances_inspection_task_idTotasks          tasks?             @relation("task_flow_instances_inspection_task_idTotasks", fields: [inspection_task_id], references: [id], onUpdate: NoAction)
+  leases                                                       leases?            @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  organizations                                                organizations      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties                                                   properties?        @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tasks_task_flow_instances_refund_finalization_task_idTotasks tasks?             @relation("task_flow_instances_refund_finalization_task_idTotasks", fields: [refund_finalization_task_id], references: [id], onUpdate: NoAction)
+  tasks_task_flow_instances_refund_request_task_idTotasks      tasks?             @relation("task_flow_instances_refund_request_task_idTotasks", fields: [refund_request_task_id], references: [id], onUpdate: NoAction)
+  rooms                                                        rooms?             @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tasks_tasks_flow_instance_idTotask_flow_instances            tasks[]            @relation("tasks_flow_instance_idTotask_flow_instances")
+
+  @@index([lease_id], map: "idx_task_flow_instances_lease")
+  @@index([organization_id], map: "idx_task_flow_instances_org")
+  @@index([property_id], map: "idx_task_flow_instances_property")
+  @@index([room_id], map: "idx_task_flow_instances_room")
+  @@index([flow_type], map: "idx_task_flow_instances_type")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model task_priorities {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id    String        @db.Uuid
+  priority   task_priority
+  created_at DateTime      @default(now()) @db.Timestamptz(6)
+  created_by String?       @db.Uuid
+  staff      staff?        @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  tasks      tasks         @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([task_id], map: "idx_task_priorities_task")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model task_reports {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id      String   @db.Uuid
+  content      String
+  attachment   String?
+  submitted_by String   @db.Uuid
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  is_resolved  Boolean? @default(true)
+  staff        staff    @relation(fields: [submitted_by], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  tasks        tasks    @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model task_statuses {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id    String     @db.Uuid
+  state      task_state
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+  tasks      tasks      @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([task_id], map: "idx_task_statuses_task")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model task_types {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id    String    @db.Uuid
+  type       task_type
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  created_by String?   @db.Uuid
+  staff      staff?    @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  tasks      tasks     @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([task_id], map: "idx_task_types_task")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model tasks {
+  id                                                                         String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                                                                      String
+  description                                                                String
+  attachment                                                                 String?
+  reference_id                                                               String
+  property_id                                                                String?              @db.Uuid
+  room_id                                                                    String?              @db.Uuid
+  created_at                                                                 DateTime             @default(now()) @db.Timestamptz(6)
+  created_by                                                                 String?              @db.Uuid
+  organization_id                                                            String               @db.Uuid
+  flow_instance_id                                                           String?              @db.Uuid
+  refund_decisions                                                           refund_decisions[]
+  task_assignments                                                           task_assignments[]
+  task_comments                                                              task_comments[]
+  task_due_dates                                                             task_due_dates[]
+  task_flow_instances_task_flow_instances_inspection_task_idTotasks          task_flow_instances? @relation("task_flow_instances_inspection_task_idTotasks")
+  task_flow_instances_task_flow_instances_refund_finalization_task_idTotasks task_flow_instances? @relation("task_flow_instances_refund_finalization_task_idTotasks")
+  task_flow_instances_task_flow_instances_refund_request_task_idTotasks      task_flow_instances? @relation("task_flow_instances_refund_request_task_idTotasks")
+  task_priorities                                                            task_priorities[]
+  task_reports                                                               task_reports[]
+  task_statuses                                                              task_statuses[]
+  task_types                                                                 task_types[]
+  staff                                                                      staff?               @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  task_flow_instances_tasks_flow_instance_idTotask_flow_instances            task_flow_instances? @relation("tasks_flow_instance_idTotask_flow_instances", fields: [flow_instance_id], references: [id], onUpdate: NoAction)
+  organizations                                                              organizations        @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties                                                                 properties?          @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rooms                                                                      rooms?               @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([reference_id, organization_id], map: "tasks_reference_id_organization_id_unique")
+  @@index([flow_instance_id], map: "idx_tasks_flow_instance")
+  @@index([organization_id], map: "idx_tasks_org")
+  @@index([property_id], map: "idx_tasks_property")
+  @@index([room_id], map: "idx_tasks_room")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model tenants {
+  id                    String                  @id @db.Uuid
+  type                  tenant_type
+  profile_pic           String?
+  profile_thumb         String?
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  created_by            String?                 @db.Uuid
+  invite_sent           Boolean?                @default(false)
+  bookings              bookings[]
+  company_tenants       company_tenants?
+  individual_tenants    individual_tenants?
+  leases                leases[]
+  organizations_tenants organizations_tenants[]
+  staff                 staff?                  @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  users                 users                   @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ticket_assignments {
+  id                                            String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assigner_id                                   String?                  @db.Uuid
+  assigned_id                                   String?                  @db.Uuid
+  status                                        ticket_assignment_status @default(Pending)
+  requested_at                                  DateTime                 @default(now()) @db.Timestamptz(6)
+  responded_at                                  DateTime?                @db.Timestamptz(6)
+  unassigned_at                                 DateTime?                @db.Timestamptz(6)
+  ticket_id                                     String                   @db.Uuid
+  cancelled_at                                  DateTime?                @db.Timestamptz(6)
+  unassigned_by                                 String?                  @db.Uuid
+  cancelled_by                                  String?                  @db.Uuid
+  staff_ticket_assignments_assigned_idTostaff   staff?                   @relation("ticket_assignments_assigned_idTostaff", fields: [assigned_id], references: [id], onUpdate: NoAction)
+  staff_ticket_assignments_assigner_idTostaff   staff?                   @relation("ticket_assignments_assigner_idTostaff", fields: [assigner_id], references: [id], onUpdate: NoAction)
+  staff_ticket_assignments_cancelled_byTostaff  staff?                   @relation("ticket_assignments_cancelled_byTostaff", fields: [cancelled_by], references: [id], onUpdate: NoAction)
+  tickets                                       tickets                  @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  staff_ticket_assignments_unassigned_byTostaff staff?                   @relation("ticket_assignments_unassigned_byTostaff", fields: [unassigned_by], references: [id], onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ticket_comments {
+  id          String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  message     String
+  attachment  String?
+  sender_type ticket_participant_type
+  sender_id   String                  @db.Uuid
+  created_at  DateTime                @default(now()) @db.Timestamptz(6)
+  ticket_id   String                  @db.Uuid
+  tickets     tickets                 @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ticket_statuses {
+  id             String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  state          ticket_state
+  performer_type ticket_participant_type
+  performer_id   String?                 @db.Uuid
+  created_at     DateTime                @default(now()) @db.Timestamptz(6)
+  ticket_id      String                  @db.Uuid
+  tickets        tickets                 @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ticket_types {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type       String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  created_by String?  @db.Uuid
+  ticket_id  String   @db.Uuid
+  staff      staff?   @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  tickets    tickets  @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model tickets {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title              String
+  description        String
+  attachment         String?
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  reference_id       String
+  organization_id    String               @db.Uuid
+  lease_id           String?              @db.Uuid
+  ticket_assignments ticket_assignments[]
+  ticket_comments    ticket_comments[]
+  ticket_statuses    ticket_statuses[]
+  ticket_types       ticket_types[]
+  leases             leases?              @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  organizations      organizations        @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([reference_id, organization_id])
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model vendors {
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String              @db.VarChar(50)
+  phone_number      String
+  email             String?
+  organization_id   String?             @db.Uuid
+  company_expenses  company_expenses[]
+  property_expenses property_expenses[]
+  purchase_expenses purchase_expenses[]
+  organizations     organizations?      @relation(fields: [organization_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model views {
+  id                String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  first_name        String
+  last_name         String?
+  phone_number      String?
+  email             String?
+  property_id       String?                @db.Uuid
+  room_id           String?                @db.Uuid
+  created_at        DateTime               @default(now()) @db.Timestamptz(6)
+  created_by        String?                @db.Uuid
+  reference_id      String
+  viewed_at         DateTime               @db.Timestamptz(6)
+  lease_id          String?                @db.Uuid
+  conversion_status conversion_status_type @default(Not_Decided)
+  staff             staff?                 @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  leases            leases?                @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  properties        properties?            @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rooms             rooms?                 @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([reference_id, property_id], map: "unique_reference_id_per_property")
+  @@schema("public")
+}
+
+model lease_end_schedule {
+  id                                           String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scheduled_date                               DateTime                       @db.Timestamptz(6)
+  status                                       lease_end_schedule_status_type @default(Current)
+  lease_id                                     String                         @db.Uuid
+  organization_id                              String                         @db.Uuid
+  created_by                                   String?                        @db.Uuid
+  created_at                                   DateTime                       @default(now()) @db.Timestamptz(6)
+  cancelled_by                                 String?                        @db.Uuid
+  cancelled_at                                 DateTime?                      @db.Timestamptz(6)
+  staff_lease_end_schedule_cancelled_byTostaff staff?                         @relation("lease_end_schedule_cancelled_byTostaff", fields: [cancelled_by], references: [id], onUpdate: NoAction)
+  staff_lease_end_schedule_created_byTostaff   staff?                         @relation("lease_end_schedule_created_byTostaff", fields: [created_by], references: [id], onUpdate: NoAction)
+  leases                                       leases                         @relation(fields: [lease_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  organizations                                organizations                  @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
 enum aal_level {
   aal1
   aal2
@@ -1766,6 +1865,73 @@ enum one_time_token_type {
   @@schema("auth")
 }
 
+enum affected_type {
+  tenant
+  staff
+
+  @@schema("public")
+}
+
+enum booking_status {
+  Current
+  Cancelled
+  Converted
+
+  @@schema("public")
+}
+
+enum company_expense_type {
+  Office_Rent                @map("Office Rent")
+  ICT_Equipment              @map("ICT Equipment")
+  Office_Stationary          @map("Office Stationary")
+  Software_Subscription      @map("Software Subscription")
+  Professional_Fees          @map("Professional Fees")
+  Bank_Charges               @map("Bank Charges")
+  Marketing___Advertising    @map("Marketing & Advertising")
+  Insurance
+  Licenses___Government_Fees @map("Licenses & Government Fees")
+  Plant___Machinery          @map("Plant & Machinery")
+  Company_Equipment          @map("Company Equipment")
+  Vehicle_Repair___Servicing @map("Vehicle Repair & Servicing")
+  Transportation
+  Vehicle_Purchase           @map("Vehicle Purchase")
+  Property_Purchase          @map("Property Purchase")
+  Loan
+  Tax
+  Miscellaneous_Others       @map("Miscellaneous/Others")
+
+  @@schema("public")
+}
+
+enum contract_expense_type {
+  Rental
+  Contract_Initial_Charges @map("Contract Initial Charges")
+
+  @@schema("public")
+}
+
+enum contract_rental_period {
+  Monthly
+
+  @@schema("public")
+}
+
+enum conversion_status_type {
+  Not_Decided   @map("Not Decided")
+  Converted
+  Not_Converted @map("Not Converted")
+
+  @@schema("public")
+}
+
+enum decision {
+  full
+  partial
+  forfeit
+
+  @@schema("public")
+}
+
 enum expense_category {
   Property_Related
   Contract_Related
@@ -1779,6 +1945,23 @@ enum expense_category {
 enum identity_type {
   mykad
   passport
+
+  @@schema("public")
+}
+
+enum initial_charge_type {
+  First_Month_Rental @map("First Month Rental")
+  Earnest_Deposit    @map("Earnest Deposit")
+  Security_Deposit   @map("Security Deposit")
+  Utility_Deposit    @map("Utility Deposit")
+  Legal_Fees         @map("Legal Fees")
+
+  @@schema("public")
+}
+
+enum lease_status_new {
+  Current
+  Ended
 
   @@schema("public")
 }
@@ -1816,57 +1999,6 @@ enum payment_status {
   @@schema("public")
 }
 
-enum property_type {
-  Apartment
-  House
-  Commercial_Unit @map("Commercial Unit")
-  Studio
-
-  @@schema("public")
-}
-
-enum registrar_role {
-  tenant
-  staff
-
-  @@schema("public")
-}
-
-enum tenant_type {
-  Individual
-  Company
-
-  @@schema("public")
-}
-
-enum initial_charge_type {
-  First_Month_Rental @map("First Month Rental")
-  Earnest_Deposit    @map("Earnest Deposit")
-  Security_Deposit   @map("Security Deposit")
-  Utility_Deposit    @map("Utility Deposit")
-  Legal_Fees         @map("Legal Fees")
-
-  @@schema("public")
-}
-
-enum property_status {
-  Occupied
-  Under_Preparation  @map("Under Preparation")
-  Pending_Inspection @map("Pending Inspection")
-  Vacant
-
-  @@schema("public")
-}
-
-enum time_unit {
-  Day
-  Week
-  Month
-  Year
-
-  @@schema("public")
-}
-
 enum payment_type {
   Lease_Initial_Charges @map("Lease Initial Charges")
   Fines_or_Penalties    @map("Fines or Penalties")
@@ -1893,54 +2025,31 @@ enum performer_type {
   @@schema("public")
 }
 
-enum reminder_recipient_type {
-  staff
-  tenant
-  role
-  all_staff
-  all_tenants
+enum property_expense_type {
+  Refund
+  Agent_Commission        @map("Agent Commission")
+  Maintenance
+  Cleaning_Service        @map("Cleaning Service")
+  Internet_Bill           @map("Internet Bill")
+  Water_Bill              @map("Water Bill")
+  Electricity_Bill        @map("Electricity Bill")
+  Sewerage_Bill           @map("Sewerage Bill")
+  Management_Fees         @map("Management Fees")
+  Renovation
+  Painting_Service        @map("Painting Service")
+  AC_Service_Installation @map("AC Service/Installation")
+  Wiring_Electrical       @map("Wiring/Electrical")
+  Plumbing
+  Miscellaneous_Others    @map("Miscellaneous/Others")
 
   @@schema("public")
 }
 
-enum ticket_assignment_status {
-  Pending
-  Accepted
-  Rejected
-  Unassigned
-  Cancelled
-
-  @@schema("public")
-}
-
-enum ticket_participant_type {
-  tenant
-  staff
-  system
-
-  @@schema("public")
-}
-
-enum ticket_state {
-  Open
-  In_Progress    @map("In Progress")
-  Pending_Tenant @map("Pending Tenant")
-  Resolved
-  Closed
-
-  @@schema("public")
-}
-
-enum affected_type {
-  tenant
-  staff
-
-  @@schema("public")
-}
-
-enum lease_status_new {
-  Current
-  Ended
+enum property_status {
+  Occupied
+  Under_Preparation  @map("Under Preparation")
+  Pending_Inspection @map("Pending Inspection")
+  Vacant
 
   @@schema("public")
 }
@@ -1953,12 +2062,77 @@ enum property_status_new {
   @@schema("public")
 }
 
+enum property_type {
+  Apartment
+  House
+  Commercial_Unit @map("Commercial Unit")
+  Studio
+
+  @@schema("public")
+}
+
+enum purchase_expense_type {
+  Furniture
+  Home_Appliances              @map("Home Appliances")
+  Office_Appliances            @map("Office Appliances")
+  Tools
+  Electrical_Items             @map("Electrical Items")
+  Plumbing_Items               @map("Plumbing Items")
+  Lighting___Bulbs             @map("Lighting & Bulbs")
+  Paint___Renovation_Materials @map("Paint & Renovation Materials")
+  Maintenance_Consumables      @map("Maintenance Consumables")
+  Safety_Items                 @map("Safety Items")
+  Miscellaneous_Others         @map("Miscellaneous/Others")
+
+  @@schema("public")
+}
+
+enum registrar_role {
+  tenant
+  staff
+
+  @@schema("public")
+}
+
+enum reminder_recipient_type {
+  staff
+  tenant
+  role
+  all_staff
+  all_tenants
+
+  @@schema("public")
+}
+
+enum scheduled_change_status {
+  Scheduled
+  Applied
+  Cancelled
+
+  @@schema("public")
+}
+
+enum staff_expense_type {
+  Salary
+  Allowances
+  Miscellaneous_Others @map("Miscellaneous/Others")
+
+  @@schema("public")
+}
+
 enum task_assignment_status {
   Pending
   Accepted
   Rejected
   Unassigned
   Cancelled
+
+  @@schema("public")
+}
+
+enum task_flow_type {
+  Lease_Ending       @map("Lease Ending")
+  Property_Not_Ready @map("Property Not Ready")
 
   @@schema("public")
 }
@@ -2002,106 +2176,53 @@ enum task_type {
   @@schema("public")
 }
 
-enum task_flow_type {
-  Lease_Ending       @map("Lease Ending")
-  Property_Not_Ready @map("Property Not Ready")
+enum tenant_type {
+  Individual
+  Company
 
   @@schema("public")
 }
 
-enum decision {
-  full
-  partial
-  forfeit
-
-  @@schema("public")
-}
-
-enum scheduled_change_status {
-  Scheduled
-  Applied
+enum ticket_assignment_status {
+  Pending
+  Accepted
+  Rejected
+  Unassigned
   Cancelled
 
   @@schema("public")
 }
 
-enum company_expense_type {
-  Office_Rent             @map("Office Rent")
-  Software_Subscription   @map("Software Subscription")
-  Professional_Fees       @map("Professional Fees")
-  Bank_Charges            @map("Bank Charges")
-  Marketing___Advertising @map("Marketing & Advertising")
-  Insurance
-  Licenses___Permits      @map("Licenses & Permits")
-  Miscellaneous_Others    @map("Miscellaneous/Others")
-  Plant___Machinery       @map("Plant & Machinery")
-  Company_Equipment       @map("Company Equipment")
-  Motor_Vehicles          @map("Motor Vehicles")
-  ICT_Equipment           @map("ICT Equipment")
-  Office_Supplies         @map("Office Supplies")
+enum ticket_participant_type {
+  tenant
+  staff
+  system
 
   @@schema("public")
 }
 
-enum contract_expense_type {
-  Rental
-  Contract_Initial_Charges @map("Contract Initial Charges")
+enum ticket_state {
+  Open
+  In_Progress    @map("In Progress")
+  Pending_Tenant @map("Pending Tenant")
+  Resolved
+  Closed
 
   @@schema("public")
 }
 
-enum property_expense_type {
-  Refund
-  Maintenance
-  Cleaning_Service           @map("Cleaning Service")
-  Internet_Bill              @map("Internet Bill")
-  Water_Bill                 @map("Water Bill")
-  Electricity_Bill           @map("Electricity Bill")
-  Sewerage_Bill              @map("Sewerage Bill")
-  Management_Fees            @map("Management Fees")
-  Renovation
-  Furniture___Appliances     @map("Furniture & Appliances")
-  Miscellaneous_Others       @map("Miscellaneous/Others")
-  Painting
-  AC_Service_Installation    @map("AC Service/Installation")
-  Wiring_Electrical          @map("Wiring/Electrical")
-  Replacement_Parts_Plumbing @map("Replacement Parts/Plumbing")
+enum time_unit {
+  Day
+  Week
+  Month
+  Year
 
   @@schema("public")
 }
 
-enum purchase_expense_type {
-  Furniture
-  Tools
-  Electrical_Items             @map("Electrical Items")
-  Plumbing_Items               @map("Plumbing Items")
-  Lighting___Bulbs             @map("Lighting & Bulbs")
-  Paint___Renovation_Materials @map("Paint & Renovation Materials")
-  Maintenance_Consumables      @map("Maintenance Consumables")
-  Safety_Items                 @map("Safety Items")
-  Miscellaneous_Others         @map("Miscellaneous/Others")
-
-  @@schema("public")
-}
-
-enum staff_expense_type {
-  Salary
-  Allowances
-  Miscellaneous_Others @map("Miscellaneous/Others")
-
-  @@schema("public")
-}
-
-enum booking_status {
+enum lease_end_schedule_status_type {
   Current
   Cancelled
-  Converted
-
-  @@schema("public")
-}
-
-enum contract_rental_period {
-  Monthly
 
   @@schema("public")
 }

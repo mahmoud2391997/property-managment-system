@@ -99,6 +99,7 @@ export async function GET (req: Request) {
             cleaning_service: true,
             water_heater: true,
             female: true,
+            dryer: true,
             projects: {
               select: {
                 title: true,
@@ -361,6 +362,7 @@ export async function POST (req: NextRequest) {
           cleaning_service: features?.cleaning_service || false,
           water_heater: features?.water_heater || false,
           female: features?.female || false,
+          dryer: features?.dryer || false,
           created_by: user.id
         }
       })

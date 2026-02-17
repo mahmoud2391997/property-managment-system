@@ -37,7 +37,7 @@ import type { PropertyMonthlyData } from '@/components/dashboard/property-profit
 
 function LoadingOverlay({ loading, children, className }: { loading: boolean; children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn('relative', className)}>
+    <div className={cn('relative [&>*:first-child]:h-full', className)}>
       {children}
       {loading && (
         <div className="absolute inset-0 bg-white/60 flex items-center justify-center rounded-xl z-20 backdrop-blur-[1px]">
@@ -260,6 +260,7 @@ export function FinancialDashboardClient({
             <BalanceCard
               totalPayments={kpi.totalPayments}
               totalExpenses={kpi.totalExpenses}
+              previousBalance={kpi.previousBalance}
             />
           </div>
           <div className="flex-1 border-l border-(--border-default)">

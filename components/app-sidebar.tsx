@@ -152,6 +152,8 @@ export default function AppSidebar () {
       subMenu: [
         { label: 'Tenants', href: '/tenants' },
         { label: 'Owners', href: '/owners' },
+        { label: 'Agents', href: '/agents' },
+        { label: 'Vendors', href: '/vendors' },
         { label: 'Staff', href: '/staff' }
       ]
     },

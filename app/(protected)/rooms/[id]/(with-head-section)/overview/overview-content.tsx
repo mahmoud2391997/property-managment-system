@@ -25,6 +25,7 @@ import RecurringSectionRoom from '@/components/recurring-section-room'
 import InitiateLeaseEndingDrawer from '@/components/dialogs/initiate-lease-ending-drawer'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import ScheduledRentChangeBanner from '@/components/costume-ui/scheduled-rent-change-banner'
+import ScheduledLeaseEndBanner from '@/components/costume-ui/scheduled-lease-end-banner'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/formatTime'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -33,6 +34,7 @@ import { useRouter } from 'next/navigation'
 import { buildWhatsAppLink } from '@/utils/functions'
 import { useScrollToSection } from '@/hooks/useScrollToSection'
 import ScheduleRentalChangeDialog from '@/components/dialogs/schedule-rental-change-dialog'
+import ScheduleLeaseEndDialog from '@/components/dialogs/schedule-lease-end-dialog'
 import AddBookingWizard from '@/components/add-booking-wizard'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
@@ -46,6 +48,13 @@ type ScheduledChange = {
   effective_from: string
 }
 
+type ScheduledLeaseEnd = {
+  id: string
+  scheduled_date: string
+  is_lapsed?: boolean
+  days_until_dismissed?: number | null
+}
+
 type LeaseOverview = {
   id: string
   reference_id: string
@@ -54,6 +63,7 @@ type LeaseOverview = {
   start_date: string
   number_of_months: number | null
   scheduled_change: ScheduledChange | null
+  scheduled_lease_end: ScheduledLeaseEnd | null
   tenant: {
     id: string
     name: string
@@ -664,6 +674,15 @@ export default function RoomOverviewContent ({ roomId }: Props) {
                     Transfer Lease
                   </Link>
                 </DropdownMenuItem>
+                <ScheduleLeaseEndDialog
+                  leaseId={overviewData.lease!.id}
+                  onSuccess={fetchOverviewData}
+                  trigger={
+                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                      Schedule Lease End
+                    </DropdownMenuItem>
+                  }
+                />
                 <InitiateLeaseEndingDrawer
                   leaseId={overviewData.lease!.id}
                   propertyName={overviewData.propertyCode || 'Property'}
@@ -764,6 +783,34 @@ export default function RoomOverviewContent ({ roomId }: Props) {
           scheduledChange={overviewData.lease.scheduled_change}
           currentRent={overviewData.lease.monthly_rent}
           onCancelSuccess={fetchOverviewData}
+        />
+      )}
+
+      {/* Scheduled Lease End Banner */}
+      {!loading && overviewData?.lease?.scheduled_lease_end && (
+        <ScheduledLeaseEndBanner
+          leaseId={overviewData.lease.id}
+          scheduledEnd={overviewData.lease.scheduled_lease_end}
+          onCancelSuccess={fetchOverviewData}
+          endLeaseAction={
+            overviewData.lease.scheduled_lease_end.is_lapsed ? (
+              <InitiateLeaseEndingDrawer
+                leaseId={overviewData.lease.id}
+                propertyName={overviewData.propertyCode || 'Property'}
+                unitName={overviewData.roomTitle}
+                tenantName={overviewData.lease.tenant.name}
+                onSuccess={fetchOverviewData}
+                trigger={
+                  <Button
+                    variant='ghost'
+                    className='h-8 px-3 bg-red-600 text-white hover:bg-red-700 hover:text-white'
+                  >
+                    End Lease
+                  </Button>
+                }
+              />
+            ) : undefined
+          }
         />
       )}
 

@@ -180,15 +180,15 @@ const EXPENSE_CATEGORIES_LIST = [
 
 const CATEGORY_TYPE_MAP: Record<string, string[]> = {
   Property_Related: [
-    'Refund', 'Maintenance', 'Cleaning_Service', 'Internet_Bill', 'Water_Bill',
+    'Refund', 'Agent_Commission', 'Maintenance', 'Cleaning_Service', 'Internet_Bill', 'Water_Bill',
     'Electricity_Bill', 'Sewerage_Bill', 'Management_Fees', 'Renovation',
-    'Furniture_Appliances', 'Miscellaneous_Others', 'Painting',
-    'AC_Service_Installation', 'Wiring_Electrical', 'Replacement_Parts_Plumbing',
+    'Painting_Service', 'AC_Service_Installation', 'Wiring_Electrical', 'Plumbing',
+    'Miscellaneous_Others',
   ],
   Contract_Related: ['Rental', 'Contract_Initial_Charges'],
   Purchase_Related: [
-    'Furniture', 'Tools', 'Electrical_Items', 'Plumbing_Items',
-    'Lighting_Bulbs', 'Paint_Renovation_Materials', 'Maintenance_Consumables',
+    'Furniture', 'Home_Appliances', 'Office_Appliances', 'Tools', 'Electrical_Items', 'Plumbing_Items',
+    'Lighting___Bulbs', 'Paint___Renovation_Materials', 'Maintenance_Consumables',
     'Safety_Items', 'Miscellaneous_Others',
   ],
 }

@@ -135,6 +135,7 @@ export default function TenantStatusActions({
                         label='Confirm Resolved'
                         icon={<CheckCircle2 size={16} />}
                         disabled={loading}
+                        isResponsive
                       />
                     }
                     title='Confirm Resolution'
@@ -150,9 +151,10 @@ export default function TenantStatusActions({
                     openDialogButton={
                       <Button
                         variant='secondary'
-                        label='Issue Not Resolved'
+                        label='Reject Resolution'
                         icon={<XCircle size={16} />}
                         disabled={loading}
+                        isResponsive
                       />
                     }
                     title='Reject Resolution'

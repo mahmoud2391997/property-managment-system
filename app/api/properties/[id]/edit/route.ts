@@ -121,6 +121,7 @@ export async function GET(
         cleaning_service: property.cleaning_service,
         water_heater: property.water_heater,
         female: property.female,
+        dryer: property.dryer,
         project: property.projects
       },
       leaseConfig,
@@ -227,7 +228,8 @@ export async function PUT(
           wifi: features?.wifi || false,
           cleaning_service: features?.cleaning_service || false,
           water_heater: features?.water_heater || false,
-          female: features?.female || false
+          female: features?.female || false,
+          dryer: features?.dryer || false
         }
       })
 

@@ -12,6 +12,8 @@ import ScheduleRentalChangeDialog from '@/components/dialogs/schedule-rental-cha
 import InitiateLeaseEndingDrawer from '@/components/dialogs/initiate-lease-ending-drawer'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import ScheduledRentChangeBanner from '@/components/costume-ui/scheduled-rent-change-banner'
+import ScheduledLeaseEndBanner from '@/components/costume-ui/scheduled-lease-end-banner'
+import ScheduleLeaseEndDialog from '@/components/dialogs/schedule-lease-end-dialog'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/formatTime'
@@ -45,7 +47,8 @@ import {
   Mail,
   Banknote,
   History,
-  Timer
+  Timer,
+  CalendarX2
 } from 'lucide-react'
 
 type Props = {
@@ -149,6 +152,7 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId, userTy
   const canEndLease = lease.db_status === 'Current'
   const canTransfer = lease.db_status === 'Current'
   const canScheduleChange = lease.db_status === 'Current' && !lease.upcoming_change
+  const canScheduleLeaseEnd = lease.db_status === 'Current' && !lease.upcoming_lease_end
 
   return (
     <div className='flex flex-col gap-5'>
@@ -191,6 +195,20 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId, userTy
                     variant='secondary'
                     label='Schedule Rent Change'
                     icon={<TrendingUp size={16} />}
+                  />
+                }
+                onSuccess={() => router.refresh()}
+              />
+            )}
+
+            {canScheduleLeaseEnd && (
+              <ScheduleLeaseEndDialog
+                leaseId={lease.id}
+                trigger={
+                  <Button
+                    variant='secondary'
+                    label='Schedule Lease End'
+                    icon={<CalendarX2 size={16} />}
                   />
                 }
                 onSuccess={() => router.refresh()}
@@ -316,6 +334,35 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId, userTy
               currentRent={lease.monthly_rent}
               onCancelSuccess={() => router.refresh()}
               showCancelButton={userType === 'staff'}
+            />
+          )}
+
+          {/* Upcoming Lease End Banner */}
+          {lease.upcoming_lease_end && (
+            <ScheduledLeaseEndBanner
+              leaseId={lease.id}
+              scheduledEnd={lease.upcoming_lease_end}
+              onCancelSuccess={() => router.refresh()}
+              showCancelButton={userType === 'staff'}
+              endLeaseAction={
+                lease.upcoming_lease_end.is_lapsed && userType === 'staff' ? (
+                  <InitiateLeaseEndingDrawer
+                    leaseId={lease.id}
+                    propertyName={lease.property.code}
+                    unitName={lease.room?.title}
+                    tenantName={lease.tenant.name}
+                    onSuccess={() => router.refresh()}
+                    trigger={
+                      <button
+                        type='button'
+                        className='h-8 px-3 rounded-md bg-red-600 text-white text-sm font-medium hover:bg-red-700'
+                      >
+                        End Lease
+                      </button>
+                    }
+                  />
+                ) : undefined
+              }
             />
           )}
 
@@ -559,6 +606,49 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId, userTy
                       )}
                     >
                       {change.status}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Lease End Schedule History Card */}
+          {lease.scheduled_lease_ends.length > 0 && (
+            <div className='card-styles'>
+              <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
+                <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-amber-100 text-amber-700'>
+                  <CalendarX2 size={19} strokeWidth={1.5} />
+                </div>
+                <div className='flex flex-col'>
+                  <span className='texts-body-medium-medium'>Lease End Schedule History</span>
+                  <span className='texts-caption-large text-(--text-secondary)'>
+                    Planned checkout dates
+                  </span>
+                </div>
+              </div>
+
+              <div className='flex flex-col divide-y divide-(--border-light) pt-2'>
+                {lease.scheduled_lease_ends.map((schedule) => (
+                  <div key={schedule.id} className='flex items-center justify-between py-3'>
+                    <div className='flex flex-col gap-0.5'>
+                      <span className='texts-body-small-medium text-(--text-primary)'>
+                        {formatDate(schedule.scheduled_date)}
+                      </span>
+                      <span className='texts-caption-large text-(--text-secondary)'>
+                        Created: {formatDate(schedule.created_at)}
+                      </span>
+                    </div>
+                    <div
+                      data-status={schedule.status.toLowerCase()}
+                      className={cn(
+                        'status-styles text-xs!',
+                        'data-[status=current]:bg-amber-100 data-[status=current]:text-amber-800',
+                        'data-[status=lapsed]:bg-red-100 data-[status=lapsed]:text-red-800',
+                        'data-[status=cancelled]:bg-neutral-200 data-[status=cancelled]:text-neutral-600'
+                      )}
+                    >
+                      {schedule.status}
                     </div>
                   </div>
                 ))}

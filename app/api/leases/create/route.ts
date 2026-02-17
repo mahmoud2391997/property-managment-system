@@ -44,6 +44,9 @@ export async function POST (request: Request) {
       room_id, // Optional - if provided, this is a room lease
       tenant_id,
       booking_id, // Optional - if provided, this lease converts a booking
+      cancel_booking_id, // Optional - if provided, cancel this booking as part of the transaction
+      converted_view_id, // Optional - the view that converted into this lease
+      resolve_views, // Optional - whether to resolve all undecided views for this property/room
       start_date,
       number_of_months,
       payment_day,
@@ -212,6 +215,53 @@ export async function POST (request: Request) {
         await tx.bookings.update({
           where: { id: booking_id },
           data: { status: 'Converted' }
+        })
+      }
+
+      // If staff decided to cancel the booking (not convert it)
+      if (cancel_booking_id) {
+        await tx.bookings.update({
+          where: { id: cancel_booking_id },
+          data: { status: 'Cancelled' }
+        })
+      }
+
+      // ============================================
+      // STEP 1.5: Resolve View Conversions
+      // ============================================
+
+      if (resolve_views) {
+        // Build where clause for the views that belong to this property/room
+        const viewWhereClause: any = {
+          conversion_status: 'Not_Decided'
+        }
+        if (room_id) {
+          viewWhereClause.room_id = room_id
+        } else {
+          viewWhereClause.property_id = property_id
+        }
+
+        // If a specific view was selected as converted
+        if (converted_view_id) {
+          await tx.views.update({
+            where: { id: converted_view_id },
+            data: {
+              conversion_status: 'Converted',
+              lease_id: lease.id
+            }
+          })
+        }
+
+        // Mark all remaining undecided views as Not Converted
+        await tx.views.updateMany({
+          where: {
+            ...viewWhereClause,
+            ...(converted_view_id ? { id: { not: converted_view_id } } : {})
+          },
+          data: {
+            conversion_status: 'Not_Converted',
+            lease_id: lease.id
+          }
         })
       }
 

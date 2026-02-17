@@ -54,6 +54,20 @@ export type ViewWithProperty = {
   email: string | null
   viewed_at: string
   created_at: string
+  conversion_status: 'Not Decided' | 'Converted' | 'Not Converted'
+  lease_reference_id: string | null
+  lease_id: string | null
+}
+
+export type BookingWithTenant = {
+  id: string
+  reference_id: string
+  tenant_name: string
+  tenant_profile_thumb: string | null
+  move_in_date: string
+  created_at: string
+  status: 'Current' | 'Cancelled' | 'Converted'
+  lease_reference_id: string | null
 }
 
 export type LeaseStatusComputed = 'Scheduled' | 'Current' | 'Expired' | 'Ended'

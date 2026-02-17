@@ -1160,6 +1160,7 @@ export const chargeTypes: ChargeTypeType[] = [
 
 export const propertyExpenseTypes: PaymentType[] = [
   { type: 'Refund' },
+  { type: 'Agent_Commission' },
   { type: 'Maintenance', isRecurrable: true, isFixedByDefault: false },
   { type: 'Cleaning_Service', isRecurrable: true, isFixedByDefault: true },
   { type: 'Internet_Bill', isRecurrable: true, isFixedByDefault: true },
@@ -1168,11 +1169,10 @@ export const propertyExpenseTypes: PaymentType[] = [
   { type: 'Sewerage_Bill', isRecurrable: true, isFixedByDefault: false },
   { type: 'Management_Fees', isRecurrable: true, isFixedByDefault: true },
   { type: 'Renovation' },
-  { type: 'Furniture___Appliances' },
-  { type: 'Painting' },
+  { type: 'Painting_Service' },
   { type: 'AC_Service_Installation' },
   { type: 'Wiring_Electrical' },
-  { type: 'Replacement_Parts_Plumbing' },
+  { type: 'Plumbing' },
   { type: 'Miscellaneous_Others', isRecurrable: true, isFixedByDefault: false }
 ]
 
@@ -1182,22 +1182,29 @@ export const contractExpenseTypes: PaymentType[] = [
 
 export const companyExpenseTypes: PaymentType[] = [
   { type: 'Office_Rent', isRecurrable: true },
+  { type: 'ICT_Equipment' },
+  { type: 'Office_Stationary' },
   { type: 'Software_Subscription', isRecurrable: true },
   { type: 'Professional_Fees', isRecurrable: true },
   { type: 'Bank_Charges', isRecurrable: true },
   { type: 'Marketing___Advertising', isRecurrable: true },
   { type: 'Insurance', isRecurrable: true },
-  { type: 'Licenses___Permits', isRecurrable: true },
+  { type: 'Licenses___Government_Fees', isRecurrable: true },
   { type: 'Plant___Machinery' },
   { type: 'Company_Equipment' },
-  { type: 'Motor_Vehicles' },
-  { type: 'ICT_Equipment' },
-  { type: 'Office_Supplies' },
+  { type: 'Vehicle_Repair___Servicing' },
+  { type: 'Transportation' },
+  { type: 'Vehicle_Purchase' },
+  { type: 'Property_Purchase' },
+  { type: 'Loan' },
+  { type: 'Tax' },
   { type: 'Miscellaneous_Others', isRecurrable: true }
 ]
 
 export const purchaseExpenseTypes: PaymentType[] = [
   { type: 'Furniture' },
+  { type: 'Home_Appliances' },
+  { type: 'Office_Appliances' },
   { type: 'Tools' },
   { type: 'Electrical_Items' },
   { type: 'Plumbing_Items' },

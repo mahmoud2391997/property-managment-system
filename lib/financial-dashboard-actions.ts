@@ -28,6 +28,7 @@ const PAYMENT_TYPE_COLORS = [
 export interface KpiData {
   totalPayments: number
   totalExpenses: number
+  previousBalance: number | null
   rentalDue: number
   rentalReceived: number
   rentalOverdueAmount: number
@@ -94,6 +95,7 @@ export async function getKpiData(orgId: string): Promise<KpiData> {
     return {
       totalPayments: 0,
       totalExpenses: 0,
+      previousBalance: null,
       rentalDue: 0,
       rentalReceived: 0,
       rentalOverdueAmount: 0,
@@ -109,9 +111,24 @@ export async function getKpiData(orgId: string): Promise<KpiData> {
     }
   }
 
+  // Accumulated totals across ALL months for balance
+  const summaryDate = summary.date
+  const accumulated = await prisma.financial_daily_summary.aggregate({
+    where: { organization_id: orgId },
+    _sum: { total_income: true, total_outcome: true },
+  })
+
+  const accIncome = Number(accumulated._sum.total_income ?? 0)
+  const accExpenses = Number(accumulated._sum.total_outcome ?? 0)
+
+  // Previous accumulated balance = accumulated excluding current month
+  const currentMonthProfit = Number(summary.total_income) - Number(summary.total_outcome)
+  const prevAccBalance = accIncome - accExpenses - currentMonthProfit
+
   return {
-    totalPayments: Number(summary.total_income),
-    totalExpenses: Number(summary.total_outcome),
+    totalPayments: accIncome,
+    totalExpenses: accExpenses,
+    previousBalance: prevAccBalance,
     rentalDue: Number(summary.rental_due),
     rentalReceived: Number(summary.rental_received),
     rentalOverdueAmount: Number(summary.rental_overdue_amount),
@@ -201,14 +218,21 @@ export async function getExpenseBreakdownData(
       date: monthStart,
     },
     select: { category: true, amount: true },
-    orderBy: { amount: 'desc' },
   })
 
-  return rows.map(r => ({
-    category: r.category.replace(/_/g, ' '),
-    amount: Number(r.amount),
-    color: EXPENSE_CATEGORY_COLORS[r.category] || '#6b7280',
-  }))
+  const categoryAmounts = new Map<string, number>()
+  rows.forEach(r => {
+    categoryAmounts.set(r.category, Number(r.amount))
+  })
+
+  // Always return all known categories, even if 0
+  return Object.entries(EXPENSE_CATEGORY_COLORS)
+    .map(([category, color]) => ({
+      category: category.replace(/_/g, ' '),
+      amount: categoryAmounts.get(category) || 0,
+      color,
+    }))
+    .sort((a, b) => b.amount - a.amount)
 }
 
 // ── Rental Overview (received vs owner paid + occupancy line) ────────────
@@ -298,6 +322,7 @@ export async function getPaymentTypeData(
   })
 
   return Array.from(typeMap.entries())
+    .filter(([, amount]) => amount > 0)
     .sort((a, b) => b[1] - a[1])
     .map(([type, amount], i) => ({
       type,

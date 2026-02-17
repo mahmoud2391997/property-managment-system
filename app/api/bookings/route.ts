@@ -463,3 +463,87 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export async function GET(request: NextRequest) {
+  try {
+    const { staff, error } = await getUserAndStaff()
+    if (error) return error
+
+    const { searchParams } = new URL(request.url)
+    const propertyId = searchParams.get('propertyId')
+    const roomId = searchParams.get('roomId')
+
+    if (!propertyId && !roomId) {
+      return NextResponse.json(
+        { error: 'Property ID or Room ID is required' },
+        { status: 400 }
+      )
+    }
+
+    const whereClause: any = {
+      properties: {
+        organization_id: staff.organization_id
+      }
+    }
+
+    if (propertyId) whereClause.property_id = propertyId
+    if (roomId) whereClause.room_id = roomId
+
+    const bookings = await prisma.bookings.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        reference_id: true,
+        move_in_timestamp: true,
+        created_at: true,
+        status: true,
+        tenants: {
+          select: {
+            profile_thumb: true,
+            individual_tenants: {
+              select: {
+                first_name: true,
+                last_name: true
+              }
+            }
+          }
+        },
+        leases: {
+          select: {
+            reference_id: true
+          },
+          take: 1
+        }
+      },
+      orderBy: {
+        created_at: 'desc'
+      }
+    })
+
+    return NextResponse.json({
+      bookings: bookings.map(booking => {
+        const tenant = booking.tenants
+        const name = tenant.individual_tenants
+          ? [tenant.individual_tenants.first_name, tenant.individual_tenants.last_name].filter(Boolean).join(' ')
+          : 'Unknown'
+
+        return {
+          id: booking.id,
+          reference_id: booking.reference_id,
+          tenant_name: name,
+          tenant_profile_thumb: tenant.profile_thumb,
+          move_in_date: booking.move_in_timestamp.toISOString(),
+          created_at: booking.created_at.toISOString(),
+          status: booking.status,
+          lease_reference_id: booking.leases[0]?.reference_id || null
+        }
+      })
+    })
+  } catch (error: any) {
+    console.error('Error fetching bookings:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch bookings' },
+      { status: 500 }
+    )
+  }
+}

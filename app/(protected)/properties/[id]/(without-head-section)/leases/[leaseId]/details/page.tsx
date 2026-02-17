@@ -85,6 +85,19 @@ export type LeaseDetailsData = {
       new_rent: number
       effective_from: string
     } | null
+    scheduled_lease_ends: Array<{
+      id: string
+      scheduled_date: string
+      status: string
+      created_at: string
+      cancelled_at: string | null
+    }>
+    upcoming_lease_end: {
+      id: string
+      scheduled_date: string
+      is_lapsed: boolean
+      days_until_dismissed: number | null
+    } | null
     created_by: {
       id: string
       name: string

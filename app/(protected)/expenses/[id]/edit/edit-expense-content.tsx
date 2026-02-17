@@ -60,22 +60,29 @@ const CLAIMABLE_PROPERTY_TYPES = [
   'Maintenance',
   'Cleaning_Service',
   'Renovation',
-  'Painting',
+  'Painting_Service',
   'AC_Service_Installation',
   'Wiring_Electrical',
-  'Replacement_Parts_Plumbing',
-  'Furniture___Appliances',
+  'Plumbing',
   'Miscellaneous_Others'
 ]
 
 const CLAIMABLE_COMPANY_TYPES = [
-  'Office_Supplies',
+  'Office_Stationary',
   'Company_Equipment',
   'ICT_Equipment',
   'Software_Subscription',
   'Professional_Fees',
   'Marketing___Advertising',
   'Miscellaneous_Others'
+]
+
+const ASSET_COMPANY_TYPES = [
+  'ICT_Equipment',
+  'Plant___Machinery',
+  'Company_Equipment',
+  'Vehicle_Purchase',
+  'Property_Purchase'
 ]
 
 type Deduction = { title: string; amount: string }
@@ -204,9 +211,9 @@ export default function EditExpenseContent ({ expense }: Props) {
       : []
   )
 
-  // Purchase related
+  // Asset state (purchase & company)
   const [isAsset, setIsAsset] = useState<boolean>(
-    expense.purchase_expense?.is_asset || false
+    expense.purchase_expense?.is_asset || expense.company_expense?.is_asset || false
   )
   const [depreciationPercentage, setDepreciationPercentage] = useState<string>(
     expense.purchase_expense?.depreciation_percentage?.toString() || ''
@@ -627,6 +634,7 @@ export default function EditExpenseContent ({ expense }: Props) {
             claimer_id: isClaimed ? claimerId : null
           }),
         ...(expense.category === 'Company_Related' && {
+          is_asset: ASSET_COMPANY_TYPES.includes(expenseType) ? isAsset : false,
           is_claimed: isClaimed,
           claimer_id: isClaimed ? claimerId : null
         }),
@@ -849,6 +857,22 @@ export default function EditExpenseContent ({ expense }: Props) {
             className='texts-body-small bg-(--background-secondary) hover:bg-neutral-100 focus:hover:bg-neutral-50 focus:border-neutral-400 border border-(--border-strong) transition-colors duration-200 rounded-[5] shadows-xs'
           />
         </InputGroup>
+
+        {/* Company asset checkbox — only for asset-eligible types */}
+        {expense.category === 'Company_Related' && ASSET_COMPANY_TYPES.includes(expenseType) && (
+          <div className='flex items-center gap-2'>
+            <Checkbox
+              checked={isAsset}
+              onCheckedChange={checked => setIsAsset(checked === true)}
+            />
+            <label
+              className='texts-label-large cursor-pointer'
+              onClick={() => setIsAsset(!isAsset)}
+            >
+              This is an asset
+            </label>
+          </div>
+        )}
 
         {/* Purchase-specific fields */}
         {expense.category === 'Purchase_Related' && (

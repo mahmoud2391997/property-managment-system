@@ -148,6 +148,19 @@ export async function getLeaseDetails(
             effective_from: 'desc'
           }
         },
+        // Lease end schedules
+        lease_end_schedule: {
+          select: {
+            id: true,
+            scheduled_date: true,
+            status: true,
+            created_at: true,
+            cancelled_at: true
+          },
+          orderBy: {
+            created_at: 'desc'
+          }
+        },
         // Recurring configs
         recurring_configs: {
           select: {
@@ -259,6 +272,49 @@ export async function getLeaseDetails(
     const upcomingChange = lease.scheduled_rental_changes.find(
       sc => sc.status === 'Scheduled'
     )
+
+    // Get upcoming lease end schedule (if any) and compute lapsed status
+    const upcomingLeaseEnd = lease.lease_end_schedule.find(
+      les => les.status === 'Current'
+    )
+
+    // Compute lapsed info for the upcoming lease end
+    let upcomingLeaseEndData: {
+      id: string
+      scheduled_date: string
+      is_lapsed: boolean
+      days_until_dismissed: number | null
+    } | null = null
+
+    if (upcomingLeaseEnd) {
+      const now = new Date()
+      const todayStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`
+      const scheduledStr = upcomingLeaseEnd.scheduled_date.toISOString().slice(0, 10)
+      const isLapsed = scheduledStr < todayStr
+
+      if (isLapsed) {
+        const scheduledTime = new Date(scheduledStr + 'T12:00:00Z').getTime()
+        const todayTime = new Date(todayStr + 'T12:00:00Z').getTime()
+        const daysSinceLapsed = Math.floor((todayTime - scheduledTime) / (1000 * 60 * 60 * 24))
+
+        if (daysSinceLapsed <= 3) {
+          upcomingLeaseEndData = {
+            id: upcomingLeaseEnd.id,
+            scheduled_date: upcomingLeaseEnd.scheduled_date.toISOString(),
+            is_lapsed: true,
+            days_until_dismissed: 3 - daysSinceLapsed
+          }
+        }
+        // If > 3 days, stays null (banner hidden)
+      } else {
+        upcomingLeaseEndData = {
+          id: upcomingLeaseEnd.id,
+          scheduled_date: upcomingLeaseEnd.scheduled_date.toISOString(),
+          is_lapsed: false,
+          days_until_dismissed: null
+        }
+      }
+    }
 
     // Format payments with calculated amounts
     const formattedPayments = payments.map(p => {
@@ -430,6 +486,26 @@ export async function getLeaseDetails(
               effective_from: upcomingChange.effective_from.toISOString()
             }
           : null,
+        scheduled_lease_ends: lease.lease_end_schedule.map(les => {
+          // Compute display status: Current entries with past dates show as "Lapsed"
+          let displayStatus = les.status as string
+          if (les.status === 'Current') {
+            const now = new Date()
+            const todayStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`
+            const scheduledStr = les.scheduled_date.toISOString().slice(0, 10)
+            if (scheduledStr < todayStr) {
+              displayStatus = 'Lapsed'
+            }
+          }
+          return {
+            id: les.id,
+            scheduled_date: les.scheduled_date.toISOString(),
+            status: displayStatus,
+            created_at: les.created_at.toISOString(),
+            cancelled_at: les.cancelled_at?.toISOString() || null
+          }
+        }),
+        upcoming_lease_end: upcomingLeaseEndData,
         created_by: lease.staff
           ? {
               id: lease.staff.id,

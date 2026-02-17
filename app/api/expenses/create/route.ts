@@ -44,6 +44,10 @@ export async function POST(request: NextRequest) {
       contract_id,
       is_asset,
       depreciation_percentage,
+      // Vendor field
+      vendor_id,
+      // Agent field (for Agent Commission — assign to lease)
+      agent_id,
       // Staff claim fields
       is_claimed,
       claimer_id,
@@ -86,19 +90,25 @@ export async function POST(request: NextRequest) {
 
     // Category-specific validation
     if (category === 'Property_Related') {
-      if (!property_id && !lease_id) {
+      if (expense_type === 'Agent_Commission') {
+        // Agent Commission requires a lease
+        if (!lease_id) {
+          return NextResponse.json(
+            { error: 'Lease is required for agent commission expenses' },
+            { status: 400 }
+          )
+        }
+      } else if (!property_id && !lease_id) {
         return NextResponse.json(
           { error: 'Either a property or lease is required for property-related expenses' },
           { status: 400 }
         )
-      }
-      if (property_id && lease_id) {
+      } else if (property_id && lease_id) {
         return NextResponse.json(
           { error: 'Cannot link expense to both a property and a lease' },
           { status: 400 }
         )
-      }
-      if (lease_id && expense_type !== 'Refund') {
+      } else if (lease_id && expense_type !== 'Refund') {
         return NextResponse.json(
           { error: 'Only Refund type is allowed for lease-linked expenses' },
           { status: 400 }
@@ -232,9 +242,18 @@ export async function POST(request: NextRequest) {
               property_id: property_id || null,
               lease_id: lease_id || null,
               is_claimed: is_claimed || false,
-              claimer_id: is_claimed ? claimer_id : null
+              claimer_id: is_claimed ? claimer_id : null,
+              vendor_id: vendor_id || null
             }
           })
+
+          // For Agent Commission: assign agent to lease if provided
+          if (expense_type === 'Agent_Commission' && lease_id && agent_id) {
+            await tx.leases.update({
+              where: { id: lease_id },
+              data: { agent_id }
+            })
+          }
           break
 
         case 'Contract_Related':
@@ -252,8 +271,10 @@ export async function POST(request: NextRequest) {
             data: {
               id: expense.id,
               type: expense_type,
+              is_asset: is_asset || false,
               is_claimed: is_claimed || false,
-              claimer_id: is_claimed ? claimer_id : null
+              claimer_id: is_claimed ? claimer_id : null,
+              vendor_id: vendor_id || null
             }
           })
           break
@@ -269,7 +290,8 @@ export async function POST(request: NextRequest) {
                 : null,
               property_id: property_id || null,
               is_claimed: is_claimed || false,
-              claimer_id: is_claimed ? claimer_id : null
+              claimer_id: is_claimed ? claimer_id : null,
+              vendor_id: vendor_id || null
             }
           })
           break

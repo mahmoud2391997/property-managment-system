@@ -32,6 +32,7 @@ type PropertyFeatures = {
   wifi?: boolean
   cleaning_service?: boolean
   female?: boolean
+  dryer?: boolean
 }
 
 type PropertyWithDetails = {
@@ -85,9 +86,12 @@ export const columns: ColumnDef<PropertyWithDetails>[] = [
       return <div className='text-left'>Code/Title</div>
     },
     cell: ({ row }) => {
-      const { code, address } = row.original
+      const { id, code, address } = row.original
       return (
-        <div>
+        <Link
+          href={`/properties/${id}/overview`}
+          className='block hover:underline hover:text-primary-main transition-colors'
+        >
           <span className='texts-table-cell-primary'>{code}</span>
           <Tooltip
             content={address}
@@ -96,7 +100,7 @@ export const columns: ColumnDef<PropertyWithDetails>[] = [
           >
             {address}
           </Tooltip>
-        </div>
+        </Link>
       )
     }
   },

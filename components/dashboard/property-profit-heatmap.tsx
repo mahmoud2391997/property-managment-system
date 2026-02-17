@@ -454,13 +454,13 @@ export function PropertyProfitHeatmapSkeleton() {
             <div key={i} className="h-4 bg-gray-100 rounded animate-pulse" />
           ))}
           {Array.from({ length: 7 }).map((_, row) => (
-            <>
-              <div key={`l-${row}`} className="h-10 bg-gray-100 rounded-md animate-pulse" />
+            <React.Fragment key={row}>
+              <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
               {Array.from({ length: 12 }).map((_, col) => (
-                <div key={`c-${row}-${col}`} className="h-10 bg-gray-100 rounded-md animate-pulse" />
+                <div key={col} className="h-10 bg-gray-100 rounded-md animate-pulse" />
               ))}
-              <div key={`a-${row}`} className="h-10 bg-gray-100 rounded-md animate-pulse" />
-            </>
+              <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+            </React.Fragment>
           ))}
         </div>
       </CardContent>

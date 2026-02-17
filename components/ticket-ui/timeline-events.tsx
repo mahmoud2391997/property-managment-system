@@ -359,6 +359,7 @@ export function StatusChangedSystemEvent ({
             <HoverTooltip
               content='This ticket was automatically closed because the lease ended'
               variant='description'
+              clickOnly
             >
               <Info
                 size={14}
@@ -376,6 +377,7 @@ export function StatusChangedSystemEvent ({
             <HoverTooltip
               content='Status was automatically updated by the system'
               variant='description'
+              clickOnly
             >
               <Info
                 size={14}
@@ -454,7 +456,7 @@ export function StatusChangedByUserEvent ({
             ({note})
           </span>
         )}
-        <HoverTooltip content={tooltip} variant='description'>
+        <HoverTooltip content={tooltip} variant='description' clickOnly>
           <Info
             size={13}
             className='text-neutral-400 hover:text-neutral-600 cursor-pointer transition-colors'

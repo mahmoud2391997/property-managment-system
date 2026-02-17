@@ -20,6 +20,7 @@ import { ViewWithProperty } from '@/types'
 import TimestampWithTooltip from '../costume-ui/timestamp-with-tooltip'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
 import EditViewDialog from '../dialogs/edit-view-dialog'
+import { cn } from '@/lib/utils'
 
 const createColumns = (onRefresh?: () => void): ColumnDef<ViewWithProperty>[] => [
   //Checkbox
@@ -78,6 +79,47 @@ const createColumns = (onRefresh?: () => void): ColumnDef<ViewWithProperty>[] =>
   },
 
   {
+    accessorKey: 'conversion_status',
+    header: () => <div className='text-left'>Status</div>,
+    cell: ({ row }) => {
+      const status = row.getValue('conversion_status') as string
+      const statusKey = status.toLowerCase().replace(' ', '-')
+      return (
+        <div className='text-left'>
+          <div
+            data-status={statusKey}
+            className={cn(
+              'status-styles',
+              'data-[status=converted]:bg-green-100 data-[status=converted]:text-green-800',
+              'data-[status=not-decided]:bg-neutral-100 data-[status=not-decided]:text-neutral-600',
+              'data-[status=not-converted]:bg-red-100 data-[status=not-converted]:text-red-800'
+            )}
+          >
+            {status}
+          </div>
+        </div>
+      )
+    }
+  },
+
+  {
+    id: 'lease',
+    header: () => <div className='text-left'>Lease</div>,
+    cell: ({ row }) => {
+      const leaseRef = row.original.lease_reference_id
+      return (
+        <div className='text-left text-sm'>
+          {leaseRef ? (
+            <span className='text-(--text-primary)'>{leaseRef}</span>
+          ) : (
+            <span className='text-(--text-secondary)'>—</span>
+          )}
+        </div>
+      )
+    }
+  },
+
+  {
     id: 'actions',
     header: 'Actions',
     enableHiding: false,
@@ -95,15 +137,17 @@ const createColumns = (onRefresh?: () => void): ColumnDef<ViewWithProperty>[] =>
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end'>
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <EditViewDialog
-              view={view}
-              onSuccess={onRefresh}
-              trigger={
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                  Edit View
-                </DropdownMenuItem>
-              }
-            />
+            {view.conversion_status === 'Not Decided' && (
+              <EditViewDialog
+                view={view}
+                onSuccess={onRefresh}
+                trigger={
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    Edit View
+                  </DropdownMenuItem>
+                }
+              />
+            )}
             <DropdownMenuItem
               onClick={() => navigator.clipboard.writeText(view.reference_id)}
             >

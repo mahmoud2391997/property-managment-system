@@ -16,26 +16,45 @@ export async function GET(request: Request) {
 
     // Fetch all active leases for the organization (lightweight)
     if (all === 'true') {
+      const includeAgent = searchParams.get('includeAgent') === 'true'
+
       const leases = await prisma.leases.findMany({
         where: {
           organization_id: staff.organization_id,
-          status: 'Current'
+          status: 'Current',
+          ...(propertyId && { property_id: propertyId })
         },
         select: {
           id: true,
           reference_id: true,
           properties: { select: { code: true } },
-          rooms: { select: { title: true } }
+          rooms: { select: { title: true } },
+          ...(includeAgent && {
+            agent_id: true,
+            agents: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true
+              }
+            }
+          })
         },
         orderBy: { created_at: 'desc' }
       })
 
       return NextResponse.json({
-        leases: leases.map(l => ({
+        leases: leases.map((l: any) => ({
           id: l.id,
           reference_id: l.reference_id,
           property: l.properties ? { code: l.properties.code } : null,
-          room: l.rooms ? { title: l.rooms.title } : null
+          room: l.rooms ? { title: l.rooms.title } : null,
+          ...(includeAgent && {
+            agent_id: l.agent_id || null,
+            agent: l.agents
+              ? { id: l.agents.id, name: `${l.agents.first_name} ${l.agents.last_name || ''}`.trim() }
+              : null
+          })
         }))
       })
     }
