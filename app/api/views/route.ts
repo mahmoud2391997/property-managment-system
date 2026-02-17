@@ -73,7 +73,14 @@ export async function GET(request: Request) {
         phone_number: true,
         email: true,
         viewed_at: true,
-        created_at: true
+        created_at: true,
+        conversion_status: true,
+        lease_id: true,
+        leases: {
+          select: {
+            reference_id: true
+          }
+        }
       },
       orderBy: {
         viewed_at: 'desc'
@@ -89,7 +96,10 @@ export async function GET(request: Request) {
         phone_number: view.phone_number,
         email: view.email,
         viewed_at: view.viewed_at.toISOString(),
-        created_at: view.created_at.toISOString()
+        created_at: view.created_at.toISOString(),
+        conversion_status: view.conversion_status.replace('_', ' ') as 'Not Decided' | 'Converted' | 'Not Converted',
+        lease_id: view.lease_id,
+        lease_reference_id: view.leases?.reference_id || null
       }))
     })
   } catch (error: any) {

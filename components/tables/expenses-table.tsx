@@ -186,7 +186,33 @@ export default function ExpensesTable({
         accessorKey: 'context_label',
         header: () => <div className='text-left'>{contextHeader}</div>,
         cell: ({ row }) => {
-          const { context_label, context_id, context_subtitle } = row.original
+          const { context_label, context_label_href, context_id, context_subtitle, context_subtitle_href } = row.original
+
+          // If there are individual hrefs for label/subtitle, render them separately
+          if (context_label_href || context_subtitle_href) {
+            return (
+              <div>
+                {context_label_href ? (
+                  <Link href={context_label_href} className='text-left texts-table-cell-primary hover:underline'>
+                    {context_label}
+                  </Link>
+                ) : (
+                  <div className='text-left texts-table-cell-primary'>{context_label}</div>
+                )}
+                {context_subtitle && (
+                  context_subtitle_href ? (
+                    <Link href={context_subtitle_href} className='text-left texts-table-cell-secondary hover:underline block'>
+                      {context_subtitle}
+                    </Link>
+                  ) : (
+                    <div className='text-left texts-table-cell-secondary'>{context_subtitle}</div>
+                  )
+                )}
+              </div>
+            )
+          }
+
+          // Legacy: single link wrapping both label and subtitle
           const href = context_id ? `/properties/${context_id}/overview` : null
 
           if (href) {
@@ -584,13 +610,43 @@ export default function ExpensesTable({
         <div className='grid grid-cols-2 gap-3'>
           {/* Context (Property / Contract) */}
           {showContextColumn && (() => {
-            const href = expense.context_id ? `/properties/${expense.context_id}/overview` : null
             const iconMap: Record<string, React.ReactNode> = {
               Property_Related: <Building2 className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />,
               Contract_Related: <FileText className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />,
               Staff_Related: <User className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
             }
             const icon = iconMap[category] || <Building2 className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
+
+            // If there are individual hrefs for label/subtitle, render them separately
+            if (expense.context_label_href || expense.context_subtitle_href) {
+              return (
+                <div className='flex items-start gap-2'>
+                  {icon}
+                  <div className='min-w-0'>
+                    <div className='texts-caption-small text-(--text-secondary)'>{contextHeader}</div>
+                    {expense.context_label_href ? (
+                      <Link href={expense.context_label_href} className='texts-body-small-medium text-(--text-primary) truncate hover:underline block'>
+                        {expense.context_label}
+                      </Link>
+                    ) : (
+                      <div className='texts-body-small-medium text-(--text-primary) truncate'>{expense.context_label}</div>
+                    )}
+                    {expense.context_subtitle && (
+                      expense.context_subtitle_href ? (
+                        <Link href={expense.context_subtitle_href} className='texts-caption-small text-(--text-secondary) truncate hover:underline block'>
+                          {expense.context_subtitle}
+                        </Link>
+                      ) : (
+                        <div className='texts-caption-small text-(--text-secondary) truncate'>{expense.context_subtitle}</div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )
+            }
+
+            // Legacy: single link wrapping both label and subtitle
+            const href = expense.context_id ? `/properties/${expense.context_id}/overview` : null
 
             const content = (
               <>

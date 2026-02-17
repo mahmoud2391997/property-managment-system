@@ -89,6 +89,28 @@ const ASSET_COMPANY_TYPES = [
   'Property_Purchase'
 ]
 
+// Expense types that can optionally have a vendor
+const VENDOR_PROPERTY_TYPES = [
+  'Maintenance',
+  'Cleaning_Service',
+  'Renovation',
+  'Painting_Service',
+  'AC_Service_Installation',
+  'Wiring_Electrical',
+  'Plumbing',
+  'Miscellaneous_Others'
+]
+
+const VENDOR_COMPANY_TYPES = [
+  'Office_Rent',
+  'Software_Subscription',
+  'Professional_Fees',
+  'Marketing___Advertising',
+  'Insurance',
+  'Vehicle_Repair___Servicing',
+  'Miscellaneous_Others'
+]
+
 type Deduction = { title: string; amount: string }
 type Allowance = { title: string; amount: string }
 
@@ -168,6 +190,16 @@ const AddExpense = () => {
   const [depreciationPercentage, setDepreciationPercentage] =
     useState<string>('')
 
+  // Vendor state (for property, company, and purchase expenses)
+  const [vendorItems, setVendorItems] = useState<ComboBoxitemsType[]>([])
+  const [loadingVendors, setLoadingVendors] = useState<boolean>(false)
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null)
+
+  // Agent Commission lease state
+  const [agentCommissionLeaseItems, setAgentCommissionLeaseItems] = useState<any[]>([])
+  const [loadingAgentCommissionLeases, setLoadingAgentCommissionLeases] = useState<boolean>(false)
+  const [selectedAgentCommissionLeaseId, setSelectedAgentCommissionLeaseId] = useState<string | null>(null)
+
   // Staff claim state (for property, company, and purchase expenses)
   const [isClaimed, setIsClaimed] = useState<boolean>(false)
   const [claimerId, setClaimerId] = useState<string | null>(null)
@@ -208,6 +240,23 @@ const AddExpense = () => {
     }
     return false
   }, [selectedIndex, expenseType.type])
+
+  // Check if current expense type is vendor-eligible
+  const isVendorEligible = useMemo(() => {
+    if (selectedIndex === 0) return VENDOR_PROPERTY_TYPES.includes(expenseType.type)
+    if (selectedIndex === 3) return VENDOR_COMPANY_TYPES.includes(expenseType.type)
+    if (selectedIndex === 4) return true // All purchase types
+    return false
+  }, [selectedIndex, expenseType.type])
+
+  // Is this an Agent Commission expense?
+  const isAgentCommission = selectedIndex === 0 && expenseType.type === 'Agent_Commission'
+
+  // Get agent info for selected agent commission lease
+  const selectedAgentCommissionLease = useMemo(() => {
+    if (!isAgentCommission || !selectedAgentCommissionLeaseId) return null
+    return agentCommissionLeaseItems.find((l: any) => l.id === selectedAgentCommissionLeaseId)
+  }, [isAgentCommission, selectedAgentCommissionLeaseId, agentCommissionLeaseItems])
 
   // Derived: is this a staff salary type?
   const isStaffSalary = selectedIndex === 2 && expenseType.type === 'Salary'
@@ -357,9 +406,20 @@ const AddExpense = () => {
       return
     }
 
+    if (isAgentCommission && !selectedAgentCommissionLeaseId) {
+      showAlert('Please select a lease', 'warning')
+      return
+    }
+
+    if (isAgentCommission && selectedAgentCommissionLease && !selectedAgentCommissionLease.agent && !selectedAgentId) {
+      showAlert('Please select an agent for this lease', 'warning')
+      return
+    }
+
     if (
       selectedIndex === 0 &&
       expenseType.type !== 'Refund' &&
+      !isAgentCommission &&
       !selectedPropertyId
     ) {
       showAlert('Please select a property', 'warning')
@@ -565,10 +625,19 @@ const AddExpense = () => {
           timezone_offset: new Date().getTimezoneOffset(),
           // Category-specific fields
           ...(selectedIndex === 0 &&
-            expenseType.type !== 'Refund' && {
+            isAgentCommission && {
+              lease_id: selectedAgentCommissionLeaseId,
+              agent_id: selectedAgentCommissionLease?.agent
+                ? undefined
+                : selectedAgentId || undefined
+            }),
+          ...(selectedIndex === 0 &&
+            expenseType.type !== 'Refund' &&
+            !isAgentCommission && {
               property_id: selectedPropertyId,
               is_claimed: isClaimed,
-              claimer_id: isClaimed ? claimerId : null
+              claimer_id: isClaimed ? claimerId : null,
+              vendor_id: selectedVendorId || null
             }),
           ...(selectedIndex === 0 &&
             expenseType.type === 'Refund' && {
@@ -582,7 +651,8 @@ const AddExpense = () => {
           ...(selectedIndex === 3 && {
             is_asset: ASSET_COMPANY_TYPES.includes(expenseType.type) ? isAsset : false,
             is_claimed: isClaimed,
-            claimer_id: isClaimed ? claimerId : null
+            claimer_id: isClaimed ? claimerId : null,
+            vendor_id: selectedVendorId || null
           }),
           ...(selectedIndex === 2 && {
             staff_id: selectedStaffId,
@@ -607,7 +677,8 @@ const AddExpense = () => {
                 : null,
             property_id: selectedPropertyId,
             is_claimed: isClaimed,
-            claimer_id: isClaimed ? claimerId : null
+            claimer_id: isClaimed ? claimerId : null,
+            vendor_id: selectedVendorId || null
           })
         })
       })
@@ -653,12 +724,22 @@ const AddExpense = () => {
     // Reset claim state
     setIsClaimed(false)
     setClaimerId(null)
+    // Reset vendor state
+    setSelectedVendorId(null)
+    // Reset agent commission state
+    setSelectedAgentCommissionLeaseId(null)
+    setAgentCommissionLeaseItems([])
+    setSelectedAgentId(null)
   }, [selectedIndex])
 
-  // Reset claim state when expense type changes
+  // Reset claim, vendor, and agent commission state when expense type changes
   useEffect(() => {
     setIsClaimed(false)
     setClaimerId(null)
+    setSelectedVendorId(null)
+    setSelectedAgentCommissionLeaseId(null)
+    setAgentCommissionLeaseItems([])
+    setSelectedAgentId(null)
   }, [expenseType.type])
 
   // Reset staff salary/allowance state when expense type changes within Staff
@@ -819,6 +900,105 @@ const AddExpense = () => {
     fetchLeases()
   }, [selectedIndex, expenseType.type])
 
+  // Fetch vendors when vendor-eligible type is selected
+  useEffect(() => {
+    if (!isVendorEligible) {
+      setVendorItems([])
+      setSelectedVendorId(null)
+      return
+    }
+
+    const fetchVendors = async () => {
+      setLoadingVendors(true)
+      try {
+        const response = await fetch('/api/vendors')
+        if (!response.ok) throw new Error('Failed to fetch vendors')
+        const data = await response.json()
+        const items: ComboBoxitemsType[] = data.vendors.map((v: any) => ({
+          id: v.id,
+          label: v.name,
+          subtitle: v.phone_number
+        }))
+        setVendorItems(items)
+      } catch (error) {
+        console.error('Error fetching vendors:', error)
+      } finally {
+        setLoadingVendors(false)
+      }
+    }
+
+    fetchVendors()
+  }, [isVendorEligible])
+
+  // Fetch leases with agent info when Agent Commission is selected
+  useEffect(() => {
+    if (!isAgentCommission) {
+      setAgentCommissionLeaseItems([])
+      setSelectedAgentCommissionLeaseId(null)
+      return
+    }
+
+    const fetchLeasesWithAgent = async () => {
+      setLoadingAgentCommissionLeases(true)
+      try {
+        const response = await fetch('/api/leases?all=true&includeAgent=true')
+        if (!response.ok) throw new Error('Failed to fetch leases')
+        const data = await response.json()
+        setAgentCommissionLeaseItems(
+          data.leases.map((l: any) => ({
+            id: l.id,
+            label: l.reference_id,
+            subtitle: l.room
+              ? `${l.property?.code || 'Unknown'} (${l.room.title})`
+              : l.property?.code || 'No property',
+            agent_id: l.agent_id,
+            agent: l.agent
+          }))
+        )
+      } catch (error) {
+        console.error('Error fetching leases for agent commission:', error)
+      } finally {
+        setLoadingAgentCommissionLeases(false)
+      }
+    }
+
+    fetchLeasesWithAgent()
+  }, [isAgentCommission])
+
+  // Fetch agents when Agent Commission lease has no agent
+  const [agentItems, setAgentItems] = useState<ComboBoxitemsType[]>([])
+  const [loadingAgents, setLoadingAgents] = useState<boolean>(false)
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isAgentCommission || !selectedAgentCommissionLease || selectedAgentCommissionLease.agent) {
+      setAgentItems([])
+      setSelectedAgentId(null)
+      return
+    }
+
+    const fetchAgents = async () => {
+      setLoadingAgents(true)
+      try {
+        const response = await fetch('/api/agents')
+        if (!response.ok) throw new Error('Failed to fetch agents')
+        const data = await response.json()
+        const items: ComboBoxitemsType[] = data.agents.map((a: any) => ({
+          id: a.id,
+          label: `${a.first_name} ${a.last_name || ''}`.trim(),
+          subtitle: a.phone_number
+        }))
+        setAgentItems(items)
+      } catch (error) {
+        console.error('Error fetching agents:', error)
+      } finally {
+        setLoadingAgents(false)
+      }
+    }
+
+    fetchAgents()
+  }, [isAgentCommission, selectedAgentCommissionLease])
+
   // Clamp a value so it doesn't exceed gross salary
   const clampToGross = (newValue: string): string => {
     const gross = parseFloat(grossSalary) || 0
@@ -941,8 +1121,8 @@ const AddExpense = () => {
             </InputGroup>
           )}
 
-          {/* Property selector — Property Related, non-Refund types only */}
-          {selectedIndex === 0 && expenseType.type !== 'Refund' && (
+          {/* Property selector — Property Related, non-Refund/non-Agent_Commission types only */}
+          {selectedIndex === 0 && expenseType.type !== 'Refund' && !isAgentCommission && (
             <InputGroup label='Property' isRequired>
               <Combobox
                 items={propertyItems}
@@ -959,6 +1139,49 @@ const AddExpense = () => {
                   setSelectedPropertyId(value || null)
                 }}
                 required
+              />
+            </InputGroup>
+          )}
+
+          {/* Lease selector — Property Related, Agent Commission type */}
+          {isAgentCommission && (
+            <InputGroup label='Lease' isRequired>
+              <Combobox
+                items={agentCommissionLeaseItems}
+                variant='single'
+                searchPlaceholder='Search leases'
+                placeholder={
+                  loadingAgentCommissionLeases
+                    ? 'Loading leases...'
+                    : 'Select a lease'
+                }
+                isLoading={loadingAgentCommissionLeases}
+                loadingMessage='Fetching leases...'
+                onValueChange={value => {
+                  setSelectedAgentCommissionLeaseId(value || null)
+                }}
+                required
+              />
+            </InputGroup>
+          )}
+
+          {/* Vendor selector — for vendor-eligible types */}
+          {isVendorEligible && (
+            <InputGroup label='Vendor'>
+              <Combobox
+                items={vendorItems}
+                variant='single'
+                searchPlaceholder='Search vendors'
+                placeholder={
+                  loadingVendors
+                    ? 'Loading vendors...'
+                    : 'Select a vendor (optional)'
+                }
+                isLoading={loadingVendors}
+                loadingMessage='Fetching vendors...'
+                onValueChange={value => {
+                  setSelectedVendorId(value || null)
+                }}
               />
             </InputGroup>
           )}
@@ -1163,6 +1386,55 @@ const AddExpense = () => {
           </div>
         )}
 
+        {/* Agent Commission — agent info or assign agent */}
+        {isAgentCommission && selectedAgentCommissionLeaseId && selectedAgentCommissionLease && (
+          selectedAgentCommissionLease.agent ? (
+            <div className='mt-3 p-3 rounded-md bg-blue-50 border border-blue-200'>
+              <div className='flex items-center gap-2 text-sm text-blue-800'>
+                <Info strokeWidth={1.5} size={20} />
+                The agent for lease{' '}
+                <span className='font-semibold'>
+                  {selectedAgentCommissionLease.label}
+                </span>
+                {' '}is{' '}
+                <span className='font-semibold'>
+                  {selectedAgentCommissionLease.agent.name}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className='mt-3 flex flex-col gap-3'>
+              <div className='p-3 rounded-md bg-amber-50 border border-amber-200'>
+                <div className='flex items-center gap-2 text-sm text-amber-800'>
+                  <Info strokeWidth={1.5} size={20} />
+                  Lease{' '}
+                  <span className='font-semibold'>
+                    {selectedAgentCommissionLease.label}
+                  </span>
+                  {' '}does not have an agent assigned. Select one below — the agent will be assigned when the expense is created.
+                </div>
+              </div>
+              <InputGroup label='Assign Agent' isRequired>
+                <Combobox
+                  items={agentItems}
+                  variant='single'
+                  searchPlaceholder='Search agents'
+                  placeholder={
+                    loadingAgents
+                      ? 'Loading agents...'
+                      : 'Select an agent'
+                  }
+                  isLoading={loadingAgents}
+                  loadingMessage='Loading agents...'
+                  onValueChange={value => {
+                    setSelectedAgentId(value || null)
+                  }}
+                />
+              </InputGroup>
+            </div>
+          )
+        )}
+
         {/* Info note — Property Related only */}
         {selectedIndex === 0 &&
           expenseType.type === 'Refund' &&
@@ -1189,6 +1461,7 @@ const AddExpense = () => {
           )}
         {selectedIndex === 0 &&
           expenseType.type !== 'Refund' &&
+          !isAgentCommission &&
           selectedPropertyId && (
             <div className='mt-3 p-3 rounded-md bg-blue-50 border border-blue-200'>
               <div className='flex items-center gap-2 text-sm text-blue-800'>

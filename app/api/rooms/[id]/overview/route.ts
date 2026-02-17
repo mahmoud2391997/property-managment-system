@@ -157,6 +157,7 @@ export async function GET(
 
     // Fetch scheduled rental change for lease (if any)
     let scheduledChange = null
+    let scheduledLeaseEnd = null
     if (lease) {
       scheduledChange = await prisma.scheduled_rental_changes.findFirst({
         where: {
@@ -170,6 +171,55 @@ export async function GET(
           effective_from: true
         }
       })
+
+      scheduledLeaseEnd = await prisma.lease_end_schedule.findFirst({
+        where: {
+          lease_id: lease.id,
+          status: 'Current'
+        },
+        select: {
+          id: true,
+          scheduled_date: true
+        }
+      })
+    }
+
+    // Compute lapsed status for scheduled lease end
+    let scheduledLeaseEndData: {
+      id: string
+      scheduled_date: string
+      is_lapsed: boolean
+      days_until_dismissed: number | null
+    } | null = null
+
+    if (scheduledLeaseEnd) {
+      const now = new Date()
+      const todayStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`
+      const scheduledStr = scheduledLeaseEnd.scheduled_date.toISOString().slice(0, 10)
+      const isLapsed = scheduledStr < todayStr
+
+      if (isLapsed) {
+        const scheduledTime = new Date(scheduledStr + 'T12:00:00Z').getTime()
+        const todayTime = new Date(todayStr + 'T12:00:00Z').getTime()
+        const daysSinceLapsed = Math.floor((todayTime - scheduledTime) / (1000 * 60 * 60 * 24))
+
+        if (daysSinceLapsed <= 3) {
+          scheduledLeaseEndData = {
+            id: scheduledLeaseEnd.id,
+            scheduled_date: scheduledLeaseEnd.scheduled_date.toISOString(),
+            is_lapsed: true,
+            days_until_dismissed: 3 - daysSinceLapsed
+          }
+        }
+        // If > 3 days past, stays null (banner hidden)
+      } else {
+        scheduledLeaseEndData = {
+          id: scheduledLeaseEnd.id,
+          scheduled_date: scheduledLeaseEnd.scheduled_date.toISOString(),
+          is_lapsed: false,
+          days_until_dismissed: null
+        }
+      }
     }
 
     // Transform lease data
@@ -213,7 +263,8 @@ export async function GET(
               new_rent: Number(scheduledChange.new_monthly_rent),
               effective_from: scheduledChange.effective_from.toISOString()
             }
-          : null
+          : null,
+        scheduled_lease_end: scheduledLeaseEndData
       }
     }
 

@@ -35,7 +35,14 @@ type RawExpense = {
       code: string
       projects: { title: string } | null
     } | null
-    leases: { reference_id: string } | null
+    leases: {
+      id: string
+      reference_id: string
+      property_id: string
+      room_id: string | null
+      properties: { id: string; code: string } | null
+      rooms: { id: string; title: string } | null
+    } | null
   } | null
   contract_expenses: {
     type: string
@@ -77,8 +84,10 @@ export type ExpenseWithDetails = {
   type: string
   description: string | null
   context_label: string
+  context_label_href: string | null
   context_id: string | null
   context_subtitle: string
+  context_subtitle_href: string | null
   due_date: Date | null
   recurring_pattern: 'Recurring' | 'One-time'
   recurring_pattern_description: string
@@ -94,31 +103,59 @@ export type ExpenseWithDetails = {
 function extractSubtypeInfo(expense: RawExpense): {
   type: string
   context_label: string
+  context_label_href: string | null
   context_id: string | null
   context_subtitle: string
+  context_subtitle_href: string | null
   is_asset: boolean
 } {
+  const defaults = { context_label_href: null, context_subtitle_href: null }
+
   switch (expense.category) {
     case 'Property_Related': {
       const sub = expense.property_expenses
-      if (!sub) return { type: 'Unknown', context_label: 'N/A', context_id: null, context_subtitle: '', is_asset: false }
+      if (!sub) return { type: 'Unknown', context_label: 'N/A', context_id: null, context_subtitle: '', is_asset: false, ...defaults }
 
-      // For Refund type, show lease reference_id instead of property
-      const isRefund = sub.type === 'Refund'
+      // For Refund and Agent Commission types, show lease reference_id instead of property
+      const isLeaseBased = sub.type === 'Refund' || sub.type === 'Agent_Commission'
+      if (isLeaseBased && sub.leases) {
+        const lease = sub.leases
+        const hasRoom = lease.rooms && lease.room_id
+        const leaseHref = hasRoom
+          ? `/rooms/${lease.room_id}/leases/${lease.id}/details`
+          : `/properties/${lease.property_id}/leases/${lease.id}/details`
+        const subtitleLabel = hasRoom
+          ? `${lease.properties?.code || ''} (${lease.rooms!.title})`
+          : lease.properties?.code || ''
+        const subtitleHref = hasRoom
+          ? `/rooms/${lease.room_id}/overview`
+          : `/properties/${lease.property_id}/overview`
+
+        return {
+          type: sub.type,
+          context_label: lease.reference_id,
+          context_label_href: leaseHref,
+          context_id: null,
+          context_subtitle: subtitleLabel,
+          context_subtitle_href: subtitleHref,
+          is_asset: false
+        }
+      }
+
       return {
         type: sub.type,
-        context_label: isRefund
-          ? sub.leases?.reference_id || 'N/A'
-          : sub.properties?.code || 'N/A',
-        context_id: isRefund ? null : sub.properties?.id || null,
+        context_label: sub.properties?.code || 'N/A',
+        context_label_href: null,
+        context_id: sub.properties?.id || null,
         context_subtitle: sub.properties?.projects?.title || 'No project',
+        context_subtitle_href: null,
         is_asset: false
       }
     }
 
     case 'Contract_Related': {
       const sub = expense.contract_expenses
-      if (!sub) return { type: 'Unknown', context_label: 'N/A', context_id: null, context_subtitle: '', is_asset: false }
+      if (!sub) return { type: 'Unknown', context_label: 'N/A', context_id: null, context_subtitle: '', is_asset: false, ...defaults }
 
       const ownerName = [sub.contracts.owners.first_name, sub.contracts.owners.last_name].filter(Boolean).join(' ')
       return {
@@ -126,7 +163,8 @@ function extractSubtypeInfo(expense: RawExpense): {
         context_label: sub.contracts.reference_id,
         context_id: null,
         context_subtitle: ownerName,
-        is_asset: false
+        is_asset: false,
+        ...defaults
       }
     }
 
@@ -137,7 +175,8 @@ function extractSubtypeInfo(expense: RawExpense): {
         context_label: '-',
         context_id: null,
         context_subtitle: '',
-        is_asset: sub?.is_asset || false
+        is_asset: sub?.is_asset || false,
+        ...defaults
       }
     }
 
@@ -148,13 +187,14 @@ function extractSubtypeInfo(expense: RawExpense): {
         context_label: sub?.properties?.code || (sub?.is_asset ? 'Asset' : '-'),
         context_id: sub?.properties?.id || null,
         context_subtitle: sub?.properties?.projects?.title || '',
-        is_asset: sub?.is_asset || false
+        is_asset: sub?.is_asset || false,
+        ...defaults
       }
     }
 
     case 'Staff_Related': {
       const sub = expense.staff_expenses
-      if (!sub) return { type: 'Unknown', context_label: 'N/A', context_id: null, context_subtitle: '', is_asset: false }
+      if (!sub) return { type: 'Unknown', context_label: 'N/A', context_id: null, context_subtitle: '', is_asset: false, ...defaults }
 
       const staffName = sub.staff
         ? [sub.staff.first_name, sub.staff.last_name].filter(Boolean).join(' ')
@@ -166,12 +206,13 @@ function extractSubtypeInfo(expense: RawExpense): {
         context_label: staffName,
         context_id: sub.staff_id,
         context_subtitle: monthLabel,
-        is_asset: false
+        is_asset: false,
+        ...defaults
       }
     }
 
     default:
-      return { type: 'Unknown', context_label: '-', context_id: null, context_subtitle: '', is_asset: false }
+      return { type: 'Unknown', context_label: '-', context_id: null, context_subtitle: '', is_asset: false, ...defaults }
   }
 }
 
@@ -245,8 +286,10 @@ export function transformExpense(expense: RawExpense): ExpenseWithDetails {
     type: formatPaymentTypeLabel(subtypeInfo.type),
     description: expense.description,
     context_label: subtypeInfo.context_label,
+    context_label_href: subtypeInfo.context_label_href,
     context_id: subtypeInfo.context_id,
     context_subtitle: subtypeInfo.context_subtitle,
+    context_subtitle_href: subtypeInfo.context_subtitle_href,
     due_date: expense.due_payment_date,
     recurring_pattern: isRecurring ? 'Recurring' : 'One-time',
     recurring_pattern_description: recurringDescription,

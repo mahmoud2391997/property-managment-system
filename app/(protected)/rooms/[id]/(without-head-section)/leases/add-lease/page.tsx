@@ -15,7 +15,7 @@ import { ComboBoxitemsType } from '@/types'
 import { ChargeData } from '@/components/costume-ui/charges-section'
 import Alert from '@/components/costume-ui/alert'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
-import { Info, Loader2, CheckCircle2, AlertCircle, CalendarCheck2 } from 'lucide-react'
+import { Info, Loader2, CheckCircle2, AlertCircle, CalendarCheck2, CalendarX2 } from 'lucide-react'
 import { formatDate, formatDateForAPI } from '@/utils/formatTime'
 import {
   AlertDialog,
@@ -28,6 +28,7 @@ import {
   AlertDialogAction
 } from '@/components/ui/alert-dialog'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
+import ViewConversionModal, { ViewDecision } from '@/components/view-conversion-modal'
 
 // Helper to calculate end date (end date is start_date + number_of_months, same day of month)
 const calculateEndDate = (startDate: Date, numberOfMonths: number): Date => {
@@ -62,7 +63,12 @@ const AddRoomLease = () => {
     id: string
     tenant: { id: string; name: string; profile_thumb: string | null }
   } | null>(null)
-  const [isCancellingBooking, setIsCancellingBooking] = useState(false)
+  const [bookingCheckDone, setBookingCheckDone] = useState(false)
+
+  // View conversion state
+  const [viewDecision, setViewDecision] = useState<ViewDecision | null>(null)
+  const [viewReopenKey, setViewReopenKey] = useState(0)
+  const [bookingCancelled, setBookingCancelled] = useState(false)
 
   // Default config state
   const [defaultConfigStatus, setDefaultConfigStatus] = useState<'loading' | 'loaded' | 'empty' | 'error'>('loading')
@@ -217,19 +223,27 @@ const AddRoomLease = () => {
               setSelectedTenantId(data.booking.tenant.id)
               setBookingId(data.booking.id)
             } else {
-              // Navigated to add-lease normally — show conversion modal
+              // Navigated to add-lease normally — save pending booking (modal shown after view check)
               setPendingBooking(data.booking)
-              setShowBookingModal(true)
             }
           }
         }
       } catch (error) {
         console.error('Error checking booking:', error)
+      } finally {
+        setBookingCheckDone(true)
       }
     }
 
     checkBooking()
   }, [roomId, bookingIdParam])
+
+  // Show booking modal after view check completes (if there's a pending booking)
+  const showBookingModalIfNeeded = () => {
+    if (pendingBooking && !bookingIdParam && !bookingTenant && !bookingCancelled) {
+      setShowBookingModal(true)
+    }
+  }
 
   const handleBookingConversionYes = () => {
     if (!pendingBooking) return
@@ -239,24 +253,10 @@ const AddRoomLease = () => {
     setShowBookingModal(false)
   }
 
-  const handleBookingConversionNo = async () => {
+  const handleBookingConversionNo = () => {
     if (!pendingBooking) return
-    setIsCancellingBooking(true)
-    try {
-      const response = await fetch(`/api/bookings/${pendingBooking.id}/cancel`, {
-        method: 'PATCH'
-      })
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to cancel booking')
-      }
-      FeedbackToasts.updated('Booking', 'Booking has been cancelled')
-    } catch (err: any) {
-      FeedbackToasts.operationFailed('Cancel booking', err.message)
-    } finally {
-      setIsCancellingBooking(false)
-      setShowBookingModal(false)
-    }
+    setBookingCancelled(true)
+    setShowBookingModal(false)
   }
 
   // Handle form submission
@@ -365,6 +365,9 @@ const AddRoomLease = () => {
           room_id: roomId, // This makes it a room lease
           tenant_id: selectedTenantId,
           booking_id: bookingId || undefined,
+          cancel_booking_id: bookingCancelled && pendingBooking ? pendingBooking.id : undefined,
+          converted_view_id: viewDecision?.selectedViewId || undefined,
+          resolve_views: viewDecision !== null,
           start_date: formattedStartDate,
           number_of_months: leaseDuration,
           payment_day: paymentDay,
@@ -460,6 +463,42 @@ const AddRoomLease = () => {
           </>
         )}
       </div>
+
+      {/* Decision feedback banners */}
+      {(bookingTenant || bookingCancelled || viewDecision) && (
+        <div className='flex flex-col gap-2'>
+          {/* View conversion feedback */}
+          {viewDecision && viewDecision.selectedViewId && (
+            <div className='flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-green-50 text-green-700'>
+              <CheckCircle2 className='w-4 h-4 shrink-0' />
+              <span className='flex-1'>Viewer <span className='font-medium'>{viewDecision.selectedViewName}</span> will be marked as converted</span>
+              <button type='button' onClick={() => setViewReopenKey(k => k + 1)} className='text-xs font-medium underline underline-offset-2 shrink-0'>Change</button>
+            </div>
+          )}
+          {viewDecision && !viewDecision.selectedViewId && (
+            <div className='flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-neutral-100 text-neutral-600'>
+              <Info className='w-4 h-4 shrink-0' />
+              <span className='flex-1'>No viewer selected — all {viewDecision.totalViews} viewer{viewDecision.totalViews === 1 ? '' : 's'} will be marked as not converted</span>
+              <button type='button' onClick={() => setViewReopenKey(k => k + 1)} className='text-xs font-medium underline underline-offset-2 shrink-0'>Change</button>
+            </div>
+          )}
+          {/* Booking decision feedback */}
+          {bookingTenant && (
+            <div className='flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-green-50 text-green-700'>
+              <CalendarCheck2 className='w-4 h-4 shrink-0' />
+              <span className='flex-1'>Converting booking for <span className='font-medium'>{bookingTenant.name}</span> — tenant has been automatically selected</span>
+              <button type='button' onClick={() => { setBookingTenant(null); setBookingId(null); setSelectedTenantId(null); setShowBookingModal(true) }} className='text-xs font-medium underline underline-offset-2 shrink-0'>Change</button>
+            </div>
+          )}
+          {bookingCancelled && !bookingTenant && pendingBooking && (
+            <div className='flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-neutral-100 text-neutral-600'>
+              <CalendarX2 className='w-4 h-4 shrink-0' />
+              <span className='flex-1'>Booking for <span className='font-medium'>{pendingBooking.tenant.name}</span> will be cancelled</span>
+              <button type='button' onClick={() => { setBookingCancelled(false); setShowBookingModal(true) }} className='text-xs font-medium underline underline-offset-2 shrink-0'>Change</button>
+            </div>
+          )}
+        </div>
+      )}
 
       <CollapsibleSection number={1} title={'Lease & Payment Details'}>
         {/* Basic Details */}
@@ -601,10 +640,17 @@ const AddRoomLease = () => {
         type={alertType}
       />
 
+      {/* View Conversion Modal */}
+      <ViewConversionModal
+        roomId={roomId}
+        canShow={bookingCheckDone}
+        reopenKey={viewReopenKey}
+        onDecisionMade={(decision) => { setViewDecision(decision); showBookingModalIfNeeded() }}
+        onNoViews={showBookingModalIfNeeded}
+      />
+
       {/* Booking Conversion Modal */}
-      <AlertDialog open={showBookingModal} onOpenChange={(open) => {
-        if (!isCancellingBooking) setShowBookingModal(open)
-      }}>
+      <AlertDialog open={showBookingModal} onOpenChange={setShowBookingModal}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <div className='mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 mb-2'>
@@ -632,20 +678,18 @@ const AddRoomLease = () => {
           </AlertDialogHeader>
           <AlertDialogFooter className='sm:justify-center gap-3'>
             <AlertDialogCancel
-              disabled={isCancellingBooking}
               onClick={(e) => {
                 e.preventDefault()
                 handleBookingConversionNo()
               }}
             >
-              {isCancellingBooking ? 'Cancelling booking...' : 'No, cancel booking'}
+              No, cancel booking
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault()
                 handleBookingConversionYes()
               }}
-              disabled={isCancellingBooking}
             >
               Yes, same person
             </AlertDialogAction>

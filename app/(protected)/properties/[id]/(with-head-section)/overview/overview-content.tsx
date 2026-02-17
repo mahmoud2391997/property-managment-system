@@ -38,6 +38,8 @@ import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import RentalHistoryDialog from '@/components/dialogs/rental-history-dialog'
 import ScheduledRentChangeBanner from '@/components/costume-ui/scheduled-rent-change-banner'
+import ScheduledLeaseEndBanner from '@/components/costume-ui/scheduled-lease-end-banner'
+import ScheduleLeaseEndDialog from '@/components/dialogs/schedule-lease-end-dialog'
 
 // Types for overview data
 type ScheduledChange = {
@@ -45,6 +47,13 @@ type ScheduledChange = {
   old_rent: number
   new_rent: number
   effective_from: string
+}
+
+type ScheduledLeaseEnd = {
+  id: string
+  scheduled_date: string
+  is_lapsed?: boolean
+  days_until_dismissed?: number | null
 }
 
 type LeaseOverview = {
@@ -61,6 +70,7 @@ type LeaseOverview = {
     phone_number: string | null
   }
   scheduled_change: ScheduledChange | null
+  scheduled_lease_end: ScheduledLeaseEnd | null
 }
 
 type ContractOverview = {
@@ -694,6 +704,15 @@ export default function OverviewContent ({ propertyId }: Props) {
                     Transfer Lease
                   </Link>
                 </DropdownMenuItem>
+                <ScheduleLeaseEndDialog
+                  leaseId={overviewData.lease!.id}
+                  onSuccess={fetchOverviewData}
+                  trigger={
+                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                      Schedule Lease End
+                    </DropdownMenuItem>
+                  }
+                />
                 <InitiateLeaseEndingDrawer
                   leaseId={overviewData.lease!.id}
                   propertyName={overviewData.propertyCode}
@@ -844,6 +863,33 @@ export default function OverviewContent ({ propertyId }: Props) {
           scheduledChange={overviewData.lease.scheduled_change}
           currentRent={overviewData.lease.monthly_rent}
           onCancelSuccess={fetchOverviewData}
+        />
+      )}
+
+      {/* Scheduled Lease End Banner */}
+      {!loading && overviewData?.lease?.scheduled_lease_end && (
+        <ScheduledLeaseEndBanner
+          leaseId={overviewData.lease.id}
+          scheduledEnd={overviewData.lease.scheduled_lease_end}
+          onCancelSuccess={fetchOverviewData}
+          endLeaseAction={
+            overviewData.lease.scheduled_lease_end.is_lapsed ? (
+              <InitiateLeaseEndingDrawer
+                leaseId={overviewData.lease.id}
+                propertyName={overviewData.propertyCode}
+                tenantName={overviewData.lease.tenant.name}
+                onSuccess={fetchOverviewData}
+                trigger={
+                  <Button
+                    variant='ghost'
+                    className='h-8 px-3 bg-red-600 text-white hover:bg-red-700 hover:text-white'
+                  >
+                    End Lease
+                  </Button>
+                }
+              />
+            ) : undefined
+          }
         />
       )}
 

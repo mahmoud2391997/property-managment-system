@@ -44,7 +44,16 @@ export const expenseSelect = {
           projects: { select: { title: true } }
         }
       },
-      leases: { select: { reference_id: true } }
+      leases: {
+        select: {
+          id: true,
+          reference_id: true,
+          property_id: true,
+          room_id: true,
+          properties: { select: { id: true, code: true } },
+          rooms: { select: { id: true, title: true } }
+        }
+      }
     }
   },
   contract_expenses: {

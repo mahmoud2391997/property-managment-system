@@ -42,7 +42,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const pathname = usePathname()
   const segments = pathname.split('/')
   const lastSegment = segments[segments.length - 1]
-  const routes = ['overview', 'rooms', 'views', 'leases', 'contracts']
+  const routes = ['overview', 'rooms', 'views', 'bookings', 'leases', 'contracts']
 
   const params = useParams()
   const id = params.id as string
@@ -67,12 +67,16 @@ const WithHeadSectionLayout = ({ children }: Props) => {
       isSelected: lastSegment === routes[2]
     },
     {
-      label: 'Leases',
+      label: 'Bookings',
       isSelected: lastSegment === routes[3]
     },
     {
-      label: 'Contracts',
+      label: 'Leases',
       isSelected: lastSegment === routes[4]
+    },
+    {
+      label: 'Contracts',
+      isSelected: lastSegment === routes[5]
     }
   ])
 
