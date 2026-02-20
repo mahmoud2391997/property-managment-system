@@ -11,7 +11,8 @@ import {
   Pause,
   Trash2,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Building2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -28,32 +29,22 @@ import { cn } from '@/lib/utils'
 import { formatDate } from '@/utils/formatTime'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { Table } from '../costume-ui/table'
-import { RecurringConfigWithDetails } from '@/app/api/properties/[id]/recurring-configs/route'
-import { RecurringExpenseConfigWithProperty } from '@/app/api/expenses/recurring-configs/route'
-import RecurringExpensesNestedTable from './recurring-expenses-nested-table'
-import RecurringExpenseConfigsNested from './recurring-expense-configs-nested'
+import { RecurringPaymentConfigItem } from '@/app/api/payments/recurring-configs/route'
+import RecurringPaymentConfigsNested from './recurring-payment-configs-nested'
 import Link from 'next/link'
-import { Building2 } from 'lucide-react'
 
 type Props = {
-  data: (RecurringConfigWithDetails | RecurringExpenseConfigWithProperty)[]
+  data: RecurringPaymentConfigItem[]
   className?: string
   onRefresh?: () => void
-  showProperty?: boolean
 }
 
-export default function RecurringExpensesTable({
+export default function RecurringPaymentConfigsTable({
   data,
   className = '',
-  onRefresh,
-  showProperty = false
+  onRefresh
 }: Props) {
-  const formatExpensePattern = (eventOn: string | null): string => {
-    if (eventOn) return `Monthly on day ${eventOn}`
-    return 'Monthly'
-  }
-
-  const columns: ColumnDef<RecurringConfigWithDetails | RecurringExpenseConfigWithProperty>[] = [
+  const columns: ColumnDef<RecurringPaymentConfigItem>[] = [
     // Checkbox
     {
       id: 'select',
@@ -83,9 +74,7 @@ export default function RecurringExpensesTable({
       id: 'expand',
       header: () => null,
       cell: ({ row }) => {
-        const hasExpenses = row.original.expenses_count > 0
-
-        if (!hasExpenses) return null
+        if (row.original.payments_count === 0) return null
 
         return (
           <Button
@@ -105,16 +94,26 @@ export default function RecurringExpensesTable({
       enableHiding: false
     },
 
-    // Title & Expense Type
+    // Title & Payment Type
     {
       accessorKey: 'title',
       header: () => <div className='text-left'>Recurring Event</div>,
       cell: ({ row }) => {
-        const { title, payment_type } = row.original
+        const { title, payment_type, payments_count } = row.original
 
         return (
           <div>
-            <div className='text-left texts-table-cell-primary'>{title}</div>
+            <div className='flex items-center gap-2 text-left texts-table-cell-primary'>
+              <span>{title}</span>
+              {payments_count > 0 && (
+                <span className={cn(
+                  'px-2 py-0.5 rounded-full text-xs font-medium',
+                  'bg-(--info-light) text-(--info-main)'
+                )}>
+                  {payments_count}
+                </span>
+              )}
+            </div>
             {payment_type && (
               <div className='text-left texts-table-cell-secondary text-(--text-secondary)'>
                 {payment_type.replace(/_/g, ' ')}
@@ -125,85 +124,58 @@ export default function RecurringExpensesTable({
       }
     },
 
-    // Property (conditional)
-    ...(showProperty
-      ? [
-          {
-            id: 'property',
-            header: () => <div className='text-left'>Property</div>,
-            cell: ({ row }: { row: any }) => {
-              const config = row.original as RecurringExpenseConfigWithProperty
-              if (!config.property_name) {
-                return (
-                  <span className='texts-table-cell-secondary text-(--text-secondary)'>
-                    —
-                  </span>
-                )
-              }
-              return (
-                <Link
-                  href={`/properties/${config.property_id}/overview`}
-                  className='flex items-center gap-1.5 texts-table-cell-primary text-(--info-main) hover:underline'
-                >
-                  <Building2 size={14} />
-                  {config.property_name}
-                </Link>
-              )
-            }
-          } as ColumnDef<RecurringConfigWithDetails | RecurringExpenseConfigWithProperty>
-        ]
-      : []),
-
-    // Recurring Pattern
+    // Property / Room
     {
-      accessorKey: 'every',
-      header: () => <div className='text-left'>Pattern</div>,
+      id: 'property',
+      header: () => <div className='text-left'>Property</div>,
       cell: ({ row }) => {
-        const { event_on } = row.original
-
+        const { property_name, property_id, room_name } = row.original
+        if (!property_name) {
+          return (
+            <span className='texts-table-cell-secondary text-(--text-secondary)'>
+              —
+            </span>
+          )
+        }
         return (
-          <div className='flex items-center gap-2'>
-            <div
-              className={cn(
-                'flex items-center gap-[5]',
-                'text-left texts-table-cell-secondary',
-                'bg-amber-100 text-amber-700',
-                'py-[3px] px-2 w-fit',
-                'rounded-full select-none'
-              )}
+          <div>
+            <Link
+              href={`/properties/${property_id}/overview`}
+              className='flex items-center gap-1.5 texts-table-cell-primary text-(--info-main) hover:underline'
             >
-              <Repeat strokeWidth={2} size={12} />
-              <span>{formatExpensePattern(event_on)}</span>
-            </div>
+              <Building2 size={14} />
+              {property_name}
+            </Link>
+            {room_name && (
+              <div className='texts-table-cell-secondary text-(--text-secondary) ml-5'>
+                {room_name}
+              </div>
+            )}
           </div>
         )
       }
     },
 
-    // Next Expense Date
+    // Pattern
     {
-      accessorKey: 'next_payment_date',
-      header: () => <div className='text-left'>Next Due</div>,
-      cell: ({ row }) => {
-        const { next_payment_date, is_active } = row.original
-
-        if (!is_active) {
-          return (
-            <div className='text-left texts-table-cell-secondary text-(--text-secondary)'>
-              —
-            </div>
-          )
-        }
-
-        return (
-          <div className='flex items-center gap-2'>
-            <Calendar size={14} className='text-(--text-secondary)' />
-            <span className='texts-table-cell-primary'>
-              {next_payment_date ? formatDate(new Date(next_payment_date)) : '—'}
-            </span>
+      accessorKey: 'every',
+      header: () => <div className='text-left'>Pattern</div>,
+      cell: () => (
+        <div className='flex items-center gap-2'>
+          <div
+            className={cn(
+              'flex items-center gap-[5]',
+              'text-left texts-table-cell-secondary',
+              'bg-(--info-light) text-(--info-main)',
+              'py-[3px] px-2 w-fit',
+              'rounded-full select-none'
+            )}
+          >
+            <Repeat strokeWidth={2} size={12} />
+            <span>Monthly with rental payment</span>
           </div>
-        )
-      }
+        </div>
+      )
     },
 
     // Amount
@@ -217,7 +189,7 @@ export default function RecurringExpensesTable({
           return (
             <Tooltip
               variant='description'
-              content='Amount will be determined by staff when generating the expense'
+              content='Amount will be determined by staff when generating the bill'
             >
               <div className='texts-table-cell-secondary text-(--text-secondary) italic cursor-help'>
                 Determined by staff
@@ -234,7 +206,7 @@ export default function RecurringExpensesTable({
       }
     },
 
-    // Status (Active/Inactive)
+    // Status
     {
       accessorKey: 'is_active',
       header: () => <div className='text-left'>Status</div>,
@@ -320,7 +292,7 @@ export default function RecurringExpensesTable({
                 )}
               </DropdownMenuItem>
               <DropdownMenuItem disabled>
-                View expense history
+                View payment history
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className='text-red-600 focus:text-red-600' disabled>
@@ -334,9 +306,8 @@ export default function RecurringExpensesTable({
     }
   ]
 
-  // Mobile Card Component
-  const RecurringCard = ({ config }: { config: RecurringConfigWithDetails | RecurringExpenseConfigWithProperty }) => {
-    const patternDescription = formatExpensePattern(config.event_on)
+  // Mobile Card
+  const RecurringCard = ({ config }: { config: RecurringPaymentConfigItem }) => {
     const statusKey = config.is_active ? 'active' : 'inactive'
 
     return (
@@ -346,7 +317,6 @@ export default function RecurringExpensesTable({
           'p-4 space-y-3'
         )}
       >
-        {/* Header: Title & Status */}
         <div className='flex items-start justify-between'>
           <div className='flex-1'>
             <div className='flex items-center gap-2 mb-1'>
@@ -362,15 +332,9 @@ export default function RecurringExpensesTable({
                 )}
               >
                 {config.is_active ? (
-                  <>
-                    <CircleCheck size={10} />
-                    Active
-                  </>
+                  <><CircleCheck size={10} /> Active</>
                 ) : (
-                  <>
-                    <CirclePause size={10} />
-                    Paused
-                  </>
+                  <><CirclePause size={10} /> Paused</>
                 )}
               </div>
             </div>
@@ -379,18 +343,18 @@ export default function RecurringExpensesTable({
                 {config.payment_type.replace(/_/g, ' ')}
               </span>
             )}
-            {showProperty && 'property_name' in config && config.property_name && (
+            {config.property_name && (
               <Link
                 href={`/properties/${config.property_id}/overview`}
                 className='flex items-center gap-1 texts-caption-large text-(--info-main) mt-0.5'
               >
                 <Building2 size={12} />
                 {config.property_name}
+                {config.room_name && <span className='text-(--text-secondary)'>/ {config.room_name}</span>}
               </Link>
             )}
           </div>
 
-          {/* Actions Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant='ghost' className='h-8 w-8 p-0'>
@@ -408,7 +372,7 @@ export default function RecurringExpensesTable({
               <DropdownMenuItem disabled>
                 {config.is_active ? 'Pause recurring' : 'Resume recurring'}
               </DropdownMenuItem>
-              <DropdownMenuItem disabled>View expense history</DropdownMenuItem>
+              <DropdownMenuItem disabled>View payment history</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className='text-red-600' disabled>
                 Delete recurring
@@ -417,18 +381,16 @@ export default function RecurringExpensesTable({
           </DropdownMenu>
         </div>
 
-        {/* Recurring Pattern Badge */}
         <div
           className={cn(
             'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs w-fit',
-            'bg-amber-100 text-amber-700'
+            'bg-(--info-light) text-(--info-main)'
           )}
         >
           <Repeat strokeWidth={2} size={12} />
-          {patternDescription}
+          Monthly with rental payment
         </div>
 
-        {/* Amount */}
         <div className='flex items-baseline gap-2'>
           {config.is_payment_fixed && config.amount !== null ? (
             <span className='text-2xl font-semibold text-(--text-primary)'>
@@ -441,30 +403,11 @@ export default function RecurringExpensesTable({
           )}
         </div>
 
-        {/* Info Grid */}
         <div className='grid grid-cols-2 gap-3 pt-2 border-t border-(--border-default)'>
-          {/* Next Due */}
           <div className='flex items-start gap-2'>
             <Calendar className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
             <div className='min-w-0'>
-              <div className='texts-caption-small text-(--text-secondary)'>
-                Next Due
-              </div>
-              <div className='texts-body-small-medium text-(--text-primary)'>
-                {config.is_active && config.next_payment_date
-                  ? formatDate(new Date(config.next_payment_date))
-                  : '—'}
-              </div>
-            </div>
-          </div>
-
-          {/* Added On */}
-          <div className='flex items-start gap-2'>
-            <Calendar className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
-            <div className='min-w-0'>
-              <div className='texts-caption-small text-(--text-secondary)'>
-                Added On
-              </div>
+              <div className='texts-caption-small text-(--text-secondary)'>Added On</div>
               <div className='texts-body-small-medium text-(--text-primary)'>
                 {formatDate(new Date(config.created_at))}
               </div>
@@ -477,39 +420,31 @@ export default function RecurringExpensesTable({
 
   return (
     <>
-      {/* Desktop Table View */}
       <div className='hidden md:block'>
         <Table
           columns={columns}
           data={data}
           className={className}
-          emptyMessage={showProperty ? 'No recurring expense configs found.' : 'No recurring expenses configured for this property.'}
-          getRowCanExpand={(row) => row.original.expenses_count > 0}
+          emptyMessage='No recurring payment configs found.'
+          getRowCanExpand={(row) => row.original.payments_count > 0}
           getRowId={(row) => row.id}
           renderSubComponent={(row) => (
-            showProperty ? (
-              <RecurringExpenseConfigsNested
-                key={`nested-${row.original.id}`}
-                configId={row.original.id}
-                isExpanded={row.getIsExpanded()}
-              />
-            ) : (
-              <RecurringExpensesNestedTable
-                key={`nested-${row.original.id}`}
-                expenses={(row.original as RecurringConfigWithDetails).expenses}
-              />
-            )
+            <RecurringPaymentConfigsNested
+              key={`nested-${row.original.id}`}
+              configId={row.original.id}
+              isExpanded={row.getIsExpanded()}
+              onRefresh={onRefresh}
+            />
           )}
         />
       </div>
 
-      {/* Mobile Card View */}
       <div className='md:hidden space-y-3'>
         {data.length > 0 ? (
           data.map(config => <RecurringCard key={config.id} config={config} />)
         ) : (
           <div className='text-center py-12 text-(--text-secondary)'>
-            {showProperty ? 'No recurring expense configs found.' : 'No recurring expenses configured for this property.'}
+            No recurring payment configs found.
           </div>
         )}
       </div>

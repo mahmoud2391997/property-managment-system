@@ -1160,7 +1160,7 @@ export const chargeTypes: ChargeTypeType[] = [
 
 export const propertyExpenseTypes: PaymentType[] = [
   { type: 'Refund' },
-  { type: 'Agent_Commission' },
+  { type: 'Agent_Commission', isRecurrable: true, isFixedByDefault: true },
   { type: 'Maintenance', isRecurrable: true, isFixedByDefault: false },
   { type: 'Cleaning_Service', isRecurrable: true, isFixedByDefault: true },
   { type: 'Internet_Bill', isRecurrable: true, isFixedByDefault: true },

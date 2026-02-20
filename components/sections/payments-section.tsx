@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
 import { AddButtonIcon } from '@/components/costume-ui/icon'
+import { Repeat } from 'lucide-react'
 import PaymentsTable from '@/components/tables/pyaments-table'
 import Link from 'next/link'
 import { PaymentWithDetails } from '@/lib/payments-utils'
@@ -179,6 +180,14 @@ export default function PaymentsSection ({
         {/* Buttons */}
         {userType === 'staff' && (
           <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
+            <Link href='/payments/recurring-configs' className='flex-1 sm:flex-none'>
+              <Button
+                variant='secondary'
+                icon={<Repeat size={16} />}
+                label='Recurring Configs'
+                className='w-full'
+              />
+            </Link>
             <Link href='/payments/add-payment' className='flex-1 sm:flex-none'>
               <Button
                 icon={<AddButtonIcon className='text-neutral-300' />}

@@ -17,7 +17,19 @@ export async function login(formData: FormData): Promise<string | void> {
   const { data: authData, error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
-    return 'Invalid email or password'
+    const status = error.status ?? 0
+    const msg = error.message?.toLowerCase() ?? ''
+
+    if (status === 400 && msg.includes('invalid'))
+      return 'Invalid email or password'
+    if (msg.includes('email not confirmed'))
+      return 'Please verify your email before signing in'
+    if (status === 429)
+      return 'Too many login attempts. Please try again later'
+    if (status >= 500)
+      return 'Our servers are having issues. Please try again later'
+
+    return 'Something went wrong. Please check your connection and try again'
   }
 
   const userId = authData.user.id

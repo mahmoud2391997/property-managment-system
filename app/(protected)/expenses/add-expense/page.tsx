@@ -10,7 +10,7 @@ import Input from '@/components/costume-ui/input'
 import InputGroup from '@/components/costume-ui/input-group'
 import Option from '@/components/costume-ui/option'
 import RadioGroup from '@/components/costume-ui/radio-group'
-import RecurringConfig from '@/components/costume-ui/recurring-config'
+import RecurringExpenseConfig, { RecurringExpenseConfigData } from '@/components/costume-ui/recurring-expense-config'
 import Select from '@/components/costume-ui/select'
 import TimePicker from '@/components/costume-ui/time-picker'
 import UploadFile from '@/components/costume-ui/upload-file'
@@ -182,7 +182,7 @@ const AddExpense = () => {
   const [paymentTime, setPaymentTime] = useState<string>('10:30:00')
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [charges, setCharges] = useState<any[]>([])
-  const [recurringConfig, setRecurringConfig] = useState<any>(null)
+  const [recurringConfig, setRecurringConfig] = useState<RecurringExpenseConfigData | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Asset state (purchase & company)
@@ -322,74 +322,6 @@ const AddExpense = () => {
     setAlertMessage(message)
     setAlertType(type)
     setAlertOpen(true)
-  }
-
-  // Helper to translate week day codes to full names
-  const weekDayFullNames: Record<string, string> = {
-    Su: 'Sunday',
-    Mo: 'Monday',
-    Tu: 'Tuesday',
-    We: 'Wednesday',
-    Th: 'Thursday',
-    Fr: 'Friday',
-    Sa: 'Saturday'
-  }
-  const translateWeekDays = (codes: string) => {
-    return codes
-      .split(',')
-      .map(code => weekDayFullNames[code] || code)
-      .join(', ')
-  }
-
-  // Helper to calculate next expense date based on recurring config
-  const calculateNextExpenseDate = (startDate: Date, config: any): Date => {
-    const next = new Date(startDate)
-    const { every, time_unit, event_on } = config
-
-    switch (time_unit) {
-      case 'Day':
-        next.setDate(next.getDate() + every)
-        break
-      case 'Week':
-        if (event_on) {
-          const weekDayMap: Record<string, number> = {
-            Su: 0,
-            Mo: 1,
-            Tu: 2,
-            We: 3,
-            Th: 4,
-            Fr: 5,
-            Sa: 6
-          }
-          const selectedDays = event_on
-            .split(',')
-            .map((d: string) => weekDayMap[d])
-            .sort((a: number, b: number) => a - b)
-          next.setDate(next.getDate() + every * 7)
-          const daysUntilNext =
-            selectedDays.find((d: number) => d >= next.getDay()) ??
-            selectedDays[0]
-          const diff = daysUntilNext - next.getDay()
-          next.setDate(next.getDate() + (diff >= 0 ? diff : 7 + diff))
-        } else {
-          next.setDate(next.getDate() + every * 7)
-        }
-        break
-      case 'Month':
-        next.setMonth(next.getMonth() + every)
-        if (event_on) {
-          const selectedDays = event_on
-            .split(',')
-            .map(Number)
-            .sort((a: number, b: number) => a - b)
-          next.setDate(selectedDays[0])
-        }
-        break
-      case 'Year':
-        next.setFullYear(next.getFullYear() + every)
-        break
-    }
-    return next
   }
 
   // Handle form submission
@@ -549,19 +481,8 @@ const AddExpense = () => {
 
     // Validate recurring config if enabled
     if (recurringConfig && recurringConfig.enabled) {
-      const { title, time_unit, event_on } = recurringConfig
-      if (!title || title.trim() === '') {
+      if (!recurringConfig.title || recurringConfig.title.trim() === '') {
         showAlert('Please enter a title for the recurring expense', 'warning')
-        return
-      }
-      if (
-        (time_unit === 'Week' || time_unit === 'Month') &&
-        (!event_on || event_on.trim() === '')
-      ) {
-        showAlert(
-          `Please select at least one day for ${time_unit.toLowerCase()}ly recurring expenses`,
-          'warning'
-        )
         return
       }
     }
@@ -621,7 +542,11 @@ const AddExpense = () => {
           payment_date: formattedDate,
           payment_time: paymentTime,
           receipt_image: receiptUrl,
-          recurring_config: recurringConfig,
+          recurring_config: recurringConfig ? {
+            ...recurringConfig,
+            every: 1,
+            time_unit: 'Month'
+          } : null,
           timezone_offset: new Date().getTimezoneOffset(),
           // Category-specific fields
           ...(selectedIndex === 0 &&
@@ -740,6 +665,13 @@ const AddExpense = () => {
     setSelectedAgentCommissionLeaseId(null)
     setAgentCommissionLeaseItems([])
     setSelectedAgentId(null)
+  }, [expenseType.type])
+
+  // Clear recurring config when switching to a non-recurrable type
+  useEffect(() => {
+    if (!expenseType.isRecurrable) {
+      setRecurringConfig(null)
+    }
   }, [expenseType.type])
 
   // Reset staff salary/allowance state when expense type changes within Staff
@@ -1941,6 +1873,14 @@ const AddExpense = () => {
           <UploadFile onFileChange={setReceiptFile} />
         </div>
       </div>
+
+      {/* Recurring Expense Config — only for recurrable types */}
+      {expenseType.isRecurrable && (
+        <RecurringExpenseConfig
+          onConfigChange={setRecurringConfig}
+          defaultIsPaymentFixed={expenseType.isFixedByDefault ?? false}
+        />
+      )}
 
       {/* Alert Dialog */}
       <Alert

@@ -16,6 +16,15 @@ export type RecurringPaymentDetails = {
   }[]
 }
 
+export type RecurringExpenseDetails = {
+  id: string
+  reference_id: string
+  type: string | null
+  status: string
+  due_date: string | null
+  amount: number
+}
+
 export type RecurringConfigWithDetails = {
   id: string
   title: string
@@ -30,6 +39,8 @@ export type RecurringConfigWithDetails = {
   payment_type: string | null
   payments_count: number
   payments: RecurringPaymentDetails[]
+  expenses_count: number
+  expenses: RecurringExpenseDetails[]
 }
 
 export async function GET(
@@ -78,52 +89,51 @@ export async function GET(
     })
 
     if (!currentLease) {
-      return NextResponse.json({
-        recurringPayments: [],
-        recurringExpenses: []
-      })
+      // No active lease — skip payments but still fetch expenses below
     }
 
-    // Fetch recurring configs linked to this lease
-    const recurringConfigs = await prisma.recurring_configs.findMany({
-      where: {
-        lease_id: currentLease.id,
-        organization_id: staff.organization_id
-      },
-      select: {
-        id: true,
-        title: true,
-        every: true,
-        time_unit: true,
-        event_on: true,
-        is_payment_fixed: true,
-        is_active: true,
-        created_at: true,
-        payments: {
+    // Fetch recurring configs linked to this lease (only if lease exists)
+    const recurringConfigs = currentLease
+      ? await prisma.recurring_configs.findMany({
+          where: {
+            lease_id: currentLease.id,
+            organization_id: staff.organization_id
+          },
           select: {
             id: true,
-            reference_id: true,
-            type: true,
-            status: true,
-            due_payment_timestamp: true,
+            title: true,
+            every: true,
+            time_unit: true,
+            event_on: true,
+            is_payment_fixed: true,
+            is_active: true,
             created_at: true,
-            charges: {
+            payments: {
               select: {
-                amount: true,
-                is_taxed: true,
-                title: true
+                id: true,
+                reference_id: true,
+                type: true,
+                status: true,
+                due_payment_timestamp: true,
+                created_at: true,
+                charges: {
+                  select: {
+                    amount: true,
+                    is_taxed: true,
+                    title: true
+                  }
+                }
+              },
+              orderBy: {
+                due_payment_timestamp: 'desc'
               }
             }
           },
           orderBy: {
-            due_payment_timestamp: 'desc'
+            created_at: 'desc'
           }
-        }
-      },
-      orderBy: {
-        created_at: 'desc'
-      }
-    })
+        })
+      : []
 
     // Calculate next payment date based on recurring config
     const calculateNextPaymentDate = (
@@ -281,12 +291,14 @@ export async function GET(
         is_active: config.is_active,
         created_at: config.created_at.toISOString(),
         next_payment_date: config.is_active
-          ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastPaymentDate, currentLease.payment_day)
+          ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastPaymentDate, currentLease?.payment_day ?? null)
           : null,
         amount,
         payment_type: latestPayment?.type || null,
         payments_count: config.payments.length,
-        payments
+        payments,
+        expenses_count: 0,
+        expenses: []
       }
     })
 
@@ -294,7 +306,7 @@ export async function GET(
     const expenseRecurringConfigs = await prisma.recurring_configs.findMany({
       where: {
         property_id: propertyId,
-        lease_id: null, // Expenses are linked to property, not lease
+        type: 'Expense',
         organization_id: staff.organization_id
       },
       select: {
@@ -309,6 +321,8 @@ export async function GET(
         expenses: {
           select: {
             id: true,
+            reference_id: true,
+            status: true,
             due_payment_date: true,
             charges: {
               select: {
@@ -318,12 +332,14 @@ export async function GET(
             },
             property_expenses: {
               select: { type: true }
+            },
+            company_expenses: {
+              select: { type: true }
             }
           },
           orderBy: {
             due_payment_date: 'desc'
-          },
-          take: 1 // Get latest expense to determine type and amount
+          }
         }
       },
       orderBy: {
@@ -332,7 +348,6 @@ export async function GET(
     })
 
     // Transform recurring configs for expenses
-    // TODO: Update to include full expense details like payments when needed
     const recurringExpenses: RecurringConfigWithDetails[] = expenseRecurringConfigs.map(config => {
       const latestExpense = config.expenses[0]
 
@@ -347,6 +362,27 @@ export async function GET(
       }
 
       const lastExpenseDate = latestExpense?.due_payment_date || null
+      const expenseType = latestExpense?.property_expenses?.type
+        || latestExpense?.company_expenses?.type
+        || null
+
+      // Transform all expenses under this config
+      const expenses: RecurringExpenseDetails[] = config.expenses.map(expense => {
+        const totalAmount = expense.charges.reduce((sum, charge) => {
+          const chargeAmount = charge.amount.toNumber()
+          const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
+          return sum + chargeAmount + tax
+        }, 0)
+
+        return {
+          id: expense.id,
+          reference_id: expense.reference_id,
+          type: expense.property_expenses?.type || expense.company_expenses?.type || null,
+          status: expense.status,
+          due_date: expense.due_payment_date?.toISOString() || null,
+          amount: totalAmount
+        }
+      })
 
       return {
         id: config.id,
@@ -361,9 +397,11 @@ export async function GET(
           ? calculateNextPaymentDate(config.every, config.time_unit, config.event_on, lastExpenseDate, null)
           : null,
         amount,
-        payment_type: latestExpense?.property_expenses?.type || null, // expense_type
-        payments_count: 0, // TODO: Update when implementing expenses
-        payments: [] // TODO: Update when implementing expenses
+        payment_type: expenseType,
+        payments_count: 0,
+        payments: [],
+        expenses_count: config.expenses.length,
+        expenses
       }
     })
 

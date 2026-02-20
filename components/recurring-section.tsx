@@ -9,7 +9,6 @@ import RecurringPaymentsTable from './tables/recurring-payments-table'
 import RecurringExpensesTable from './tables/recurring-expenses-table'
 import { RecurringConfigWithDetails } from '@/app/api/properties/[id]/recurring-configs/route'
 import { Repeat, CreditCard, Receipt } from 'lucide-react'
-import { SectionUnderDevelopment } from './costume-ui/under-development'
 
 type Props = {
   propertyId: string
@@ -99,12 +98,11 @@ export default function RecurringSection({ propertyId }: Props) {
           className='-mx-5! rounded-none! border-x-0'
         />
       ) : (
-        // <RecurringExpensesTable
-        //   data={recurringExpenses}
-        //   onRefresh={fetchRecurringConfigs}
-        //   className='-mx-5! rounded-none! border-x-0'
-        // />
-        <SectionUnderDevelopment />
+        <RecurringExpensesTable
+          data={recurringExpenses}
+          onRefresh={fetchRecurringConfigs}
+          className='-mx-5! rounded-none! border-x-0'
+        />
       )}
       
     </div>

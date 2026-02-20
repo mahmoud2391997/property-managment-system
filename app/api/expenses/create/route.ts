@@ -347,16 +347,32 @@ export async function POST(request: NextRequest) {
 
       // If recurring config is provided and enabled
       if (recurring_config && recurring_config.enabled) {
+        // For Agent_Commission: resolve property_id from lease
+        let recurringPropertyId = category === 'Property_Related' ? (property_id || null) : null
+        let recurringLeaseId: string | null = null
+
+        if (expense_type === 'Agent_Commission' && lease_id) {
+          recurringLeaseId = lease_id
+          const lease = await tx.leases.findUnique({
+            where: { id: lease_id },
+            select: { property_id: true }
+          })
+          if (lease) recurringPropertyId = lease.property_id
+        }
+
         const newRecurringConfig = await tx.recurring_configs.create({
           data: {
-            property_id: category === 'Property_Related' ? (property_id || null) : null,
+            property_id: recurringPropertyId,
+            lease_id: recurringLeaseId,
             organization_id: staff.organization_id,
             title: recurring_config.title,
             every: recurring_config.every,
-            time_unit: recurring_config.time_unit,
+            time_unit: 'Month',
             event_on: recurring_config.event_on || null,
             is_payment_fixed: recurring_config.is_payment_fixed ?? false,
-            created_by: staff.id
+            offset_days: recurring_config.offset_days ?? 7,
+            created_by: staff.id,
+            type: 'Expense'
           }
         })
 
