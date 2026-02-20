@@ -223,6 +223,53 @@ export async function GET(request: Request) {
       })
     }
 
+    // Simple field selection mode (like properties API)
+    const fieldsParam = searchParams.get('fields')
+    const vacant = searchParams.get('vacant') === 'true'
+
+    if (fieldsParam) {
+      const fields = fieldsParam.split(',')
+      const selectFields: any = {}
+      fields.forEach(field => {
+        selectFields[field.trim()] = true
+      })
+
+      // Always include property info for context
+      if (searchParams.get('includeProperty') === 'true') {
+        selectFields.properties = {
+          select: {
+            id: true,
+            code: true,
+            projects: { select: { title: true } }
+          }
+        }
+      }
+
+      const whereClauseSimple: any = {
+        properties: {
+          organization_id: staff.organization_id
+        }
+      }
+
+      // Filter to only vacant rooms (no Current lease/booking on room, and no property-level lease/booking)
+      if (vacant) {
+        whereClauseSimple.AND = [
+          { NOT: { leases: { some: { status: 'Current' } } } },
+          { NOT: { bookings: { some: { status: 'Current' } } } },
+          { NOT: { properties: { leases: { some: { status: 'Current', room_id: null } } } } },
+          { NOT: { properties: { bookings: { some: { status: 'Current', room_id: null } } } } }
+        ]
+      }
+
+      const rooms = await prisma.rooms.findMany({
+        where: whereClauseSimple,
+        select: selectFields,
+        orderBy: { created_at: 'desc' }
+      })
+
+      return NextResponse.json({ success: true, rooms })
+    }
+
     // Legacy mode: requires propertyId
     if (!propertyId) {
       return NextResponse.json(

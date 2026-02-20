@@ -220,8 +220,8 @@ export async function POST(request: Request) {
               create: otherInitialCharges.map((charge: any) => ({
                 title: charge.type,
                 amount: parseFloat(charge.amount) || 0,
-                is_taxed: false,
-                is_refunded: false,
+                is_taxed: charge.isTaxableChecked || false,
+                is_refunded: charge.isRefundableChecked || false,
                 created_by: staff.id
               }))
             }

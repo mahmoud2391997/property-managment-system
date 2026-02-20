@@ -6,6 +6,7 @@ import Input from './input'
 import Select from './select'
 import { Checkbox } from '../ui/checkbox'
 import ChargesSection from './charges-section'
+import type { ChargeTypeType } from '@/types'
 import LateChargesSection from './late-charges-section'
 import RadioGroup from './radio-group'
 import { cn } from '@/lib/utils'
@@ -92,6 +93,8 @@ type Props = {
   billingCycleStartMonth?: Date
   onBillingCycleStartMonthChange?: (value: Date) => void
   frequency?: number
+  customChargeTypes?: ChargeTypeType[]
+  showRefundable?: boolean
 }
 
 const PaymentSection = ({
@@ -113,7 +116,9 @@ const PaymentSection = ({
   onLeadDaysChange,
   billingCycleStartMonth,
   onBillingCycleStartMonthChange,
-  frequency
+  frequency,
+  customChargeTypes,
+  showRefundable
 }: Props) => {
   const [monthlyRent, setMonthlyRent] = useState<string>(defaultConfig?.monthlyRent || '')
   const [selectedDay, setSelectedDay] = useState<number>(defaultConfig?.paymentDay || 1)
@@ -181,6 +186,8 @@ const PaymentSection = ({
         defaultPayment={defaultPayment}
         defaultCharges={defaultConfig?.initialCharges}
         allowAllRemovable={allowAllChargesRemovable}
+        customChargeTypes={customChargeTypes}
+        showRefundable={showRefundable}
       />
 
       {/* Initial charges payment status and details */}

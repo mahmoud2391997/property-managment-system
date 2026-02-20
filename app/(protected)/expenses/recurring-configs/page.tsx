@@ -38,14 +38,16 @@ export default function RecurringExpenseConfigsPage() {
 
   return (
     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
-      <div className='flex flex-col gap-1'>
+      <div>
         <Breadcrumb
           items={[
             { label: 'Expenses', href: '/expenses' },
             { label: 'Recurring Configs' }
           ]}
         />
-        <h2>Recurring Configs</h2>
+        <div className='flex items-baseline gap-2 mt-1'>
+          <h2>Recurring Configs</h2>
+        </div>
       </div>
       <RecurringExpensesConfigsSection
         initialData={data}

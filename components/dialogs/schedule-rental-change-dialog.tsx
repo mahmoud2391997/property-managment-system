@@ -41,17 +41,26 @@ type CycleOption = {
 
 type Props = {
   leaseId: string
-  trigger: React.ReactElement
+  trigger?: React.ReactElement
   onSuccess?: () => void
+  controlledOpen?: boolean
+  onControlledOpenChange?: (open: boolean) => void
 }
 
 export default function ScheduleRentalChangeDialog({
   leaseId,
   trigger,
-  onSuccess
+  onSuccess,
+  controlledOpen,
+  onControlledOpenChange,
 }: Props) {
   // Dialog state
-  const [open, setOpen] = useState(false)
+  const [_open, _setOpen] = useState(false)
+  const open = controlledOpen ?? _open
+  const setOpen = (v: boolean) => {
+    if (onControlledOpenChange) onControlledOpenChange(v)
+    else _setOpen(v)
+  }
   const [loading, setLoading] = useState(false)
   const [fetchingData, setFetchingData] = useState(true)
 

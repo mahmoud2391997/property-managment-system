@@ -3,8 +3,6 @@
 import { ColumnDef } from '@tanstack/react-table'
 import {
   MoreHorizontal,
-  Repeat,
-  Calendar,
   CircleCheck,
   CirclePause,
   Play,
@@ -15,7 +13,6 @@ import {
   Building2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +25,7 @@ import Tooltip from '../costume-ui/tooltip'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/utils/formatTime'
 import { formatCurrency } from '@/utils/formatCurrency'
+import { formatPaymentTypeLabel } from '@/utils/functions'
 import { Table } from '../costume-ui/table'
 import { RecurringPaymentConfigItem } from '@/app/api/payments/recurring-configs/route'
 import RecurringPaymentConfigsNested from './recurring-payment-configs-nested'
@@ -45,30 +43,6 @@ export default function RecurringPaymentConfigsTable({
   onRefresh
 }: Props) {
   const columns: ColumnDef<RecurringPaymentConfigItem>[] = [
-    // Checkbox
-    {
-      id: 'select',
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && 'indeterminate')
-          }
-          onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
-          aria-label='Select all'
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={value => row.toggleSelected(!!value)}
-          aria-label='Select row'
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false
-    },
-
     // Expand
     {
       id: 'expand',
@@ -79,7 +53,7 @@ export default function RecurringPaymentConfigsTable({
         return (
           <Button
             variant='ghost'
-            className='h-8 w-8 p-0'
+            className='h-6 w-6 p-0'
             onClick={() => row.toggleExpanded()}
           >
             {row.getIsExpanded() ? (
@@ -107,7 +81,7 @@ export default function RecurringPaymentConfigsTable({
               <span>{title}</span>
               {payments_count > 0 && (
                 <span className={cn(
-                  'px-2 py-0.5 rounded-full text-xs font-medium',
+                  'px-1.5 py-0.5 rounded-full text-[11px] font-medium leading-none',
                   'bg-(--info-light) text-(--info-main)'
                 )}>
                   {payments_count}
@@ -116,7 +90,7 @@ export default function RecurringPaymentConfigsTable({
             </div>
             {payment_type && (
               <div className='text-left texts-table-cell-secondary text-(--text-secondary)'>
-                {payment_type.replace(/_/g, ' ')}
+                {formatPaymentTypeLabel(payment_type)}
               </div>
             )}
           </div>
@@ -156,28 +130,6 @@ export default function RecurringPaymentConfigsTable({
       }
     },
 
-    // Pattern
-    {
-      accessorKey: 'every',
-      header: () => <div className='text-left'>Pattern</div>,
-      cell: () => (
-        <div className='flex items-center gap-2'>
-          <div
-            className={cn(
-              'flex items-center gap-[5]',
-              'text-left texts-table-cell-secondary',
-              'bg-(--info-light) text-(--info-main)',
-              'py-[3px] px-2 w-fit',
-              'rounded-full select-none'
-            )}
-          >
-            <Repeat strokeWidth={2} size={12} />
-            <span>Monthly with rental payment</span>
-          </div>
-        </div>
-      )
-    },
-
     // Amount
     {
       accessorKey: 'amount',
@@ -192,7 +144,7 @@ export default function RecurringPaymentConfigsTable({
               content='Amount will be determined by staff when generating the bill'
             >
               <div className='texts-table-cell-secondary text-(--text-secondary) italic cursor-help'>
-                Determined by staff
+                Set by staff
               </div>
             </Tooltip>
           )
@@ -239,25 +191,10 @@ export default function RecurringPaymentConfigsTable({
       }
     },
 
-    // Added On
-    {
-      accessorKey: 'created_at',
-      header: () => <div className='text-left'>Added On</div>,
-      cell: ({ row }) => {
-        const { created_at } = row.original
-
-        return (
-          <div className='texts-table-cell-secondary text-(--text-secondary)'>
-            {formatDate(new Date(created_at))}
-          </div>
-        )
-      }
-    },
-
     // Actions
     {
       id: 'actions',
-      header: 'Actions',
+      header: () => null,
       enableHiding: false,
       cell: ({ row }) => {
         const config = row.original
@@ -267,7 +204,7 @@ export default function RecurringPaymentConfigsTable({
             <DropdownMenuTrigger asChild>
               <Button variant='ghost' className='h-8 w-8 p-0'>
                 <span className='sr-only'>Open menu</span>
-                <MoreHorizontal strokeWidth={1.5} className='w-6! h-6!' />
+                <MoreHorizontal strokeWidth={1.5} className='w-5! h-5!' />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
@@ -317,16 +254,16 @@ export default function RecurringPaymentConfigsTable({
           'p-4 space-y-3'
         )}
       >
-        <div className='flex items-start justify-between'>
-          <div className='flex-1'>
-            <div className='flex items-center gap-2 mb-1'>
-              <span className='texts-body-medium-semibold text-(--text-primary)'>
+        <div className='flex items-start justify-between gap-2'>
+          <div className='flex-1 min-w-0'>
+            <div className='flex items-center gap-2 mb-0.5'>
+              <span className='texts-body-medium-semibold text-(--text-primary) truncate'>
                 {config.title}
               </span>
               <div
                 data-status={statusKey}
                 className={cn(
-                  'px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1',
+                  'px-2 py-0.5 rounded-full text-[11px] font-medium flex items-center gap-1 shrink-0',
                   'data-[status=active]:bg-green-100 data-[status=active]:text-green-800',
                   'data-[status=inactive]:bg-neutral-200 data-[status=inactive]:text-neutral-600'
                 )}
@@ -339,25 +276,27 @@ export default function RecurringPaymentConfigsTable({
               </div>
             </div>
             {config.payment_type && (
-              <span className='texts-caption-large text-(--text-secondary)'>
-                {config.payment_type.replace(/_/g, ' ')}
-              </span>
+              <div className='texts-caption-large text-(--text-secondary)'>
+                {formatPaymentTypeLabel(config.payment_type)}
+              </div>
             )}
             {config.property_name && (
               <Link
                 href={`/properties/${config.property_id}/overview`}
-                className='flex items-center gap-1 texts-caption-large text-(--info-main) mt-0.5'
+                className='flex items-center gap-1 texts-caption-large text-(--info-main) mt-1'
               >
                 <Building2 size={12} />
-                {config.property_name}
-                {config.room_name && <span className='text-(--text-secondary)'>/ {config.room_name}</span>}
+                <span className='truncate'>{config.property_name}</span>
+                {config.room_name && (
+                  <span className='text-(--text-secondary) truncate'>/ {config.room_name}</span>
+                )}
               </Link>
             )}
           </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant='ghost' className='h-8 w-8 p-0'>
+              <Button variant='ghost' className='h-8 w-8 p-0 shrink-0'>
                 <MoreHorizontal strokeWidth={1.5} className='w-5 h-5' />
               </Button>
             </DropdownMenuTrigger>
@@ -381,37 +320,15 @@ export default function RecurringPaymentConfigsTable({
           </DropdownMenu>
         </div>
 
-        <div
-          className={cn(
-            'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs w-fit',
-            'bg-(--info-light) text-(--info-main)'
-          )}
-        >
-          <Repeat strokeWidth={2} size={12} />
-          Monthly with rental payment
-        </div>
-
-        <div className='flex items-baseline gap-2'>
-          {config.is_payment_fixed && config.amount !== null ? (
-            <span className='text-2xl font-semibold text-(--text-primary)'>
-              {formatCurrency(config.amount)}
-            </span>
-          ) : (
-            <span className='texts-body-medium text-(--text-secondary) italic'>
-              Determined by staff
-            </span>
-          )}
-        </div>
-
-        <div className='grid grid-cols-2 gap-3 pt-2 border-t border-(--border-default)'>
-          <div className='flex items-start gap-2'>
-            <Calendar className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
-            <div className='min-w-0'>
-              <div className='texts-caption-small text-(--text-secondary)'>Added On</div>
-              <div className='texts-body-small-medium text-(--text-primary)'>
-                {formatDate(new Date(config.created_at))}
-              </div>
-            </div>
+        <div className='flex items-center justify-between pt-2 border-t border-(--border-default)'>
+          <div className='texts-body-medium-semibold text-(--text-primary)'>
+            {config.is_payment_fixed && config.amount !== null
+              ? formatCurrency(config.amount)
+              : <span className='texts-caption-large text-(--text-secondary) italic font-normal'>Set by staff</span>
+            }
+          </div>
+          <div className='texts-caption-large text-(--text-secondary)'>
+            {formatDate(new Date(config.created_at))}
           </div>
         </div>
       </div>
@@ -426,6 +343,7 @@ export default function RecurringPaymentConfigsTable({
           data={data}
           className={className}
           emptyMessage='No recurring payment configs found.'
+          noPagnitation
           getRowCanExpand={(row) => row.original.payments_count > 0}
           getRowId={(row) => row.id}
           renderSubComponent={(row) => (

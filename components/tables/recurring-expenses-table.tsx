@@ -11,10 +11,10 @@ import {
   Pause,
   Trash2,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Building2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,13 +27,13 @@ import Tooltip from '../costume-ui/tooltip'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/utils/formatTime'
 import { formatCurrency } from '@/utils/formatCurrency'
+import { formatPaymentTypeLabel } from '@/utils/functions'
 import { Table } from '../costume-ui/table'
 import { RecurringConfigWithDetails } from '@/app/api/properties/[id]/recurring-configs/route'
 import { RecurringExpenseConfigWithProperty } from '@/app/api/expenses/recurring-configs/route'
 import RecurringExpensesNestedTable from './recurring-expenses-nested-table'
 import RecurringExpenseConfigsNested from './recurring-expense-configs-nested'
 import Link from 'next/link'
-import { Building2 } from 'lucide-react'
 
 type Props = {
   data: (RecurringConfigWithDetails | RecurringExpenseConfigWithProperty)[]
@@ -54,30 +54,6 @@ export default function RecurringExpensesTable({
   }
 
   const columns: ColumnDef<RecurringConfigWithDetails | RecurringExpenseConfigWithProperty>[] = [
-    // Checkbox
-    {
-      id: 'select',
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && 'indeterminate')
-          }
-          onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
-          aria-label='Select all'
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={value => row.toggleSelected(!!value)}
-          aria-label='Select row'
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false
-    },
-
     // Expand
     {
       id: 'expand',
@@ -90,7 +66,7 @@ export default function RecurringExpensesTable({
         return (
           <Button
             variant='ghost'
-            className='h-8 w-8 p-0'
+            className='h-6 w-6 p-0'
             onClick={() => row.toggleExpanded()}
           >
             {row.getIsExpanded() ? (
@@ -117,9 +93,33 @@ export default function RecurringExpensesTable({
             <div className='text-left texts-table-cell-primary'>{title}</div>
             {payment_type && (
               <div className='text-left texts-table-cell-secondary text-(--text-secondary)'>
-                {payment_type.replace(/_/g, ' ')}
+                {formatPaymentTypeLabel(payment_type)}
               </div>
             )}
+          </div>
+        )
+      }
+    },
+
+    // Recurring Pattern
+    {
+      accessorKey: 'every',
+      header: () => <div className='text-left'>Pattern</div>,
+      cell: ({ row }) => {
+        const { event_on } = row.original
+
+        return (
+          <div
+            className={cn(
+              'flex items-center gap-[5] w-fit',
+              'text-left texts-table-cell-secondary',
+              'bg-amber-100 text-amber-700',
+              'py-[3px] px-2',
+              'rounded-full select-none'
+            )}
+          >
+            <Repeat strokeWidth={2} size={12} />
+            <span>{formatExpensePattern(event_on)}</span>
           </div>
         )
       }
@@ -154,32 +154,6 @@ export default function RecurringExpensesTable({
         ]
       : []),
 
-    // Recurring Pattern
-    {
-      accessorKey: 'every',
-      header: () => <div className='text-left'>Pattern</div>,
-      cell: ({ row }) => {
-        const { event_on } = row.original
-
-        return (
-          <div className='flex items-center gap-2'>
-            <div
-              className={cn(
-                'flex items-center gap-[5]',
-                'text-left texts-table-cell-secondary',
-                'bg-amber-100 text-amber-700',
-                'py-[3px] px-2 w-fit',
-                'rounded-full select-none'
-              )}
-            >
-              <Repeat strokeWidth={2} size={12} />
-              <span>{formatExpensePattern(event_on)}</span>
-            </div>
-          </div>
-        )
-      }
-    },
-
     // Next Expense Date
     {
       accessorKey: 'next_payment_date',
@@ -189,15 +163,15 @@ export default function RecurringExpensesTable({
 
         if (!is_active) {
           return (
-            <div className='text-left texts-table-cell-secondary text-(--text-secondary)'>
+            <div className='texts-table-cell-secondary text-(--text-secondary)'>
               —
             </div>
           )
         }
 
         return (
-          <div className='flex items-center gap-2'>
-            <Calendar size={14} className='text-(--text-secondary)' />
+          <div className='flex items-center gap-1.5'>
+            <Calendar size={13} className='text-(--text-secondary)' />
             <span className='texts-table-cell-primary'>
               {next_payment_date ? formatDate(new Date(next_payment_date)) : '—'}
             </span>
@@ -220,7 +194,7 @@ export default function RecurringExpensesTable({
               content='Amount will be determined by staff when generating the expense'
             >
               <div className='texts-table-cell-secondary text-(--text-secondary) italic cursor-help'>
-                Determined by staff
+                Set by staff
               </div>
             </Tooltip>
           )
@@ -267,25 +241,10 @@ export default function RecurringExpensesTable({
       }
     },
 
-    // Added On
-    {
-      accessorKey: 'created_at',
-      header: () => <div className='text-left'>Added On</div>,
-      cell: ({ row }) => {
-        const { created_at } = row.original
-
-        return (
-          <div className='texts-table-cell-secondary text-(--text-secondary)'>
-            {formatDate(new Date(created_at))}
-          </div>
-        )
-      }
-    },
-
     // Actions
     {
       id: 'actions',
-      header: 'Actions',
+      header: () => null,
       enableHiding: false,
       cell: ({ row }) => {
         const config = row.original
@@ -295,7 +254,7 @@ export default function RecurringExpensesTable({
             <DropdownMenuTrigger asChild>
               <Button variant='ghost' className='h-8 w-8 p-0'>
                 <span className='sr-only'>Open menu</span>
-                <MoreHorizontal strokeWidth={1.5} className='w-6! h-6!' />
+                <MoreHorizontal strokeWidth={1.5} className='w-5! h-5!' />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
@@ -347,45 +306,39 @@ export default function RecurringExpensesTable({
         )}
       >
         {/* Header: Title & Status */}
-        <div className='flex items-start justify-between'>
-          <div className='flex-1'>
-            <div className='flex items-center gap-2 mb-1'>
-              <span className='texts-body-medium-semibold text-(--text-primary)'>
+        <div className='flex items-start justify-between gap-2'>
+          <div className='flex-1 min-w-0'>
+            <div className='flex items-center gap-2 mb-0.5'>
+              <span className='texts-body-medium-semibold text-(--text-primary) truncate'>
                 {config.title}
               </span>
               <div
                 data-status={statusKey}
                 className={cn(
-                  'px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1',
+                  'px-2 py-0.5 rounded-full text-[11px] font-medium flex items-center gap-1 shrink-0',
                   'data-[status=active]:bg-green-100 data-[status=active]:text-green-800',
                   'data-[status=inactive]:bg-neutral-200 data-[status=inactive]:text-neutral-600'
                 )}
               >
                 {config.is_active ? (
-                  <>
-                    <CircleCheck size={10} />
-                    Active
-                  </>
+                  <><CircleCheck size={10} /> Active</>
                 ) : (
-                  <>
-                    <CirclePause size={10} />
-                    Paused
-                  </>
+                  <><CirclePause size={10} /> Paused</>
                 )}
               </div>
             </div>
             {config.payment_type && (
-              <span className='texts-caption-large text-(--text-secondary)'>
-                {config.payment_type.replace(/_/g, ' ')}
-              </span>
+              <div className='texts-caption-large text-(--text-secondary)'>
+                {formatPaymentTypeLabel(config.payment_type)}
+              </div>
             )}
             {showProperty && 'property_name' in config && config.property_name && (
               <Link
                 href={`/properties/${config.property_id}/overview`}
-                className='flex items-center gap-1 texts-caption-large text-(--info-main) mt-0.5'
+                className='flex items-center gap-1 texts-caption-large text-(--info-main) mt-1'
               >
                 <Building2 size={12} />
-                {config.property_name}
+                <span className='truncate'>{config.property_name}</span>
               </Link>
             )}
           </div>
@@ -393,7 +346,7 @@ export default function RecurringExpensesTable({
           {/* Actions Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant='ghost' className='h-8 w-8 p-0'>
+              <Button variant='ghost' className='h-8 w-8 p-0 shrink-0'>
                 <MoreHorizontal strokeWidth={1.5} className='w-5 h-5' />
               </Button>
             </DropdownMenuTrigger>
@@ -417,60 +370,27 @@ export default function RecurringExpensesTable({
           </DropdownMenu>
         </div>
 
-        {/* Recurring Pattern Badge */}
-        <div
-          className={cn(
-            'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs w-fit',
-            'bg-amber-100 text-amber-700'
-          )}
-        >
-          <Repeat strokeWidth={2} size={12} />
-          {patternDescription}
-        </div>
-
-        {/* Amount */}
-        <div className='flex items-baseline gap-2'>
-          {config.is_payment_fixed && config.amount !== null ? (
-            <span className='text-2xl font-semibold text-(--text-primary)'>
-              {formatCurrency(config.amount)}
-            </span>
-          ) : (
-            <span className='texts-body-medium text-(--text-secondary) italic'>
-              Determined by staff
-            </span>
-          )}
-        </div>
-
-        {/* Info Grid */}
-        <div className='grid grid-cols-2 gap-3 pt-2 border-t border-(--border-default)'>
-          {/* Next Due */}
-          <div className='flex items-start gap-2'>
-            <Calendar className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
-            <div className='min-w-0'>
-              <div className='texts-caption-small text-(--text-secondary)'>
-                Next Due
-              </div>
-              <div className='texts-body-small-medium text-(--text-primary)'>
-                {config.is_active && config.next_payment_date
-                  ? formatDate(new Date(config.next_payment_date))
-                  : '—'}
-              </div>
-            </div>
+        {/* Bottom row: pattern + amount + next due */}
+        <div className='flex items-center justify-between pt-2 border-t border-(--border-default)'>
+          <div className='flex items-center gap-1.5 texts-caption-large text-amber-700'>
+            <Repeat strokeWidth={2} size={11} />
+            {patternDescription}
           </div>
-
-          {/* Added On */}
-          <div className='flex items-start gap-2'>
-            <Calendar className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
-            <div className='min-w-0'>
-              <div className='texts-caption-small text-(--text-secondary)'>
-                Added On
-              </div>
-              <div className='texts-body-small-medium text-(--text-primary)'>
-                {formatDate(new Date(config.created_at))}
-              </div>
-            </div>
+          <div className='texts-body-medium-semibold text-(--text-primary)'>
+            {config.is_payment_fixed && config.amount !== null
+              ? formatCurrency(config.amount)
+              : <span className='texts-caption-large text-(--text-secondary) italic font-normal'>Set by staff</span>
+            }
           </div>
         </div>
+
+        {/* Next Due */}
+        {config.is_active && config.next_payment_date && (
+          <div className='flex items-center gap-1.5 texts-caption-large text-(--text-secondary)'>
+            <Calendar size={12} />
+            Next due: {formatDate(new Date(config.next_payment_date))}
+          </div>
+        )}
       </div>
     )
   }
@@ -484,6 +404,7 @@ export default function RecurringExpensesTable({
           data={data}
           className={className}
           emptyMessage={showProperty ? 'No recurring expense configs found.' : 'No recurring expenses configured for this property.'}
+          noPagnitation
           getRowCanExpand={(row) => row.original.expenses_count > 0}
           getRowId={(row) => row.id}
           renderSubComponent={(row) => (

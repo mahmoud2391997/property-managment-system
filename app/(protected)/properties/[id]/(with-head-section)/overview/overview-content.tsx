@@ -16,7 +16,8 @@ import {
   ArrowUpRight,
   CalendarCheck2,
   Plus,
-  Ban
+  Ban,
+  X
 } from 'lucide-react'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import { cn } from '@/lib/utils'
@@ -605,6 +606,24 @@ export default function OverviewContent ({ propertyId }: Props) {
     router.push(`/properties/${propertyId}/leases/add-lease`)
   }
 
+  const handleUnassignOwner = async () => {
+    try {
+      const response = await fetch(`/api/properties/${propertyId}/assign-owner`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner_id: null })
+      })
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to unassign owner')
+      }
+      FeedbackToasts.updated('Owner', 'Owner unassigned successfully')
+      fetchOverviewData()
+    } catch (err: any) {
+      FeedbackToasts.operationFailed('Unassign owner', err.message)
+    }
+  }
+
   const handleCancelBooking = async () => {
     if (!overviewData?.booking) return
     try {
@@ -791,6 +810,23 @@ export default function OverviewContent ({ propertyId }: Props) {
                       Owner
                     </span>
                   </div>
+                  <ConfirmationDialog
+                    openDialogButton={
+                      <button
+                        type='button'
+                        className='p-1 rounded-full hover:bg-neutral-100 transition-colors'
+                        title='Unassign owner'
+                      >
+                        <X size={16} className='text-neutral-400 hover:text-neutral-600' />
+                      </button>
+                    }
+                    title='Unassign Owner'
+                    description={<>Are you sure you want to unassign <strong>{overviewData.propertyOwner.name}</strong> from this property?</>}
+                    onConfirm={handleUnassignOwner}
+                    confirmButtonLabel='Unassign'
+                    confirmButtonLoadingLabel='Unassigning...'
+                    variant='confirm'
+                  />
                 </div>
               )
             }

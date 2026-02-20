@@ -36,6 +36,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const [propertyStatus, setPropertyStatus] = useState<string | null>(null)
   const [propertyImages, setPropertyImages] = useState<{ id: string; image_url: string; thumb_url: string }[]>([])
   const [propertyOwnerId, setPropertyOwnerId] = useState<string | null>(null)
+  const [hasActiveContract, setHasActiveContract] = useState<boolean>(false)
   const [isPropertyCodeLoading, setIsPropertyCodeLoading] =
     useState<boolean>(true)
 
@@ -91,6 +92,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
       setPropertyStatus(data.status)
       setPropertyImages(data.images || [])
       setPropertyOwnerId(data.assignedOwner?.id || null)
+      setHasActiveContract(data.hasActiveContract || false)
     }
   }
 
@@ -169,10 +171,11 @@ const WithHeadSectionLayout = ({ children }: Props) => {
               <AssignOwnerDialog
                 propertyId={propertyId}
                 currentOwnerId={propertyOwnerId}
+                hasActiveContract={hasActiveContract}
                 onSuccess={() => window.location.reload()}
                 trigger={
                   <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                    Assign owner
+                    {propertyOwnerId ? 'Change owner' : 'Assign owner'}
                   </DropdownMenuItem>
                 }
               />

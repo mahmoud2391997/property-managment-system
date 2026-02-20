@@ -15,13 +15,6 @@ export async function PUT(
     const body = await request.json()
     const { owner_id } = body
 
-    if (!owner_id) {
-      return NextResponse.json(
-        { error: 'Owner ID is required' },
-        { status: 400 }
-      )
-    }
-
     // Verify property belongs to the organization
     const property = await prisma.properties.findFirst({
       where: {
@@ -36,6 +29,33 @@ export async function PUT(
         { error: 'Property not found or does not belong to your organization' },
         { status: 404 }
       )
+    }
+
+    // If unassigning owner (owner_id is null), check for active contracts
+    if (!owner_id) {
+      const activeContract = await prisma.contracts.findFirst({
+        where: {
+          property_id: propertyId
+        },
+        select: { id: true }
+      })
+
+      if (activeContract) {
+        return NextResponse.json(
+          { error: 'Cannot unassign owner while property has an active contract' },
+          { status: 400 }
+        )
+      }
+
+      await prisma.properties.update({
+        where: { id: propertyId },
+        data: { owner_id: null }
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: 'Owner unassigned successfully'
+      })
     }
 
     // Verify owner belongs to the organization

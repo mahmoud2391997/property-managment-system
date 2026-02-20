@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import RecurringExpensesTable from '@/components/tables/recurring-expenses-table'
 import { RecurringExpenseConfigWithProperty } from '@/app/api/expenses/recurring-configs/route'
@@ -48,22 +47,17 @@ export default function RecurringExpensesConfigsSection({
 
   return (
     <>
-      {/* Actions */}
-      <div
-        className={cn(
-          'flex flex-col sm:flex-row justify-between sm:items-center gap-3',
-          'w-full'
-        )}
-      >
+      {/* Search */}
+      <div className='w-full'>
         <SearchInput
-          placeholder='Search configs'
+          placeholder='Search by title, property, or type...'
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
         />
       </div>
 
       {/* Status Tabs */}
-      <TabGroup className='-mx-5 px-5 mb-3'>
+      <TabGroup className='-mx-5 px-5 mb-1'>
         {STATUS_OPTIONS.map(status => (
           <Tab
             key={status}
@@ -76,13 +70,11 @@ export default function RecurringExpensesConfigsSection({
       </TabGroup>
 
       {/* Table */}
-      <div>
-        <RecurringExpensesTable
-          data={filteredData}
-          onRefresh={onRefresh}
-          showProperty
-        />
-      </div>
+      <RecurringExpensesTable
+        data={filteredData}
+        onRefresh={onRefresh}
+        showProperty
+      />
     </>
   )
 }

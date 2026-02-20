@@ -27,6 +27,7 @@ type props = {
   disabled?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  extraFooterContent?: React.ReactNode
 }
 export default function Dialog ({
   children,
@@ -40,7 +41,8 @@ export default function Dialog ({
   loading = false,
   disabled = false,
   open,
-  onOpenChange
+  onOpenChange,
+  extraFooterContent
 }: props) {
   return (
     <ShadcnDialog open={open} onOpenChange={onOpenChange}>
@@ -61,29 +63,34 @@ export default function Dialog ({
         </div>
         {(saveButtonLabel || cancelButtonLabel || footerButtons) && (
           <DialogFooter>
-            <div className='w-full flex items-center justify-end border-t border-(--border-strong) p-5 py-3 gap-3'>
-              {footerButtons ? (
-                footerButtons
-              ) : (
-                <>
-                  {cancelButtonLabel && (
-                    <DialogClose asChild>
-                      <Button variant='secondary' label={cancelButtonLabel} />
-                    </DialogClose>
-                  )}
-
-                  {saveButtonLabel && (
-                    <Button
-                      icon={<SaveButtonIcon />}
-                      label={saveButtonLabel}
-                      type='submit'
-                      form='dialog-form'
-                      loading={loading}
-                      disabled={disabled}
-                    />
-                  )}
-                </>
+            <div className='w-full flex items-center border-t border-(--border-strong) p-5 py-3 gap-3'>
+              {extraFooterContent && (
+                <div className='mr-auto'>{extraFooterContent}</div>
               )}
+              <div className='flex items-center gap-3 ml-auto'>
+                {footerButtons ? (
+                  footerButtons
+                ) : (
+                  <>
+                    {cancelButtonLabel && (
+                      <DialogClose asChild>
+                        <Button variant='secondary' label={cancelButtonLabel} />
+                      </DialogClose>
+                    )}
+
+                    {saveButtonLabel && (
+                      <Button
+                        icon={<SaveButtonIcon />}
+                        label={saveButtonLabel}
+                        type='submit'
+                        form='dialog-form'
+                        loading={loading}
+                        disabled={disabled}
+                      />
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </DialogFooter>
         )}

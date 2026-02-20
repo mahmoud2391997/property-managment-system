@@ -44,6 +44,7 @@ import { useNotifications } from '@/contexts/notification-context'
 import { logout } from '@/app/(auth)/logout/actions'
 import { UserAvatar } from './costume-ui/name-avatar'
 import ConfirmationDialog from './costume-ui/confirmation-dialog'
+import { CommandPalette, CommandPaletteTrigger } from './command-palette'
 
 export default function AppSidebar () {
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
@@ -321,6 +322,9 @@ export default function AppSidebar () {
         </div>
       </SidebarHeader>
       <SidebarContent className='gap-4! py-2!'>
+        {/* Command Palette */}
+        <CommandPalette />
+
         {userType === null ? (
           // Show skeleton while loading
           <AppSidebarSkeleton isSidebarOpen={effectiveSidebarOpen} />
@@ -328,6 +332,7 @@ export default function AppSidebar () {
           <>
             {/* Menu */}
             <SidebarGroup className='p-0 gap-2.5!'>
+              <CommandPaletteTrigger />
               <SidebarGroupLabel
                 className={cn(
                   'texts-label-small text-neutral-500',

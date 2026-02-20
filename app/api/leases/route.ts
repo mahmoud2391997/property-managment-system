@@ -17,12 +17,14 @@ export async function GET(request: Request) {
     // Fetch all active leases for the organization (lightweight)
     if (all === 'true') {
       const includeAgent = searchParams.get('includeAgent') === 'true'
+      const includeTenant = searchParams.get('includeTenant') === 'true'
 
       const leases = await prisma.leases.findMany({
         where: {
           organization_id: staff.organization_id,
           status: 'Current',
-          ...(propertyId && { property_id: propertyId })
+          ...(propertyId && { property_id: propertyId }),
+          ...(roomId && { room_id: roomId })
         },
         select: {
           id: true,
@@ -36,6 +38,18 @@ export async function GET(request: Request) {
                 id: true,
                 first_name: true,
                 last_name: true
+              }
+            }
+          }),
+          ...(includeTenant && {
+            tenants: {
+              select: {
+                individual_tenants: {
+                  select: { first_name: true, last_name: true }
+                },
+                company_tenants: {
+                  select: { company_name: true }
+                }
               }
             }
           })
@@ -54,6 +68,11 @@ export async function GET(request: Request) {
             agent: l.agents
               ? { id: l.agents.id, name: `${l.agents.first_name} ${l.agents.last_name || ''}`.trim() }
               : null
+          }),
+          ...(includeTenant && {
+            tenant: l.tenants?.individual_tenants
+              ? `${l.tenants.individual_tenants.first_name} ${l.tenants.individual_tenants.last_name || ''}`.trim()
+              : l.tenants?.company_tenants?.company_name || null
           })
         }))
       })

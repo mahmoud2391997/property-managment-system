@@ -6,21 +6,33 @@ import InputGroup from '../costume-ui/input-group'
 import Combobox from '../costume-ui/combobox'
 import { FeedbackToasts } from '../costume-ui/feedback-toast'
 import { ComboBoxitemsType } from '@/types'
+import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 
 type Props = {
   propertyId: string
   currentOwnerId?: string | null
-  trigger: React.ReactElement
+  hasActiveContract?: boolean
+  trigger?: React.ReactElement
   onSuccess?: () => void
+  controlledOpen?: boolean
+  onControlledOpenChange?: (open: boolean) => void
 }
 
 export default function AssignOwnerDialog({
   propertyId,
   currentOwnerId,
+  hasActiveContract = false,
   trigger,
-  onSuccess
+  onSuccess,
+  controlledOpen,
+  onControlledOpenChange,
 }: Props) {
-  const [open, setOpen] = useState(false)
+  const [_open, _setOpen] = useState(false)
+  const open = controlledOpen ?? _open
+  const setOpen = (v: boolean) => {
+    if (onControlledOpenChange) onControlledOpenChange(v)
+    else _setOpen(v)
+  }
   const [loading, setLoading] = useState(false)
   const [fetchingOwners, setFetchingOwners] = useState(true)
   const [ownerItems, setOwnerItems] = useState<ComboBoxitemsType[]>([])
@@ -82,6 +94,31 @@ export default function AssignOwnerDialog({
     }
   }
 
+  const handleUnassign = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/properties/${propertyId}/assign-owner`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner_id: null })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to unassign owner')
+      }
+
+      FeedbackToasts.updated('Owner', 'Owner unassigned successfully')
+      setOpen(false)
+      onSuccess?.()
+    } catch (error: any) {
+      console.error('Error unassigning owner:', error)
+      FeedbackToasts.error(error.message || 'Failed to unassign owner')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const canSubmit = !!selectedOwnerId && selectedOwnerId !== currentOwnerId
 
   return (
@@ -95,6 +132,37 @@ export default function AssignOwnerDialog({
       disabled={!canSubmit}
       open={open}
       onOpenChange={setOpen}
+      extraFooterContent={
+        currentOwnerId ? (
+          hasActiveContract ? (
+            <button
+              type='button'
+              disabled
+              className='texts-body-small-medium text-neutral-400 cursor-not-allowed'
+              title='Cannot unassign owner while property has an active contract'
+            >
+              Unassign
+            </button>
+          ) : (
+            <ConfirmationDialog
+              openDialogButton={
+                <button
+                  type='button'
+                  className='texts-body-small-medium text-red-600 hover:text-red-700 transition-colors'
+                >
+                  Unassign
+                </button>
+              }
+              title='Unassign Owner'
+              description='Are you sure you want to unassign the owner from this property?'
+              onConfirm={handleUnassign}
+              confirmButtonLabel='Unassign'
+              confirmButtonLoadingLabel='Unassigning...'
+              variant='confirm'
+            />
+          )
+        ) : undefined
+      }
     >
       <form id='dialog-form' onSubmit={handleSubmit} className='space-y-5'>
         {fetchingOwners ? (

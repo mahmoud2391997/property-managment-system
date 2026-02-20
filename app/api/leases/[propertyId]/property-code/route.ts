@@ -87,11 +87,18 @@ export async function GET (
         }
       : null
 
+    // Check if property has an active contract
+    const activeContract = await prisma.contracts.findFirst({
+      where: { property_id: propertyId },
+      select: { id: true }
+    })
+
     return NextResponse.json({
       property: property.code,
       status: displayStatus,
       images: property.property_images,
-      assignedOwner
+      assignedOwner,
+      hasActiveContract: !!activeContract
     })
   } catch (error) {
     console.error('Error fetching properties:', error)
