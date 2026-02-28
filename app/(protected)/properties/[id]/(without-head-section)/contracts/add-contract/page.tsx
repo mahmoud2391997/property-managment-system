@@ -13,9 +13,10 @@ import ReminderSection from '@/components/costume-ui/reminder-section'
 import CollapsibleSection from '@/components/costume-ui/collapsible-section'
 import { ComboBoxitemsType } from '@/types'
 import { ChargeData } from '@/components/costume-ui/charges-section'
+import { contractChargeTypes } from '@/utils/data'
 import Alert from '@/components/costume-ui/alert'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
-import { Check, Info } from 'lucide-react'
+import { Check, Info, X } from 'lucide-react'
 import { formatDate, formatDateForAPI } from '@/utils/formatTime'
 import { cn } from '@/lib/utils'
 
@@ -384,23 +385,7 @@ const AddContract = () => {
           </div>
           <div className='inputs-container'>
             <InputGroup label='Owner' isRequired>
-              {assignedOwner ? (
-                <Combobox
-                  items={[{
-                    id: assignedOwner.id,
-                    label: assignedOwner.name,
-                    avatar: assignedOwner.profile_thumb || undefined
-                  }]}
-                  searchPlaceholder='Search owners'
-                  variant='single'
-                  placeholder={assignedOwner.name}
-                  showAvatar
-                  value={assignedOwner.id}
-                  onValueChange={() => {}}
-                  disabled
-                  disabledReason='Owner is assigned to this property'
-                />
-              ) : (
+              <div className='relative'>
                 <Combobox
                   items={ownerItems}
                   searchPlaceholder='Search owners'
@@ -411,28 +396,39 @@ const AddContract = () => {
                   showAvatar
                   isLoading={loadingOwners}
                   loadingMessage='Fetching owners...'
+                  value={selectedOwnerId || undefined}
                   onValueChange={value => setSelectedOwnerId(value || null)}
                   required
                 />
-              )}
+                {selectedOwnerId && (
+                  <button
+                    type='button'
+                    onClick={() => setSelectedOwnerId(null)}
+                    className='absolute right-9 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-neutral-100 transition-colors'
+                    title='Clear owner selection'
+                  >
+                    <X size={14} className='text-neutral-500' />
+                  </button>
+                )}
+              </div>
             </InputGroup>
           </div>
           {/* Owner assignment note */}
-          {assignedOwner ? (
+          {assignedOwner && selectedOwnerId === assignedOwner.id ? (
             <div className='p-3 rounded-md bg-blue-50 border border-blue-200'>
               <div className='flex items-start gap-2 text-sm text-blue-800'>
                 <Info strokeWidth={1.5} size={18} className='mt-0.5 shrink-0' />
                 <p>This property is assigned to <span className='font-medium'>{assignedOwner.name}</span>.</p>
               </div>
             </div>
-          ) : selectedOwnerId && (
+          ) : selectedOwnerId && selectedOwnerId !== assignedOwner?.id ? (
             <div className='p-3 rounded-md bg-amber-50 border border-amber-200'>
               <div className='flex items-start gap-2 text-sm text-amber-800'>
                 <Info strokeWidth={1.5} size={18} className='mt-0.5 shrink-0' />
-                <p>The selected owner will also be assigned to this property.</p>
+                <p>The selected owner will be assigned to this property{assignedOwner ? `, replacing ${assignedOwner.name}` : ''}.</p>
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Billing Frequency */}
           <InputGroup label='Billing Frequency'>
@@ -564,6 +560,8 @@ const AddContract = () => {
           showLateCharges={false}
           chargesSubtitle='Set up one-time charges at contract signing'
           chargesFlowType='outcome'
+          customChargeTypes={contractChargeTypes}
+          showRefundable={true}
           monthlyRentLabel='Monthly Rental Expense'
           paymentStatusLabel='Initial Charges Expense Status'
           leadDays={leadDays}

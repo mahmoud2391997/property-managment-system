@@ -4,7 +4,8 @@ import InputCard from './input-card'
 import InputGroup from './input-group'
 import Input from './input'
 import Select from './select'
-import { chargeTypes } from '@/utils/data'
+import { chargeTypes as defaultChargeTypes } from '@/utils/data'
+import type { ChargeTypeType } from '@/types'
 import { CheckAddon } from './payment-section'
 import Button from './button'
 import { Plus } from 'lucide-react'
@@ -46,6 +47,8 @@ type Props = {
   excludedChargeTypes?: string[]
   allChargesSelectable?: boolean
   allowAllRemovable?: boolean
+  customChargeTypes?: ChargeTypeType[]
+  showRefundable?: boolean
 }
 const ChargesSection = ({
   title = 'Charges',
@@ -57,8 +60,11 @@ const ChargesSection = ({
   defaultCharges,
   excludedChargeTypes = [],
   allChargesSelectable = false,
-  allowAllRemovable = false
+  allowAllRemovable = false,
+  customChargeTypes,
+  showRefundable
 }: Props) => {
+  const chargeTypes = customChargeTypes || defaultChargeTypes
   // Filter out excluded charge types - memoized to prevent infinite re-renders
   // Use JSON.stringify for stable dependency since excludedChargeTypes array reference changes
   const excludedTypesKey = JSON.stringify(excludedChargeTypes)
@@ -442,7 +448,7 @@ const ChargesSection = ({
                 />
               )}
 
-              {(selectable ? config?.refundable : charge.refundable) && flowType === 'income' && (
+              {(selectable ? config?.refundable : charge.refundable) && (showRefundable ?? flowType === 'income') && (
                 <CheckAddon
                   label='Refundable'
                   checked={charge.isRefundableChecked ?? (charge.type === 'Security Deposit')}

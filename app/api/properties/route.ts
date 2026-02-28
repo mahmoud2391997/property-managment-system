@@ -197,6 +197,8 @@ export async function GET (req: Request) {
     }
 
     // Legacy mode: return all properties (backward compatibility)
+    const vacant = searchParams.get('vacant') === 'true'
+
     let properties
     if (fieldsParam) {
       // When selecting specific fields, use select with projects included
@@ -216,10 +218,38 @@ export async function GET (req: Request) {
         }
       }
 
+      const whereClauseLegacy: any = {
+        organization_id: staff.organization_id
+      }
+
+      // Filter to only vacant properties (no Current property-level lease and no Current booking)
+      if (vacant) {
+        whereClauseLegacy.AND = [
+          {
+            NOT: {
+              leases: {
+                some: {
+                  status: 'Current',
+                  room_id: null
+                }
+              }
+            }
+          },
+          {
+            NOT: {
+              bookings: {
+                some: {
+                  status: 'Current',
+                  room_id: null
+                }
+              }
+            }
+          }
+        ]
+      }
+
       properties = await prisma.properties.findMany({
-        where: {
-          organization_id: staff.organization_id
-        },
+        where: whereClauseLegacy,
         select: selectFields,
         orderBy: {
           created_at: 'desc'

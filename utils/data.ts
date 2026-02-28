@@ -1158,9 +1158,18 @@ export const chargeTypes: ChargeTypeType[] = [
   { type: 'Legal Fees', taxable: false, refundable: false }
 ]
 
+export const contractChargeTypes: ChargeTypeType[] = [
+  { type: 'First Month Rental', taxable: false, refundable: false },
+  { type: 'Security Deposit', taxable: false, refundable: true },
+  { type: 'Utility Deposit', taxable: false, refundable: true },
+  { type: 'Access Card Deposit', taxable: false, refundable: true },
+  { type: 'Tenancy Agreement', taxable: false, refundable: true },
+  { type: 'Legal Fees', taxable: false, refundable: false }
+]
+
 export const propertyExpenseTypes: PaymentType[] = [
   { type: 'Refund' },
-  { type: 'Agent_Commission' },
+  { type: 'Agent_Commission', isRecurrable: true, isFixedByDefault: true },
   { type: 'Maintenance', isRecurrable: true, isFixedByDefault: false },
   { type: 'Cleaning_Service', isRecurrable: true, isFixedByDefault: true },
   { type: 'Internet_Bill', isRecurrable: true, isFixedByDefault: true },

@@ -85,6 +85,45 @@ const paymentSelect = {
       time_unit: true,
       event_on: true
     }
+  },
+  bookings: {
+    select: {
+      property_id: true,
+      room_id: true,
+      properties: {
+        select: {
+          code: true,
+          projects: {
+            select: {
+              title: true
+            }
+          }
+        }
+      },
+      rooms: {
+        select: {
+          title: true
+        }
+      },
+      tenants: {
+        select: {
+          id: true,
+          type: true,
+          profile_pic: true,
+          individual_tenants: {
+            select: {
+              first_name: true,
+              last_name: true
+            }
+          },
+          company_tenants: {
+            select: {
+              company_name: true
+            }
+          }
+        }
+      }
+    }
   }
 }
 

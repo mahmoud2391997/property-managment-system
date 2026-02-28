@@ -34,9 +34,13 @@ const LoginForm = ({
 
     const formData = new FormData(e.currentTarget);
 
-    const error: string | void = await login(formData);
-    if (error)
-      setError(error);
+    try {
+      const error: string | void = await login(formData);
+      if (error)
+        setError(error);
+    } catch {
+      setError("Unable to connect. Please check your internet and try again");
+    }
 
     setLoading(false);
   };

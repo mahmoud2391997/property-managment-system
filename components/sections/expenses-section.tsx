@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
 import { AddButtonIcon } from '@/components/costume-ui/icon'
+import { Repeat } from 'lucide-react'
 import ExpensesTable from '@/components/tables/expenses-table'
 import Link from 'next/link'
 import { ExpenseWithDetails } from '@/lib/expenses-utils'
@@ -84,6 +85,14 @@ export default function ExpensesSection({
         />
         {/* Buttons */}
         <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
+          <Link href='/expenses/recurring-configs' className='flex-1 sm:flex-none'>
+            <Button
+              variant='secondary'
+              icon={<Repeat size={16} />}
+              label='Recurring Configs'
+              className='w-full'
+            />
+          </Link>
           <Link href='/expenses/add-expense' className='flex-1 sm:flex-none'>
             <Button
               icon={<AddButtonIcon className='text-neutral-300' />}

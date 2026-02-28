@@ -60,6 +60,31 @@ type RawPayment = {
   charges: RawCharge[]
   payment_history: RawPaymentHistory[]
   recurring_configs: RawRecurringConfig | null
+  bookings: {
+    property_id: string
+    room_id: string | null
+    properties: {
+      code: string
+      projects: {
+        title: string
+      } | null
+    } | null
+    rooms: {
+      title: string
+    } | null
+    tenants: {
+      id: string
+      type: string
+      profile_pic: string | null
+      individual_tenants: {
+        first_name: string
+        last_name: string | null
+      } | null
+      company_tenants: {
+        company_name: string
+      } | null
+    } | null
+  } | null
 }
 
 export type LatePaymentChargeInfo = {
@@ -166,8 +191,8 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
     }
   }
 
-  // Get tenant name based on type
-  const tenant = payment.leases?.tenants
+  // Get tenant name based on type (check leases first, then bookings)
+  const tenant = payment.leases?.tenants || payment.bookings?.tenants
   let tenantName = 'N/A'
   if (tenant) {
     if (tenant.type === 'Individual' && tenant.individual_tenants) {
@@ -192,10 +217,10 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
   return {
     id: payment.reference_id,
     type: payment.type,
-    property: payment.leases?.properties?.code || 'N/A',
-    property_id: payment.leases?.property_id || null,
-    room: payment.leases?.rooms?.title || 'Whole unit',
-    room_id: payment.leases?.room_id || null,
+    property: payment.leases?.properties?.code || payment.bookings?.properties?.code || 'N/A',
+    property_id: payment.leases?.property_id || payment.bookings?.property_id || null,
+    room: payment.leases?.rooms?.title || payment.bookings?.rooms?.title || 'Whole unit',
+    room_id: payment.leases?.room_id || payment.bookings?.room_id || null,
     lease_id: payment.leases?.id || null,
     lease_reference_id: payment.leases?.reference_id || null,
     due_date: payment.due_payment_timestamp,

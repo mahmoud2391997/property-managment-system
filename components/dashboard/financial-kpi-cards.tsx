@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { InfoPopover } from '@/components/info-popover'
 import { TrendingUp, TrendingDown } from 'lucide-react'
@@ -158,7 +159,10 @@ export function RentalReceivedCard({ totalDue, totalReceived, className }: Renta
 
 export function RentalOverdueCard({ overdueAmount, overdueCount, overdueThisMonth, overduePreviousMonths, className }: RentalOverdueCardProps) {
   return (
-    <div className={cn('px-6 flex flex-col', className)}>
+    <Link
+      href="/payments?type=Rental&status=Overdue"
+      className={cn('px-6 flex flex-col group cursor-pointer rounded-lg transition-colors hover:bg-(--background-secondary)', className)}
+    >
       <span className="texts-label-medium text-(--text-secondary) flex items-center">
         Rental Overdue
         <InfoPopover
@@ -181,7 +185,7 @@ export function RentalOverdueCard({ overdueAmount, overdueCount, overdueThisMont
         <StatRow label="This Month" value={fmt(overdueThisMonth)} color="#b45309" />
         <StatRow label="Previous Months" value={fmt(overduePreviousMonths)} color="#475569" />
       </div>
-    </div>
+    </Link>
   )
 }
 
