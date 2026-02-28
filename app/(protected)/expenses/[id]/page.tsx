@@ -39,7 +39,7 @@ export type ExpenseDetailsData = {
   reference_id: string
   category: string
   description: string | null
-  expense_proof: string | null
+  expense_evidence: string | null
   status: string
   due_payment_date: string | null
   created_at: string
@@ -137,7 +137,7 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
         reference_id: true,
         category: true,
         description: true,
-        expense_proof: true,
+        expense_evidence: true,
         status: true,
         due_payment_date: true,
         created_at: true,
@@ -388,7 +388,7 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
       reference_id: expense.reference_id,
       category: expense.category,
       description: expense.description,
-      expense_proof: expense.expense_proof,
+      expense_evidence: expense.expense_evidence,
       status: expense.status,
       due_payment_date: expense.due_payment_date?.toISOString() || null,
       created_at: expense.created_at.toISOString(),
