@@ -25,7 +25,8 @@ import {
   contractExpenseTypes,
   companyExpenseTypes,
   purchaseExpenseTypes,
-  staffExpenseTypes
+  staffExpenseTypes,
+  contractChargeTypes
 } from '@/utils/data'
 import { formatPaymentTypeLabel } from '@/utils/functions'
 import { formatCurrency } from '@/utils/formatCurrency'
@@ -181,7 +182,9 @@ const AddExpense = () => {
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(undefined)
   const [paymentTime, setPaymentTime] = useState<string>('10:30:00')
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
+  const [expenseProofFile, setExpenseProofFile] = useState<File | null>(null)
   const [charges, setCharges] = useState<any[]>([])
+  const [excludedChargeTypes, setExcludedChargeTypes] = useState<string[]>([])
   const [recurringConfig, setRecurringConfig] = useState<RecurringExpenseConfigData | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -508,6 +511,24 @@ const AddExpense = () => {
         }
       }
 
+      // Upload expense proof if provided
+      let expenseProofUrl = null
+      if (expenseProofFile) {
+        const formData = new FormData()
+        formData.append('file', expenseProofFile)
+        formData.append('bucket', 'expense-proof')
+
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (uploadRes.ok) {
+          const { url } = await uploadRes.json()
+          expenseProofUrl = url
+        }
+      }
+
       // Format date for API
       const formattedDate = formatDateForAPI(paymentDate)
 
@@ -542,6 +563,7 @@ const AddExpense = () => {
           payment_date: formattedDate,
           payment_time: paymentTime,
           receipt_image: receiptUrl,
+          expense_proof: expenseProofUrl,
           recurring_config: recurringConfig ? {
             ...recurringConfig,
             every: 1,
@@ -742,6 +764,30 @@ const AddExpense = () => {
 
     fetchContracts()
   }, [selectedIndex])
+
+  // Fetch used charge types for contract initial charges (prevents duplicates)
+  useEffect(() => {
+    if (selectedIndex !== 1 || !selectedContractId) {
+      setExcludedChargeTypes([])
+      return
+    }
+
+    const fetchUsedChargeTypes = async () => {
+      try {
+        const response = await fetch(
+          `/api/expenses/contract-initial-charges?contract_id=${selectedContractId}`
+        )
+        if (!response.ok) throw new Error('Failed to fetch used charges')
+        const data = await response.json()
+        setExcludedChargeTypes(data.usedChargeTitles)
+      } catch (error) {
+        console.error('Error fetching used charge types:', error)
+        setExcludedChargeTypes([])
+      }
+    }
+
+    fetchUsedChargeTypes()
+  }, [selectedIndex, selectedContractId])
 
   // Fetch staff when Staff Related is selected
   useEffect(() => {
@@ -1810,6 +1856,11 @@ const AddExpense = () => {
           flowType='outcome'
           selectable={selectable}
           onChargesChange={setCharges}
+          customChargeTypes={selectable ? contractChargeTypes : undefined}
+          excludedChargeTypes={selectable ? excludedChargeTypes : []}
+          allChargesSelectable={selectable}
+          allowAllRemovable={selectable}
+          showRefundable={selectable}
         />
       )}
 
@@ -1860,17 +1911,33 @@ const AddExpense = () => {
           </InputGroup>
         </div>
 
+        {/* Expense Proof - Always visible */}
+        <div className='flex flex-col gap-2'>
+          <InputGroup label='Expense Proof (Optional)'>
+            <p className='texts-caption-large text-(--text-secondary) mb-2 -mt-1'>
+              Upload proof of why this expense was added (e.g., invoice, bill, quotation, receipt)
+            </p>
+            <UploadFile onFileChange={setExpenseProofFile} />
+          </InputGroup>
+        </div>
+
+        {/* Receipt Upload - Required for Bank Transfer paid expenses */}
         <div
           className={cn(
             'trnasition-all duration-200 ease-out overflow-hidden',
             isPaid && paymentMethod === 'Bank Transfer'
               ? receiptFile
-                ? 'h-19'
-                : 'h-49'
+                ? 'h-35'
+                : 'h-55'
               : 'h-0 opacity-0'
           )}
         >
-          <UploadFile onFileChange={setReceiptFile} />
+          <InputGroup label='Payment Receipt' isRequired={isPaid && paymentMethod === 'Bank Transfer'}>
+            <p className='texts-caption-large text-(--text-secondary) mb-2 -mt-1'>
+              Upload the bank transfer receipt as proof of payment
+            </p>
+            <UploadFile onFileChange={setReceiptFile} />
+          </InputGroup>
         </div>
       </div>
 

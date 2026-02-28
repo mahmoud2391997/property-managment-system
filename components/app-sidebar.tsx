@@ -322,8 +322,8 @@ export default function AppSidebar () {
         </div>
       </SidebarHeader>
       <SidebarContent className='gap-4! py-2!'>
-        {/* Command Palette */}
-        <CommandPalette />
+        {/* Command Palette (staff only) */}
+        {userType === 'staff' && <CommandPalette />}
 
         {userType === null ? (
           // Show skeleton while loading
@@ -332,7 +332,7 @@ export default function AppSidebar () {
           <>
             {/* Menu */}
             <SidebarGroup className='p-0 gap-2.5!'>
-              <CommandPaletteTrigger />
+              {userType === 'staff' && <CommandPaletteTrigger />}
               <SidebarGroupLabel
                 className={cn(
                   'texts-label-small text-neutral-500',

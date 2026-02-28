@@ -256,6 +256,12 @@ export default function ExpenseDetailsContent({ expense }: Props) {
                 <Copy size={14} className='mr-2' />
                 Copy Expense ID
               </DropdownMenuItem>
+              {expense.expense_proof && (
+                <DropdownMenuItem onClick={() => window.open(expense.expense_proof || '', '_blank')}>
+                  <FileText size={14} className='mr-2' />
+                  View Expense Proof
+                </DropdownMenuItem>
+              )}
               {canDelete && (
                 <>
                   <DropdownMenuSeparator />
@@ -615,6 +621,28 @@ export default function ExpenseDetailsContent({ expense }: Props) {
 
         {/* Right Column - Sidebar */}
         <div className='w-full lg:w-80 flex flex-col gap-5'>
+          {/* Expense Proof Card */}
+          {expense.expense_proof && (
+            <div className='card-styles'>
+              <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
+                <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-rose-100 text-rose-600'>
+                  <FileText size={19} strokeWidth={1.5} />
+                </div>
+                <span className='texts-body-medium-medium'>Expense Proof</span>
+              </div>
+
+              <div className='pt-4'>
+                <button
+                  onClick={() => window.open(expense.expense_proof || '', '_blank')}
+                  className='w-full flex items-center justify-center gap-2 py-2.5 texts-button-primary text-(--info-main) bg-(--info-light) rounded-lg hover:opacity-80 transition-opacity'
+                >
+                  <ExternalLink size={14} />
+                  View Document
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Dates Card */}
           <div className='card-styles'>
             <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
