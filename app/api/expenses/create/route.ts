@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       payment_date,
       payment_time,
       receipt_image,
-      expense_proof,
+      expense_evidence,
       recurring_config,
       // Category-specific fields
       property_id,
@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
           reference_id: expense_reference_id,
           category,
           description: description || null,
-          expense_proof: expense_proof || null,
+          expense_evidence: expense_evidence || null,
           status,
           due_payment_date: is_paid ? null : paymentDateTime,
           organization_id: staff.organization_id,
