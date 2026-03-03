@@ -94,10 +94,10 @@ export default function TenantsTable ({
               size={30}
               className='text-[11px]!'
             />
-            <div className='flex flex-col'>
+            <Link href={`/tenants/${tenant.id}/overview`} className='flex flex-col hover:underline'>
               <span className='texts-table-cell-primary'>{fullName}</span>
               <span className='texts-table-cell-secondary text-(--text-secondary)'>{tenant.email}</span>
-            </div>
+            </Link>
           </div>
         )
       }
@@ -458,9 +458,9 @@ export default function TenantsTable ({
 
             <div>
               <div className='flex flex-col gap-1 flex-wrap'>
-                <span className='texts-body-medium-semibold text-(--text-primary)'>
+                <Link href={`/tenants/${tenant.id}/overview`} className='texts-body-medium-semibold text-(--text-primary) hover:underline'>
                   {fullName}
-                </span>
+                </Link>
                 <div className='flex gap-1 w-full h-fit'>
                   <div
                     data-status={statusKey}

@@ -370,7 +370,7 @@ export async function POST(request: NextRequest) {
             title: recurring_config.title,
             every: recurring_config.every,
             time_unit: 'Month',
-            event_on: recurring_config.event_on || null,
+            event_on: '1',
             is_payment_fixed: recurring_config.is_payment_fixed ?? false,
             offset_days: recurring_config.offset_days ?? 7,
             created_by: staff.id,

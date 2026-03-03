@@ -173,6 +173,7 @@ export async function GET(
       email,
       accountStatus,
       inviteSent: tenant.invite_sent ?? false,
+      identityDocumentUrl: tenant.identity_card_url || null,
       createdAt: organizationTenant.created_at.toISOString()
     }
 

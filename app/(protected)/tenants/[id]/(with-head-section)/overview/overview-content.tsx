@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,10 +19,11 @@ import {
   Banknote,
   ExternalLink,
   User,
-  Building
+  Building,
+  Upload,
+  Loader2
 } from 'lucide-react'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
-import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { formatCurrency } from '@/utils/formatCurrency'
@@ -30,6 +31,9 @@ import { formatDate } from '@/utils/formatTime'
 import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
+import FileAttachment from '@/components/costume-ui/file-attachment'
+import { compressImage } from '@/lib/image-compression'
+import { showFeedbackToast } from '@/components/costume-ui/feedback-toast'
 
 // Types for tenant data
 type LeaseData = {
@@ -70,6 +74,7 @@ type TenantData = {
   email: string
   identity_type?: 'mykad' | 'passport'
   identity_number?: string
+  identityDocumentUrl?: string | null
   accountStatus: 'Activated' | 'Pending'
   inviteSent: boolean
   createdAt: string
@@ -234,12 +239,149 @@ const RentalCard = ({ lease }: RentalCardProps) => {
   )
 }
 
+// Identity Document Section (inside TenantInfoCard)
+const IdentityDocumentSection = ({
+  tenant,
+  onDocumentUploaded
+}: {
+  tenant: TenantData
+  onDocumentUploaded?: (url: string) => void
+}) => {
+  const label = tenant.identity_type === 'mykad' ? 'MyKad' : 'Passport'
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+
+  const handleFileSelect = (file: File) => {
+    // Validate file size (2MB max)
+    if (file.size > 2 * 1024 * 1024) {
+      showFeedbackToast({ title: 'File too large', description: 'Maximum file size is 2MB', type: 'error' })
+      return
+    }
+    setSelectedFile(file)
+  }
+
+  const handleConfirmUpload = async () => {
+    if (!selectedFile) return
+
+    setUploading(true)
+    try {
+      let uploadFile: File | Blob = selectedFile
+
+      // Compress images to 40% quality
+      if (selectedFile.type.startsWith('image/')) {
+        const { mainBlob } = await compressImage(selectedFile, { mainQuality: 0.4 })
+        uploadFile = mainBlob
+      }
+
+      const formData = new FormData()
+      formData.append('file', uploadFile, selectedFile.name)
+
+      const response = await fetch(`/api/tenants/${tenant.id}/upload-identity-doc`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Upload failed')
+      }
+
+      const data = await response.json()
+      onDocumentUploaded?.(data.url)
+      setSelectedFile(null)
+    } catch (error: any) {
+      console.error('Upload error:', error)
+      showFeedbackToast({ title: 'Upload failed', description: error.message || 'Please try again.', type: 'error' })
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  return (
+    <div className='flex flex-col gap-2'>
+      <span className='texts-caption-small text-(--text-secondary)'>
+        {label} Document
+      </span>
+      {tenant.identityDocumentUrl ? (
+        <FileAttachment
+          url={tenant.identityDocumentUrl}
+          fileName={`${label}_Document`}
+        />
+      ) : selectedFile ? (
+        <div className='flex items-center justify-between gap-2 p-3 rounded-lg border border-(--border-default) bg-(--background-secondary)'>
+          <div className='flex items-center gap-2 min-w-0'>
+            <IdCard size={16} className='text-(--text-secondary) shrink-0' />
+            <span className='texts-body-small-medium truncate'>{selectedFile.name}</span>
+          </div>
+          <div className='flex items-center gap-2 shrink-0'>
+            <Button
+              variant='ghost'
+              size='sm'
+              onClick={() => {
+                setSelectedFile(null)
+                if (fileInputRef.current) fileInputRef.current.value = ''
+              }}
+              disabled={uploading}
+            >
+              Cancel
+            </Button>
+            <Button
+              size='sm'
+              onClick={handleConfirmUpload}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <>
+                  <Loader2 size={14} className='animate-spin' />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload size={14} />
+                  Upload
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          variant='outline'
+          className='w-full border-dashed'
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload size={16} />
+          Upload {label} Document
+        </Button>
+      )}
+      <input
+        ref={fileInputRef}
+        type='file'
+        accept='image/jpeg,image/png,image/webp,application/pdf'
+        className='hidden'
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) handleFileSelect(file)
+        }}
+      />
+      {!tenant.identityDocumentUrl && !selectedFile && (
+        <span className='texts-caption-large text-(--text-secondary)'>
+          Accepted: JPG, PNG, WebP, PDF (max 2MB)
+        </span>
+      )}
+    </div>
+  )
+}
+
 // Tenant Info Card Component
 type TenantInfoCardProps = {
   tenant: TenantData
+  onDocumentUploaded?: (url: string) => void
 }
 
-const TenantInfoCard = ({ tenant }: TenantInfoCardProps) => {
+const TenantInfoCard = ({ tenant, onDocumentUploaded }: TenantInfoCardProps) => {
   const isIndividual = tenant.type === 'Individual'
   const displayName = isIndividual
     ? `${tenant.first_name}${tenant.last_name ? ` ${tenant.last_name}` : ''}`
@@ -391,6 +533,14 @@ const TenantInfoCard = ({ tenant }: TenantInfoCardProps) => {
           </div>
         </div>
       </div>
+
+      {/* Identity Document */}
+      {isIndividual && (
+        <IdentityDocumentSection
+          tenant={tenant}
+          onDocumentUploaded={onDocumentUploaded}
+        />
+      )}
     </div>
   )
 }
@@ -508,7 +658,15 @@ export default function OverviewContent({ tenantId }: Props) {
   return (
     <div className='flex flex-col gap-5'>
       {/* Tenant Information */}
-      <TenantInfoCard tenant={data.tenant} />
+      <TenantInfoCard
+        tenant={data.tenant}
+        onDocumentUploaded={(url) => {
+          setData(prev => prev ? {
+            ...prev,
+            tenant: { ...prev.tenant, identityDocumentUrl: url }
+          } : prev)
+        }}
+      />
 
       {/* Current Rentals Section */}
       <div className='flex items-center justify-between'>

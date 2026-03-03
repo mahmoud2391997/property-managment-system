@@ -1644,6 +1644,7 @@ model tenants {
   created_at            DateTime                @default(now()) @db.Timestamptz(6)
   created_by            String?                 @db.Uuid
   invite_sent           Boolean?                @default(false)
+  identity_card_url     String?
   bookings              bookings[]
   company_tenants       company_tenants?
   individual_tenants    individual_tenants?
