@@ -563,7 +563,7 @@ const AddExpense = () => {
           payment_date: formattedDate,
           payment_time: paymentTime,
           receipt_image: receiptUrl,
-          expense_proof: expenseProofUrl,
+          expense_evidence: expenseProofUrl,
           recurring_config: recurringConfig ? {
             ...recurringConfig,
             every: 1,

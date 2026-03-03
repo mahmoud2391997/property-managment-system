@@ -66,7 +66,7 @@ export type RoomWithDetails = {
   property: string
   project: string | null
   status: DisplayStatus
-  isBooked: boolean
+  isBooked: string | null
   tenantPhone?: string | null
   features?: RoomFeatures
 }
@@ -116,7 +116,9 @@ export function transformRoom(room: RawRoom): RoomWithDetails {
   }
 
   // Check if room has a current booking, or property has a property-level booking
-  const isBooked = (room.bookings?.length ?? 0) > 0 || (room.properties?.bookings?.length ?? 0) > 0
+  const hasRoomBooking = (room.bookings?.length ?? 0) > 0
+  const hasPropertyBooking = (room.properties?.bookings?.length ?? 0) > 0
+  const isBooked = hasRoomBooking ? 'Booked' : hasPropertyBooking ? 'Property Booked' : null
 
   return {
     id: room.id,

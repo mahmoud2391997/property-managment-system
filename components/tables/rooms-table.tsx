@@ -43,7 +43,7 @@ type RoomTableData = {
     | 'Under_Preparation'
     | 'Property_Rented'
     | 'Property_Not_Ready'
-  isBooked: boolean
+  isBooked: string | null
   tenantPhone?: string | null
   features?: RoomFeatures
 }
@@ -154,7 +154,7 @@ export const columns: ColumnDef<RoomTableData>[] = [
           </div>
           {isBooked && (
             <div className={cn('status-styles', statusStyles['Booked'])}>
-              Booked
+              {isBooked}
             </div>
           )}
         </div>

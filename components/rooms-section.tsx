@@ -15,7 +15,7 @@ type RoomTableData = {
   property: string
   project?: string | null
   status: 'Occupied' | 'Vacant' | 'Pending_Inspection' | 'Under_Preparation' | 'Property_Rented' | 'Property_Not_Ready'
-  isBooked: boolean
+  isBooked: string | null
   tenantPhone?: string | null
 }
 

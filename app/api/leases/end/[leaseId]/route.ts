@@ -50,6 +50,17 @@ export async function POST(
         data: { status: 'Ended' }
       })
 
+      // Deactivate all recurring configs for this lease
+      await tx.recurring_configs.updateMany({
+        where: {
+          lease_id: leaseId,
+          is_active: true
+        },
+        data: {
+          is_active: false
+        }
+      })
+
       // Cancel all pending payments for this lease
       await tx.payments.updateMany({
         where: {

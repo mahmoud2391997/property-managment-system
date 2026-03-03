@@ -256,8 +256,8 @@ export default function ExpenseDetailsContent({ expense }: Props) {
                 <Copy size={14} className='mr-2' />
                 Copy Expense ID
               </DropdownMenuItem>
-              {expense.expense_proof && (
-                <DropdownMenuItem onClick={() => window.open(expense.expense_proof || '', '_blank')}>
+              {expense.expense_evidence && (
+                <DropdownMenuItem onClick={() => window.open(expense.expense_evidence || '', '_blank')}>
                   <FileText size={14} className='mr-2' />
                   View Expense Proof
                 </DropdownMenuItem>
@@ -622,7 +622,7 @@ export default function ExpenseDetailsContent({ expense }: Props) {
         {/* Right Column - Sidebar */}
         <div className='w-full lg:w-80 flex flex-col gap-5'>
           {/* Expense Proof Card */}
-          {expense.expense_proof && (
+          {expense.expense_evidence && (
             <div className='card-styles'>
               <div className='flex items-center gap-2.5 pb-4 border-b border-(--border-light)'>
                 <div className='flex items-center justify-center rounded-[7px] h-[31px] w-[31px] bg-rose-100 text-rose-600'>
@@ -633,7 +633,7 @@ export default function ExpenseDetailsContent({ expense }: Props) {
 
               <div className='pt-4'>
                 <button
-                  onClick={() => window.open(expense.expense_proof || '', '_blank')}
+                  onClick={() => window.open(expense.expense_evidence || '', '_blank')}
                   className='w-full flex items-center justify-center gap-2 py-2.5 texts-button-primary text-(--info-main) bg-(--info-light) rounded-lg hover:opacity-80 transition-opacity'
                 >
                   <ExternalLink size={14} />
