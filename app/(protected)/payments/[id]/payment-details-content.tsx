@@ -24,6 +24,7 @@ import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/formatTime'
 import { formatPaymentTypeLabel, buildWhatsAppLink } from '@/utils/functions'
 import { cn } from '@/lib/utils'
+import Swal from 'sweetalert2'
 import type { PaymentDetailsData } from './page'
 import {
   MoreHorizontal,
@@ -47,7 +48,8 @@ import {
   Trash2,
   Download,
   Phone,
-  Mail
+  Mail,
+  Pencil
 } from 'lucide-react'
 
 type Props = {
@@ -241,6 +243,23 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
                 <Copy size={14} className='mr-2' />
                 Copy Payment ID
               </DropdownMenuItem>
+              {userType === 'staff' && payment.can_edit && (
+                <DropdownMenuItem onClick={() => {
+                  if (payment.fpx_cooling_remaining_minutes) {
+                    Swal.fire({
+                      icon: 'warning',
+                      title: 'Payment Under Processing',
+                      text: `An FPX payment is being processed. Please try again after ${payment.fpx_cooling_remaining_minutes} minute${payment.fpx_cooling_remaining_minutes > 1 ? 's' : ''}.`,
+                      confirmButtonColor: '#3b82f6'
+                    })
+                  } else {
+                    router.push(`/payments/${payment.reference_id}/edit`)
+                  }
+                }}>
+                  <Pencil size={14} className='mr-2' />
+                  Edit Payment
+                </DropdownMenuItem>
+              )}
               {payment.payment_evidence && (
                 <DropdownMenuItem onClick={() => window.open(payment.payment_evidence || '', '_blank')}>
                   <FileText size={14} className='mr-2' />
