@@ -79,7 +79,7 @@ export async function POST (request: NextRequest) {
             reference_id: reference_id
           }
         },
-        select: { id: true }
+        select: { id: true, payment_day: true }
       })
 
       // Generate payment_reference_id
@@ -167,9 +167,9 @@ export async function POST (request: NextRequest) {
             lease_id: lease?.id,
             organization_id: staff.organization_id,
             title: recurring_config.title,
-            every: recurring_config.every,
-            time_unit: recurring_config.time_unit,
-            event_on: recurring_config.event_on || null,
+            every: recurring_config.every || 1,
+            time_unit: recurring_config.time_unit || 'Month',
+            event_on: recurring_config.event_on || String(lease?.payment_day || 1),
             is_payment_fixed: recurring_config.is_payment_fixed ?? false,
             created_by: staff.id
           }
