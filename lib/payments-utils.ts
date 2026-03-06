@@ -9,6 +9,8 @@ type RawPaymentHistory = {
   amount: Decimal
   paid_at: Date
   status: string
+  payment_method: string
+  created_at: Date | null
 }
 
 type RawRecurringConfig = {
@@ -116,6 +118,8 @@ export type PaymentWithDetails = {
   latest_payment_timestamp: string
   payment_evidence: string | null
   late_payment_charges: LatePaymentChargeInfo[]
+  can_edit: boolean
+  fpx_cooling_remaining_minutes: number | null
 }
 
 // Transform raw payment from database to display format
@@ -214,6 +218,30 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
     amount: lpc.amount.toNumber()
   })) || []
 
+  // Determine if payment can be edited
+  // Not editable if: Rental type, has successful payments, cancelled,
+  // or has a pending FPX payment created within the last 20 minutes (cooling period)
+  const hasSuccessfulPayments = successfulPayments.length > 0
+
+  // Calculate FPX cooling remaining minutes (if any pending FPX within 20 min)
+  let fpxCoolingRemainingMinutes: number | null = null
+  for (const h of payment.payment_history) {
+    if (h.status !== 'Pending' || h.payment_method !== 'FPX' || !h.created_at) continue
+    const createdAt = new Date(h.created_at).getTime()
+    if (isNaN(createdAt)) continue
+    const twentyMinutes = 20 * 60 * 1000
+    const elapsed = Date.now() - createdAt
+    if (elapsed < twentyMinutes) {
+      const remaining = Math.ceil((twentyMinutes - elapsed) / 60000)
+      fpxCoolingRemainingMinutes = remaining
+      break
+    }
+  }
+
+  const canEdit = payment.type !== 'Rental'
+    && !hasSuccessfulPayments
+    && payment.status !== 'Cancelled'
+
   return {
     id: payment.reference_id,
     type: payment.type,
@@ -237,6 +265,8 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
     tenant_color: '',
     latest_payment_timestamp: latestPaymentTimestamp,
     payment_evidence: payment.payment_evidence,
-    late_payment_charges: latePaymentCharges
+    late_payment_charges: latePaymentCharges,
+    can_edit: canEdit,
+    fpx_cooling_remaining_minutes: fpxCoolingRemainingMinutes
   }
 }

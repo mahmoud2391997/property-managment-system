@@ -76,7 +76,9 @@ const paymentSelect = {
     select: {
       paid_at: true,
       amount: true,
-      status: true
+      status: true,
+      payment_method: true,
+      created_at: true
     }
   },
   recurring_configs: {

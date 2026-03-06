@@ -807,6 +807,25 @@ export default function PaymentsTable ({
                   View Payment Evidence
                 </DropdownMenuItem>
               )}
+              {userType === 'staff' && payment.can_edit && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    if (payment.fpx_cooling_remaining_minutes) {
+                      e.preventDefault()
+                      Swal.fire({
+                        icon: 'warning',
+                        title: 'Payment Under Processing',
+                        text: `An FPX payment is being processed. Please try again after ${payment.fpx_cooling_remaining_minutes} minute${payment.fpx_cooling_remaining_minutes > 1 ? 's' : ''}.`,
+                        confirmButtonColor: '#3b82f6'
+                      })
+                    } else {
+                      window.location.href = `/payments/${payment.id}/edit`
+                    }
+                  }}
+                >
+                  Edit Payment
+                </DropdownMenuItem>
+              )}
               {!isCancelled && (
                 <>
                   <DropdownMenuSeparator />
@@ -952,6 +971,25 @@ export default function PaymentsTable ({
                   onClick={() => window.open(payment.payment_evidence || '', '_blank')}
                 >
                   View Payment Evidence
+                </DropdownMenuItem>
+              )}
+              {userType === 'staff' && payment.can_edit && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    if (payment.fpx_cooling_remaining_minutes) {
+                      e.preventDefault()
+                      Swal.fire({
+                        icon: 'warning',
+                        title: 'Payment Under Processing',
+                        text: `An FPX payment is being processed. Please try again after ${payment.fpx_cooling_remaining_minutes} minute${payment.fpx_cooling_remaining_minutes > 1 ? 's' : ''}.`,
+                        confirmButtonColor: '#3b82f6'
+                      })
+                    } else {
+                      window.location.href = `/payments/${payment.id}/edit`
+                    }
+                  }}
+                >
+                  Edit Payment
                 </DropdownMenuItem>
               )}
               {payment.status !== 'Cancelled' && (

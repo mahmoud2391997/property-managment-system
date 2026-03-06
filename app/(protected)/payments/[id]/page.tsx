@@ -92,6 +92,8 @@ export type PaymentDetailsData = {
   total_paid: number
   remaining_amount: number
   payment_percentage: number
+  can_edit: boolean
+  fpx_cooling_remaining_minutes: number | null
 }
 
 async function getPaymentDetails(referenceId: string): Promise<PaymentDetailsData | null> {
@@ -242,6 +244,17 @@ async function getPaymentDetails(referenceId: string): Promise<PaymentDetailsDat
 
     if (!payment) return null
 
+    // Check for pending FPX payments within 20-minute cooling period
+    const pendingFpxHistory = await prisma.payment_history.findFirst({
+      where: {
+        payment_id: payment.id,
+        status: 'Pending',
+        payment_method: 'FPX',
+        created_at: { gte: new Date(Date.now() - 20 * 60 * 1000) }
+      },
+      select: { id: true, created_at: true }
+    })
+
     // Calculate totals
     const totalAmount = payment.charges.reduce((sum: number, charge) => {
       const amount = charge.amount.toNumber()
@@ -357,7 +370,13 @@ async function getPaymentDetails(referenceId: string): Promise<PaymentDetailsDat
       total_amount: totalAmount,
       total_paid: totalPaid,
       remaining_amount: remainingAmount,
-      payment_percentage: paymentPercentage
+      payment_percentage: paymentPercentage,
+      can_edit: payment.type !== 'Rental'
+        && payment.payment_history.length === 0
+        && payment.status !== 'Cancelled',
+      fpx_cooling_remaining_minutes: pendingFpxHistory?.created_at
+        ? Math.ceil((20 * 60 * 1000 - (Date.now() - new Date(pendingFpxHistory.created_at).getTime())) / 60000)
+        : null
     }
   } catch (error) {
     console.error('Error fetching payment details:', error)
