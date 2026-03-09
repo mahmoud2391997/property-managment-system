@@ -282,7 +282,8 @@ const AddExpense = () => {
 
     const totalDeductions = epfEe + socsoEe + taxAmount + totalCustomDeductions
     const netSalary = gross - totalDeductions
-    const costToCompany = gross + epfEr + socsoEr
+    const totalAllowances = allowances.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0)
+    const costToCompany = gross + epfEr + socsoEr + totalAllowances
 
     return {
       gross,
@@ -294,6 +295,7 @@ const AddExpense = () => {
       totalCustomDeductions,
       totalDeductions,
       netSalary,
+      totalAllowances,
       costToCompany
     }
   }, [
@@ -303,13 +305,12 @@ const AddExpense = () => {
     epfEmployee,
     socsoEmployee,
     tax,
-    deductions
+    deductions,
+    allowances
   ])
 
-  // Allowance summary
-  const allowancesTotal = useMemo(() => {
-    return allowances.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0)
-  }, [allowances])
+  // Allowance summary (derived from salarySummary)
+  const allowancesTotal = salarySummary.totalAllowances
 
   // Alert state
   const [alertOpen, setAlertOpen] = useState(false)
@@ -1510,6 +1511,8 @@ const AddExpense = () => {
             </InputGroup>
           </div>
 
+          
+
           {/* Employee Deductions */}
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <InputGroup label='EPF (Employee)' isRequired>
@@ -1553,24 +1556,85 @@ const AddExpense = () => {
             </InputGroup>
           )}
 
-          {/* Custom Deductions */}
+          {/* Staff Allowances */}
           <div className='flex flex-col gap-3'>
-            <div className='flex items-center justify-between'>
-              <span className='texts-label-large'>Deductions</span>
+            <span className='texts-label-large'>Allowances</span>
+
+            {allowances.map((allowance, index) => (
+              <div key={index} className='flex items-start gap-3'>
+                <div className='flex-1'>
+                  <Input
+                    placeholder='Allowance title'
+                    value={allowance.title}
+                    onChange={e =>
+                      updateAllowance(
+                        index,
+                        'title',
+                        (e.target as HTMLInputElement).value
+                      )
+                    }
+                    required
+                  />
+                </div>
+                <div className='w-48'>
+                  <Input
+                    currency
+                    placeholder='0.00'
+                    value={allowance.amount}
+                    onValueChange={value =>
+                      updateAllowance(index, 'amount', value || '')
+                    }
+                    required
+                  />
+                </div>
+                <button
+                  type='button'
+                  onClick={() => removeAllowance(index)}
+                  className='mt-2.5 p-1 rounded-md text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer'
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+
+            {allowances.length === 0 ? (
               <button
                 type='button'
-                onClick={addDeduction}
-                className={cn(
+                onClick={addAllowance}
+                className='flex flex-col items-center justify-center gap-2 py-6 rounded-lg border border-dashed border-(--border-default) bg-neutral-50/50 hover:border-(--secondary-color) hover:bg-(--secondary-color)/5 transition-colors cursor-pointer'
+              >
+                <span className='texts-body-small text-(--text-tertiary)'>
+                  No allowances added yet
+                </span>
+                <span className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-md',
+                  'texts-caption-large font-medium',
+                  'bg-(--secondary-color)/10 text-(--secondary-color)',
+                )}>
+                  <Plus size={14} />
+                  Add Allowance
+                </span>
+              </button>
+            ) : (
+              <button
+                type='button'
+                onClick={addAllowance}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md w-fit',
                   'texts-caption-large font-medium',
                   'bg-(--secondary-color)/10 text-(--secondary-color)',
                   'hover:bg-(--secondary-color)/20 transition-colors cursor-pointer'
                 )}
               >
                 <Plus size={14} />
-                Add Deduction
+                Add Allowance
               </button>
-            </div>
+            )}
+          </div>
+
+          {/* Custom Deductions */}
+          <div className='flex flex-col gap-3'>
+            <span className='texts-label-large'>Deductions</span>
 
             {deductions.map((deduction, index) => (
               <div key={index} className='flex items-start gap-3'>
@@ -1611,10 +1675,38 @@ const AddExpense = () => {
               </div>
             ))}
 
-            {deductions.length === 0 && (
-              <p className='texts-caption-large text-(--text-tertiary)'>
-                No additional deductions
-              </p>
+            {deductions.length === 0 ? (
+              <button
+                type='button'
+                onClick={addDeduction}
+                className='flex flex-col items-center justify-center gap-2 py-6 rounded-lg border border-dashed border-(--border-default) bg-neutral-50/50 hover:border-red-400 hover:bg-red-50/50 transition-colors cursor-pointer'
+              >
+                <span className='texts-body-small text-(--text-tertiary)'>
+                  No additional deductions
+                </span>
+                <span className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md',
+                  'texts-caption-large font-medium',
+                  'bg-red-500/10 text-red-600',
+                )}>
+                  <Plus size={14} />
+                  Add Deduction
+                </span>
+              </button>
+            ) : (
+              <button
+                type='button'
+                onClick={addDeduction}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md w-fit',
+                  'texts-caption-large font-medium',
+                  'bg-red-500/10 text-red-600',
+                  'hover:bg-red-500/20 transition-colors cursor-pointer'
+                )}
+              >
+                <Plus size={14} />
+                Add Deduction
+              </button>
             )}
           </div>
 
@@ -1744,6 +1836,31 @@ const AddExpense = () => {
                   </>
                 )}
 
+                {/* Allowances */}
+                {salarySummary.totalAllowances > 0 && (
+                  <>
+                    <div className='border-t border-dashed border-(--border-default) my-0.5' />
+                    <span className='texts-caption-large text-(--text-tertiary) uppercase tracking-wide'>
+                      Allowances
+                    </span>
+                    {allowances
+                      .filter(a => parseFloat(a.amount) > 0)
+                      .map((a, i) => (
+                        <div
+                          key={i}
+                          className='flex items-center justify-between'
+                        >
+                          <span className='texts-body-small text-(--text-secondary)'>
+                            {a.title || 'Untitled'}
+                          </span>
+                          <span className='texts-body-small text-green-600'>
+                            + {formatCurrency(parseFloat(a.amount) || 0)}
+                          </span>
+                        </div>
+                      ))}
+                  </>
+                )}
+
                 {/* Cost to Company */}
                 <div className='border-t border-(--border-default) pt-2.5'>
                   <div className='flex items-center justify-between'>
@@ -1774,8 +1891,8 @@ const AddExpense = () => {
         </InnerSection>
       )}
 
-      {/* Staff Allowances Section — shown for both Salary and Allowances type */}
-      {(isStaffSalary || isStaffAllowances) && (
+      {/* Staff Allowances Section — shown only for Allowances type (Salary type has it inline) */}
+      {isStaffAllowances && (
         <InnerSection
           title='Allowances'
           subtitle='Add allowance items for this staff member'
