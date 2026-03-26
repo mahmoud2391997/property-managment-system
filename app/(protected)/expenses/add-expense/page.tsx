@@ -214,6 +214,7 @@ const AddExpense = () => {
   const [loadingStaff, setLoadingStaff] = useState<boolean>(false)
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null)
   const [staffMonth, setStaffMonth] = useState<Date | undefined>(undefined)
+  const [expenseMonth, setExpenseMonth] = useState<Date | undefined>(undefined)
   const [grossSalary, setGrossSalary] = useState<string>('')
   const [epfEmployer, setEpfEmployer] = useState<string>('')
   const [socsoEmployer, setSocsoEmployer] = useState<string>('')
@@ -359,6 +360,11 @@ const AddExpense = () => {
       !selectedPropertyId
     ) {
       showAlert('Please select a property', 'warning')
+      return
+    }
+
+    if (selectedIndex === 0 && !expenseMonth) {
+      showAlert('Please select an expense month', 'warning')
       return
     }
 
@@ -577,7 +583,8 @@ const AddExpense = () => {
               lease_id: selectedAgentCommissionLeaseId,
               agent_id: selectedAgentCommissionLease?.agent
                 ? undefined
-                : selectedAgentId || undefined
+                : selectedAgentId || undefined,
+              expense_month: expenseMonth ? formatDateForAPI(expenseMonth) : null
             }),
           ...(selectedIndex === 0 &&
             expenseType.type !== 'Refund' &&
@@ -585,13 +592,15 @@ const AddExpense = () => {
               property_id: selectedPropertyId,
               is_claimed: isClaimed,
               claimer_id: isClaimed ? claimerId : null,
-              vendor_id: selectedVendorId || null
+              vendor_id: selectedVendorId || null,
+              expense_month: expenseMonth ? formatDateForAPI(expenseMonth) : null
             }),
           ...(selectedIndex === 0 &&
             expenseType.type === 'Refund' && {
               lease_id: selectedLeaseId,
               is_claimed: isClaimed,
-              claimer_id: isClaimed ? claimerId : null
+              claimer_id: isClaimed ? claimerId : null,
+              expense_month: expenseMonth ? formatDateForAPI(expenseMonth) : null
             }),
           ...(selectedIndex === 1 && {
             contract_id: selectedContractId
@@ -656,6 +665,7 @@ const AddExpense = () => {
     setSelectedPropertyId(null)
     setSelectedLeaseId(null)
     setSelectedContractId(null)
+    setExpenseMonth(undefined)
     setIsAsset(false)
     setDepreciationPercentage('')
     // Reset staff state
@@ -1182,6 +1192,13 @@ const AddExpense = () => {
                 }}
                 required
               />
+            </InputGroup>
+          )}
+
+          {/* Expense month — Property Related only */}
+          {selectedIndex === 0 && (
+            <InputGroup label='Expense Month' isRequired>
+              <MonthPicker value={expenseMonth} onValueChange={setExpenseMonth} />
             </InputGroup>
           )}
 

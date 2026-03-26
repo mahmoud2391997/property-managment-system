@@ -3,7 +3,7 @@
 import {
   ColumnDef
 } from '@tanstack/react-table'
-import { MoreHorizontal, ChevronRight, ChevronDown, Calendar, Building2, FileText, User, Repeat, CreditCard, Pencil, Eye } from 'lucide-react'
+import { MoreHorizontal, ChevronRight, ChevronDown, Calendar, Building2, FileText, User, Repeat, CreditCard, Pencil, Eye, Copy, Trash2, Banknote } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -408,6 +408,7 @@ export default function ExpensesTable({
               <DropdownMenuItem
                 onClick={() => navigator.clipboard.writeText(expense.id)}
               >
+                <Copy size={14} className='mr-2' />
                 Copy expense ID
               </DropdownMenuItem>
               {!isCancelled && (
@@ -422,6 +423,7 @@ export default function ExpensesTable({
                         disabled={!hasRemainingAmount}
                         onSelect={(e) => e.preventDefault()}
                       >
+                        <Banknote size={14} className='mr-2' />
                         Log payment
                       </DropdownMenuItem>
                     }
@@ -438,6 +440,7 @@ export default function ExpensesTable({
                         disabled={expense.payment_percentage > 0 || isDeletingExpense === expense.id}
                         onSelect={(e) => e.preventDefault()}
                       >
+                        <Trash2 size={14} className='mr-2' />
                         Delete expense
                       </DropdownMenuItem>
                     }
@@ -544,6 +547,7 @@ export default function ExpensesTable({
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => navigator.clipboard.writeText(expense.id)}>
+                <Copy size={14} className='mr-2' />
                 Copy expense ID
               </DropdownMenuItem>
               {expense.status !== 'Cancelled' && (
@@ -558,6 +562,7 @@ export default function ExpensesTable({
                         disabled={!hasRemainingAmount}
                         onSelect={(e) => e.preventDefault()}
                       >
+                        <Banknote size={14} className='mr-2' />
                         Log payment
                       </DropdownMenuItem>
                     }
@@ -574,6 +579,7 @@ export default function ExpensesTable({
                         disabled={expense.payment_percentage > 0 || isDeletingExpense === expense.id}
                         onSelect={(e) => e.preventDefault()}
                       >
+                        <Trash2 size={14} className='mr-2' />
                         Delete expense
                       </DropdownMenuItem>
                     }

@@ -47,6 +47,8 @@ export async function POST(request: NextRequest) {
       depreciation_percentage,
       // Vendor field
       vendor_id,
+      // Property expense month
+      expense_month,
       // Agent field (for Agent Commission — assign to lease)
       agent_id,
       // Staff claim fields
@@ -115,6 +117,13 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
+    }
+
+    if (category === 'Property_Related' && !expense_month) {
+      return NextResponse.json(
+        { error: 'Expense month is required for property-related expenses' },
+        { status: 400 }
+      )
     }
 
     if (category === 'Contract_Related' && !contract_id) {
@@ -245,7 +254,8 @@ export async function POST(request: NextRequest) {
               lease_id: lease_id || null,
               is_claimed: is_claimed || false,
               claimer_id: is_claimed ? claimer_id : null,
-              vendor_id: vendor_id || null
+              vendor_id: vendor_id || null,
+              expense_month: new Date(expense_month)
             }
           })
 

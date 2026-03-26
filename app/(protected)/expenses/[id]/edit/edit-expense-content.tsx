@@ -5,6 +5,7 @@ import ChargesSection from '@/components/costume-ui/charges-section'
 import type { DefaultCharge } from '@/components/costume-ui/charges-section'
 import InnerSection from '@/components/costume-ui/collapsible-inner-section'
 import Combobox from '@/components/costume-ui/combobox'
+import DatePicker from '@/components/costume-ui/date-picker'
 import MonthPicker from '@/components/costume-ui/month-picker'
 import Input from '@/components/costume-ui/input'
 import InputGroup from '@/components/costume-ui/input-group'
@@ -24,6 +25,7 @@ import {
 } from '@/utils/data'
 import { formatPaymentTypeLabel } from '@/utils/functions'
 import { formatCurrency } from '@/utils/formatCurrency'
+import { formatDateForAPI } from '@/utils/formatTime'
 import {
   House,
   FileText,
@@ -163,6 +165,12 @@ export default function EditExpenseContent ({ expense }: Props) {
   const [loadingLeases, setLoadingLeases] = useState<boolean>(false)
   const [propertyItems, setPropertyItems] = useState<ComboBoxitemsType[]>([])
   const [leaseItems, setLeaseItems] = useState<ComboBoxitemsType[]>([])
+  const [expenseMonth, setExpenseMonth] = useState<Date | undefined>(
+    expense.property_expense?.expense_month ? new Date(expense.property_expense.expense_month) : undefined
+  )
+  const [duePaymentDate, setDuePaymentDate] = useState<Date | undefined>(
+    expense.due_payment_date ? new Date(expense.due_payment_date) : undefined
+  )
 
   // Contract related (locked)
   const selectedContractId = expense.contract_expense?.contract_id || null
@@ -268,6 +276,8 @@ export default function EditExpenseContent ({ expense }: Props) {
     expense.category === 'Staff_Related' && currentType === 'Allowances'
   const isRefund =
     expense.category === 'Property_Related' && currentType === 'Refund'
+  const isLeaseLinked =
+    expense.category === 'Property_Related' && !!expense.property_expense?.lease_id
 
   // Check if current expense type is claimable
   const isClaimable = useMemo(() => {
@@ -420,7 +430,7 @@ export default function EditExpenseContent ({ expense }: Props) {
 
   // Fetch properties
   useEffect(() => {
-    if (expense.category !== 'Property_Related' || isRefund) return
+    if (expense.category !== 'Property_Related' || isLeaseLinked) return
 
     const fetchProperties = async () => {
       setLoadingProperties(true)
@@ -446,7 +456,7 @@ export default function EditExpenseContent ({ expense }: Props) {
 
   // Fetch leases for refund
   useEffect(() => {
-    if (expense.category !== 'Property_Related' || !isRefund) return
+    if (expense.category !== 'Property_Related' || !isLeaseLinked) return
 
     const fetchLeases = async () => {
       setLoadingLeases(true)
@@ -558,20 +568,8 @@ export default function EditExpenseContent ({ expense }: Props) {
     e.preventDefault()
 
     // Validation
-    if (
-      expense.category === 'Property_Related' &&
-      isRefund &&
-      !selectedLeaseId
-    ) {
-      showAlert('Please select a lease', 'warning')
-      return
-    }
-    if (
-      expense.category === 'Property_Related' &&
-      !isRefund &&
-      !selectedPropertyId
-    ) {
-      showAlert('Please select a property', 'warning')
+    if (expense.category === 'Property_Related' && !expenseMonth) {
+      showAlert('Please select an expense month', 'warning')
       return
     }
     if (expense.category === 'Staff_Related' && !selectedStaffId) {
@@ -620,18 +618,21 @@ export default function EditExpenseContent ({ expense }: Props) {
         expense_type: expenseType,
         description,
         charges: chargesPayload,
+        due_payment_date: duePaymentDate ? formatDateForAPI(duePaymentDate) : null,
         // Category-specific
         ...(expense.category === 'Property_Related' &&
-          !isRefund && {
+          !isLeaseLinked && {
             property_id: selectedPropertyId,
             is_claimed: isClaimed,
-            claimer_id: isClaimed ? claimerId : null
+            claimer_id: isClaimed ? claimerId : null,
+            expense_month: expenseMonth ? formatDateForAPI(expenseMonth) : null
           }),
         ...(expense.category === 'Property_Related' &&
-          isRefund && {
+          isLeaseLinked && {
             lease_id: selectedLeaseId,
             is_claimed: isClaimed,
-            claimer_id: isClaimed ? claimerId : null
+            claimer_id: isClaimed ? claimerId : null,
+            expense_month: expenseMonth ? formatDateForAPI(expenseMonth) : null
           }),
         ...(expense.category === 'Company_Related' && {
           is_asset: ASSET_COMPANY_TYPES.includes(expenseType) ? isAsset : false,
@@ -730,7 +731,7 @@ export default function EditExpenseContent ({ expense }: Props) {
         </div>
 
         <div className='inputs-container'>
-          {/* Type selector */}
+          {/* Type selector — locked */}
           <InputGroup label='Expense Type'>
             <Select
               items={typeOptions}
@@ -738,7 +739,7 @@ export default function EditExpenseContent ({ expense }: Props) {
               placeholder='Select a type'
               value={expenseType}
               onValueChange={value => setExpenseType(value)}
-              disabled={isTypeLocked}
+              disabled
             />
           </InputGroup>
           {/* Purchase-specific: optional property link */}
@@ -761,42 +762,34 @@ export default function EditExpenseContent ({ expense }: Props) {
             </InputGroup>
           )}
 
-          {/* Property selector — Property Related, non-Refund types only */}
-          {expense.category === 'Property_Related' && !isRefund && (
+          {/* Property selector — Property Related, property-linked only (locked) */}
+          {expense.category === 'Property_Related' && !isLeaseLinked && (
             <InputGroup label='Property' isRequired>
               <Combobox
                 items={propertyItems}
                 variant='single'
                 searchPlaceholder='Search properties'
-                placeholder={
-                  loadingProperties
-                    ? 'Loading properties...'
-                    : 'Select a property'
-                }
-                isLoading={loadingProperties}
-                loadingMessage='Fetching properties...'
+                placeholder='Select a property'
                 value={selectedPropertyId || undefined}
-                onValueChange={value => setSelectedPropertyId(value || null)}
-                required
+                onValueChange={() => {}}
+                disabled
+                disabledReason='Property cannot be changed after creation'
               />
             </InputGroup>
           )}
 
-          {/* Lease selector — Property Related, Refund type only */}
-          {expense.category === 'Property_Related' && isRefund && (
+          {/* Lease selector — Property Related, lease-linked (Refund / Agent Commission) (locked) */}
+          {expense.category === 'Property_Related' && isLeaseLinked && (
             <InputGroup label='Lease' isRequired>
               <Combobox
                 items={leaseItems}
                 variant='single'
                 searchPlaceholder='Search leases'
-                placeholder={
-                  loadingLeases ? 'Loading leases...' : 'Select an active lease'
-                }
-                isLoading={loadingLeases}
-                loadingMessage='Fetching leases...'
+                placeholder='Select an active lease'
                 value={selectedLeaseId || undefined}
-                onValueChange={value => setSelectedLeaseId(value || null)}
-                required
+                onValueChange={() => {}}
+                disabled
+                disabledReason='Lease cannot be changed after creation'
               />
             </InputGroup>
           )}
@@ -845,6 +838,21 @@ export default function EditExpenseContent ({ expense }: Props) {
                 <MonthPicker value={staffMonth} onValueChange={setStaffMonth} />
               </InputGroup>
             </>
+          )}
+        </div>
+
+        {/* Due Payment Date & Expense Month */}
+        <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+          <InputGroup label='Due Payment Date'>
+            <DatePicker
+              value={duePaymentDate}
+              onValueChange={setDuePaymentDate}
+            />
+          </InputGroup>
+          {expense.category === 'Property_Related' && (
+            <InputGroup label='Expense Month' isRequired>
+              <MonthPicker value={expenseMonth} onValueChange={setExpenseMonth} />
+            </InputGroup>
           )}
         </div>
 

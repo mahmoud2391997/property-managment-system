@@ -264,7 +264,8 @@ export async function POST (
           data: {
             id: refundExpense.id,
             type: 'Refund',
-            lease_id: flowInstance.lease_id
+            lease_id: flowInstance.lease_id,
+            expense_month: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
           }
         })
         return { approved: true }
