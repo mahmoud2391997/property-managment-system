@@ -134,15 +134,39 @@ export async function GET(request: NextRequest) {
     // If paginate mode is enabled, use pagination/search logic
     if (paginate) {
       // Build where clause with search and category filter
-      const whereClause: any = {
-        organization_id: staff.organization_id,
-        category: category,
-        ...(search && {
-          OR: [
+      const searchConditions: any[] = search
+        ? [
             { reference_id: { contains: search, mode: 'insensitive' } },
             { description: { contains: search, mode: 'insensitive' } }
           ]
-        })
+        : []
+
+      // Category-specific search conditions
+      if (search && category === 'Property_Related') {
+        searchConditions.push(
+          { property_expenses: { properties: { code: { contains: search, mode: 'insensitive' } } } },
+          { property_expenses: { properties: { projects: { title: { contains: search, mode: 'insensitive' } } } } },
+          { property_expenses: { leases: { reference_id: { contains: search, mode: 'insensitive' } } } }
+        )
+      }
+      if (search && category === 'Contract_Related') {
+        searchConditions.push(
+          { contract_expenses: { contracts: { reference_id: { contains: search, mode: 'insensitive' } } } },
+          { contract_expenses: { contracts: { owners: { first_name: { contains: search, mode: 'insensitive' } } } } },
+          { contract_expenses: { contracts: { owners: { last_name: { contains: search, mode: 'insensitive' } } } } }
+        )
+      }
+      if (search && category === 'Staff_Related') {
+        searchConditions.push(
+          { staff_expenses: { staff: { first_name: { contains: search, mode: 'insensitive' } } } },
+          { staff_expenses: { staff: { last_name: { contains: search, mode: 'insensitive' } } } }
+        )
+      }
+
+      const whereClause: any = {
+        organization_id: staff.organization_id,
+        category: category,
+        ...(searchConditions.length > 0 && { OR: searchConditions })
       }
 
       // Fetch expenses and optionally total count in parallel
