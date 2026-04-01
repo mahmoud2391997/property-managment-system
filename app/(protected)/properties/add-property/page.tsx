@@ -136,7 +136,7 @@ const AddProperty = () => {
         // Optional rooms (only for House and Apartment types)
         rooms:
           rooms.length > 0 && (selectedIndex === 0 || selectedIndex === 1)
-            ? rooms
+            ? rooms.map(room => ({ ...room, is_ready: true }))
             : undefined
       }
 
