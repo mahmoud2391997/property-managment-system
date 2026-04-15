@@ -3,6 +3,8 @@ name: Deploy
 on:
   push:
     branches: [staging, main]
+    paths-ignore:
+      - 'plans/**'
 
 concurrency:
   group: deploy-${{ github.ref_name }}

@@ -1008,27 +1008,3 @@ The day we merge Phase 1 + Phase 2 + start Phase 3, nothing should lock anyone o
 6. **Phase 3 rollout begins**, one module at a time. Because most staff are still on Owner, nothing breaks. As Owners migrate staff to reduced roles, the permissions start mattering.
 
 The key invariant: **no staff member loses access on Day 1**. They lose access only when an Owner explicitly moves them to a reduced role. This is the Owner's decision, not ours.
-
----
-
-## 9. Timeline & open questions
-
-### Estimated time
-
-| Phase | Focused hours | Wall-clock |
-|---|---|---|
-| Phase 1 — Foundation | 10-12 hrs | 1.5-2 days |
-| Phase 2 — Admin UI | 12-15 hrs | 2 days |
-| Phase 3 — Enforcement rollout | 35-40 hrs | ~1 week |
-| Phase 4 — Cleanup | 3-5 hrs | 0.5 day |
-| Buffer (surprises, bug fixes, reviews) | 8-12 hrs | 1-2 days |
-| **Total** | **~70-85 hrs** | **~3 weeks full-time** |
-
-With parallel work or interruptions, wall-clock stretches to ~1 month.
-
-### Open questions
-
-1. **Default roles beyond Owner** — do we seed additional templates like "Administrator", "Property Manager", "Accountant"? Or leave every non-Owner role to be created manually by the Owner through the UI?
-2. **Sensitive role changes** — when an Owner demotes someone, should we optionally force-sign-out the affected user so their session refreshes immediately, or is the 30s cache TTL + explicit cache invalidation enough?
-3. **`/api/user/info` migration** — do we eventually migrate the sidebar to read from `/api/me` and delete `/api/user/info`, or leave both endpoints in place? Low priority either way.
-4. **Restricted cards fallback UI** — what does the "No access" placeholder look like visually on overview pages? Needs a small design decision before Phase 3 detail-page work.
