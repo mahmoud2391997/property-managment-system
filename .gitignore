@@ -52,8 +52,6 @@ next-env.d.ts
 
 nul
 
-# Ignore all SQL files
-*.sql
 
 # supabase
 supabase.exe
