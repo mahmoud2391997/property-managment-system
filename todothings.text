@@ -1,1 +1,0 @@
-1- fix a bug in add payment where when there is no charge left to add in lease initial charges, it still show it but hides charges.
