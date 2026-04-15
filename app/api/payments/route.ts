@@ -240,26 +240,49 @@ export async function GET (request: NextRequest) {
           })
         }
 
-        // Property ID filter (for property overview page - only property-level leases)
+        // Property ID filter (for property overview page - only property-level leases and bookings)
         if (propertyId) {
           filters.push({
-            leases: {
-              is: {
-                property_id: propertyId,
-                room_id: null
+            OR: [
+              {
+                leases: {
+                  is: {
+                    property_id: propertyId,
+                    room_id: null
+                  }
+                }
+              },
+              {
+                bookings: {
+                  is: {
+                    property_id: propertyId,
+                    room_id: null
+                  }
+                }
               }
-            }
+            ]
           })
         }
 
         // Room ID filter (for room overview page)
         if (roomId) {
           filters.push({
-            leases: {
-              is: {
-                room_id: roomId
+            OR: [
+              {
+                leases: {
+                  is: {
+                    room_id: roomId
+                  }
+                }
+              },
+              {
+                bookings: {
+                  is: {
+                    room_id: roomId
+                  }
+                }
               }
-            }
+            ]
           })
         }
 
@@ -441,22 +464,39 @@ export async function GET (request: NextRequest) {
       ? { organization_id: staff.organization_id, status: { not: 'Unset' } }
       : { leases: { tenant_id: tenant!.id }, status: { not: 'Unset' } }
 
-    // If propertyId provided, filter payments through leases -> property_id
-    // Also filter room_id: null to only get property-level lease payments (not room payments)
+    // If propertyId provided, filter payments through leases or bookings -> property_id
+    // Also filter room_id: null to only get property-level payments (not room payments)
     if (propertyId) {
-      whereClause.leases = {
-        ...whereClause.leases,
-        property_id: propertyId,
-        room_id: null
-      }
+      whereClause.OR = [
+        {
+          leases: {
+            property_id: propertyId,
+            room_id: null
+          }
+        },
+        {
+          bookings: {
+            property_id: propertyId,
+            room_id: null
+          }
+        }
+      ]
     }
 
-    // If roomId provided, filter payments through leases -> room_id
+    // If roomId provided, filter payments through leases or bookings -> room_id
     if (roomId) {
-      whereClause.leases = {
-        ...whereClause.leases,
-        room_id: roomId
-      }
+      whereClause.OR = [
+        {
+          leases: {
+            room_id: roomId
+          }
+        },
+        {
+          bookings: {
+            room_id: roomId
+          }
+        }
+      ]
     }
 
     // Fetch payments with related data

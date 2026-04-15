@@ -1,0 +1,1 @@
+COMMENT ON TABLE staff IS 'deployment successful';

@@ -25,6 +25,7 @@ const PAYMENT_FILTER_ATTRIBUTES: FilterAttribute[] = [
     label: 'Type',
     type: 'select',
     options: [
+      { value: 'Booking', label: 'Booking' },
       { value: 'Rental', label: 'Rental' },
       { value: 'Rental_Adjustment', label: 'Rental Adjustment' },
       { value: 'Lease_Initial_Charges', label: 'Lease Initial Charges' },

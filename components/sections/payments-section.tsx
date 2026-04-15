@@ -22,6 +22,8 @@ const PAYMENT_FILTER_ATTRIBUTES: FilterAttribute[] = [
     label: 'Type',
     type: 'select',
     options: [
+      // Booking
+      { value: 'Booking', label: 'Booking' },
       // Core rent
       { value: 'Rental', label: 'Rental' },
       { value: 'Rental_Adjustment', label: 'Rental Adjustment' },

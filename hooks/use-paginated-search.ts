@@ -136,7 +136,7 @@ export function usePaginatedSearch<T> ({
       const queryString = params.toString()
       const newUrl = queryString ? `${pathname}?${queryString}` : pathname
 
-      window.history.replaceState(null, '', newUrl)
+      router.replace(newUrl, { scroll: false })
     },
     [searchParams, pathname, router, defaultFilters]
   )

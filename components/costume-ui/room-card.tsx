@@ -3,7 +3,6 @@ import InnerSection from './collapsible-inner-section'
 import InputCard from './input-card'
 import InputGroup from './input-group'
 import Input from './input'
-import { Checkbox } from '@/components/ui/checkbox'
 import Button from './button'
 import { Plus, Wifi, SprayCan, Bath, Fence, AirVent, BedDouble } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -45,7 +44,6 @@ export type RoomFeatures = {
 
 export type RoomData = {
   title: string
-  is_ready: boolean
   features: RoomFeatures
 }
 
@@ -85,7 +83,6 @@ const RoomCard = ({ onRoomsChange }: RoomCardProps) => {
       ...prev,
       {
         title: '',
-        is_ready: false,
         features: { ...defaultFeatures }
       }
     ])
@@ -139,16 +136,6 @@ const RoomCard = ({ onRoomsChange }: RoomCardProps) => {
                 />
               </InputGroup>
               <div className='flex flex-col gap-3'>
-                <div className='flex items-center gap-2.5 h-10 w-full'>
-                  <Checkbox
-                    className='h-5 w-5 border-(--border-strong) bg-(--background-primary)'
-                    checked={room.is_ready}
-                    onCheckedChange={checked =>
-                      handleRoomChange(index, 'is_ready', checked as boolean)
-                    }
-                  />
-                  <span className='texts-body-medium'>Room is ready</span>
-                </div>
                 <div className='flex flex-wrap gap-2'>
                   {ROOM_FEATURES_CONFIG.map(({ key, label, Icon }) => {
                     const isChecked = room.features?.[key as keyof RoomFeatures] || false

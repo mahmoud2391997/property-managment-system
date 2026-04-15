@@ -1,10 +1,12 @@
 import { Suspense } from 'react'
 import TenantLoginForm from '@/components/tenant-login-form'
+import EnvBadge from '@/components/env-badge'
 import Image from 'next/image'
 
 const TenantLogin = async () => {
   return (
     <div className='flex min-h-svh'>
+      <EnvBadge />
       {/* Left — Image */}
       <div className='hidden lg:block lg:w-[45%] xl:w-1/2 relative'>
         <Image

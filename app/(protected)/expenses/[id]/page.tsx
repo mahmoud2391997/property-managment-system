@@ -57,6 +57,7 @@ export type ExpenseDetailsData = {
   // Category-specific
   property_expense: {
     type: string
+    expense_month: string | null
     property: {
       id: string
       code: string
@@ -184,6 +185,7 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
         property_expenses: {
           select: {
             type: true,
+            expense_month: true,
             properties: {
               select: {
                 id: true,
@@ -322,6 +324,7 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
     // Build category-specific data
     const propertyExpense = expense.property_expenses ? {
       type: expense.property_expenses.type,
+      expense_month: expense.property_expenses.expense_month?.toISOString() ?? null,
       property: expense.property_expenses.properties ? {
         id: expense.property_expenses.properties.id,
         code: expense.property_expenses.properties.code,

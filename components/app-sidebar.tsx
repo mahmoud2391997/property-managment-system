@@ -45,6 +45,7 @@ import { logout } from '@/app/(auth)/logout/actions'
 import { UserAvatar } from './costume-ui/name-avatar'
 import ConfirmationDialog from './costume-ui/confirmation-dialog'
 import { CommandPalette, CommandPaletteTrigger } from './command-palette'
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
 
 export default function AppSidebar () {
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
@@ -278,7 +279,24 @@ export default function AppSidebar () {
             !effectiveSidebarOpen && sidebarHovered && 'opacity-0'
           )}
         >
-          <Image src='/icons/logo.png' width={18} height={18} alt='logo' />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type='button' className='shrink-0 cursor-default' aria-label='Build info'>
+                <Image src='/icons/logo.png' width={18} height={18} alt='logo' />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side='bottom' className='font-mono'>
+              {(() => {
+                const env = process.env.NEXT_PUBLIC_APP_ENV
+                const version = process.env.NEXT_PUBLIC_APP_VERSION ?? '-'
+                const sha = process.env.NEXT_PUBLIC_COMMIT_SHA ?? '-'
+                const envLabel =
+                  env === 'development' ? 'DEV · ' :
+                  env === 'staging' ? 'STAGING · ' : ''
+                return `${envLabel}v${version} · ${sha}`
+              })()}
+            </TooltipContent>
+          </Tooltip>
           {/* <img src={logo} className='w-10 h-10' alt='logo' /> */}
           <div
             className='overflow-hidden transition-all duration-200'
@@ -304,7 +322,7 @@ export default function AppSidebar () {
 
         <div
           className={cn(
-            'absolute left-0',
+            'absolute left-0 pointer-events-none',
             'flex items-center justify-end',
             'w-60 h-fit pr-1',
             !effectiveSidebarOpen && '-z-50',
@@ -314,6 +332,7 @@ export default function AppSidebar () {
         >
           <SidebarTrigger
             className={cn(
+              'pointer-events-auto',
               'h-8.5! w-8.5!',
               'hover:bg-neutral-200/70 active:bg-neutral-200 text-neutral-100!',
               'rounded-[10px]! cursor-e-resize'

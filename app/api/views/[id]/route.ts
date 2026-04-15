@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { parseLocalDateTime } from '@/utils/formatTime'
 
 export async function GET(
   request: Request,
@@ -87,7 +88,7 @@ export async function PUT(
 
     const { id } = await params
     const body = await request.json()
-    const { date, time, firstName, lastName, phoneNumber, email } = body
+    const { date, time, firstName, lastName, phoneNumber, email, timezone_offset } = body
 
     // Validate required fields
     if (!date || !time) {
@@ -133,8 +134,8 @@ export async function PUT(
       )
     }
 
-    // Combine date and time into a timestamp for viewed_at
-    const viewed_at = new Date(`${date}T${time}`)
+    // Combine date and time into a timestamp for viewed_at (with client timezone)
+    const viewed_at = parseLocalDateTime(date, time, timezone_offset ?? 0)
 
     // Validate that viewed_at is not after created_at (record creation time)
     if (viewed_at > existingView.created_at) {

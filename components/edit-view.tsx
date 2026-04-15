@@ -100,7 +100,8 @@ const EditView = ({ view, onSuccess, onLoadingChange }: Props) => {
           firstName,
           lastName: lastName || null,
           phoneNumber: validPhoneNumber,
-          email: email || null
+          email: email || null,
+          timezone_offset: new Date().getTimezoneOffset()
         })
       })
 
