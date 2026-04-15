@@ -4,9 +4,6 @@ import CollapsibleSection from '@/components/costume-ui/collapsible-section'
 import InputGroup from '@/components/costume-ui/input-group'
 import Input from '@/components/costume-ui/input'
 import Combobox from '@/components/costume-ui/combobox'
-import { Check } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Checkbox } from '@/components/ui/checkbox'
 import InnerSection from '@/components/costume-ui/collapsible-inner-section'
 import ReminderSection from '@/components/costume-ui/reminder-section'
 import PaymentSection from '@/components/costume-ui/payment-section'
@@ -30,7 +27,6 @@ const AddRoom = () => {
   const [selectedProperty, setSelectedProperty] =
     useState<PropertyWithProject>()
   const [title, setTitle] = useState('')
-  const [isRoomReady, setIsRoomReady] = useState<boolean>(false)
   const [features, setFeatures] = useState<RoomFeatures>({
     wifi: false,
     cleaning_service: false,
@@ -101,7 +97,7 @@ const AddRoom = () => {
         // Required room details
         title,
         property_id: selectedProperty.id,
-        is_ready: isRoomReady,
+        is_ready: true,
         // Features
         features: {
           wifi: features.wifi,
@@ -209,7 +205,6 @@ const AddRoom = () => {
 
       // Reset all form fields
       setTitle('')
-      setIsRoomReady(false)
       setFeatures({ wifi: false, cleaning_service: false, toilet: false, balcony: false, ac: false, queen_bed: false, female: false })
       setImages([])
       setInitialCharges([])
@@ -300,44 +295,6 @@ const AddRoom = () => {
                 required
               />
             </InputGroup>
-          </div>
-        </InnerSection>
-
-        {/* Status */}
-        <InnerSection title='Status' subtitle='Set availability of the room'>
-          <div className='relative border border-(--border-strong) rounded-md overflow-hidden'>
-            <Checkbox
-              checked={isRoomReady}
-              className={cn(
-                'absolute top-1/2 left-3 -translate-y-1/2',
-                'h-6 w-6 border-(--border-strong)'
-              )}
-            />
-            <button
-              type='button'
-              onClick={() => setIsRoomReady(prev => !prev)}
-              className={cn(
-                'flex flex-col justify-center gap-[3]',
-                'hover:bg-neutral-50',
-                'h-20 w-full px-5 pl-11',
-                'cursor-pointer'
-              )}
-            >
-              <div className='flex items-center gap-[5]'>
-                <Check
-                  size={17}
-                  className={cn(
-                    isRoomReady ? 'text-(--success-main)' : 'text-neutral-400'
-                  )}
-                />
-                <span className='texts-body-medium'>
-                  Room is ready for occupancy
-                </span>
-              </div>
-              <span className='texts-caption-large text-left text-(--text-secondary)'>
-                Check this if the room is move-in ready
-              </span>
-            </button>
           </div>
         </InnerSection>
 

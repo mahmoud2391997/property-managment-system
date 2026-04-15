@@ -835,7 +835,7 @@ export default function PaymentsTable ({
                         disabled={!hasRemainingAmount || isCheckingForLogPayment === payment.id}
                         onClick={() => handleLogPaymentClick(
                           payment.id,
-                          payment.amount * (1 - payment.payment_percentage / 100)
+                          payment.remaining_amount
                         )}
                       >
                         {isCheckingForLogPayment === payment.id ? 'Checking...' : 'Log payment'}
@@ -1001,7 +1001,7 @@ export default function PaymentsTable ({
                         disabled={!hasRemainingAmount || isCheckingForLogPayment === payment.id}
                         onClick={() => handleLogPaymentClick(
                           payment.id,
-                          payment.amount * (1 - payment.payment_percentage / 100)
+                          payment.remaining_amount
                         )}
                       >
                         {isCheckingForLogPayment === payment.id ? 'Checking...' : 'Log payment'}

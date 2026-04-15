@@ -40,7 +40,8 @@ import {
   Copy,
   Pencil,
   ShoppingCart,
-  Briefcase
+  Briefcase,
+  Trash2
 } from 'lucide-react'
 
 type Props = {
@@ -271,6 +272,7 @@ export default function ExpenseDetailsContent({ expense }: Props) {
                         className='text-red-600 focus:text-red-600'
                         onSelect={(e) => e.preventDefault()}
                       >
+                        <Trash2 size={14} className='mr-2' />
                         Delete Expense
                       </DropdownMenuItem>
                     }
@@ -666,6 +668,14 @@ export default function ExpenseDetailsContent({ expense }: Props) {
                   {expense.due_payment_date ? formatDate(expense.due_payment_date) : '—'}
                 </span>
               </div>
+              {expense.property_expense?.expense_month && (
+                <div className='flex items-center justify-between'>
+                  <span className='texts-body-small text-(--text-secondary)'>Expense Month</span>
+                  <span className='texts-body-small-medium'>
+                    {new Date(expense.property_expense.expense_month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </span>
+                </div>
+              )}
               {expense.recurring_config && (
                 <div className='flex items-start justify-between pt-3 border-t border-(--border-light)'>
                   <span className='texts-body-small text-(--text-secondary)'>Recurring</span>

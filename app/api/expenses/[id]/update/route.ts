@@ -68,6 +68,12 @@ export async function PUT(
       contract_id,
       is_asset,
       depreciation_percentage,
+      // Vendor field
+      vendor_id,
+      // Property expense month
+      expense_month,
+      // Due payment date
+      due_payment_date,
       // Staff claim fields
       is_claimed,
       claimer_id,
@@ -123,7 +129,10 @@ export async function PUT(
       await tx.expenses.update({
         where: { id: expense.id },
         data: {
-          description: description || null
+          description: description || null,
+          ...(due_payment_date !== undefined && {
+            due_payment_date: due_payment_date ? new Date(due_payment_date) : null
+          })
         }
       })
 
@@ -137,7 +146,10 @@ export async function PUT(
               property_id: property_id || null,
               lease_id: lease_id || null,
               is_claimed: is_claimed || false,
-              claimer_id: is_claimed ? claimer_id : null
+              claimer_id: is_claimed ? claimer_id : null,
+              ...(expense_month !== undefined && {
+                expense_month: new Date(expense_month)
+              })
             }
           })
           break

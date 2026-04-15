@@ -14,6 +14,7 @@ export type EditExpenseData = {
   reference_id: string
   category: string
   description: string | null
+  due_payment_date: string | null
   // Category-specific
   property_expense: {
     type: string
@@ -21,6 +22,7 @@ export type EditExpenseData = {
     lease_id: string | null
     is_claimed: boolean
     claimer_id: string | null
+    expense_month: string | null
   } | null
   contract_expense: {
     type: string
@@ -91,6 +93,7 @@ async function getExpenseForEdit(referenceId: string): Promise<EditExpenseData |
         reference_id: true,
         category: true,
         description: true,
+        due_payment_date: true,
         charges: {
           select: {
             id: true,
@@ -119,7 +122,8 @@ async function getExpenseForEdit(referenceId: string): Promise<EditExpenseData |
             property_id: true,
             lease_id: true,
             is_claimed: true,
-            claimer_id: true
+            claimer_id: true,
+            expense_month: true
           }
         },
         contract_expenses: {
@@ -183,12 +187,14 @@ async function getExpenseForEdit(referenceId: string): Promise<EditExpenseData |
       reference_id: expense.reference_id,
       category: expense.category,
       description: expense.description,
+      due_payment_date: expense.due_payment_date?.toISOString() ?? null,
       property_expense: expense.property_expenses ? {
         type: expense.property_expenses.type,
         property_id: expense.property_expenses.property_id,
         lease_id: expense.property_expenses.lease_id,
         is_claimed: expense.property_expenses.is_claimed,
-        claimer_id: expense.property_expenses.claimer_id
+        claimer_id: expense.property_expenses.claimer_id,
+        expense_month: expense.property_expenses.expense_month?.toISOString() ?? null
       } : null,
       contract_expense: expense.contract_expenses ? {
         type: expense.contract_expenses.type,

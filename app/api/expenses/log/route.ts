@@ -51,10 +51,19 @@ export async function POST(request: NextRequest) {
       },
       select: {
         id: true,
+        category: true,
         charges: {
           select: {
             amount: true,
             is_taxed: true
+          }
+        },
+        staff_expenses: {
+          select: {
+            type: true,
+            gross_salary: true,
+            epf_employer: true,
+            socso_employer: true
           }
         },
         payment_history: {
@@ -73,11 +82,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate total amount and already paid amount
-    const totalAmount = expense.charges.reduce((sum, charge) => {
-      const chargeAmount = charge.amount.toNumber()
-      const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
-      return sum + chargeAmount + tax
-    }, 0)
+    let totalAmount: number
+
+    if (expense.category === 'Staff_Related' && expense.staff_expenses?.type === 'Salary') {
+      // Cost to Company = Gross + Employer EPF + Employer SOCSO + Allowances
+      const gross = expense.staff_expenses.gross_salary.toNumber()
+      const epfEr = expense.staff_expenses.epf_employer.toNumber()
+      const socsoEr = expense.staff_expenses.socso_employer.toNumber()
+      const allowancesTotal = expense.charges.reduce((sum, charge) => sum + charge.amount.toNumber(), 0)
+      totalAmount = gross + epfEr + socsoEr + allowancesTotal
+    } else {
+      totalAmount = expense.charges.reduce((sum, charge) => {
+        const chargeAmount = charge.amount.toNumber()
+        const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
+        return sum + chargeAmount + tax
+      }, 0)
+    }
 
     const totalPaid = expense.payment_history.reduce(
       (sum, h) => sum + h.amount.toNumber(),

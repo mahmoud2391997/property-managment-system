@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { parseLocalDateTime } from '@/utils/formatTime'
 
 export async function GET(request: Request) {
   try {
@@ -118,7 +119,7 @@ export async function POST(request: Request) {
     if (error) return error
 
     const body = await request.json()
-    const { propertyId, roomId, date, time, firstName, lastName, phoneNumber, email } =
+    const { propertyId, roomId, date, time, firstName, lastName, phoneNumber, email, timezone_offset } =
       body
 
     // Validation - must have either propertyId OR roomId (XOR constraint)
@@ -234,8 +235,8 @@ export async function POST(request: Request) {
     // Format: VW-YYYY-#### (e.g., VW-2025-0001)
     const reference_id = `${yearPrefix}${nextSequence.toString().padStart(4, '0')}`
 
-    // Combine date and time into a timestamp for viewed_at
-    const viewed_at = new Date(`${date}T${time}`)
+    // Combine date and time into a timestamp for viewed_at (with client timezone)
+    const viewed_at = parseLocalDateTime(date, time, timezone_offset ?? 0)
 
     // Create view - property_id is null when room_id is set (XOR constraint)
     const view = await prisma.views.create({
