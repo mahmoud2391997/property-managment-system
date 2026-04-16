@@ -41,6 +41,8 @@ import RentalHistoryDialog from '@/components/dialogs/rental-history-dialog'
 import ScheduledRentChangeBanner from '@/components/costume-ui/scheduled-rent-change-banner'
 import ScheduledLeaseEndBanner from '@/components/costume-ui/scheduled-lease-end-banner'
 import ScheduleLeaseEndDialog from '@/components/dialogs/schedule-lease-end-dialog'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
 
 // Types for overview data
 type ScheduledChange = {
@@ -930,13 +932,23 @@ export default function OverviewContent ({ propertyId }: Props) {
       )}
 
       {/* Payments */}
-      <PaymentsSection
-        propertyId={propertyId}
-        hasActiveLease={!!overviewData?.lease}
-        activeLeaseId={overviewData?.lease?.id}
-      />
+      <PermissionGate
+        permission="payments.access"
+        fallback={<NoAccessCard label="Recent Payments" />}
+      >
+        <PaymentsSection
+          propertyId={propertyId}
+          hasActiveLease={!!overviewData?.lease}
+          activeLeaseId={overviewData?.lease?.id}
+        />
+      </PermissionGate>
       {/* Recurring Payments & Expenses */}
-      <RecurringSection propertyId={propertyId} />
+      <PermissionGate
+        permission="recurring.access"
+        fallback={<NoAccessCard label="Recurring Payments & Expenses" />}
+      >
+        <RecurringSection propertyId={propertyId} />
+      </PermissionGate>
 
       {/* Add Booking Wizard */}
       <AddBookingWizard

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { computePropertyDisplayStatus } from '@/lib/properties-utils'
 
 export async function GET (
@@ -9,10 +10,14 @@ export async function GET (
   { params }: { params: Promise<{ propertyId: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'leases.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { propertyId } = await params
 
     const property = await prisma.properties.findUnique({

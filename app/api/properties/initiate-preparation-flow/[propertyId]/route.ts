@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 type PreparationTask = {
   title: string
@@ -16,10 +17,14 @@ export async function POST(
   { params }: { params: Promise<{ propertyId: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'properties.initiate_preparation_flow'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { propertyId } = await params
     const body = await request.json()
 

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import TasksSection from '@/components/sections/tasks-section'
 import { Task } from '@/types'
+import { requirePermission } from '@/lib/server-permissions'
 
 const PAGE_SIZE = 10
 
@@ -175,6 +176,7 @@ async function getTasks(): Promise<{ data: Task[]; total: number }> {
 }
 
 const Tasks = async () => {
+  await requirePermission('tasks.access')
   const { data: initialData, total: initialTotal } = await getTasks()
 
   return (

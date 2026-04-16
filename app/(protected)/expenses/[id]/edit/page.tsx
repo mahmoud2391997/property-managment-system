@@ -1,3 +1,4 @@
+import { requirePermission } from '@/lib/server-permissions'
 export const dynamic = 'force-dynamic'
 
 import { notFound, redirect } from 'next/navigation'
@@ -250,6 +251,7 @@ async function getExpenseForEdit(referenceId: string): Promise<EditExpenseData |
 }
 
 export default async function EditExpensePage({ params }: Props) {
+  await requirePermission('edit.access')
   const { id } = await params
   const expense = await getExpenseForEdit(id)
 

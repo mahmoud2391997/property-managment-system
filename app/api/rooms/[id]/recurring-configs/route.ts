@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { RecurringConfigWithDetails } from '@/app/api/properties/[id]/recurring-configs/route'
 
 export async function GET(
@@ -8,10 +9,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'rooms.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id: roomId } = await params
 
     // Verify room belongs to the organization

@@ -58,20 +58,6 @@ export async function updateSession (request: NextRequest) {
   const isMigratePath = request.nextUrl.pathname === '/migrate'
   const isUnauthorizedPage = request.nextUrl.pathname === '/unauthorized'
 
-  const RESTRICTED_STAFF_EMAILS: String[] = [
-    'majidrafique777@gmail.com',
-    'mickyiyke745@gmail.com'
-  ]
-
-  const RESTRICTED_STAFF_ALLOWED_PATHS = [
-    '/tasks',
-    '/tickets',
-    '/notifications',
-    '/api',
-    '/unauthorized',
-    '/setup-password'
-  ]
-
   if (!user && !isPublicPath) {
     // no user, redirect to login page
     const url = request.nextUrl.clone()
@@ -108,25 +94,7 @@ export async function updateSession (request: NextRequest) {
         return NextResponse.redirect(url)
       }
 
-      // Check if staff email is restricted
-      if (hasOrganization) {
-        const isRestrictedStaff = RESTRICTED_STAFF_EMAILS.includes(
-          user.email ?? ''
-        )
-
-        if (isRestrictedStaff) {
-          const isAllowedPath = RESTRICTED_STAFF_ALLOWED_PATHS.some(path =>
-            request.nextUrl.pathname.startsWith(path)
-          )
-
-          if (!isAllowedPath) {
-            const url = request.nextUrl.clone()
-            url.pathname = '/tasks'
-            return NextResponse.redirect(url)
-          }
-        }
-      }
-
+      
       // Staff cannot access tenant-only pages
       const tenantOnlyPaths = ['/rentals']
       const isTenantOnlyPath = tenantOnlyPaths.some(path =>

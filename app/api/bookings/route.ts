@@ -3,16 +3,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { getBaseUrl } from '@/utils/get-base-url'
 
 export async function POST(request: NextRequest) {
   try {
-    const { user, staff: currentStaff, error } = await getUserAndStaff()
+    const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'bookings.create'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const formData = await request.formData()
 
     // Common fields
@@ -466,9 +471,11 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
     if (error) return error
 
+    if (!hasPermission(permissions, 'bookings.access'))
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { searchParams } = new URL(request.url)
     const propertyId = searchParams.get('propertyId')
     const roomId = searchParams.get('roomId')

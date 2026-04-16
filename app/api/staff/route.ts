@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { NextResponse } from 'next/server'
@@ -7,10 +8,14 @@ import { getBaseUrl } from '@/utils/get-base-url'
 
 export async function GET (request: Request) {
   try {
-    const { user, staff: currentStaff, error } = await getUserAndStaff()
+    const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'staff.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { searchParams } = new URL(request.url)
     const selectParam = searchParams.get('select')
 
@@ -92,10 +97,14 @@ async function generateStaffId (organizationId: string): Promise<string> {
 
 export async function POST (request: Request) {
   try {
-    const { user, staff: currentStaff, error } = await getUserAndStaff()
+    const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'staff.create'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const formData = await request.formData()
     const firstName = formData.get('firstName') as string
     const lastName = formData.get('lastName') as string | null
@@ -328,10 +337,14 @@ export async function POST (request: Request) {
 
 export async function DELETE (request: Request) {
   try {
-    const { user, staff: currentStaff, error } = await getUserAndStaff()
+    const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'staff.delete'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { searchParams } = new URL(request.url)
     const staffId = searchParams.get('id')
 

@@ -39,6 +39,8 @@ import AddBookingWizard from '@/components/add-booking-wizard'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import RentalHistoryDialog from '@/components/dialogs/rental-history-dialog'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
 
 // Types for room overview data
 type ScheduledChange = {
@@ -815,9 +817,19 @@ export default function RoomOverviewContent ({ roomId }: Props) {
       )}
 
       {/* Payments */}
-      <PaymentsSection roomId={roomId} hasActiveLease={!!overviewData?.lease} activeLeaseId={overviewData?.lease?.id} />
+      <PermissionGate
+        permission="payments.access"
+        fallback={<NoAccessCard label="Recent Payments" />}
+      >
+        <PaymentsSection roomId={roomId} hasActiveLease={!!overviewData?.lease} activeLeaseId={overviewData?.lease?.id} />
+      </PermissionGate>
       {/* Recurring Payments */}
-      <RecurringSectionRoom roomId={roomId} />
+      <PermissionGate
+        permission="recurring.access"
+        fallback={<NoAccessCard label="Recurring Payments" />}
+      >
+        <RecurringSectionRoom roomId={roomId} />
+      </PermissionGate>
 
       {/* Add Booking Wizard */}
       {overviewData?.propertyId && (

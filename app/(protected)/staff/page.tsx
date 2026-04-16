@@ -3,6 +3,12 @@ import StaffSection from '@/components/sections/staff-section'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
+import { requirePermission } from '@/lib/server-permissions'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Settings } from 'lucide-react'
 
 async function getStaff() {
   const supabase = await createClient()
@@ -80,6 +86,8 @@ async function getStaff() {
 
 
 const Staff = async () => {
+  await requirePermission('staff.access')
+  
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const currentUserId = user?.id
@@ -89,11 +97,31 @@ const Staff = async () => {
   return (
     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
       {/* Heading */}
-      <div>
+      <div className="flex items-center justify-between">
         <h1>Staff</h1>
+        <ManageRolesButton />
       </div>
       <StaffSection staff={staffList} currentUserId={currentUserId} />
     </div>
+  )
+}
+
+async function ManageRolesButton() {
+  'use server'
+  
+  const { permissions } = await getUserAndStaff()
+  
+  if (!hasPermission(permissions, 'roles.access')) {
+    return null
+  }
+
+  return (
+    <Link href="/staff/roles">
+      <Button variant="outline" size="sm">
+        <Settings className="w-4 h-4 mr-2" />
+        Manage Roles
+      </Button>
+    </Link>
   )
 }
 

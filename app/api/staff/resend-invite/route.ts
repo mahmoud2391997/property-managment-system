@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { prisma } from '@/lib/prisma'
 import { getBaseUrl } from '@/utils/get-base-url'
 
 export async function POST (req: NextRequest) {
   try {
     // Verify current user is staff
-    const { staff: currentStaff, error } = await getUserAndStaff()
+    const { staff: currentStaff, permissions, error } = await getUserAndStaff()
     if (error) return error
 
+    if (!hasPermission(permissions, 'staff.resend_invite'))
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { staffId } = await req.json()
 
     if (!staffId) {

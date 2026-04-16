@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 export type RecurringExpenseConfigWithProperty = {
   id: string
@@ -21,10 +22,14 @@ export type RecurringExpenseConfigWithProperty = {
 
 export async function GET() {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'expenses.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const expenseRecurringConfigs = await prisma.recurring_configs.findMany({
       where: {
         type: 'Expense',

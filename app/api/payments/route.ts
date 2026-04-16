@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { transformPayment } from '@/lib/payments-utils'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 // Shared select for payment queries
 const paymentSelect = {
@@ -131,30 +133,19 @@ const paymentSelect = {
 
 export async function GET (request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
+    const { user, staff, permissions, error } = await getUserAndStaff()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (error) return error
+
+    if (!hasPermission(permissions, 'payments.access')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Check if user is staff
-    const staff = await prisma.staff.findUnique({
-      where: { id: user.id },
-      select: { organization_id: true }
-    })
-
-    // Check if user is tenant
+    // Check if user is tenant (for tenant-specific access)
     const tenant = await prisma.tenants.findUnique({
       where: { id: user.id },
       select: { id: true }
     })
-
-    if (!staff && !tenant) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
 
     const { searchParams } = new URL(request.url)
 
@@ -356,7 +347,7 @@ export async function GET (request: NextRequest) {
             ]
           }
         : {
-            leases: { tenant_id: tenant!.id },
+            leases: { tenant_id: tenant?.id },
             ...(search && {
               OR: [
                 { reference_id: { contains: search, mode: 'insensitive' } },
@@ -462,7 +453,7 @@ export async function GET (request: NextRequest) {
     // Build where clause - filter by property/room through leases relation
     const whereClause: any = staff
       ? { organization_id: staff.organization_id, status: { not: 'Unset' } }
-      : { leases: { tenant_id: tenant!.id }, status: { not: 'Unset' } }
+      : { leases: { tenant_id: tenant?.id }, status: { not: 'Unset' } }
 
     // If propertyId provided, filter payments through leases or bookings -> property_id
     // Also filter room_id: null to only get property-level payments (not room payments)

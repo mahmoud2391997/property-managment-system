@@ -1,3 +1,4 @@
+import { requirePermission } from '@/lib/server-permissions'
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
@@ -417,6 +418,7 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
 }
 
 export default async function ExpenseDetailsPage({ params }: Props) {
+  await requirePermission('expenses.access')
   const { id } = await params
   const expense = await getExpenseDetails(id)
 

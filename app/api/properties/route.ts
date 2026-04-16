@@ -1,26 +1,29 @@
+'use server'
+
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { createClient } from '@/utils/supabase/server'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { transformProperty } from '@/lib/properties-utils'
 
 export async function GET (req: Request) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
+    const { user, staff, permissions, error } = await getUserAndStaff()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (error) return error
+
+    if (!hasPermission(permissions, 'properties.access')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // Get staff info to get organization_id
-    const staff = await prisma.staff.findUnique({
+    const staffInfo = await prisma.staff.findUnique({
       where: { id: user.id },
       select: { organization_id: true }
     })
 
-    if (!staff) {
+    if (!staffInfo) {
       return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
     }
 
@@ -46,7 +49,7 @@ export async function GET (req: Request) {
     if (paginate) {
       // Build where clause with search
       const whereClause: any = {
-        organization_id: staff.organization_id
+        organization_id: staffInfo.organization_id
       }
 
       // Add search conditions
@@ -219,7 +222,7 @@ export async function GET (req: Request) {
       }
 
       const whereClauseLegacy: any = {
-        organization_id: staff.organization_id
+        organization_id: staffInfo.organization_id
       }
 
       // Filter to only vacant properties (no Current property-level lease and no Current booking)
@@ -259,7 +262,7 @@ export async function GET (req: Request) {
       // When no specific fields requested, use include
       properties = await prisma.properties.findMany({
         where: {
-          organization_id: staff.organization_id
+          organization_id: staffInfo.organization_id
         },
         ...(includeProject && {
           include: {

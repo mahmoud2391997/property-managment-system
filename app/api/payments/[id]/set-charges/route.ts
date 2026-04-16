@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff } = await getUserAndStaff()
+    const { staff, permissions } = await getUserAndStaff()
     if (!staff) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

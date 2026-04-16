@@ -7,6 +7,7 @@ import { createAdminClient } from '@/utils/supabase/admin'
 import { redirect } from 'next/navigation'
 import { transformTenant, TenantWithDetails } from '@/lib/tenants-utils'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
+import { requirePermission } from '@/lib/server-permissions'
 
 const PAGE_SIZE = 10
 
@@ -125,6 +126,7 @@ async function getTenants(organizationId: string): Promise<{ data: TenantWithDet
 }
 
 const Tenants = async () => {
+  await requirePermission('tenants.access')
   const { staff: currentStaff, error } = await getUserAndStaff()
 
   if (error) {

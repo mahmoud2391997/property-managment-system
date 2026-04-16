@@ -1,3 +1,4 @@
+import { requirePermission } from '@/lib/server-permissions'
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
@@ -399,6 +400,7 @@ async function getUserType(): Promise<'staff' | 'tenant'> {
 }
 
 export default async function PaymentDetailsPage({ params }: Props) {
+  await requirePermission('payments.access')
   const { id } = await params
   const [payment, userType] = await Promise.all([
     getPaymentDetails(id),

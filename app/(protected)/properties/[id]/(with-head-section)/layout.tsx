@@ -24,12 +24,14 @@ import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import { toast } from 'sonner'
 import InitiatePreparationFlowDrawer from '@/components/dialogs/initiate-preparation-flow-drawer'
 import AssignOwnerDialog from '@/components/dialogs/assign-owner-dialog'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type Props = {
   children: React.ReactNode
 }
 const WithHeadSectionLayout = ({ children }: Props) => {
   const router = useRouter()
+  const { can } = usePermissions()
 
   const { id: propertyId } = useParams<{ id: string }>()
   const [propertyCode, setPropertyCode] = useState<string | null>(null)
@@ -50,36 +52,25 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const propertyData: Property | undefined = propertiesData.find(
     p => p.id === id
   )
+  const TABS = [
+    { label: 'Overview',  href: `/properties/${id}/overview`,  permission: 'properties.access' },
+    { label: 'Rooms',     href: `/properties/${id}/rooms`,     permission: 'rooms.access' },
+    { label: 'Views',     href: `/properties/${id}/views`,     permission: 'views.access' },
+    { label: 'Bookings',  href: `/properties/${id}/bookings`,  permission: 'bookings.access' },
+    { label: 'Leases',    href: `/properties/${id}/leases`,    permission: 'leases.access' },
+    { label: 'Contracts', href: `/properties/${id}/contracts`, permission: 'contracts.access' },
+  ]
+
+  const filteredTabs = TABS.filter(t => can(t.permission))
+
   const {
-    options: tabs,
+    options: tabOptions,
     selectByIndex,
     selectedIndex
-  } = useSingleSelectOption([
-    {
-      label: 'Overview',
-      isSelected: lastSegment === routes[0]
-    },
-    {
-      label: 'Rooms',
-      isSelected: lastSegment === routes[1]
-    },
-    {
-      label: 'Views',
-      isSelected: lastSegment === routes[2]
-    },
-    {
-      label: 'Bookings',
-      isSelected: lastSegment === routes[3]
-    },
-    {
-      label: 'Leases',
-      isSelected: lastSegment === routes[4]
-    },
-    {
-      label: 'Contracts',
-      isSelected: lastSegment === routes[5]
-    }
-  ])
+  } = useSingleSelectOption(filteredTabs.map((tab: any, index: number) => ({
+    label: tab.label,
+    isSelected: lastSegment === routes[TABS.indexOf(tab)]
+  })))
 
   // Fetch property code, status, and images
   const fetchPropertyData = async () => {
@@ -216,13 +207,13 @@ const WithHeadSectionLayout = ({ children }: Props) => {
         </div>
         {isPropertyCodeLoading ? (
           <div className='flex gap-6'>
-            {tabs.map((_, index) => (
+            {tabOptions.map((_: any, index: number) => (
               <Skeleton key={index} className='h-5 w-16 bg-neutral-300' />
             ))}
           </div>
         ) : (
           <TabGroup>
-            {tabs.map((tab, index) => (
+            {tabOptions.map((tab: any, index: number) => (
               <Tab
                 key={index}
                 label={tab.label}

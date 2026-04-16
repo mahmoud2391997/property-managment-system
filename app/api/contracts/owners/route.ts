@@ -1,13 +1,18 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 export async function GET() {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'contracts.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const ownersData = await prisma.owners.findMany({
       where: {
         organization_id: staff.organization_id

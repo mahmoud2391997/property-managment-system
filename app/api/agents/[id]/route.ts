@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function PATCH(
@@ -7,10 +8,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'agents.update'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id } = await params
 
     // Verify the agent exists and belongs to the same organization

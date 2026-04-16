@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import * as XLSX from 'xlsx'
 
 type ImportError = {
@@ -21,10 +22,14 @@ const VALID_PROPERTY_TYPES = ['House', 'Apartment'] as const
 
 export async function POST(req: NextRequest) {
   try {
-    const { user, staff: currentStaff, error } = await getUserAndStaff()
+    const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'rooms.import'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     // Parse form data
     const formData = await req.formData()
     const file = formData.get('file') as File

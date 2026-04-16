@@ -10,6 +10,7 @@ import { transformPayment, PaymentWithDetails } from '@/lib/payments-utils'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
 import { payment_status } from '@prisma/client'
 import { PaymentSummary } from '@/components/costume-ui/payall-ui'
+import { requirePermission } from '@/lib/server-permissions'
 
 
 const PAGE_SIZE = 10
@@ -198,6 +199,7 @@ async function getPayments (): Promise<{
 }
 
 const Payments = async () => {
+  await requirePermission('payments.access')
   const {
     data: initialData,
     total: initialTotal,

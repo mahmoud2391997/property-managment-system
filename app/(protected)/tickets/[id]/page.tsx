@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
 import TicketDetailsContent from './ticket-details-content'
+import { requirePermission } from '@/lib/server-permissions'
 
 type Props = {
   params: Promise<{ id: string }>
@@ -237,6 +238,7 @@ async function getTicketData(ticketId: string) {
 }
 
 export default async function TicketDetailsPage({ params }: Props) {
+  await requirePermission('tickets.access')
   const { id } = await params
   const data = await getTicketData(id)
 

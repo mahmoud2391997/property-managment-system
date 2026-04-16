@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { transformExpense } from '@/lib/expenses-utils'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 // Shared select for expense queries
 export const expenseSelect = {
@@ -104,18 +106,13 @@ export const expenseSelect = {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { user, staff, permissions, error } = await getUserAndStaff()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (error) return error
+
+    if (!hasPermission(permissions, 'expenses.access')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-
-    // Get current staff organization
-    const staff = await prisma.staff.findUnique({
-      where: { id: user.id },
-      select: { organization_id: true }
-    })
 
     if (!staff) {
       return NextResponse.json({ error: 'Staff not found' }, { status: 404 })

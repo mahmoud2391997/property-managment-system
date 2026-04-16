@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -8,10 +9,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'owners.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id } = await params
 
     // Fetch owner with properties and contracts
@@ -127,10 +132,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'owners.update'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id } = await params
 
     // Verify the owner exists and belongs to the same organization

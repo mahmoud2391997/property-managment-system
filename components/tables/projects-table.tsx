@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import Tooltip from '../costume-ui/tooltip'
 import { Project } from '@/types'
+import { usePermissions } from '@/hooks/use-permissions'
 
 export const columns: ColumnDef<Project>[] = [
   //Checkbox
@@ -85,6 +86,7 @@ export const columns: ColumnDef<Project>[] = [
     enableHiding: false,
     cell: ({ row }) => {
       const project = row.original
+      const { can } = usePermissions()
 
       return (
         <DropdownMenu>
@@ -99,11 +101,11 @@ export const columns: ColumnDef<Project>[] = [
             <DropdownMenuItem
               onClick={() => navigator.clipboard.writeText(project.id)}
             >
-              Copy payment ID
+              Copy project ID
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>View customer</DropdownMenuItem>
-            <DropdownMenuItem>View payment details</DropdownMenuItem>
+            {can('projects.update') && <DropdownMenuItem>Edit project</DropdownMenuItem>}
+            {can('projects.delete') && <DropdownMenuItem>Delete project</DropdownMenuItem>}
           </DropdownMenuContent>
         </DropdownMenu>
       )

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
@@ -30,10 +31,14 @@ const tenantSelect = {
 
 export async function GET(request: NextRequest) {
   try {
-    const { staff: currentStaff, error } = await getUserAndStaff()
+    const { staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'tenants.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { searchParams } = new URL(request.url)
 
     // Pagination and search params
@@ -313,10 +318,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: Request) {
   try {
-    const { user, staff: currentStaff, error } = await getUserAndStaff()
+    const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'tenants.create'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const formData = await request.formData()
     const identityType = formData.get('identityType') as string
     const identityNumber = formData.get('identityNumber') as string
@@ -605,10 +614,14 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const { user, staff: currentStaff, error } = await getUserAndStaff()
+    const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'tenants.delete'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { searchParams } = new URL(request.url)
     const tenantId = searchParams.get('id')
 

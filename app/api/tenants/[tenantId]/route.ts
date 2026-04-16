@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
@@ -9,10 +10,14 @@ export async function GET(
   { params }: { params: Promise<{ tenantId: string }> }
 ) {
   try {
-    const { staff: currentStaff, error } = await getUserAndStaff()
+    const { staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'tenants.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { tenantId } = await params
 
     // Verify the tenant exists and belongs to the same organization
@@ -215,10 +220,14 @@ export async function PATCH(
   { params }: { params: Promise<{ tenantId: string }> }
 ) {
   try {
-    const { staff: currentStaff, error } = await getUserAndStaff()
+    const { staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'tenants.update'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { tenantId } = await params
 
     // Verify the tenant exists and belongs to the same organization

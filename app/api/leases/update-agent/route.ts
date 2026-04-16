@@ -1,13 +1,18 @@
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'leases.update_agent'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const body = await request.json()
     const { lease_id, agent_id } = body
 
