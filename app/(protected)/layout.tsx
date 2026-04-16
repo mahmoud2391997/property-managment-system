@@ -4,6 +4,7 @@ import Sidebar, { MobileHeader } from '@/components/app-sidebar'
 import { cn } from '@/lib/utils'
 import NextTopLoader from 'nextjs-toploader'
 import { NotificationProvider } from '@/contexts/notification-context'
+import { UserProvider } from '@/contexts/user-context'
 import PasswordSetupGuard from '@/components/password-setup-guard'
 import { PullToRefresh } from '@/components/pull-to-refresh'
 import { CommandPaletteProvider } from '@/contexts/command-palette-context'
@@ -18,12 +19,13 @@ export default async function ProtectedLayout ({
   const defaultOpen = cookieStore.get('sidebar_state')?.value === 'true'
   return (
     <PasswordSetupGuard>
-      <NotificationProvider>
-        <CommandPaletteProvider>
-          <SidebarProvider
-            defaultOpen={defaultOpen}
-            className='md:px-[15] px-0 flex-col'
-          >
+      <UserProvider>
+        <NotificationProvider>
+          <CommandPaletteProvider>
+            <SidebarProvider
+              defaultOpen={defaultOpen}
+              className='md:px-[15] px-0 flex-col'
+            >
             {/* Mobile Header - only visible on small screens */}
             <MobileHeader />
 
@@ -52,6 +54,7 @@ export default async function ProtectedLayout ({
           </SidebarProvider>
         </CommandPaletteProvider>
       </NotificationProvider>
+      </UserProvider>
     </PasswordSetupGuard>
   )
 }
