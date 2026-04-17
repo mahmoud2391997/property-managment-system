@@ -109,20 +109,27 @@ const Staff = async () => {
 async function ManageRolesButton() {
   'use server'
   
-  const { permissions } = await getUserAndStaff()
-  
-  if (!hasPermission(permissions, 'roles.access')) {
+  try {
+    const { user, staff, permissions, error } = await getUserAndStaff()
+    
+    if (error) return null
+    
+    if (!permissions || !hasPermission(permissions, 'roles.access')) {
+      return null
+    }
+
+    return (
+      <Link href="/staff/roles">
+        <Button variant="outline" size="sm">
+          <Settings className="w-4 h-4 mr-2" />
+          Manage Roles
+        </Button>
+      </Link>
+    )
+  } catch (error) {
+    console.error('Error in ManageRolesButton:', error)
     return null
   }
-
-  return (
-    <Link href="/staff/roles">
-      <Button variant="outline" size="sm">
-        <Settings className="w-4 h-4 mr-2" />
-        Manage Roles
-      </Button>
-    </Link>
-  )
 }
 
 export default Staff

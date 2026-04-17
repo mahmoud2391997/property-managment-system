@@ -19,6 +19,8 @@ export async function GET() {
         first_name: true,
         last_name: true,
         profile_thumb: true,
+        role_id: true,
+        organization_id: true,
         roles: {
           select: {
             title: true
@@ -28,12 +30,23 @@ export async function GET() {
     })
 
     if (staff) {
+      // Get user permissions
+      const permissions = await prisma.$queryRaw`
+        SELECT p.title
+        FROM roles_permissions rp
+        JOIN permissions p ON rp.permission_id = p.id
+        WHERE rp.role_id = ${staff.role_id}::uuid
+      ` as { title: string }[]
+
       return NextResponse.json({
         userType: 'staff',
         firstName: staff.first_name,
         lastName: staff.last_name,
         profileThumb: staff.profile_thumb,
-        role: staff.roles?.title || 'Staff'
+        role: staff.roles?.title || 'Staff',
+        user: { id: user.id, email: user.email },
+        staff: { id: staff.id, organization_id: staff.organization_id || '' },
+        permissions: permissions.map(p => p.title)
       })
     }
 

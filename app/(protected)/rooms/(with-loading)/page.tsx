@@ -3,6 +3,7 @@ import RoomsSection from '@/components/sections/rooms-section'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { transformRoom, RoomWithDetails } from '@/lib/rooms-utils'
+import { requirePermission } from '@/lib/server-permissions'
 
 const PAGE_SIZE = 10
 
@@ -124,6 +125,7 @@ async function getRoomsWithTotal(): Promise<{ rooms: RoomWithDetails[], total: n
 }
 
 const Rooms = async () => {
+  await requirePermission('rooms.access')
   const { rooms, total } = await getRoomsWithTotal()
 
   return (

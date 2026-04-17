@@ -3,6 +3,7 @@ import PropertiesSection from '@/components/sections/properties-section'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { transformProperty, PropertyWithDetails } from '@/lib/properties-utils'
+import { requirePermission } from '@/lib/server-permissions'
 
 const PAGE_SIZE = 10
 
@@ -110,6 +111,7 @@ async function getProperties(): Promise<{ data: PropertyWithDetails[]; total: nu
 }
 
 const Properties = async () => {
+  await requirePermission('properties.access')
   const { data: initialData, total: initialTotal } = await getProperties()
 
   return (

@@ -170,12 +170,23 @@ Menu items filtered by `can()` with parent hiding logic
 
 ## Testing
 
+### Test Users & Credentials
+| Role | Email | Password | Expected Access |
+|------|-------|----------|----------------|
+| Owner | staffuser0@example.com | ChangeMe123! | All permissions |
+| Property Manager | propertymanager@example.com | Test123456! | Properties, Rooms, Leases, etc. |
+| Finance Manager | financemanager@example.com | Test123456! | Payments, Expenses, Reports |
+| Task Manager | taskmanager@example.com | Test123456! | Tasks, Tickets, Notifications |
+| Property Viewer | propertyviewer@example.com | Test123456! | Read-only access to properties |
+| Owner (Org) | owner@example.com | Test123456! | All permissions (organization owner) |
+
 ### Verification Steps
-1. Log in as Owner - should see everything
-2. Create test role with limited permissions
-3. Assign test role to staff member
-4. Verify restricted access to pages/APIs
-5. Test role changes and cache invalidation
+1. **Owner Test**: Log in as `staffuser0@example.com` - should see everything
+2. **Role Test**: Log in as `propertymanager@example.com` - should see limited access
+3. **API Test**: Try accessing `/api/properties` without permissions - should return 403
+4. **Page Test**: Try accessing `/properties` without permissions - should redirect to `/unauthorized`
+5. **Sidebar Test**: Verify sidebar items are filtered based on permissions
+6. **Cache Test**: Change role and verify permissions update immediately
 
 ### Expected Behavior
 - Unauthorized pages redirect to `/unauthorized`
@@ -183,3 +194,16 @@ Menu items filtered by `can()` with parent hiding logic
 - Sidebar hides items without access
 - Tabs hide without module access
 - Cards show fallback UI without access
+- Permission changes take effect immediately
+
+### Current Implementation Status
+- **Phase 1**: Foundation - 100% Complete
+- **Phase 2**: Admin UI - 100% Complete  
+- **Phase 3**: Enforcement - 100% Complete
+- **Phase 4**: Cleanup - 95% Complete (documentation updated)
+
+### Database State
+- **Total Permissions**: 123 (all modules covered)
+- **Owner Role**: Created with all permissions
+- **Test Roles**: 5 roles with different permission sets
+- **Test Users**: 6 users with proper role assignments

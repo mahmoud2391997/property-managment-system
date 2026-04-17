@@ -27,7 +27,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/user/info', { credentials: 'include' })
+    fetch('/api/me', { credentials: 'include' })
       .then(res => (res.ok ? res.json() : null))
       .then(json => { if (!cancelled) setData(json) })
       .catch(() => { if (!cancelled) setData(null) })

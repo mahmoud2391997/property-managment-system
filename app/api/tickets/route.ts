@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 // Shared include for ticket queries
 const ticketInclude = {
@@ -105,50 +107,45 @@ function transformTicket(ticket: any) {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
+    const { user, staff, permissions, error } = await getUserAndStaff()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (error) return error
 
-    const userType = user.user_metadata?.user_type
+    if (!hasPermission(permissions, 'tickets.access'))
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     let organizationId: string | null = null
     let tenantId: string | null = null
+    let userType: string | null = null
 
-    // Get organization based on user type
-    if (userType === 'tenant') {
-      const tenant = await prisma.tenants.findUnique({
-        where: { id: user.id },
-        select: {
-          id: true,
-          organizations_tenants: {
-            select: { organization_id: true },
-            take: 1
-          }
-        }
-      })
-
-      if (!tenant) {
-        return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
-      }
-
-      organizationId = tenant.organizations_tenants[0]?.organization_id || null
-      tenantId = tenant.id
-    } else {
-      const staff = await prisma.staff.findUnique({
-        where: { id: user.id },
-        select: { organization_id: true }
-      })
-
-      if (!staff) {
-        return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
-      }
-
+    // For staff users, use staff.organization_id
+    if (staff) {
       organizationId = staff.organization_id
+    } else {
+      // Handle tenant users (existing logic)
+      const supabase = await createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      userType = authUser?.user_metadata?.user_type || null
+      if (userType === 'tenant') {
+        const tenant = await prisma.tenants.findUnique({
+          where: { id: authUser?.id },
+          select: {
+            id: true,
+            organizations_tenants: {
+              select: { organization_id: true },
+              take: 1
+            }
+          }
+        })
+
+        if (!tenant) {
+          return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+        }
+
+        organizationId = tenant.organizations_tenants[0]?.organization_id || null
+        tenantId = tenant.id
+      }
     }
 
     if (!organizationId) {
