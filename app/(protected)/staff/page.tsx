@@ -114,13 +114,20 @@ async function ManageRolesButton() {
     
     if (error) return null
     
+    console.log('ManageRolesButton Debug:', {
+      userId: user?.id,
+      staffId: staff?.id,
+      permissionsCount: permissions?.size || 0,
+      hasRolesAccess: hasPermission(permissions, 'roles.access')
+    })
+    
     if (!permissions || !hasPermission(permissions, 'roles.access')) {
       return null
     }
 
     return (
       <Link href="/staff/roles">
-        <Button variant="outline" size="sm">
+        <Button variant="default" size="sm">
           <Settings className="w-4 h-4 mr-2" />
           Manage Roles
         </Button>

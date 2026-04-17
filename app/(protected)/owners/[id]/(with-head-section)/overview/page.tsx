@@ -6,7 +6,7 @@ type Props = {
 }
 
 export default async function OverviewPage({ params }: Props) {
-  await requirePermission('overview.access')
+  await requirePermission('owners.access')
   const { id } = await params
 
   return <OverviewContent ownerId={id} />

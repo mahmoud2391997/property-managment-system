@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { UserAvatar } from '../costume-ui/name-avatar'
 import { Prisma } from '@prisma/client'
 import EditAgentDialog from '../dialogs/edit-agent-dialog'
+import { usePermissions } from '@/hooks/use-permissions'
 
 // Infer the type from Prisma query and extend with computed fields
 export type AgentWithDetails = Prisma.agentsGetPayload<{
@@ -36,7 +37,7 @@ export type AgentWithDetails = Prisma.agentsGetPayload<{
   }
 }>
 
-export const columns: ColumnDef<AgentWithDetails>[] = [
+const getColumns = (canUpdate: boolean): ColumnDef<AgentWithDetails>[] => [
   //Checkbox
   {
     id: 'select',
@@ -139,23 +140,27 @@ export const columns: ColumnDef<AgentWithDetails>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end'>
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <EditAgentDialog
-              agentId={agent.id}
-              initialData={{
-                id: agent.id,
-                first_name: agent.first_name,
-                last_name: agent.last_name,
-                phone_number: agent.phone_number,
-                email: agent.email
-              }}
-              trigger={
-                <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                  Edit Agent
-                </DropdownMenuItem>
-              }
-              onSuccess={() => window.location.reload()}
-            />
-            <DropdownMenuSeparator />
+            {canUpdate && (
+              <>
+                <EditAgentDialog
+                  agentId={agent.id}
+                  initialData={{
+                    id: agent.id,
+                    first_name: agent.first_name,
+                    last_name: agent.last_name,
+                    phone_number: agent.phone_number,
+                    email: agent.email
+                  }}
+                  trigger={
+                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                      Edit Agent
+                    </DropdownMenuItem>
+                  }
+                  onSuccess={() => window.location.reload()}
+                />
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem
               onClick={() => navigator.clipboard.writeText(agent.phone_number)}
             >
@@ -178,5 +183,6 @@ type AgentsTableProps = {
 }
 
 export default function AgentsTable({ data }: AgentsTableProps) {
-  return <Table columns={columns} data={data} />
+  const { can } = usePermissions()
+  return <Table columns={getColumns(can('agents.update'))} data={data} />
 }

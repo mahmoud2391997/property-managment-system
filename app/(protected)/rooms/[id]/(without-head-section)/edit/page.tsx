@@ -14,6 +14,7 @@ import PropertyImagesUpload, { ImageData } from '@/components/costume-ui/propert
 import type { LateCharge } from '@/components/costume-ui/payment-section'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import ActionPageSkeleton from '@/components/loading-ui/action-page-skeleton'
+import { PermissionGuard } from '@/components/permission-guard'
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -311,18 +312,19 @@ const EditRoom = ({ params }: PageProps) => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
-      {/* Head section */}
-      <AddPageHead
-        crumb_items={[
-          { label: 'Rooms', href: '/rooms' },
-          { label: roomData.property.code + '(' + roomData.title + ')', href: `/rooms/${roomId}/overview` },
-          { label: 'Edit Room' }
-        ]}
-        title={`Edit ${roomData.title}`}
-        subtitle='Update room details and default configurations'
-        isSubmitting={isSubmitting}
-      />
+    <PermissionGuard permission='rooms.update'>
+      <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
+        {/* Head section */}
+        <AddPageHead
+          crumb_items={[
+            { label: 'Rooms', href: '/rooms' },
+            { label: roomData.property.code + '(' + roomData.title + ')', href: `/rooms/${roomId}/overview` },
+            { label: 'Edit Room' }
+          ]}
+          title={`Edit ${roomData.title}`}
+          subtitle='Update room details and default configurations'
+          isSubmitting={isSubmitting}
+        />
 
       {/* Room Details Section */}
       <CollapsibleSection number={1} title='Room Details'>
@@ -436,7 +438,8 @@ const EditRoom = ({ params }: PageProps) => {
           overdue_days_after_reminder: leaseConfig?.overdue_days_after_reminder
         }}
       />
-    </form>
+      </form>
+    </PermissionGuard>
   )
 }
 

@@ -22,7 +22,7 @@ export async function POST(
     if (error) return error
 
 
-    if (!hasPermission(permissions, 'rooms.initiate_preparation_flow'))
+    if (!hasPermission(permissions, 'rooms.update'))
 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { roomId } = await params

@@ -251,7 +251,7 @@ async function getExpenseForEdit(referenceId: string): Promise<EditExpenseData |
 }
 
 export default async function EditExpensePage({ params }: Props) {
-  await requirePermission('edit.access')
+  await requirePermission('expenses.update')
   const { id } = await params
   const expense = await getExpenseForEdit(id)
 

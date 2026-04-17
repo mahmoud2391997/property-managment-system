@@ -17,7 +17,7 @@ export async function POST (
     const { staff, permissions, error } = await getUserAndStaff()
     if (error) return error
 
-    if (!hasPermission(permissions, 'tasks.submit_refund_decision'))
+    if (!hasPermission(permissions, 'tasks.update'))
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id: taskId } = await params
     const body: SubmitRefundDecisionRequestBody = await request.json()

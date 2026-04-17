@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils'
 import AgentsSection from '@/components/sections/agents-section'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { requirePermission } from '@/lib/server-permissions'
 
 async function getAgents() {
   const supabase = await createClient()
@@ -42,6 +43,7 @@ async function getAgents() {
 }
 
 const Agents = async () => {
+  await requirePermission('agents.access')
   const agents = await getAgents()
 
   return (

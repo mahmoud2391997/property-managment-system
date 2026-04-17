@@ -20,6 +20,7 @@ import { UserAvatar } from '../costume-ui/name-avatar'
 import { Prisma } from '@prisma/client'
 import EditOwnerDialog from '../dialogs/edit-owner-dialog'
 import Link from 'next/link'
+import { usePermissions } from '@/hooks/use-permissions'
 
 // Infer the type from Prisma query and extend with computed fields
 export type OwnerWithDetails = Prisma.ownersGetPayload<{
@@ -41,7 +42,7 @@ export type OwnerWithDetails = Prisma.ownersGetPayload<{
   currentContractCount: number
 }
 
-export const columns: ColumnDef<OwnerWithDetails>[] = [
+const getColumns = (canUpdate: boolean): ColumnDef<OwnerWithDetails>[] => [
   //Checkbox
   {
     id: 'select',
@@ -164,24 +165,26 @@ export const columns: ColumnDef<OwnerWithDetails>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end'>
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <EditOwnerDialog
-              ownerId={owner.id}
-              initialData={{
-                id: owner.id,
-                first_name: owner.first_name,
-                last_name: owner.last_name,
-                phone_number: owner.phone_number,
-                email: owner.email,
-                profile_pic: owner.profile_pic,
-                profile_thumb: owner.profile_thumb
-              }}
-              trigger={
-                <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                  Edit Owner
-                </DropdownMenuItem>
-              }
-              onSuccess={() => window.location.reload()}
-            />
+            {canUpdate && (
+              <EditOwnerDialog
+                ownerId={owner.id}
+                initialData={{
+                  id: owner.id,
+                  first_name: owner.first_name,
+                  last_name: owner.last_name,
+                  phone_number: owner.phone_number,
+                  email: owner.email,
+                  profile_pic: owner.profile_pic,
+                  profile_thumb: owner.profile_thumb
+                }}
+                trigger={
+                  <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                    Edit Owner
+                  </DropdownMenuItem>
+                }
+                onSuccess={() => window.location.reload()}
+              />
+            )}
             <Link href={`/owners/${owner.id}/overview`}>
               <DropdownMenuItem>View details</DropdownMenuItem>
             </Link>
@@ -208,5 +211,6 @@ type OwnersTableProps = {
 }
 
 export default function OwnersTable({ data }: OwnersTableProps) {
-  return <Table columns={columns} data={data} />
+  const { can } = usePermissions()
+  return <Table columns={getColumns(can('owners.update'))} data={data} />
 }

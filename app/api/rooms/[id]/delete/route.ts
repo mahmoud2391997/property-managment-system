@@ -2,7 +2,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 /**
  * Delete a room - Staff only
@@ -13,24 +14,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Only staff can delete rooms
-    const staff = await prisma.staff.findUnique({
-      where: { id: user.id },
-      select: { id: true, organization_id: true }
-    })
-
-    if (!staff) {
-      return NextResponse.json(
-        { error: 'Only staff can delete rooms' },
-        { status: 403 }
-      )
+    const { staff, permissions, error } = await getUserAndStaff()
+    if (error) return error
+    if (!hasPermission(permissions, 'rooms.delete')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const { id: roomId } = await params

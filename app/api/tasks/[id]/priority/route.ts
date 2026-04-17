@@ -2,7 +2,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { task_priority } from '@prisma/client'
 
 const validPriorities: task_priority[] = ['Low', 'Medium', 'High', 'Urgent']
@@ -23,16 +24,15 @@ export async function PUT(
       )
     }
 
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { staff: baseStaff, permissions, error } = await getUserAndStaff()
+    if (error) return error
+    if (!hasPermission(permissions, 'tasks.update')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // Get staff info
     const staff = await prisma.staff.findUnique({
-      where: { id: user.id },
+      where: { id: baseStaff.id },
       select: { id: true, organization_id: true, first_name: true, last_name: true, profile_pic: true }
     })
 

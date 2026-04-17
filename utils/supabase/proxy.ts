@@ -54,9 +54,29 @@ export async function updateSession (request: NextRequest) {
   const isPublicPath = publicPaths.some(path =>
     request.nextUrl.pathname.startsWith(path)
   )
+  const authPaths = [
+    '/login',
+    '/signup',
+    '/forgot-password',
+    '/reset-password',
+    '/setup-password'
+  ]
+  const isAuthPath = authPaths.some(path =>
+    request.nextUrl.pathname.startsWith(path)
+  )
   const isRootPath = request.nextUrl.pathname === '/'
   const isMigratePath = request.nextUrl.pathname === '/migrate'
   const isUnauthorizedPage = request.nextUrl.pathname === '/unauthorized'
+
+  // Prevent going back to auth pages after login.
+  if (user && isAuthPath) {
+    const userType = user.user_metadata?.user_type
+    if (userType === 'staff' || userType === 'tenant') {
+      const url = request.nextUrl.clone()
+      url.pathname = userType === 'staff' ? '/projects' : '/payments'
+      return NextResponse.redirect(url)
+    }
+  }
 
   if (!user && !isPublicPath) {
     // no user, redirect to login page

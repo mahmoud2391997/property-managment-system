@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,18 +39,70 @@ export default function RoleDialog({ open, onClose, onSaved, editingRole, permis
   const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [loadingPermissions, setLoadingPermissions] = useState(true)
+  const normalizedPermissions = useMemo(() => {
+    return Object.entries(permissions).reduce((acc, [module, modulePermissions]) => {
+      const dedupedByAction = new Map<string, Permission>()
+
+      for (const permission of modulePermissions) {
+        const existing = dedupedByAction.get(permission.action)
+        if (!existing) {
+          dedupedByAction.set(permission.action, permission)
+          continue
+        }
+
+        const existingLooksRaw = existing.title === `${module}.${existing.action}` || existing.title.includes('.')
+        const candidateLooksReadable =
+          permission.title !== `${module}.${permission.action}` && !permission.title.includes('.')
+
+        if (existingLooksRaw && candidateLooksReadable) {
+          dedupedByAction.set(permission.action, permission)
+        }
+      }
+
+      acc[module] = Array.from(dedupedByAction.values())
+      return acc
+    }, {} as Record<string, Permission[]>)
+  }, [permissions])
+
+  const getPermissionTitle = (module: string, permission: Permission) => {
+    if (permission.title === `${module}.${permission.action}` || permission.title.includes('.')) {
+      return permission.action
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+    }
+
+    return permission.title
+  }
 
   useEffect(() => {
     if (open) {
       if (editingRole) {
         setTitle(editingRole.title)
-        // TODO: Load role's current permissions
-        setSelectedPermissions(new Set())
+        setLoadingPermissions(true)
+        fetch(`/api/roles/${editingRole.id}`)
+          .then(async (response) => {
+            if (!response.ok) {
+              throw new Error('Failed to load role permissions')
+            }
+            const data = await response.json()
+            const permissionIds: string[] = data?.role?.permissionIds ?? []
+            setSelectedPermissions(new Set(permissionIds))
+          })
+          .catch(() => {
+            toast.error('Failed to load role permissions')
+            setSelectedPermissions(new Set())
+          })
+          .finally(() => {
+            setLoadingPermissions(false)
+          })
       } else {
         setTitle('')
         setSelectedPermissions(new Set())
+        setLoadingPermissions(false)
       }
-      setLoadingPermissions(false)
+    } else {
+      setLoadingPermissions(true)
     }
   }, [open, editingRole])
 
@@ -128,6 +180,11 @@ export default function RoleDialog({ open, onClose, onSaved, editingRole, permis
     return (
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingRole ? 'Edit Role' : 'Create New Role'}
+            </DialogTitle>
+          </DialogHeader>
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-8 h-8 animate-spin" />
           </div>
@@ -167,18 +224,21 @@ export default function RoleDialog({ open, onClose, onSaved, editingRole, permis
             <Label>Permissions</Label>
             <div className="max-h-96 overflow-y-auto">
               <div className="space-y-4">
-                {Object.entries(permissions).map(([module, modulePermissions]) => (
+                {Object.entries(normalizedPermissions).map(([module, modulePermissions]) => (
                   <Card key={module}>
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-sm capitalize">{module}</CardTitle>
-                        <Checkbox
-                          checked={isModuleSelected(modulePermissions)}
-                          onCheckedChange={(checked) => 
-                            handleModuleToggle(modulePermissions, checked as boolean)
-                          }
-                          disabled={editingRole?.is_owner}
-                        />
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs text-muted-foreground">Select all</Label>
+                          <Checkbox
+                            checked={isModuleSelected(modulePermissions)}
+                            onCheckedChange={(checked) =>
+                              handleModuleToggle(modulePermissions, checked as boolean)
+                            }
+                            disabled={editingRole?.is_owner}
+                          />
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -197,7 +257,7 @@ export default function RoleDialog({ open, onClose, onSaved, editingRole, permis
                               htmlFor={permission.id}
                               className="text-sm font-medium cursor-pointer"
                             >
-                              {permission.title}
+                              {getPermissionTitle(module, permission)}
                             </Label>
                             <p className="text-xs text-muted-foreground">
                               {permission.description}

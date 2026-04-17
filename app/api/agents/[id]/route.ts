@@ -82,3 +82,45 @@ export async function PATCH(
     )
   }
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { staff, permissions, error } = await getUserAndStaff()
+
+    if (error) return error
+
+    if (!hasPermission(permissions, 'agents.delete'))
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+    const { id } = await params
+
+    const existingAgent = await prisma.agents.findFirst({
+      where: {
+        id,
+        organization_id: staff.organization_id
+      }
+    })
+
+    if (!existingAgent) {
+      return NextResponse.json(
+        { error: 'Agent not found or unauthorized' },
+        { status: 404 }
+      )
+    }
+
+    await prisma.agents.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error('Error deleting agent:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete agent' },
+      { status: 500 }
+    )
+  }
+}

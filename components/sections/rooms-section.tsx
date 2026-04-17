@@ -11,6 +11,7 @@ import { RoomWithDetails } from '@/lib/rooms-utils'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import { Tab, TabGroup } from '@/components/costume-ui/tab'
 import TableFilter, { type FilterAttribute, type FilterValue } from '@/components/costume-ui/table-filter'
+import { usePermissions } from '@/hooks/use-permissions'
 
 // Define filterable attributes for rooms
 const ROOM_FILTER_ATTRIBUTES: FilterAttribute[] = [
@@ -36,6 +37,7 @@ interface RoomsSectionProps {
 }
 
 export default function RoomsSection({ initialData, initialTotal }: RoomsSectionProps) {
+  const { can } = usePermissions()
   const {
     data,
     isLoading,
@@ -128,19 +130,23 @@ export default function RoomsSection({ initialData, initialTotal }: RoomsSection
         </div>
         {/* Buttons */}
         <div className='flex items-center gap-2.5'>
-          <Link href='/rooms/import-rooms'>
-            <Button
-              variant='secondary'
-              icon={<ImportButtonIcon className='text-neutral-400' />}
-              label='Import'
-            />
-          </Link>
-          <Link href='/rooms/add-room'>
-            <Button
-              icon={<AddButtonIcon className='text-neutral-300' />}
-              label='Add Room'
-            />
-          </Link>
+          {can('rooms.create') && (
+            <>
+              <Link href='/rooms/import-rooms'>
+                <Button
+                  variant='secondary'
+                  icon={<ImportButtonIcon className='text-neutral-400' />}
+                  label='Import'
+                />
+              </Link>
+              <Link href='/rooms/add-room'>
+                <Button
+                  icon={<AddButtonIcon className='text-neutral-300' />}
+                  label='Add Room'
+                />
+              </Link>
+            </>
+          )}
         </div>
       </div>
 

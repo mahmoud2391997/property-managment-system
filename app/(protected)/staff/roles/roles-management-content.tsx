@@ -246,15 +246,8 @@ export default function RolesManagementContent() {
       />
 
       <ConfirmationDialog
-        openDialogButton={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setDeleteDialogOpen(true)}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        }
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
         title="Delete Role"
         description={
           deletingRole ? (

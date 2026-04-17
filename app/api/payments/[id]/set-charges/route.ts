@@ -8,9 +8,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, permissions } = await getUserAndStaff()
-    if (!staff) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { staff, permissions, error } = await getUserAndStaff()
+    if (error) return error
+    if (!hasPermission(permissions, 'payments.update')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const { id: referenceId } = await params

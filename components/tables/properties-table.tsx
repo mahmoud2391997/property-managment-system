@@ -15,6 +15,7 @@ import Link from 'next/link'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 import InitiatePreparationFlowDrawer from '../dialogs/initiate-preparation-flow-drawer'
 import { toast } from 'sonner'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type DisplayStatus =
   | 'Occupied'
@@ -55,7 +56,15 @@ const statusStyles: Record<string, string> = {
   Booked: 'bg-blue-100 text-blue-800'
 }
 
-export const columns: ColumnDef<PropertyWithDetails>[] = [
+const getColumns = ({
+  canUpdate,
+  canDelete,
+  canCreateLease
+}: {
+  canUpdate: boolean
+  canDelete: boolean
+  canCreateLease: boolean
+}): ColumnDef<PropertyWithDetails>[] => [
   //Checkbox
   {
     id: 'select',
@@ -236,15 +245,17 @@ export const columns: ColumnDef<PropertyWithDetails>[] = [
           <Link href={`/properties/${property.id}/overview`}>
             <DropdownMenuItem>View Property</DropdownMenuItem>
           </Link>
-          <Link href={`/properties/${property.id}/edit`}>
-            <DropdownMenuItem>Edit Property</DropdownMenuItem>
-          </Link>
-          {canAddLease && (
+          {canUpdate && (
+            <Link href={`/properties/${property.id}/edit`}>
+              <DropdownMenuItem>Edit Property</DropdownMenuItem>
+            </Link>
+          )}
+          {canAddLease && canCreateLease && (
             <Link href={`/properties/${property.id}/leases/add-lease`}>
               <DropdownMenuItem>Add Lease</DropdownMenuItem>
             </Link>
           )}
-          {isVacant && (
+          {isVacant && canUpdate && (
             <InitiatePreparationFlowDrawer
               propertyId={property.id}
               locationName={property.code}
@@ -264,28 +275,32 @@ export const columns: ColumnDef<PropertyWithDetails>[] = [
               </DropdownMenuItem>
             </>
           )}
-          <DropdownMenuSeparator />
-          <ConfirmationDialog
-            openDialogButton={
-              <button
-                type='button'
-                className='delete-dropdown-button'
-              >
-                Delete Property
-              </button>
-            }
-            title='Delete Property'
-            description={
-              <>
-                Are you sure you want to delete <strong>{property.code}</strong>
-                ? This action cannot be undone. All associated data (rooms,
-                views, configurations) will be permanently removed.
-              </>
-            }
-            onConfirm={handleDeleteProperty}
-            confirmButtonLabel='Delete'
-            confirmButtonLoadingLabel='Deleting...'
-          />
+          {canDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <ConfirmationDialog
+                openDialogButton={
+                  <button
+                    type='button'
+                    className='delete-dropdown-button'
+                  >
+                    Delete Property
+                  </button>
+                }
+                title='Delete Property'
+                description={
+                  <>
+                    Are you sure you want to delete <strong>{property.code}</strong>
+                    ? This action cannot be undone. All associated data (rooms,
+                    views, configurations) will be permanently removed.
+                  </>
+                }
+                onConfirm={handleDeleteProperty}
+                confirmButtonLabel='Delete'
+                confirmButtonLoadingLabel='Deleting...'
+              />
+            </>
+          )}
         </DropdownMenu>
       )
     }
@@ -317,13 +332,18 @@ export default function PropertiesTable ({
   onNextPage,
   onPreviousPage
 }: PropertiesTableProps) {
+  const { can } = usePermissions()
   const hasServerPagination =
     onNextPage !== undefined || onPreviousPage !== undefined
 
   return (
     <div>
       <Table
-        columns={columns}
+        columns={getColumns({
+          canUpdate: can('properties.update'),
+          canDelete: can('properties.delete'),
+          canCreateLease: can('leases.create')
+        })}
         data={data}
         meta={{ onDeleteProperty }}
         noPagnitation={hasServerPagination}

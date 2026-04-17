@@ -20,6 +20,7 @@ import { Info } from 'lucide-react'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { formatDateForAPI } from '@/utils/formatTime'
 import { formatPaymentTypeLabel } from '@/utils/functions'
+import { PermissionGuard } from '@/components/permission-guard'
 
 const AddPayment = () => {
   const [tenantItems, setTenantItems] = useState<ComboBoxitemsType[]>([])
@@ -342,7 +343,8 @@ const AddPayment = () => {
   }, [selectedLeaseReferenceId, paymentType.type])
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
+    <PermissionGuard permission="payments.create">
+      <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
       {/* Head section */}
       <AddPageHead
         crumb_items={[
@@ -581,7 +583,8 @@ const AddPayment = () => {
         message={alertMessage}
         type={alertType}
       />
-    </form>
+      </form>
+    </PermissionGuard>
   )
 }
 

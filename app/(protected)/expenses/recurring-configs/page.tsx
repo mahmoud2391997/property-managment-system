@@ -6,6 +6,7 @@ import Breadcrumb from '@/components/costume-ui/breadcrumb'
 import RecurringExpensesConfigsSection from '@/components/sections/recurring-expenses-configs-section'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
 import { RecurringExpenseConfigWithProperty } from '@/app/api/expenses/recurring-configs/route'
+import { PermissionGuard } from '@/components/permission-guard'
 
 export default function RecurringExpenseConfigsPage() {
   const [data, setData] = useState<RecurringExpenseConfigWithProperty[]>([])
@@ -37,23 +38,25 @@ export default function RecurringExpenseConfigsPage() {
   }
 
   return (
-    <div className={cn('flex flex-col gap-2.5', 'h-full')}>
-      <div>
-        <Breadcrumb
-          items={[
-            { label: 'Expenses', href: '/expenses' },
-            { label: 'Recurring Configs' }
-          ]}
-        />
-        <div className='flex items-baseline gap-2 mt-1'>
-          <h2>Recurring Configs</h2>
+    <PermissionGuard permission="expenses.access">
+      <div className={cn('flex flex-col gap-2.5', 'h-full')}>
+        <div>
+          <Breadcrumb
+            items={[
+              { label: 'Expenses', href: '/expenses' },
+              { label: 'Recurring Configs' }
+            ]}
+          />
+          <div className='flex items-baseline gap-2 mt-1'>
+            <h2>Recurring Configs</h2>
+          </div>
         </div>
+        <RecurringExpensesConfigsSection
+          initialData={data}
+          initialTotal={total}
+          onRefresh={fetchConfigs}
+        />
       </div>
-      <RecurringExpensesConfigsSection
-        initialData={data}
-        initialTotal={total}
-        onRefresh={fetchConfigs}
-      />
-    </div>
+    </PermissionGuard>
   )
 }

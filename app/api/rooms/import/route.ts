@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     if (error) return error
 
 
-    if (!hasPermission(permissions, 'rooms.import'))
+    if (!hasPermission(permissions, 'rooms.create'))
 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     // Parse form data

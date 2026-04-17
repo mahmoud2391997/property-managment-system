@@ -10,6 +10,7 @@ import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download, X } from 
 import type { projects } from '@prisma/client'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { useRouter } from 'next/navigation'
+import { PermissionGuard } from '@/components/permission-guard'
 
 const PROPERTY_TYPES = ['House', 'Apartment', 'Studio', 'Commercial_Unit'] as const
 const PROPERTY_STATUSES = ['Ready', 'Pending_Inspection', 'Under_Preparation'] as const
@@ -181,7 +182,8 @@ const ImportProperties = () => {
   }
 
   return (
-    <div className='flex flex-col gap-5'>
+    <PermissionGuard permission="properties.create">
+      <div className='flex flex-col gap-5'>
       {/* Head section */}
       <section className='flex flex-col gap-2.5'>
         <Breadcrumb
@@ -433,7 +435,8 @@ const ImportProperties = () => {
           />
         </div>
       </div>
-    </div>
+      </div>
+    </PermissionGuard>
   )
 }
 

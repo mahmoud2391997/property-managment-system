@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { UserAvatar } from '../costume-ui/name-avatar'
 import { Prisma } from '@prisma/client'
 import EditVendorDialog from '../dialogs/edit-vendor-dialog'
+import { usePermissions } from '@/hooks/use-permissions'
 
 // Infer the type from Prisma query
 export type VendorWithDetails = Prisma.vendorsGetPayload<{
@@ -30,7 +31,7 @@ export type VendorWithDetails = Prisma.vendorsGetPayload<{
   }
 }>
 
-export const columns: ColumnDef<VendorWithDetails>[] = [
+const getColumns = (canUpdate: boolean): ColumnDef<VendorWithDetails>[] => [
   //Checkbox
   {
     id: 'select',
@@ -106,22 +107,26 @@ export const columns: ColumnDef<VendorWithDetails>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end'>
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <EditVendorDialog
-              vendorId={vendor.id}
-              initialData={{
-                id: vendor.id,
-                name: vendor.name,
-                phone_number: vendor.phone_number,
-                email: vendor.email
-              }}
-              trigger={
-                <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                  Edit Vendor
-                </DropdownMenuItem>
-              }
-              onSuccess={() => window.location.reload()}
-            />
-            <DropdownMenuSeparator />
+            {canUpdate && (
+              <>
+                <EditVendorDialog
+                  vendorId={vendor.id}
+                  initialData={{
+                    id: vendor.id,
+                    name: vendor.name,
+                    phone_number: vendor.phone_number,
+                    email: vendor.email
+                  }}
+                  trigger={
+                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                      Edit Vendor
+                    </DropdownMenuItem>
+                  }
+                  onSuccess={() => window.location.reload()}
+                />
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem
               onClick={() => navigator.clipboard.writeText(vendor.phone_number)}
             >
@@ -144,5 +149,6 @@ type VendorsTableProps = {
 }
 
 export default function VendorsTable({ data }: VendorsTableProps) {
-  return <Table columns={columns} data={data} />
+  const { can } = usePermissions()
+  return <Table columns={getColumns(can('vendors.update'))} data={data} />
 }

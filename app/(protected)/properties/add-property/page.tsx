@@ -22,6 +22,7 @@ import ReminderSection from '@/components/costume-ui/reminder-section'
 import type { LateCharge } from '@/components/costume-ui/payment-section'
 import type { projects } from '@prisma/client'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
+import { PermissionGuard } from '@/components/permission-guard'
 
 // Main compoennt
 const AddProperty = () => {
@@ -276,7 +277,8 @@ const AddProperty = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
+    <PermissionGuard permission="properties.create">
+      <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
       {/* Head section */}
       <AddPageHead
         crumb_items={[
@@ -489,7 +491,8 @@ const AddProperty = () => {
         }}
         defaultCollapse
       />
-    </form>
+      </form>
+    </PermissionGuard>
   )
 }
 

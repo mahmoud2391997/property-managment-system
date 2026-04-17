@@ -13,7 +13,7 @@ export async function PATCH(
     if (error) return error
 
 
-    if (!hasPermission(permissions, 'rooms.status'))
+    if (!hasPermission(permissions, 'rooms.update'))
 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id: roomId } = await params

@@ -13,7 +13,7 @@ export async function PUT(
     if (error) return error
 
 
-    if (!hasPermission(permissions, 'properties.assign_owner'))
+    if (!hasPermission(permissions, 'properties.update'))
 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id: propertyId } = await params

@@ -20,6 +20,7 @@ import Link from 'next/link'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 import InitiatePreparationFlowDrawer from '../dialogs/initiate-preparation-flow-drawer'
 import { toast } from 'sonner'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type RoomFeatures = {
   wifi?: boolean
@@ -48,7 +49,15 @@ type RoomTableData = {
   features?: RoomFeatures
 }
 
-export const columns: ColumnDef<RoomTableData>[] = [
+const getColumns = ({
+  canUpdate,
+  canDelete,
+  canCreateLease
+}: {
+  canUpdate: boolean
+  canDelete: boolean
+  canCreateLease: boolean
+}): ColumnDef<RoomTableData>[] => [
   //Checkbox
   {
     id: 'select',
@@ -217,15 +226,17 @@ export const columns: ColumnDef<RoomTableData>[] = [
             <DropdownMenuItem asChild>
               <Link href={`/rooms/${room.id}/overview`}>View room details</Link>
             </DropdownMenuItem>
-            <Link href={`/rooms/${room.id}/edit`}>
-              <DropdownMenuItem>Edit room</DropdownMenuItem>
-            </Link>
-            {canAddLease && (
+            {canUpdate && (
+              <Link href={`/rooms/${room.id}/edit`}>
+                <DropdownMenuItem>Edit room</DropdownMenuItem>
+              </Link>
+            )}
+            {canAddLease && canCreateLease && (
               <Link href={`/rooms/${room.id}/leases/add-lease`}>
                 <DropdownMenuItem>Add Lease</DropdownMenuItem>
               </Link>
             )}
-            {isVacant && (
+            {isVacant && canUpdate && (
               <InitiatePreparationFlowDrawer
                 roomId={room.id}
                 locationName={`${room.property} - ${room.title}`}
@@ -245,25 +256,29 @@ export const columns: ColumnDef<RoomTableData>[] = [
                 </DropdownMenuItem>
               </>
             )}
-            <DropdownMenuSeparator />
-            <ConfirmationDialog
-              openDialogButton={
-                <button type='button' className='delete-dropdown-button'>
-                  Delete Room
-                </button>
-              }
-              title='Delete Room'
-              description={
-                <>
-                  Are you sure you want to delete <strong>{room.title}</strong>?
-                  This action cannot be undone. All associated data (views,
-                  configurations) will be permanently removed.
-                </>
-              }
-              onConfirm={handleDeleteRoom}
-              confirmButtonLabel='Delete'
-              confirmButtonLoadingLabel='Deleting...'
-            />
+            {canDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <ConfirmationDialog
+                  openDialogButton={
+                    <button type='button' className='delete-dropdown-button'>
+                      Delete Room
+                    </button>
+                  }
+                  title='Delete Room'
+                  description={
+                    <>
+                      Are you sure you want to delete <strong>{room.title}</strong>?
+                      This action cannot be undone. All associated data (views,
+                      configurations) will be permanently removed.
+                    </>
+                  }
+                  onConfirm={handleDeleteRoom}
+                  confirmButtonLabel='Delete'
+                  confirmButtonLoadingLabel='Deleting...'
+                />
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )
@@ -300,13 +315,18 @@ export default function RoomsTable ({
   onNextPage,
   onPreviousPage
 }: Props) {
+  const { can } = usePermissions()
   const hasServerPagination =
     onNextPage !== undefined || onPreviousPage !== undefined
 
   return (
     <div>
       <Table
-        columns={columns}
+        columns={getColumns({
+          canUpdate: can('rooms.update'),
+          canDelete: can('rooms.delete'),
+          canCreateLease: can('leases.create')
+        })}
         className={className}
         data={data}
         noPagnitation={hasServerPagination || noPagnitation}

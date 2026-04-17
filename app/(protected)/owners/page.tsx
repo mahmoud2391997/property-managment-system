@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils'
 import OwnersSection from '@/components/sections/owners-section'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { requirePermission } from '@/lib/server-permissions'
 
 async function getOwners() {
   const supabase = await createClient()
@@ -70,6 +71,7 @@ async function getOwners() {
 }
 
 const Owners = async () => {
+  await requirePermission('owners.access')
   const owners = await getOwners()
 
   return (

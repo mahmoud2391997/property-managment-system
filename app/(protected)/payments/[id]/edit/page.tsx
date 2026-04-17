@@ -159,7 +159,7 @@ async function getPaymentForEdit(referenceId: string): Promise<EditPaymentData |
 }
 
 export default async function EditPaymentPage({ params }: Props) {
-  await requirePermission('edit.access')
+  await requirePermission('payments.update')
   const { id } = await params
   const payment = await getPaymentForEdit(id)
 

@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import ViewConversionModal, { ViewDecision } from '@/components/view-conversion-modal'
+import { PermissionGuard } from '@/components/permission-guard'
 
 // Helper to calculate end date (end date is start_date + number_of_months, same day of month)
 const calculateEndDate = (startDate: Date, numberOfMonths: number): Date => {
@@ -416,20 +417,21 @@ const AddRoomLease = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
-      {/* Head section */}
-      <AddPageHead
-        crumb_items={[
-          { label: 'Rooms', href: '/rooms' },
-          { label: roomConfig?.propertyCode + '(' +roomConfig?.roomTitle + ')', href: `/rooms/${roomId}/leases` },
-          { label: 'Add Lease' }
-        ]}
-        isCrumbLoading={isRoomConfigLoading}
-        title='Add a lease'
-        subtitle={`Create a new lease for ${roomConfig?.roomTitle || 'this room'} ${' under ' + roomConfig?.propertyCode || ''}`}
-        className='mb-7.5'
-        isSubmitting={isSubmitting}
-      />
+    <PermissionGuard permission='leases.create'>
+      <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
+        {/* Head section */}
+        <AddPageHead
+          crumb_items={[
+            { label: 'Rooms', href: '/rooms' },
+            { label: roomConfig?.propertyCode + '(' +roomConfig?.roomTitle + ')', href: `/rooms/${roomId}/leases` },
+            { label: 'Add Lease' }
+          ]}
+          isCrumbLoading={isRoomConfigLoading}
+          title='Add a lease'
+          subtitle={`Create a new lease for ${roomConfig?.roomTitle || 'this room'} ${' under ' + roomConfig?.propertyCode || ''}`}
+          className='mb-7.5'
+          isSubmitting={isSubmitting}
+        />
       {/* Default config loading feedback - non-blocking */}
       <div className={`
         flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-300
@@ -696,7 +698,8 @@ const AddRoomLease = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </form>
+      </form>
+    </PermissionGuard>
   )
 }
 

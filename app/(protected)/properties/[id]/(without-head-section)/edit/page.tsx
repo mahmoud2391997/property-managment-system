@@ -16,6 +16,7 @@ import type { LateCharge } from '@/components/costume-ui/payment-section'
 import type { projects } from '@prisma/client'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import ActionPageSkeleton from '@/components/loading-ui/action-page-skeleton'
+import { PermissionGuard } from '@/components/permission-guard'
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -348,18 +349,19 @@ const EditProperty = ({ params }: PageProps) => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
-      {/* Head section */}
-      <AddPageHead
-        crumb_items={[
-          { label: 'Properties', href: '/properties' },
-          { label: propertyData.code, href: `/properties/${propertyId}/overview` },
-          { label: 'Edit Property' }
-        ]}
-        title={`Edit ${propertyData.code}`}
-        subtitle='Update property details and default configurations'
-        isSubmitting={isSubmitting}
-      />
+    <PermissionGuard permission='properties.update'>
+      <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
+        {/* Head section */}
+        <AddPageHead
+          crumb_items={[
+            { label: 'Properties', href: '/properties' },
+            { label: propertyData.code, href: `/properties/${propertyId}/overview` },
+            { label: 'Edit Property' }
+          ]}
+          title={`Edit ${propertyData.code}`}
+          subtitle='Update property details and default configurations'
+          isSubmitting={isSubmitting}
+        />
 
       {/* Property Details Section */}
       <CollapsibleSection number={1} title='Property Details'>
@@ -543,7 +545,8 @@ const EditProperty = ({ params }: PageProps) => {
           overdue_days_after_reminder: leaseConfig?.overdue_days_after_reminder
         }}
       />
-    </form>
+      </form>
+    </PermissionGuard>
   )
 }
 
