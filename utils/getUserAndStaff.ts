@@ -72,12 +72,7 @@ export const getUserAndStaff = cache(async (): Promise<Success | Failure> => {
       role_id: true,
       roles: {
         select: {
-          title: true,
-          roles_permissions: {
-            select: {
-              permissions: { select: { module: true, action: true } }
-            }
-          }
+          title: true
         }
       }
     }
@@ -93,10 +88,17 @@ export const getUserAndStaff = cache(async (): Promise<Success | Failure> => {
     }
   }
 
+  const permissionRows = row.role_id
+    ? await prisma.$queryRaw<Array<{ module: string; action: string }>>`
+        SELECT p.module, p.action
+        FROM public.roles_permissions rp
+        JOIN public.permissions p ON p.id = rp.permission_id
+        WHERE rp.role_id = ${row.role_id}::uuid
+      `
+    : []
+
   const permissions = new Set<string>(
-    row.roles?.roles_permissions.map(
-      (rp) => `${rp.permissions.module}.${rp.permissions.action}`
-    ) ?? []
+    permissionRows.map((perm) => `${perm.module}.${perm.action}`)
   )
 
   setCached(user.id, row.role_id, permissions)

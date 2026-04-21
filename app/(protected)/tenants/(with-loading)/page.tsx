@@ -33,12 +33,14 @@ const tenantSelect = {
   }
 }
 
+import { tenant_type } from '@prisma/client'
+
 async function getTenants(organizationId: string): Promise<{ data: TenantWithDetails[]; total: number }> {
   try {
     const whereClause = {
       organization_id: organizationId,
       tenants: {
-        type: 'Individual' as const
+        type: tenant_type.Individual
       }
     }
 

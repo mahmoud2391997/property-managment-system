@@ -239,7 +239,8 @@ export default function AppSidebar () {
       ? tenantMenuItems
       : staffMenuItems
 
-  // Apply permission filtering to staff menu items
+  // Apply permission filtering to staff menu items only
+  // Tenants get their full menu without permission checks
   const menuItemContent = userType === 'staff' 
     ? baseMenuItems
         .map(item => item.subMenu
@@ -247,7 +248,7 @@ export default function AppSidebar () {
           : item
         )
         .filter(item => item.subMenu ? item.subMenu.length > 0 : can(item.permission || ''))
-    : baseMenuItems
+    : baseMenuItems // For tenants, show all their menu items without permission filtering
 
   // const helpItemContent: menuItemContentType[] = [
   //   {

@@ -1,5 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react'
+import { usePermissions } from '@/hooks/use-permissions'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
@@ -54,20 +55,25 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const lastSegment = segments[segments.length - 1]
   const routes = ['overview', 'leases']
 
+  const { can } = usePermissions()
+
+  const allTabs = [
+    { label: 'Overview', route: routes[0], permission: 'tenants.access' },
+    { label: 'Leases', route: routes[1], permission: 'leases.access' }
+  ]
+
+  const visibleTabs = allTabs.filter(t => can(t.permission))
+
   const {
     options: tabs,
     selectByIndex,
     selectedIndex
-  } = useSingleSelectOption([
-    {
-      label: 'Overview',
-      isSelected: lastSegment === routes[0] || lastSegment === tenantId
-    },
-    {
-      label: 'Leases',
-      isSelected: lastSegment === routes[1]
-    }
-  ])
+  } = useSingleSelectOption(
+    visibleTabs.map(t => ({
+      label: t.label,
+      isSelected: lastSegment === t.route || (lastSegment === tenantId && t.route === 'overview')
+    }))
+  )
 
   const fetchTenantInfo = async () => {
     setIsLoading(true)
@@ -95,7 +101,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   }
 
   const handleTabClick = (index: number) => {
-    const route = routes[index]
+    const route = visibleTabs[index]?.route
     if (route) {
       router.push(`/tenants/${tenantId}/${route}`)
     }

@@ -1,5 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react'
+import { usePermissions } from '@/hooks/use-permissions'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { MoreHorizontal } from 'lucide-react'
@@ -51,28 +52,27 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const lastSegment = segments[segments.length - 1]
   const routes = ['overview', 'views', 'bookings', 'leases']
 
+  const { can } = usePermissions()
+
+  const allTabs = [
+    { label: 'Overview', route: routes[0], permission: 'rooms.access' },
+    { label: 'Views', route: routes[1], permission: 'views.access' },
+    { label: 'Bookings', route: routes[2], permission: 'bookings.access' },
+    { label: 'Leases', route: routes[3], permission: 'leases.access' }
+  ]
+
+  const visibleTabs = allTabs.filter(t => can(t.permission))
+
   const {
     options: tabs,
     selectByIndex,
     selectedIndex
-  } = useSingleSelectOption([
-    {
-      label: 'Overview',
-      isSelected: lastSegment === routes[0]
-    },
-    {
-      label: 'Views',
-      isSelected: lastSegment === routes[1]
-    },
-    {
-      label: 'Bookings',
-      isSelected: lastSegment === routes[2]
-    },
-    {
-      label: 'Leases',
-      isSelected: lastSegment === routes[3]
-    }
-  ])
+  } = useSingleSelectOption(
+    visibleTabs.map(t => ({
+      label: t.label,
+      isSelected: lastSegment === t.route || (lastSegment === roomId && t.route === 'overview')
+    }))
+  )
 
   // Fetch room config
   const fetchRoomConfig = async () => {
@@ -95,7 +95,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   }, [roomId])
 
   const handleTabClick = (index: number) => {
-    const route = routes[index]
+    const route = visibleTabs[index]?.route
     if (route) {
       router.replace(`/rooms/${roomId}/${route}`)
     }

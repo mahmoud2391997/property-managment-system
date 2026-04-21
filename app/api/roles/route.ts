@@ -9,35 +9,35 @@ export async function GET() {
 
     if (error) return error
 
-    if (!hasPermission(permissions, 'roles.access'))
+    if (
+      !hasPermission(permissions, 'roles.access') &&
+      !hasPermission(permissions, 'staff.create')
+    )
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    // Get all roles for the organization with counts
-    const roles = await prisma.roles.findMany({
-      where: {
-        organization_id: staff.organization_id
-      },
-      include: {
-        _count: {
-          select: {
-            roles_permissions: true,
-            staff: true
-          }
-        }
-      },
-      orderBy: {
-        title: 'asc'
-      }
-    })
-
-    // Format response
-    const formattedRoles = roles.map(role => ({
-      id: role.id,
-      title: role.title,
-      is_owner: role.title === 'Owner',
-      permission_count: role._count.roles_permissions,
-      staff_count: role._count.staff
-    }))
+    // Use raw SQL to avoid schema drift issues in the generated Prisma model.
+    const formattedRoles = await prisma.$queryRaw<
+      Array<{
+        id: string
+        title: string
+        is_owner: boolean
+        permission_count: number
+        staff_count: number
+      }>
+    >`
+      SELECT
+        r.id,
+        r.title,
+        (r.title = 'Owner') AS is_owner,
+        COUNT(DISTINCT rp.permission_id)::int AS permission_count,
+        COUNT(DISTINCT s.id)::int AS staff_count
+      FROM public.roles r
+      LEFT JOIN public.roles_permissions rp ON rp.role_id = r.id
+      LEFT JOIN public.staff s ON s.role_id = r.id
+      WHERE r.organization_id = ${staff.organization_id}::uuid
+      GROUP BY r.id, r.title
+      ORDER BY r.title ASC
+    `
 
     return NextResponse.json({
       success: true,
