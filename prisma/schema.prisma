@@ -1295,12 +1295,16 @@ model roles {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model roles_permissions {
+  id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   role_id       String      @db.Uuid
   permission_id String      @db.Uuid
+  created_at    DateTime    @default(now()) @db.Timestamptz(6)
+  created_by    String?     @db.Uuid
+  staff         staff?      @relation(fields: [created_by], references: [id], onUpdate: NoAction)
   permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   roles         roles       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@id([role_id, permission_id])
+  @@unique([role_id, permission_id])
   @@schema("public")
 }
 
@@ -1396,6 +1400,7 @@ model staff {
   recurring_configs                                          recurring_configs[]
   refund_decisions_refund_decisions_reviewed_byTostaff       refund_decisions[]                 @relation("refund_decisions_reviewed_byTostaff")
   refund_decisions_refund_decisions_submitted_byTostaff      refund_decisions[]                 @relation("refund_decisions_submitted_byTostaff")
+  roles_permissions                                          roles_permissions[]
   rooms                                                      rooms[]
   scheduled_rental_changes                                   scheduled_rental_changes[]
   staff                                                      staff?                             @relation("staffTostaff", fields: [created_by], references: [id], onUpdate: NoAction)

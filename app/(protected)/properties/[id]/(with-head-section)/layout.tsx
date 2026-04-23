@@ -45,7 +45,6 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const pathname = usePathname()
   const segments = pathname.split('/')
   const lastSegment = segments[segments.length - 1]
-  const routes = ['overview', 'rooms', 'views', 'bookings', 'leases', 'contracts']
 
   const params = useParams()
   const id = params.id as string
@@ -65,11 +64,10 @@ const WithHeadSectionLayout = ({ children }: Props) => {
 
   const {
     options: tabOptions,
-    selectByIndex,
-    selectedIndex
-  } = useSingleSelectOption(filteredTabs.map((tab: any, index: number) => ({
+    selectByIndex
+  } = useSingleSelectOption(filteredTabs.map((tab: any) => ({
     label: tab.label,
-    isSelected: lastSegment === routes[TABS.indexOf(tab)]
+    isSelected: lastSegment === tab.href.split('/').pop()
   })))
 
   // Fetch property code, status, and images
@@ -91,10 +89,9 @@ const WithHeadSectionLayout = ({ children }: Props) => {
     fetchPropertyData()
   }, [propertyId])
 
-  const handleTabClick = (index: number) => {
-    const route = routes[index]
-    if (route) {
-      router.push(`/properties/${id}/${route}`)
+  const handleTabClick = (href?: string) => {
+    if (href) {
+      router.push(href)
     }
   }
 
@@ -220,7 +217,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
                 isSelected={tab.isSelected}
                 onClick={() => {
                   selectByIndex(index)
-                  handleTabClick(index)
+                  handleTabClick(filteredTabs[index]?.href)
                 }}
               />
             ))}

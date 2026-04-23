@@ -319,6 +319,10 @@ export async function PATCH(
       }
     }
 
+    // Initialize email update tracking variables
+    let emailUpdateSuccess = true
+    let emailUpdateError = null
+
     // Email validation and update (only allowed if account is not activated)
     if (email && email.trim() !== currentEmail) {
       // if (isActivated) {
@@ -337,18 +341,26 @@ export async function PATCH(
         )
       }
 
-      // Update email in Supabase Auth
-      const { error: updateEmailError } = await supabaseAdmin.auth.admin.updateUserById(
-        tenantId,
-        { email: email.trim() }
-      )
-
-      if (updateEmailError) {
-        console.error('Error updating email:', updateEmailError)
-        return NextResponse.json(
-          { error: updateEmailError.message || 'Failed to update email' },
-          { status: 500 }
+      // Update email in Supabase Auth (with graceful fallback)
+      
+      try {
+        const { error: updateEmailError } = await supabaseAdmin.auth.admin.updateUserById(
+          tenantId,
+          { email: email.trim() }
         )
+
+        if (updateEmailError) {
+          console.error('Error updating email:', updateEmailError)
+          emailUpdateError = updateEmailError.message || 'Failed to update email'
+          emailUpdateSuccess = false
+          
+          // Don't fail the entire request - just log the error and continue
+          console.log('Email update failed, but continuing with profile update')
+        }
+      } catch (error: any) {
+        console.error('Unexpected error during email update:', error)
+        emailUpdateError = error.message || 'Authentication system error'
+        emailUpdateSuccess = false
       }
     }
 
@@ -452,7 +464,7 @@ export async function PATCH(
         where: { tenant_id: tenantId }
       })
 
-      return NextResponse.json({
+      const response: any = {
         success: true,
         tenant: {
           id: tenantId,
@@ -464,7 +476,18 @@ export async function PATCH(
           profilePic: profilePicUrl,
           profileThumb: profileThumbUrl
         }
-      })
+      }
+
+      // Add email update status if email was being updated
+      if (email && emailUpdateSuccess !== undefined) {
+        if (!emailUpdateSuccess && emailUpdateError) {
+          response.warnings = [`Email update failed: ${emailUpdateError}`]
+        } else if (emailUpdateSuccess) {
+          response.emailUpdated = true
+        }
+      }
+
+      return NextResponse.json(response)
     } catch (dbError: any) {
       console.error('Error updating tenant record:', dbError)
       return NextResponse.json(

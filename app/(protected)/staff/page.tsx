@@ -8,7 +8,7 @@ import { getUserAndStaff } from '@/utils/getUserAndStaff'
 import { hasPermission } from '@/lib/has-permission'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Settings } from 'lucide-react'
+import { Settings, ArrowLeft } from 'lucide-react'
 
 async function getStaff() {
   const supabase = await createClient()

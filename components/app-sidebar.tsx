@@ -165,6 +165,7 @@ export default function AppSidebar () {
         { label: 'Staff', href: '/staff', permission: 'staff.access' }
       ]
     },
+  
     {
       icon: ScreeningIcon,
       label: 'Tenant Screening',
@@ -209,7 +210,8 @@ export default function AppSidebar () {
       icon: HouseIcon,
       label: 'Rentals',
       width: 'w-5.5!',
-      href: '/rentals'
+      href: '/rentals',
+      permission: 'leases.access'
     },
     {
       icon: TransactionsIcon,

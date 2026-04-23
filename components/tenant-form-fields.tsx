@@ -36,6 +36,7 @@ const TenantFormFields = forwardRef<TenantFormRef, Props>(
     const [lastName, setLastName] = useState<string>('')
     const [phoneNumber, setPhoneNumber] = useState<string>('')
     const [email, setEmail] = useState<string>('')
+    const [emailError, setEmailError] = useState<string>('')
     const [profileImage, setProfileImage] = useState<Blob | null>(null)
     const [profileThumb, setProfileThumb] = useState<Blob | null>(null)
     const [photoUploaderKey, setPhotoUploaderKey] = useState<number>(0)
@@ -47,6 +48,20 @@ const TenantFormFields = forwardRef<TenantFormRef, Props>(
     const handlePhotoSave = (mainBlob: Blob, thumbBlob: Blob) => {
       setProfileImage(mainBlob)
       setProfileThumb(thumbBlob)
+    }
+
+    const validateEmail = (email: string) => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!email || !email.trim()) {
+        setEmailError('Email is required')
+        return false
+      }
+      if (!emailRegex.test(email.trim())) {
+        setEmailError('Invalid email format')
+        return false
+      }
+      setEmailError('')
+      return true
     }
 
     useImperativeHandle(ref, () => ({
@@ -67,6 +82,7 @@ const TenantFormFields = forwardRef<TenantFormRef, Props>(
         setLastName('')
         setPhoneNumber('')
         setEmail('')
+        setEmailError('')
         setProfileImage(null)
         setProfileThumb(null)
         setPhotoUploaderKey(prev => prev + 1)
@@ -165,12 +181,18 @@ const TenantFormFields = forwardRef<TenantFormRef, Props>(
               type='email'
               placeholder='E.g. example@email.com'
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={e => {
+                setEmail(e.target.value)
+                validateEmail(e.target.value)
+              }}
               minLength={5}
               maxLength={255}
               required
               disabled={loading}
             />
+            {emailError && (
+              <p className='text-red-600 text-sm mt-1'>{emailError}</p>
+            )}
           </InputGroup>
         </div>
       </>

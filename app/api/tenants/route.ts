@@ -372,6 +372,15 @@ export async function POST(request: Request) {
       )
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email.trim())) {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
+        { status: 400 }
+      )
+    }
+
     // Check if identity number already exists
     const existingTenant = await prisma.individual_tenants.findUnique({
       where: { identity_number: identityNumber.trim() }
@@ -448,9 +457,25 @@ export async function POST(request: Request) {
         )
       }
 
+      // Check for invalid email format errors
+      if (linkError?.message?.includes('invalid email') || linkError?.message?.includes('email format')) {
+        return NextResponse.json(
+          { error: 'Invalid email format. Please check the email address.' },
+          { status: 400 }
+        )
+      }
+
+      // Check for database errors
+      if (linkError?.message?.includes('Database error')) {
+        return NextResponse.json(
+          { error: 'Authentication system error. Please try again.' },
+          { status: 500 }
+        )
+      }
+
       // Don't expose internal error details to users
       return NextResponse.json(
-        { error: 'Failed to create user account. Please try again.' },
+        { error: 'Failed to create user account. Please check the email and try again.' },
         { status: 500 }
       )
     }

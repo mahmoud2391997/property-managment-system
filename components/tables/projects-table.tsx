@@ -19,6 +19,7 @@ import {
 import Tooltip from '../costume-ui/tooltip'
 import { Project } from '@/types'
 import { usePermissions } from '@/hooks/use-permissions'
+import EditProjectDialog from '../dialogs/edit-project-dialog'
 
 export const columns: ColumnDef<Project>[] = [
   //Checkbox
@@ -104,7 +105,12 @@ export const columns: ColumnDef<Project>[] = [
               Copy project ID
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            {can('projects.update') && <DropdownMenuItem>Edit project</DropdownMenuItem>}
+            {can('projects.update') && (
+              <EditProjectDialog 
+                projectId={project.id} 
+                projectName={project.name} 
+              />
+            )}
             {can('projects.delete') && <DropdownMenuItem>Delete project</DropdownMenuItem>}
           </DropdownMenuContent>
         </DropdownMenu>

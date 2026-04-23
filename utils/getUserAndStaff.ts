@@ -1,6 +1,5 @@
 'use server'
 
-import { cache } from 'react'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
@@ -28,7 +27,7 @@ type Failure = {
   error: NextResponse
 }
 
-export const getUserAndStaff = cache(async (): Promise<Success | Failure> => {
+export const getUserAndStaff = async (): Promise<Success | Failure> => {
   const supabase = await createClient()
   const {
     data: { user }
@@ -98,7 +97,7 @@ export const getUserAndStaff = cache(async (): Promise<Success | Failure> => {
     : []
 
   const permissions = new Set<string>(
-    permissionRows.map((perm) => `${perm.module}.${perm.action}`)
+    permissionRows.map((perm) => `${perm.module}.${perm.action}`.trim().toLowerCase())
   )
 
   setCached(user.id, row.role_id, permissions)
@@ -110,4 +109,4 @@ export const getUserAndStaff = cache(async (): Promise<Success | Failure> => {
     role: row.roles?.title ?? null,
     error: null
   }
-})
+}

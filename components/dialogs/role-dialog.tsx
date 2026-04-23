@@ -108,17 +108,97 @@ export default function RoleDialog({ open, onClose, onSaved, editingRole, permis
 
   const handlePermissionChange = (permissionId: string, checked: boolean) => {
     const newSelected = new Set(selectedPermissions)
+    
+    // Find which module this permission belongs to
+    let targetModule: string | null = null
+    let targetModulePermissions: Permission[] = []
+    
+    Object.entries(normalizedPermissions).forEach(([module, modulePermissions]) => {
+      if (modulePermissions.some(p => p.id === permissionId)) {
+        targetModule = module
+        targetModulePermissions = modulePermissions
+      }
+    })
+    
     if (checked) {
       newSelected.add(permissionId)
+      
+      // Special logic: If dashboard access is granted, grant access to all dashboard sections
+      if (targetModule === 'dashboard' && permissionId.includes('dashboard') && targetModulePermissions.some(p => p.action === 'access' && p.id === permissionId)) {
+        console.log('Dashboard access granted, auto-granting all module permissions')
+        
+        // Grant access to all module access permissions (financial, expenses, rentals, etc.)
+        Object.entries(normalizedPermissions).forEach(([module, modulePermissions]) => {
+          const accessPermission = modulePermissions.find((p: Permission) => p.action === 'access')
+          if (accessPermission) {
+            console.log(`Adding ${module} access permission: ${accessPermission.id}`)
+            newSelected.add(accessPermission.id)
+          }
+        })
+        
+        // Also grant specific dashboard-related permissions
+        Object.entries(normalizedPermissions).forEach(([module, modulePermissions]) => {
+          // Grant financial overview permission
+          if (module === 'financial') {
+            const overviewPermission = modulePermissions.find((p: Permission) => p.action === 'overview')
+            if (overviewPermission) {
+              console.log(`Adding financial overview permission: ${overviewPermission.id}`)
+              newSelected.add(overviewPermission.id)
+            }
+          }
+        })
+      }
+      
+      // Auto-check access permission for this module if it exists
+      if (targetModulePermissions.length > 0) {
+        const accessPermission = targetModulePermissions.find((p: Permission) => p.action === 'access')
+        if (accessPermission) {
+          newSelected.add(accessPermission.id)
+        }
+      }
     } else {
       newSelected.delete(permissionId)
+      
+      // Special logic: If dashboard access is removed, remove access to all dashboard sections
+      if (targetModule === 'dashboard') {
+        // Remove all module access permissions
+        Object.entries(normalizedPermissions).forEach(([module, modulePermissions]) => {
+          const accessPermission = modulePermissions.find((p: Permission) => p.action === 'access')
+          if (accessPermission) {
+            newSelected.delete(accessPermission.id)
+          }
+        })
+        
+        // Remove specific dashboard-related permissions
+        Object.entries(normalizedPermissions).forEach(([module, modulePermissions]) => {
+          if (module === 'financial') {
+            const overviewPermission = modulePermissions.find((p: Permission) => p.action === 'overview')
+            if (overviewPermission) {
+              newSelected.delete(overviewPermission.id)
+            }
+          }
+        })
+      }
+      
+      // If unchecking access permission, uncheck all other permissions in this module
+      if (targetModulePermissions.length > 0) {
+        const accessPermission = targetModulePermissions.find((p: Permission) => p.action === 'access')
+        if (accessPermission && permissionId === accessPermission.id) {
+          // This is the access permission being unchecked, so uncheck all others
+          targetModulePermissions.forEach((p: Permission) => {
+            if (p.id !== accessPermission.id) {
+              newSelected.delete(p.id)
+            }
+          })
+        }
+      }
     }
     setSelectedPermissions(newSelected)
   }
 
   const handleModuleToggle = (modulePermissions: Permission[], checked: boolean) => {
     const newSelected = new Set(selectedPermissions)
-    modulePermissions.forEach(permission => {
+    modulePermissions.forEach((permission: Permission) => {
       if (checked) {
         newSelected.add(permission.id)
       } else {

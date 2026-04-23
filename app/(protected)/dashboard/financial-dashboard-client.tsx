@@ -17,8 +17,6 @@ import { PaymentTypeBreakdown } from '@/components/dashboard/payment-type-breakd
 import { TopExpenseProperties } from '@/components/dashboard/top-expense-properties'
 import { PropertyProfitHeatmap } from '@/components/dashboard/property-profit-heatmap'
 import { RentalOverviewChart } from '@/components/dashboard/rental-overview-chart'
-import { PermissionGate } from '@/components/permission-gate'
-import { NoAccessCard } from '@/components/no-access-card'
 import type { KpiData } from '@/lib/financial-dashboard-actions'
 import {
   getMonthlyOverviewData,
@@ -299,107 +297,77 @@ export function FinancialDashboardClient({
       {/* Row 2: Monthly Overview + Expense Breakdown */}
       <div className="flex gap-5">
         <LoadingOverlay loading={loading.has('overview')} className="flex-2">
-          <PermissionGate
-            permission="financial.overview"
-            fallback={<NoAccessCard label="Financial Overview" />}
-          >
-            <FinancialMonthlyOverview
-              data={monthlyOverview}
-              years={years}
-              projects={projects}
-              selectedYear={overviewYear}
-              selectedProject={overviewProject}
-              onYearChange={handleOverviewYearChange}
-              onProjectChange={handleOverviewProjectChange}
-            />
-          </PermissionGate>
+          <FinancialMonthlyOverview
+            data={monthlyOverview}
+            years={years}
+            projects={projects}
+            selectedYear={overviewYear}
+            selectedProject={overviewProject}
+            onYearChange={handleOverviewYearChange}
+            onProjectChange={handleOverviewProjectChange}
+          />
         </LoadingOverlay>
         <LoadingOverlay loading={loading.has('expense')} className="flex-1">
-          <PermissionGate
-            permission="expenses.access"
-            fallback={<NoAccessCard label="Expense Breakdown" />}
-          >
-            <FinancialExpenseBreakdown
-              data={expenseBreakdown}
-              selectedDate={expCatDate}
-              onDateChange={handleExpCatDateChange}
-            />
-          </PermissionGate>
+          <FinancialExpenseBreakdown
+            data={expenseBreakdown}
+            selectedDate={expCatDate}
+            onDateChange={handleExpCatDateChange}
+          />
         </LoadingOverlay>
       </div>
 
       {/* Row 3: Rental Overview Line Chart */}
       <LoadingOverlay loading={loading.has('rental')}>
-        <PermissionGate
-          permission="rentals.access"
-          fallback={<NoAccessCard label="Rental Overview" />}
-        >
-          <RentalOverviewChart
-            data={rentalOverview}
-            years={years}
-            projects={projects}
-            selectedYear={rentalYear}
-            selectedProject={rentalProject}
-            onYearChange={handleRentalYearChange}
-            onProjectChange={handleRentalProjectChange}
-          />
-        </PermissionGate>
+        <RentalOverviewChart
+          data={rentalOverview}
+          years={years}
+          projects={projects}
+          selectedYear={rentalYear}
+          selectedProject={rentalProject}
+          onYearChange={handleRentalYearChange}
+          onProjectChange={handleRentalProjectChange}
+        />
       </LoadingOverlay>
 
       {/* Row 4: Payment Type Donut + Top Expense Properties */}
       <div className="flex gap-5">
         <LoadingOverlay loading={loading.has('paytype')} className="flex-1">
-          <PermissionGate
-            permission="payments.access"
-            fallback={<NoAccessCard label="Payment Types" />}
-          >
-            <PaymentTypeBreakdown
-              data={paymentTypes}
-              projects={projects}
-              selectedDate={payTypeDate}
-              selectedProject={payTypeProject}
-              onDateChange={handlePayTypeDateChange}
-              onProjectChange={handlePayTypeProjectChange}
-            />
-          </PermissionGate>
+          <PaymentTypeBreakdown
+            data={paymentTypes}
+            projects={projects}
+            selectedDate={payTypeDate}
+            selectedProject={payTypeProject}
+            onDateChange={handlePayTypeDateChange}
+            onProjectChange={handlePayTypeProjectChange}
+          />
         </LoadingOverlay>
         <LoadingOverlay loading={loading.has('topexp')} className="flex-2">
-          <PermissionGate
-            permission="expenses.access"
-            fallback={<NoAccessCard label="Top Expense Properties" />}
-          >
-            <TopExpenseProperties
-              data={topExpProperties}
-              categories={allCategories}
-              categoryTypeMap={categoryTypeMap}
-              projects={projects}
-              selectedCategory={topExpCategory}
-              selectedTypes={topExpTypes}
-              selectedProject={topExpProject}
-              onCategoryChange={handleTopExpCategoryChange}
-              onTypesChange={handleTopExpTypesChange}
-              onProjectChange={handleTopExpProjectChange}
-            />
-          </PermissionGate>
+          <TopExpenseProperties
+            data={topExpProperties}
+            categories={allCategories}
+            categoryTypeMap={categoryTypeMap}
+            projects={projects}
+            selectedCategory={topExpCategory}
+            selectedTypes={topExpTypes}
+            selectedProject={topExpProject}
+            onCategoryChange={handleTopExpCategoryChange}
+            onTypesChange={handleTopExpTypesChange}
+            onProjectChange={handleTopExpProjectChange}
+          />
         </LoadingOverlay>
       </div>
 
       {/* Row 5: Property Profit Heatmap */}
       <LoadingOverlay loading={loading.has('heatmap')}>
-        <PermissionGate
-          permission="properties.access"
-          fallback={<NoAccessCard label="Property Profit Heatmap" />}
-        >
-          <PropertyProfitHeatmap
-            data={heatmapData}
-            years={years}
-            projects={projects}
-            selectedYear={heatmapYear}
-            selectedProject={heatmapProject}
-            onYearChange={handleHeatmapYearChange}
-            onProjectChange={handleHeatmapProjectChange}
-          />
-        </PermissionGate>
+        <PropertyProfitHeatmap
+          data={heatmapData}
+          years={years}
+          projects={projects}
+          selectedYear={heatmapYear}
+          selectedProject={heatmapProject}
+          onYearChange={handleHeatmapYearChange}
+          onProjectChange={handleHeatmapProjectChange}
+        />
       </LoadingOverlay>
     </>
   )

@@ -7,6 +7,7 @@ import Button from '@/components/costume-ui/button'
 import { RoleButtonIcon } from '@/components/costume-ui/icon'
 import StaffTable from '@/components/tables/staff-table'
 import AddStaffDialog from '@/components/dialogs/add-staff-dialog'
+import RolePopupDialog from '@/components/dialogs/role-popup-dialog'
 import { Prisma } from '@prisma/client'
 
 type StaffWithRole = Prisma.staffGetPayload<{
@@ -35,6 +36,7 @@ interface StaffSectionProps {
 
 export default function StaffSection({ staff, currentUserId }: StaffSectionProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const [isRolePopupOpen, setIsRolePopupOpen] = useState(false)
 
   const filteredStaff = useMemo(() => {
     if (!searchTerm.trim()) {
@@ -86,6 +88,7 @@ export default function StaffSection({ staff, currentUserId }: StaffSectionProps
             icon={<RoleButtonIcon className='text-neutral-300' />}
             label='Roles'
             className='bg-(--secondary-color)'
+            onClick={() => setIsRolePopupOpen(true)}
           />
 
           <AddStaffDialog />
@@ -93,6 +96,14 @@ export default function StaffSection({ staff, currentUserId }: StaffSectionProps
       </div>
       {/* Table */}
       <StaffTable data={filteredStaff} currentUserId={currentUserId} />
+      
+      {/* Role Popup Dialog */}
+      <RolePopupDialog
+        open={isRolePopupOpen}
+        onClose={() => setIsRolePopupOpen(false)}
+        staff={staff}
+        currentUserId={currentUserId}
+      />
     </>
   )
 }

@@ -57,6 +57,7 @@ const EditTenant = ({
     initialData?.phone_number || ''
   )
   const [email, setEmail] = useState<string>(initialData?.email || '')
+  const [emailError, setEmailError] = useState<string>('')
   const [profileImage, setProfileImage] = useState<Blob | null>(null)
   const [profileThumb, setProfileThumb] = useState<Blob | null>(null)
   const [existingProfilePic, setExistingProfilePic] = useState<string | null>(
@@ -107,10 +108,10 @@ const EditTenant = ({
     inputsContainer: 'grid grid-cols-2 items-start gap-5'
   }
 
-  // Fetch tenant data if not provided via initialData
+  // Fetch tenant data if not provided via initialData or if email is missing
   useEffect(() => {
-    // Skip fetching if initialData was provided (state already initialized)
-    if (initialData) {
+    // Skip fetching if initialData was provided AND has email
+    if (initialData && initialData.email) {
       return
     }
 
@@ -127,21 +128,25 @@ const EditTenant = ({
           const phone = tenant.phone_number || ''
           const mail = tenant.email || ''
 
-          setIdentityType(idType)
-          setIdentityNumber(idNumber)
-          setFirstName(fName)
-          setLastName(lName)
-          setPhoneNumber(phone)
+          // Only update fields that weren't already provided in initialData
+          if (!initialData?.identity_type) setIdentityType(idType)
+          if (!initialData?.identity_number) setIdentityNumber(idNumber)
+          if (!initialData?.first_name) setFirstName(fName)
+          if (!initialData?.last_name) setLastName(lName)
+          if (!initialData?.phone_number) setPhoneNumber(phone)
+          // Always update email since it's fetched from auth
           setEmail(mail)
-          setExistingProfilePic(tenant.profile_pic)
-          setAccountStatus(tenant.accountStatus || 'Activated')
+          if (!initialData?.profile_pic) setExistingProfilePic(tenant.profile_pic)
+          if (!initialData?.accountStatus) setAccountStatus(tenant.accountStatus || 'Activated')
+          
+          // Update original values with the complete data
           setOriginalValues({
-            identityType: idType,
-            identityNumber: idNumber,
-            firstName: fName,
-            lastName: lName,
-            phoneNumber: phone,
-            email: mail
+            identityType: initialData?.identity_type || idType,
+            identityNumber: initialData?.identity_number || idNumber,
+            firstName: initialData?.first_name || fName,
+            lastName: initialData?.last_name || lName,
+            phoneNumber: initialData?.phone_number || phone,
+            email: mail // Always use fetched email from auth
           })
         }
       } catch (err) {
@@ -157,6 +162,20 @@ const EditTenant = ({
   const handlePhotoSave = (mainBlob: Blob, thumbBlob: Blob) => {
     setProfileImage(mainBlob)
     setProfileThumb(thumbBlob)
+  }
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!email || !email.trim()) {
+      setEmailError('Email is required')
+      return false
+    }
+    if (!emailRegex.test(email.trim())) {
+      setEmailError('Invalid email format')
+      return false
+    }
+    setEmailError('')
+    return true
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -330,12 +349,18 @@ const EditTenant = ({
               type='email'
               placeholder='E.g. example@email.com'
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={e => {
+                setEmail(e.target.value)
+                validateEmail(e.target.value)
+              }}
               disabled={loading}
               required
               minLength={5}
               maxLength={255}
             />
+            {emailError && (
+              <p className='text-red-600 text-sm mt-1'>{emailError}</p>
+            )}
           </InputGroup>
         </div>
 
