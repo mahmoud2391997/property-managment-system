@@ -10,7 +10,7 @@ type Props = {
 }
 
 export default async function RentalLeaseDetailsPage({ params }: Props) {
-  await requirePermission('rentals.access')
+  await requirePermission('leases.access')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 

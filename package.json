@@ -6,7 +6,9 @@
     "dev": "next dev -p 4000",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:permissions": "npx tsx scripts/seed-permissions.ts",
+    "seed:owner": "npx tsx scripts/seed-owner-role.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

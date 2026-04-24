@@ -1,5 +1,6 @@
 'use server'
 
+import { cache } from 'react'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
@@ -27,7 +28,7 @@ type Failure = {
   error: NextResponse
 }
 
-export const getUserAndStaff = async (): Promise<Success | Failure> => {
+async function getUserAndStaffInternal(): Promise<Success | Failure> {
   const supabase = await createClient()
   const {
     data: { user }
@@ -110,3 +111,6 @@ export const getUserAndStaff = async (): Promise<Success | Failure> => {
     error: null
   }
 }
+
+// React cache() wrapper for deduplication within a single request
+export const getUserAndStaff = cache(getUserAndStaffInternal)
