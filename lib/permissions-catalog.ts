@@ -67,6 +67,10 @@ export const PERMISSIONS: PermissionDef[] = [
   { module: 'tenants', action: 'create', title: 'Create Tenant', description: 'Create a new tenant' },
   { module: 'tenants', action: 'update', title: 'Update Tenant', description: 'Edit an existing tenant' },
   { module: 'tenants', action: 'delete', title: 'Delete Tenant', description: 'Delete a tenant' },
+  { module: 'tenants', action: 'view_own', title: 'View Own Tenant Info', description: 'View and edit own tenant information' },
+  { module: 'tenants', action: 'view_lease', title: 'View Own Leases', description: 'View own lease information and payments' },
+  { module: 'tenants', action: 'make_payment', title: 'Make Payment', description: 'Make payments for own leases' },
+  { module: 'tenants', action: 'view_property', title: 'View Properties', description: 'View properties associated with own leases' },
 
   // owners
   { module: 'owners', action: 'access', title: 'Access Owners', description: 'View the Owners module, list, and any owner detail' },

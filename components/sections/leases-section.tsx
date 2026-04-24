@@ -7,6 +7,9 @@ import LeasesTable from '../tables/leases-table'
 import { LeaseWithDetails } from '@/types'
 import TableSectionSkeleton from '../loading-ui/table-section-skeleton'
 import { useRouter } from 'next/navigation'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
 
 type Props = {
   propertyId?: string
@@ -14,6 +17,7 @@ type Props = {
 }
 
 export default function LeasesSection({ propertyId, roomId }: Props) {
+  const { can } = usePermissions()
   const [leases, setLeases] = useState<LeaseWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -67,7 +71,9 @@ export default function LeasesSection({ propertyId, roomId }: Props) {
             className='bg-(--error-main)!'
           /> */}
 
-          <Button label='Add Lease' onClick={handleAddLease} />
+          <PermissionGate permission="leases.create" fallback={null}>
+            <Button label='Add Lease' onClick={handleAddLease} />
+          </PermissionGate>
         </div>
       </div>
 

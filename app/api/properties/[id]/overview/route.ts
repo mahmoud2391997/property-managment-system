@@ -64,9 +64,12 @@ export async function GET(
       )
     }
 
-    // Fetch active lease for this property (Current status in DB)
+    // Check if user has lease access permission
+    const hasLeaseAccess = hasPermission(permissions, 'leases.access')
+    
+    // Fetch active lease for this property (Current status in DB) only if user has permission
     // Only get property-level leases (room_id is null), not room leases
-    const lease = await prisma.leases.findFirst({
+    const lease = hasLeaseAccess ? await prisma.leases.findFirst({
       where: {
         property_id: propertyId,
         room_id: null, // Property-level lease only
@@ -121,7 +124,7 @@ export async function GET(
       orderBy: {
         created_at: 'desc'
       }
-    })
+    }) : null
 
     // Fetch active contract for this property
     const contract = await prisma.contracts.findFirst({
@@ -457,15 +460,21 @@ export async function GET(
       displayStatus = 'Vacant'
     }
 
+    // Check if user has permission to create leases
+    const canCreateLeases = hasPermission(permissions, 'leases.create')
+
     // Check if property can have a new lease added
     // Property can have a lease if:
     // 1. Property status is Ready (vacant)
     // 2. No active property-level lease
     // 3. ALL rooms must be Ready (vacant) with no active leases
-    let canAddLease = true
+    let canAddLease = canCreateLeases
     let leaseBlockedReason: string | null = null
 
-    if (lease) {
+    if (!canCreateLeases) {
+      canAddLease = false
+      leaseBlockedReason = 'You do not have permission to create leases'
+    } else if (lease) {
       canAddLease = false
       leaseBlockedReason = 'Property already has an active lease'
     } else if (property.status !== 'Ready') {
@@ -535,7 +544,7 @@ export async function GET(
       canAddBooking,
       bookingBlockedReason
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching property overview:', error)
     return NextResponse.json(
       { error: 'Failed to fetch property overview' },

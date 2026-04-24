@@ -101,15 +101,17 @@ async function generateStaffId (organizationId: string): Promise<string> {
 }
 
 export async function POST (request: Request) {
+  const supabaseAdmin = createAdminClient()
+  
   try {
     const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
-
-    if (!hasPermission(permissions, 'staff.create'))
-
+    if (!hasPermission(permissions, 'staff.create')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
     const formData = await request.formData()
     const firstName = formData.get('firstName') as string
     const lastName = formData.get('lastName') as string | null
@@ -158,8 +160,7 @@ export async function POST (request: Request) {
     }
 
     const supabase = await createClient()
-    const supabaseAdmin = createAdminClient()
-
+    
     let profilePicUrl: string | null = null
     let profileThumbUrl: string | null = null
 
@@ -264,7 +265,7 @@ export async function POST (request: Request) {
     }
 
     // Generate staff ID (with retry logic for race conditions)
-    let staffId: string
+    let staffId: string = ''
     let newStaff: any
     let attempts = 0
     const maxAttempts = 3

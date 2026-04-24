@@ -9,6 +9,9 @@ import StaffTable from '@/components/tables/staff-table'
 import AddStaffDialog from '@/components/dialogs/add-staff-dialog'
 import RolePopupDialog from '@/components/dialogs/role-popup-dialog'
 import { Prisma } from '@prisma/client'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
 
 type StaffWithRole = Prisma.staffGetPayload<{
   select: {
@@ -35,6 +38,7 @@ interface StaffSectionProps {
 }
 
 export default function StaffSection({ staff, currentUserId }: StaffSectionProps) {
+  const { can } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
   const [isRolePopupOpen, setIsRolePopupOpen] = useState(false)
 
@@ -74,36 +78,45 @@ export default function StaffSection({ staff, currentUserId }: StaffSectionProps
   }, [staff, searchTerm])
 
   return (
-    <>
-      {/* Actions */}
-      <div className={cn('flex justify-between items-center', 'w-full')}>
-        <SearchInput
-          placeholder='Search staff'
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        {/* Buttons */}
-        <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <Button
-            icon={<RoleButtonIcon className='text-neutral-300' />}
-            label='Roles'
-            className='bg-(--secondary-color)'
-            onClick={() => setIsRolePopupOpen(true)}
+    <PermissionGate 
+      permission="staff.access" 
+      fallback={
+        <NoAccessCard label="Staff" />
+      }
+    >
+      <>
+        {/* Actions */}
+        <div className={cn('flex justify-between items-center', 'w-full')}>
+          <SearchInput
+            placeholder='Search staff'
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
+          {/* Buttons */}
+          <div className={cn('flex items-center gap-2.5', 'py-5')}>
+            <Button
+              icon={<RoleButtonIcon className='text-neutral-300' />}
+              label='Roles'
+              className='bg-(--secondary-color)'
+              onClick={() => setIsRolePopupOpen(true)}
+            />
 
-          <AddStaffDialog />
+            <PermissionGate permission="staff.create" fallback={null}>
+              <AddStaffDialog />
+            </PermissionGate>
+          </div>
         </div>
-      </div>
-      {/* Table */}
-      <StaffTable data={filteredStaff} currentUserId={currentUserId} />
-      
-      {/* Role Popup Dialog */}
-      <RolePopupDialog
-        open={isRolePopupOpen}
-        onClose={() => setIsRolePopupOpen(false)}
-        staff={staff}
-        currentUserId={currentUserId}
-      />
-    </>
+        {/* Table */}
+        <StaffTable data={filteredStaff} currentUserId={currentUserId} />
+        
+        {/* Role Popup Dialog */}
+        <RolePopupDialog
+          open={isRolePopupOpen}
+          onClose={() => setIsRolePopupOpen(false)}
+          staff={staff}
+          currentUserId={currentUserId}
+        />
+      </>
+    </PermissionGate>
   )
 }

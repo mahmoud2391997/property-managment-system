@@ -18,13 +18,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useParams } from 'next/navigation'
 import { Property } from '@/types'
 import { propertiesData } from '@/utils/data'
+import { usePermissions } from '@/hooks/use-permissions'
 import { useSingleSelectOption } from '@/hooks/useSingleSelectOption'
 import { useRouter, usePathname } from 'next/navigation'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import { toast } from 'sonner'
 import InitiatePreparationFlowDrawer from '@/components/dialogs/initiate-preparation-flow-drawer'
 import AssignOwnerDialog from '@/components/dialogs/assign-owner-dialog'
-import { usePermissions } from '@/hooks/use-permissions'
 
 type Props = {
   children: React.ReactNode
@@ -40,7 +40,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const [propertyOwnerId, setPropertyOwnerId] = useState<string | null>(null)
   const [hasActiveContract, setHasActiveContract] = useState<boolean>(false)
   const [isPropertyCodeLoading, setIsPropertyCodeLoading] =
-    useState<boolean>(true)
+    useState<boolean>(false) // Start with false since we'll get it from overview data
 
   const pathname = usePathname()
   const segments = pathname.split('/')
@@ -70,23 +70,29 @@ const WithHeadSectionLayout = ({ children }: Props) => {
     isSelected: lastSegment === tab.href.split('/').pop()
   })))
 
-  // Fetch property code, status, and images
-  const fetchPropertyData = async () => {
+  // Fetch property code (no special permissions required)
+  const fetchPropertyCode = async () => {
     setIsPropertyCodeLoading(true)
-    const response = await fetch(`/api/leases/${propertyId}/property-code`)
-    if (response.ok) {
+    
+    try {
+      const response = await fetch(`/api/properties/${propertyId}/code`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        setPropertyCode(data.propertyCode)
+        setIsPropertyCodeLoading(false)
+      } else {
+        console.error('Failed to fetch property code:', response.status, response.statusText)
+        setIsPropertyCodeLoading(false)
+      }
+    } catch (error) {
+      console.error('Network error:', error)
       setIsPropertyCodeLoading(false)
-      const data = await response.json()
-      setPropertyCode(data.property)
-      setPropertyStatus(data.status)
-      setPropertyImages(data.images || [])
-      setPropertyOwnerId(data.assignedOwner?.id || null)
-      setHasActiveContract(data.hasActiveContract || false)
     }
   }
 
   useEffect(() => {
-    fetchPropertyData()
+    fetchPropertyCode()
   }, [propertyId])
 
   const handleTabClick = (href?: string) => {
@@ -139,7 +145,9 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             {isPropertyCodeLoading ? (
               <Skeleton className='h-7 w-40 bg-neutral-300' />
             ) : (
-              <h1>{propertyCode}</h1>
+              <div>
+                <h1>{propertyCode || 'No property code'}</h1>
+                              </div>
             )}
           </div>
           <DropdownMenu>
@@ -171,7 +179,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
                 <InitiatePreparationFlowDrawer
                   propertyId={propertyId}
                   locationName={propertyCode || ''}
-                  onSuccess={fetchPropertyData}
+                  onSuccess={fetchPropertyCode}
                   trigger={
                     <DropdownMenuItem onSelect={e => e.preventDefault()}>
                       Mark as Not Ready

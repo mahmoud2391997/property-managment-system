@@ -43,6 +43,7 @@ import ScheduledLeaseEndBanner from '@/components/costume-ui/scheduled-lease-end
 import ScheduleLeaseEndDialog from '@/components/dialogs/schedule-lease-end-dialog'
 import { PermissionGate } from '@/components/permission-gate'
 import { NoAccessCard } from '@/components/no-access-card'
+import { usePermissions } from '@/hooks/use-permissions'
 
 // Types for overview data
 type ScheduledChange = {
@@ -577,6 +578,7 @@ type Props = {
 }
 
 export default function OverviewContent ({ propertyId }: Props) {
+  const { can } = usePermissions()
   const router = useRouter()
   const [overviewData, setOverviewData] = useState<OverviewData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -590,6 +592,7 @@ export default function OverviewContent ({ propertyId }: Props) {
       const response = await fetch(`/api/properties/${propertyId}/overview`)
       if (response.ok) {
         const data = await response.json()
+        console.log(data)
         setOverviewData(data)
       }
     } catch (error) {
@@ -648,124 +651,114 @@ export default function OverviewContent ({ propertyId }: Props) {
       {/* Cards */}
       <div className='flex items-start gap-5 w-full'>
         {/* Lease Card */}
-        {loading ? (
-          <CardSkeleton />
-        ) : overviewData?.propertyStatus === 'Pending_Inspection' ||
-          overviewData?.propertyStatus === 'Under_Preparation' ? (
-          <StatusCard
-            iconStyles='bg-[#DEFFE2] text-(--success-dark)'
-            Icon={ArrowDownLeft}
-            title='Lease Overview'
-            subtitle='Income from tenant'
-            status={overviewData.propertyStatus}
-            propertyId={propertyId}
-          />
-        ) : overviewData?.lease ? (
-          <Card
-            iconStyles='bg-[#DEFFE2] text-(--success-dark)'
-            Icon={ArrowDownLeft}
-            title='Lease Overview'
-            subtitle='Income from tenant'
-            amount={formatCurrency(overviewData.lease.monthly_rent)}
-            date_label='Due'
-            date={formatDate(overviewData.lease.due_date)}
-            user_name={overviewData.lease.tenant.name}
-            user_link={`/tenants/${overviewData.lease.tenant.id}/overview`}
-            user_type='Tenant'
-            user_avatar={overviewData.lease.tenant.profile_thumb}
-            detailsLink={`/properties/${propertyId}/leases/${overviewData.lease.id}/details`}
-            menuItems={
-              <>
-                {overviewData.lease?.tenant.phone_number && (
+        <PermissionGate 
+          permission="leases.access" 
+          fallback={
+            <NoAccessCard 
+              label="Lease Overview" 
+            />
+          }
+        >
+          {loading ? (
+            <CardSkeleton />
+          ) : overviewData?.propertyStatus === 'Pending_Inspection' ||
+            overviewData?.propertyStatus === 'Under_Preparation' ? (
+            <StatusCard
+              iconStyles='bg-[#DEFFE2] text-(--success-dark)'
+              Icon={ArrowDownLeft}
+              title='Lease Overview'
+              subtitle='Income from tenant'
+              status={overviewData.propertyStatus}
+              propertyId={propertyId}
+            />
+          ) : overviewData?.lease ? (
+            <Card
+              iconStyles='bg-[#DEFFE2] text-(--success-dark)'
+              Icon={ArrowDownLeft}
+              title='Lease Overview'
+              subtitle='Income from tenant'
+              amount={formatCurrency(overviewData.lease.monthly_rent)}
+              date_label='Due'
+              date={formatDate(overviewData.lease.due_date)}
+              user_name={overviewData.lease.tenant.name}
+              user_link={`/tenants/${overviewData.lease.tenant.id}/overview`}
+              user_type='Tenant'
+              user_avatar={overviewData.lease.tenant.profile_thumb}
+              detailsLink={`/properties/${propertyId}/leases/${overviewData.lease.id}/details`}
+              menuItems={
+                <>
+                  {overviewData.lease?.tenant.phone_number && (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        const whatsappUrl = buildWhatsAppLink(
+                          overviewData.lease!.tenant.phone_number!
+                        )
+                        window.open(whatsappUrl, '_blank')
+                      }}
+                    >
+                      WhatsApp {overviewData.lease.tenant.name.split(' ')[0]}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
-                    onClick={() => {
-                      const whatsappUrl = buildWhatsAppLink(
-                        overviewData.lease!.tenant.phone_number!
+                    onClick={() =>
+                      navigator.clipboard.writeText(
+                        overviewData.lease!.reference_id
                       )
-                      window.open(whatsappUrl, '_blank')
-                    }}
+                    }
                   >
-                    WhatsApp {overviewData.lease.tenant.name.split(' ')[0]}
+                    Copy lease ID
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuItem
-                  onClick={() =>
-                    navigator.clipboard.writeText(
-                      overviewData.lease!.reference_id
-                    )
-                  }
-                >
-                  Copy lease ID
-                </DropdownMenuItem>
-                <DropdownMenuItem>Edit lease</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Rental</DropdownMenuLabel>
-                <ScheduleRentalChangeDialog
-                  leaseId={overviewData.lease!.id}
-                  onSuccess={fetchOverviewData}
-                  trigger={
-                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                      Schedule rental change
-                    </DropdownMenuItem>
-                  }
-                />
-                <RentalHistoryDialog
-                  leaseId={overviewData.lease!.id}
-                  trigger={
-                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                      View rental history
-                    </DropdownMenuItem>
-                  }
-                />
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link
-                    href={`/properties/${propertyId}/leases/${overviewData.lease!.id}/transfer`}
-                  >
-                    Transfer Lease
-                  </Link>
-                </DropdownMenuItem>
-                <ScheduleLeaseEndDialog
-                  leaseId={overviewData.lease!.id}
-                  onSuccess={fetchOverviewData}
-                  trigger={
-                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                      Schedule Lease End
-                    </DropdownMenuItem>
-                  }
-                />
-                <InitiateLeaseEndingDrawer
-                  leaseId={overviewData.lease!.id}
-                  propertyName={overviewData.propertyCode}
-                  tenantName={overviewData.lease!.tenant.name}
-                  onSuccess={fetchOverviewData}
-                  trigger={
-                    <button type='button' className='delete-dropdown-button'>
-                      End Lease
-                    </button>
-                  }
-                />
-              </>
-            }
-          />
-        ) : overviewData?.canAddLease ? (
-          <EmptyCard
-            iconStyles='bg-[#DEFFE2] text-(--success-dark)'
-            Icon={ArrowDownLeft}
-            title='Lease Overview'
-            subtitle='Income from tenant'
-            buttonLabel='Add Lease'
-            onClick={handleAddLease}
-          />
-        ) : (
-          <BlockedCard
-            iconStyles='bg-[#DEFFE2] text-(--success-dark)'
-            Icon={ArrowDownLeft}
-            title='Lease Overview'
-            subtitle='Income from tenant'
-            blockedReason={overviewData?.leaseBlockedReason || 'Cannot add lease'}
-          />
-        )}
+                  <DropdownMenuItem>Edit lease</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href={`/properties/${propertyId}/leases/${overviewData.lease!.id}/transfer`}
+                    >
+                      Transfer Lease
+                    </Link>
+                  </DropdownMenuItem>
+                  <ScheduleLeaseEndDialog
+                    leaseId={overviewData.lease!.id}
+                    onSuccess={fetchOverviewData}
+                    trigger={
+                      <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                        Schedule Lease End
+                      </DropdownMenuItem>
+                    }
+                  />
+                  <InitiateLeaseEndingDrawer
+                    leaseId={overviewData.lease!.id}
+                    propertyName={overviewData.propertyCode}
+                    tenantName={overviewData.lease!.tenant.name}
+                    onSuccess={fetchOverviewData}
+                    trigger={
+                      <button type='button' className='delete-dropdown-button'>
+                        End Lease
+                      </button>
+                    }
+                  />
+                </>
+              }
+            />
+          ) : overviewData?.canAddLease && can('leases.create') ? (
+            <EmptyCard
+              iconStyles='bg-[#DEFFE2] text-(--success-dark)'
+              Icon={ArrowDownLeft}
+              title='Lease Overview'
+              subtitle='Income from tenant'
+              buttonLabel='Add Lease'
+              onClick={handleAddLease}
+            />
+          ) : (
+            <BlockedCard
+              iconStyles='bg-[#DEFFE2] text-(--success-dark)'
+              Icon={ArrowDownLeft}
+              title='Lease Overview'
+              subtitle='Income from tenant'
+              blockedReason={overviewData?.leaseBlockedReason || 'Cannot add lease'}
+            />
+          )}
+        </PermissionGate>
 
         {/* Contract Card */}
         {loading ? (

@@ -11,6 +11,9 @@ import { ExpenseWithDetails } from '@/lib/expenses-utils'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import SectionTab from '../costume-ui/section-tab'
 import { Building2, FileText, User, Briefcase, ShoppingCart } from 'lucide-react'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
 
 const CATEGORY_TABS = [
   { key: 'Property_Related', label: 'Property', icon: <Building2 size={14} /> },
@@ -29,6 +32,7 @@ export default function ExpensesSection({
   initialData,
   initialTotal
 }: ExpensesSectionProps) {
+  const { can } = usePermissions()
   const {
     data,
     isLoading,
@@ -61,63 +65,67 @@ export default function ExpensesSection({
   }
 
   return (
-    <>
-      {/* Category Filter */}
-      <div className='flex justify-center w-full'>
-        <SectionTab
-          options={CATEGORY_TABS}
-          selectedIndex={selectedIndex}
-          onChange={handleTabChange}
-        />
-      </div>
-
-      {/* Actions */}
-      <div
-        className={cn(
-          'flex flex-col sm:flex-row justify-between sm:items-center gap-3',
-          'w-full'
-        )}
-      >
-        <SearchInput
-          placeholder='Search expenses'
-          value={searchTerm}
-          onChange={e => handleSearchChange(e.target.value)}
-        />
-        {/* Buttons */}
-        <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
-          <Link href='/expenses/recurring-configs' className='flex-1 sm:flex-none'>
-            <Button
-              variant='secondary'
-              icon={<Repeat size={16} />}
-              label='Recurring Configs'
-              className='w-full'
-            />
-          </Link>
-          <Link href='/expenses/add-expense' className='flex-1 sm:flex-none'>
-            <Button
-              icon={<AddButtonIcon className='text-neutral-300' />}
-              label='Add Expense'
-              className='w-full'
-            />
-          </Link>
+    <PermissionGate 
+      permission="expenses.access" 
+      fallback={
+        <NoAccessCard label="Expenses" />
+      }
+    >
+      <>
+        {/* Category Filter */}
+        <div className={cn('flex flex-col gap-5', 'w-full')}>
+          <SectionTab
+            options={CATEGORY_TABS}
+            selectedIndex={selectedIndex}
+            onChange={handleTabChange}
+          />
         </div>
-      </div>
 
-      {/* Table */}
-      <div>
+        {/* Search and Actions */}
+        <div
+          className={cn(
+            'flex flex-col sm:flex-row justify-between sm:items-center gap-3',
+            'w-full'
+          )}
+        >
+          <SearchInput
+            placeholder='Search expenses'
+            value={searchTerm}
+            onChange={e => handleSearchChange(e.target.value)}
+          />
+          {/* Buttons */}
+          <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
+            <PermissionGate permission="recurring.access" fallback={null}>
+              <Link href='/expenses/recurring-configs' className='flex-1 sm:flex-none'>
+                <Button
+                  variant='secondary'
+                  icon={<Repeat size={16} />}
+                  label='Recurring Configs'
+                  className='w-full'
+                />
+              </Link>
+            </PermissionGate>
+            <PermissionGate permission="expenses.create" fallback={null}>
+              <Link href='/expenses/add-expense' className='flex-1 sm:flex-none'>
+                <Button
+                  icon={<AddButtonIcon />}
+                  label='Add Expense'
+                  className='w-full'
+                />
+              </Link>
+            </PermissionGate>
+          </div>
+        </div>
+
+        {/* Table */}
         <ExpensesTable
           data={data}
-          category={currentCategory}
-          isLoading={isLoading}
-          currentPage={currentPage}
-          totalItems={total}
-          pageSize={pageSize}
-          canGoNext={canGoNext}
-          canGoPrevious={canGoPrevious}
-          onNextPage={goToNextPage}
-          onPreviousPage={goToPreviousPage}
+          className='-mx-5! rounded-none! border-x-0 mb-5'
+          noPagnitation={true}
+          isLoadingRows={isLoading}
+          loadingRowsCount={pageSize}
         />
-      </div>
-    </>
+      </>
+    </PermissionGate>
   )
 }

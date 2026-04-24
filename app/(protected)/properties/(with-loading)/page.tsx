@@ -103,7 +103,7 @@ async function getProperties(): Promise<{ data: PropertyWithDetails[]; total: nu
     }),
     prisma.properties.count({ where: whereClause })
   ])
-
+console.log(properties)
   return {
     data: properties.map(transformProperty),
     total

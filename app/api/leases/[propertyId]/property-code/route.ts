@@ -15,7 +15,7 @@ export async function GET (
     if (error) return error
 
 
-    if (!hasPermission(permissions, 'leases.access'))
+    if (!hasPermission(permissions, 'properties.access'))
 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { propertyId } = await params

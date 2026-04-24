@@ -10,6 +10,8 @@ import AddTicketDrawer from './dialogs/add-ticket-drawer'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import { Tab, TabGroup } from './costume-ui/tab'
 import TableFilter, { type FilterAttribute, type FilterValue } from './costume-ui/table-filter'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
 
 // Define filterable attributes for tickets
 const TICKET_FILTER_ATTRIBUTES: FilterAttribute[] = [
@@ -43,6 +45,7 @@ export default function TicketsSection({
   initialTotal,
   userType
 }: TicketsSectionProps) {
+  const { can } = usePermissions()
   const {
     data,
     isLoading,
@@ -145,19 +148,21 @@ export default function TicketsSection({
             onChange={e => handleSearchChange(e.target.value)}
           />
         </div>
-        {/* Add Ticket Button - Only visible for tenants */}
-        {userType === 'tenant' && (
-          <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
-            {/* Desktop: Dialog */}
-            <div className='hidden sm:block'>
-              <AddTicketDialog onSuccess={handleRefresh} />
-            </div>
-            {/* Mobile: Full-screen bottom drawer */}
-            <div className='sm:hidden'>
-              <AddTicketDrawer onSuccess={handleRefresh} />
-            </div>
-          </div>
-        )}
+        {/* Add Ticket Button - Based on permissions and user type */}
+        <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
+          {(userType === 'tenant' || can('tickets.create')) && (
+            <>
+              {/* Desktop: Dialog */}
+              <div className='hidden sm:block'>
+                <AddTicketDialog onSuccess={handleRefresh} />
+              </div>
+              {/* Mobile: Full-screen bottom drawer */}
+              <div className='sm:hidden'>
+                <AddTicketDrawer onSuccess={handleRefresh} />
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Status Tabs */}

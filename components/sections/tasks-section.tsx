@@ -9,6 +9,8 @@ import { Tab, TabGroup } from '../costume-ui/tab'
 import AddTaskDialog from '../dialogs/add-task-dialog'
 import { useCallback, useMemo } from 'react'
 import TableFilter, { type FilterAttribute, type FilterValue } from '../costume-ui/table-filter'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
 
 // Define filterable attributes for tasks
 const TASK_FILTER_ATTRIBUTES: FilterAttribute[] = [
@@ -64,6 +66,7 @@ export default function TasksSection({
   initialData,
   initialTotal
 }: TasksSectionProps) {
+  const { can } = usePermissions()
   const {
     data,
     isLoading,
@@ -172,7 +175,9 @@ export default function TasksSection({
             onChange={e => handleSearchChange(e.target.value)}
           />
         </div>
-        <AddTaskDialog onSuccess={handleRefresh} />
+        <PermissionGate permission="tasks.create" fallback={null}>
+          <AddTaskDialog onSuccess={handleRefresh} />
+        </PermissionGate>
       </div>
 
       {/* Filters */}

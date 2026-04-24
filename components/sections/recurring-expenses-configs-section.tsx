@@ -5,6 +5,9 @@ import SearchInput from '@/components/costume-ui/search-input'
 import RecurringExpensesTable from '@/components/tables/recurring-expenses-table'
 import { RecurringExpenseConfigWithProperty } from '@/app/api/expenses/recurring-configs/route'
 import { Tab, TabGroup } from '../costume-ui/tab'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
 
 const STATUS_OPTIONS = ['all', 'Active', 'Paused']
 
@@ -19,6 +22,7 @@ export default function RecurringExpensesConfigsSection({
   initialTotal,
   onRefresh
 }: RecurringExpensesConfigsSectionProps) {
+  const { can } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
 
@@ -46,35 +50,42 @@ export default function RecurringExpensesConfigsSection({
   }, [initialData, searchTerm, statusFilter])
 
   return (
-    <>
-      {/* Search */}
-      <div className='w-full'>
-        <SearchInput
-          placeholder='Search by title, property, or type...'
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      {/* Status Tabs */}
-      <TabGroup className='-mx-5 px-5 mb-1'>
-        {STATUS_OPTIONS.map(status => (
-          <Tab
-            key={status}
-            label={status === 'all' ? 'All' : status}
-            isSelected={statusFilter === status}
-            onClick={() => setStatusFilter(status)}
-            className='texts-tab-secondary'
+    <PermissionGate 
+      permission="recurring.access" 
+      fallback={
+        <NoAccessCard label="Recurring Expenses" />
+      }
+    >
+      <>
+        {/* Search */}
+        <div className='w-full'>
+          <SearchInput
+            placeholder='Search by title, property, or type...'
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
           />
-        ))}
-      </TabGroup>
+        </div>
 
-      {/* Table */}
-      <RecurringExpensesTable
-        data={filteredData}
-        onRefresh={onRefresh}
-        showProperty
-      />
-    </>
+        {/* Status Tabs */}
+        <TabGroup className='-mx-5 px-5 mb-1'>
+          {STATUS_OPTIONS.map(status => (
+            <Tab
+              key={status}
+              label={status === 'all' ? 'All' : status}
+              isSelected={statusFilter === status}
+              onClick={() => setStatusFilter(status)}
+              className='texts-tab-secondary'
+            />
+          ))}
+        </TabGroup>
+
+        {/* Table */}
+        <RecurringExpensesTable
+          data={filteredData}
+          onRefresh={onRefresh}
+          showProperty
+        />
+      </>
+    </PermissionGate>
   )
 }

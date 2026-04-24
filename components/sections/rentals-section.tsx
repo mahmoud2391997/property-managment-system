@@ -5,6 +5,9 @@ import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import RentalsTable, { RentalWithDetails } from '@/components/tables/rentals-table'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
 
 // Calculate end date from start_date + number_of_months
 function calculateEndDate(
@@ -36,6 +39,7 @@ interface RentalsSectionProps {
 }
 
 export default function RentalsSection({ rentals }: RentalsSectionProps) {
+  const { can } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
   const searchParams = useSearchParams()
   const [highlightId, setHighlightId] = useState<string | null>(null)
@@ -94,19 +98,26 @@ export default function RentalsSection({ rentals }: RentalsSectionProps) {
   }, [rentals, searchTerm])
 
   return (
-    <>
-      {/* Actions */}
-      <div className={cn('flex flex-col sm:flex-row justify-between sm:items-center gap-3', 'w-full')}>
-        <SearchInput
-          placeholder='Search rentals'
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-      {/* Table */}
-      <div>
-        <RentalsTable data={filteredRentals} highlightReferenceId={highlightId} />
-      </div>
-    </>
+    <PermissionGate 
+      permission="rentals.access" 
+      fallback={
+        <NoAccessCard label="Rentals" />
+      }
+    >
+      <>
+        {/* Actions */}
+        <div className={cn('flex flex-col sm:flex-row justify-between sm:items-center gap-3', 'w-full')}>
+          <SearchInput
+            placeholder='Search rentals'
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        {/* Table */}
+        <div>
+          <RentalsTable data={filteredRentals} highlightReferenceId={highlightId} />
+        </div>
+      </>
+    </PermissionGate>
   )
 }

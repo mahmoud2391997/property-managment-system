@@ -26,7 +26,18 @@ export async function GET() {
     })
   }
 
-  // For tenant users, return basic info with no permissions
+  // For tenant users, return tenant-specific permissions
+  const tenantPermissions = [
+    'tenants.access',
+    'tenants.create', 
+    'tenants.update',
+    'tenants.delete',
+    'tenants.view_own',
+    'tenants.view_lease', 
+    'tenants.make_payment',
+    'tenants.view_property'
+  ]
+
   return NextResponse.json({
     user: {
       id: user.id,
@@ -34,6 +45,6 @@ export async function GET() {
     },
     staff: null,
     role: 'tenant',
-    permissions: []
+    permissions: Array.from(tenantPermissions)
   })
 }
