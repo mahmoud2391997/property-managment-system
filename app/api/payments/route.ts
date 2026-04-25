@@ -8,7 +8,8 @@ import { getUserAndStaff } from '@/utils/getUserAndStaff'
 import { hasPermission } from '@/lib/has-permission'
 
 // Shared select for payment queries
-const paymentSelect = {
+// Build dynamic payment select object based on permissions
+const buildPaymentSelect = (hasTenantAccess: boolean) => ({
   reference_id: true,
   type: true,
   status: true,
@@ -41,17 +42,20 @@ const paymentSelect = {
           id: true,
           type: true,
           profile_pic: true,
-          individual_tenants: {
-            select: {
-              first_name: true,
-              last_name: true
+          // Only include detailed tenant info if user has tenant access permission
+          ...(hasTenantAccess && {
+            individual_tenants: {
+              select: {
+                first_name: true,
+                last_name: true
+              }
+            },
+            company_tenants: {
+              select: {
+                company_name: true
+              }
             }
-          },
-          company_tenants: {
-            select: {
-              company_name: true
-            }
-          }
+          })
         }
       },
       late_payment_charges: {
@@ -114,22 +118,25 @@ const paymentSelect = {
           id: true,
           type: true,
           profile_pic: true,
-          individual_tenants: {
-            select: {
-              first_name: true,
-              last_name: true
+          // Only include detailed tenant info if user has tenant access permission
+          ...(hasTenantAccess && {
+            individual_tenants: {
+              select: {
+                first_name: true,
+                last_name: true
+              }
+            },
+            company_tenants: {
+              select: {
+                company_name: true
+              }
             }
-          },
-          company_tenants: {
-            select: {
-              company_name: true
-            }
-          }
+          })
         }
       }
     }
   }
-}
+})
 
 export async function GET (request: NextRequest) {
   try {
@@ -140,6 +147,9 @@ export async function GET (request: NextRequest) {
     if (!hasPermission(permissions, 'payments.access')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    // Check if user has tenant access permission
+    const hasTenantAccess = hasPermission(permissions, 'tenants.access')
 
     // Check if user is tenant (for tenant-specific access)
     const tenant = await prisma.tenants.findUnique({
@@ -385,6 +395,9 @@ export async function GET (request: NextRequest) {
 
       const needsFrontendFiltering = needsCalculatedStatusFilter || recurringPatternFilter
 
+      // Build payment select object based on permissions
+      const paymentSelect = buildPaymentSelect(hasTenantAccess)
+
       // If we need frontend filtering, fetch all matching records (without pagination)
       // Then apply pagination after filtering
       const [payments, total] = await Promise.all([
@@ -489,6 +502,9 @@ export async function GET (request: NextRequest) {
         }
       ]
     }
+
+    // Build payment select object based on permissions
+    const paymentSelect = buildPaymentSelect(hasTenantAccess)
 
     // Fetch payments with related data
     const payments = await prisma.payments.findMany({

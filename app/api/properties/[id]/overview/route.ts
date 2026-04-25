@@ -126,8 +126,11 @@ export async function GET(
       }
     }) : null
 
-    // Fetch active contract for this property
-    const contract = await prisma.contracts.findFirst({
+    // Check if user has contract access permission
+    const hasContractAccess = hasPermission(permissions, 'contracts.access')
+    
+    // Fetch active contract for this property only if user has permission
+    const contract = hasContractAccess ? await prisma.contracts.findFirst({
       where: {
         property_id: propertyId
       },
@@ -163,10 +166,13 @@ export async function GET(
       orderBy: {
         created_at: 'desc'
       }
-    })
+    }) : null
 
-    // Fetch active booking for this property
-    const booking = await prisma.bookings.findFirst({
+    // Check if user has booking access permission
+    const hasBookingAccess = hasPermission(permissions, 'bookings.access')
+    
+    // Fetch active booking for this property only if user has permission
+    const booking = hasBookingAccess ? await prisma.bookings.findFirst({
       where: {
         property_id: propertyId,
         status: 'Current'
@@ -207,7 +213,7 @@ export async function GET(
       orderBy: {
         created_at: 'desc'
       }
-    })
+    }) : null
 
     // Fetch scheduled rental change for lease (if any)
     let scheduledChange = null
@@ -500,14 +506,21 @@ export async function GET(
       }
     }
 
+    // Check if user has permission to create bookings
+    const canCreateBookings = hasPermission(permissions, 'bookings.create')
+
     // Check if property can have a new booking added
     // Property can have a booking if:
-    // 1. No current property-level booking already exists
-    // 2. No room under this property has a current booking (mutual exclusivity)
-    let canAddBooking = true
+    // 1. User has permission to create bookings
+    // 2. No current property-level booking already exists
+    // 3. No room under this property has a current booking (mutual exclusivity)
+    let canAddBooking = canCreateBookings
     let bookingBlockedReason: string | null = null
 
-    if (!booking) {
+    if (!canCreateBookings) {
+      canAddBooking = false
+      bookingBlockedReason = 'You do not have permission to create bookings'
+    } else if (!booking) {
       // Only need to check mutual exclusivity when there's no existing booking shown
       const roomWithCurrentBooking = await prisma.bookings.findFirst({
         where: {
@@ -532,6 +545,8 @@ export async function GET(
         }
       : null
 
+    const canCreateContracts = hasPermission(permissions, 'contracts.create')
+
     return NextResponse.json({
       propertyCode: property.code,
       propertyStatus: displayStatus,
@@ -542,7 +557,15 @@ export async function GET(
       canAddLease,
       leaseBlockedReason,
       canAddBooking,
-      bookingBlockedReason
+      bookingBlockedReason,
+      permissions: {
+        canViewLeases: hasLeaseAccess,
+        canViewContracts: hasContractAccess,
+        canViewBookings: hasBookingAccess,
+        canCreateLease: canCreateLeases,
+        canCreateContract: canCreateContracts,
+        canCreateBooking: canCreateBookings
+      }
     })
   } catch (error) {
     console.error('Error fetching property overview:', error)

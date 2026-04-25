@@ -387,7 +387,7 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
     // Can edit only if no successful payments
     const canEdit = expense.payment_history.length === 0
 
-    return {
+    const expenseDetailsData = {
       id: expense.id,
       reference_id: expense.reference_id,
       category: expense.category,
@@ -411,6 +411,13 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
       payment_percentage: paymentPercentage,
       can_edit: canEdit
     }
+
+    // Log the entire expense details response object
+    console.log('=== EXPENSE DETAILS API RESPONSE ===')
+    console.log('Complete expense details object:', JSON.stringify(expenseDetailsData, null, 2))
+    console.log('=== END EXPENSE DETAILS RESPONSE ===')
+
+    return expenseDetailsData
   } catch (error) {
     console.error('Error fetching expense details:', error)
     return null

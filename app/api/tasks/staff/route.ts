@@ -8,7 +8,7 @@ import { hasPermission } from '@/lib/has-permission'
 export async function GET() {
   try {
     const { staff: currentStaff, permissions, error } = await getUserAndStaff()
-    if (error) return error
+    if (error) return error as NextResponse
     if (!hasPermission(permissions, 'tasks.access')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }

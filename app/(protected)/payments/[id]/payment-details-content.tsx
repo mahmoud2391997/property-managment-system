@@ -558,10 +558,10 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
                 <div className='flex flex-col gap-1'>
                   <span className='texts-caption-large text-(--text-secondary)'>Charged for Payment</span>
                   <Link
-                    href={`/payments/${payment.late_charge_info.rental_payment.reference_id}`}
+                    href={`/payments/${payment.late_charge_info.rental_payment?.reference_id}`}
                     className='texts-body-small-medium text-(--info-main) hover:underline'
                   >
-                    {payment.late_charge_info.rental_payment.reference_id}
+                    {payment.late_charge_info.rental_payment?.reference_id}
                   </Link>
                 </div>
 
@@ -575,7 +575,7 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
                 <div className='flex items-center justify-between'>
                   <span className='texts-body-small text-(--text-secondary)'>Lease</span>
                   <span className='texts-body-small-medium'>
-                    {payment.late_charge_info.lease.reference_id}
+                    {payment.late_charge_info.lease?.reference_id}
                   </span>
                 </div>
 
@@ -583,16 +583,16 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
                   <span className='texts-caption-large text-(--text-secondary)'>Property</span>
                   <span className='texts-body-small-medium'>
                     {payment.late_charge_info.room
-                      ? `${payment.late_charge_info.property.street_address} (${payment.late_charge_info.room.title})`
-                      : payment.late_charge_info.property.street_address}
+                      ? `${payment.late_charge_info.property?.street_address} (${payment.late_charge_info.room?.title})`
+                      : payment.late_charge_info.property?.street_address}
                   </span>
                 </div>
 
-                {payment.late_charge_info.rental_payment.due_payment_timestamp && (
+                {payment.late_charge_info.rental_payment?.due_payment_timestamp && (
                   <div className='flex items-center justify-between pt-3 border-t border-(--border-light)'>
                     <span className='texts-body-small text-(--text-secondary)'>Original Due Date</span>
                     <span className='texts-body-small-medium'>
-                      {formatDate(payment.late_charge_info.rental_payment.due_payment_timestamp)}
+                      {formatDate(payment.late_charge_info.rental_payment?.due_payment_timestamp)}
                     </span>
                   </div>
                 )}

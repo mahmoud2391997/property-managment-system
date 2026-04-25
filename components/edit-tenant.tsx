@@ -1,5 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
 import Input from './costume-ui/input'
 import InputGroup from './costume-ui/input-group'
 import Select from './costume-ui/select'
@@ -306,63 +309,28 @@ const EditTenant = ({
         </div>
 
         <div className={styles.inputsContainer}>
-          <InputGroup label='First Name' isRequired>
-            <Input
-              placeholder='E.g. Mohammed'
-              value={firstName}
-              onChange={e => setFirstName(e.target.value)}
-              minLength={1}
-              maxLength={100}
-              required
-              disabled={loading}
-            />
-          </InputGroup>
-          <InputGroup label='Last Name'>
-            <Input
-              placeholder='E.g. Ali'
-              value={lastName}
-              onChange={e => setLastName(e.target.value)}
-              minLength={1}
-              maxLength={100}
-              disabled={loading}
-            />
-          </InputGroup>
-        </div>
-
-        <div className={styles.inputsContainer}>
-          <InputGroup
-            label='Phone Number'
-            className='overflow-visible!'
-            isRequired
-          >
-            <Input
-              phoneNumber
-              value={phoneNumber}
-              onChange={setPhoneNumber}
-              note='Used to redirect to Whatsapp'
-              required
-              disabled={loading}
-            />
-          </InputGroup>
-          <InputGroup label='Email' isRequired>
-            <Input
-              type='email'
-              placeholder='E.g. example@email.com'
-              value={email}
-              onChange={e => {
-                setEmail(e.target.value)
-                validateEmail(e.target.value)
-              }}
-              disabled={loading}
-              required
-              minLength={5}
-              maxLength={255}
-            />
-            {emailError && (
-              <p className='text-red-600 text-sm mt-1'>{emailError}</p>
-            )}
-          </InputGroup>
-        </div>
+            <InputGroup label='First Name' isRequired>
+              <Input
+                placeholder='E.g. Mohammed'
+                value={firstName}
+                onChange={e => setFirstName(e.target.value)}
+                minLength={1}
+                maxLength={100}
+                required
+                disabled={loading}
+              />
+            </InputGroup>
+            <InputGroup label='Last Name'>
+              <Input
+                placeholder='E.g. Ali'
+                value={lastName}
+                onChange={e => setLastName(e.target.value)}
+                minLength={1}
+                maxLength={100}
+                disabled={loading}
+              />
+            </InputGroup>
+          </div>
 
         {error && <p className='text-red-600 text-sm'>{error}</p>}
       </form>

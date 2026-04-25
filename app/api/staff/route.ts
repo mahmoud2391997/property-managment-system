@@ -103,6 +103,12 @@ async function generateStaffId (organizationId: string): Promise<string> {
 export async function POST (request: Request) {
   const supabaseAdmin = createAdminClient()
   
+  // Declare at function scope to be accessible in catch block
+  let authUserId: string | null = null
+  let profilePicUrl: string | null = null
+  let profileThumbUrl: string | null = null
+  let supabase: Awaited<ReturnType<typeof createClient>> | null = null
+  
   try {
     const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
@@ -159,13 +165,11 @@ export async function POST (request: Request) {
       )
     }
 
-    const supabase = await createClient()
-    
-    let profilePicUrl: string | null = null
-    let profileThumbUrl: string | null = null
+    const supabaseOrNull = await createClient()
+    supabase = supabaseOrNull
 
     // Create auth user first (unconfirmed, will manually send invite)
-    const { data: authData, error: authError } =
+    const { data: newAuthUser, error: authError } =
       await supabaseAdmin.auth.admin.createUser({
         email: email.trim(),
         email_confirm: false,
@@ -174,7 +178,7 @@ export async function POST (request: Request) {
         }
       })
 
-    if (authError || !authData.user) {
+    if (authError || !newAuthUser?.user) {
       console.error('Error creating auth user:', authError)
 
       // Check for duplicate email error - Supabase returns status 422 for duplicate emails
@@ -192,6 +196,8 @@ export async function POST (request: Request) {
       )
     }
 
+    authUserId = newAuthUser.user.id
+
     // Send custom confirmation email with staff-specific redirect
     const { error: inviteError } =
       await supabaseAdmin.auth.admin.inviteUserByEmail(email.trim(), {
@@ -201,7 +207,7 @@ export async function POST (request: Request) {
     if (inviteError) {
       console.error('Error sending invite email:', inviteError)
       // Clean up the created user
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      await supabaseAdmin.auth.admin.deleteUser(authUserId)
       return NextResponse.json(
         { error: 'Failed to send confirmation email' },
         { status: 500 }
@@ -210,11 +216,11 @@ export async function POST (request: Request) {
 
     // Upload images to Supabase Storage if provided
     if (profileImage && profileThumb) {
-      const staffId = authData.user.id
+      const staffId = authUserId!
 
       // Upload main profile image
       const mainImageBuffer = Buffer.from(await profileImage.arrayBuffer())
-      const { data: mainData, error: mainError } = await supabase.storage
+      const { data: mainData, error: mainError } = await supabase!.storage
         .from('staff')
         .upload(`${staffId}/profile.jpg`, mainImageBuffer, {
           contentType: 'image/jpeg',
@@ -224,7 +230,7 @@ export async function POST (request: Request) {
       if (mainError) {
         console.error('Error uploading main image:', mainError)
         // Clean up auth user if image upload fails
-        await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+        await supabaseAdmin.auth.admin.deleteUser(authUserId)
         return NextResponse.json(
           { error: 'Failed to upload profile image' },
           { status: 500 }
@@ -233,7 +239,7 @@ export async function POST (request: Request) {
 
       // Upload thumbnail
       const thumbImageBuffer = Buffer.from(await profileThumb.arrayBuffer())
-      const { data: thumbData, error: thumbError } = await supabase.storage
+      const { data: thumbData, error: thumbError } = await supabase!.storage
         .from('staff')
         .upload(`${staffId}/thumb.jpg`, thumbImageBuffer, {
           contentType: 'image/jpeg',
@@ -243,8 +249,8 @@ export async function POST (request: Request) {
       if (thumbError) {
         console.error('Error uploading thumbnail:', thumbError)
         // Clean up main image and auth user if thumb upload fails
-        await supabase.storage.from('staff').remove([mainData.path])
-        await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+        await supabase!.storage.from('staff').remove([mainData.path])
+        await supabaseAdmin.auth.admin.deleteUser(authUserId)
         return NextResponse.json(
           { error: 'Failed to upload thumbnail image' },
           { status: 500 }
@@ -252,11 +258,11 @@ export async function POST (request: Request) {
       }
 
       // Get public URLs
-      const { data: mainUrl } = supabase.storage
+      const { data: mainUrl } = supabase!.storage
         .from('staff')
         .getPublicUrl(mainData.path)
 
-      const { data: thumbUrl } = supabase.storage
+      const { data: thumbUrl } = supabase!.storage
         .from('staff')
         .getPublicUrl(thumbData.path)
 
@@ -291,7 +297,7 @@ export async function POST (request: Request) {
       try {
         newStaff = await prisma.staff.create({
           data: {
-            id: authData.user.id,
+            id: authUserId,
             staff_id: staffId,
             first_name: firstName.trim(),
             last_name: lastName?.trim() || null,
@@ -337,13 +343,15 @@ export async function POST (request: Request) {
   } catch (dbError: any) {
     console.error('Error creating staff record:', dbError)
     // Clean up auth user and images if database insert fails
-    await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-    if (profilePicUrl && profileThumbUrl) {
-      await supabase.storage
+    if (authUserId) {
+      await supabaseAdmin.auth.admin.deleteUser(authUserId)
+    }
+    if (profilePicUrl && profileThumbUrl && authUserId && supabase) {
+      await supabase!.storage
         .from('staff')
         .remove([
-          `${authData.user.id}/profile.jpg`,
-          `${authData.user.id}/thumb.jpg`
+          `${authUserId}/profile.jpg`,
+          `${authUserId}/thumb.jpg`
         ])
     }
 
@@ -404,7 +412,7 @@ export async function DELETE (request: Request) {
       )
     }
 
-    if (targetStaff.organization_id !== currentStaff.organization_id) {
+    if (targetStaff.organization_id !== currentStaff?.organization_id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
@@ -418,7 +426,7 @@ export async function DELETE (request: Request) {
 
     // Check if target staff is the organization creator
     const organization = await prisma.organizations.findUnique({
-      where: { id: currentStaff.organization_id },
+      where: { id: currentStaff?.organization_id },
       select: { created_by: true }
     })
 

@@ -12,7 +12,7 @@ export async function GET(
   try {
     const { id: taskId } = await params
     const { staff: currentStaffBase, permissions, error } = await getUserAndStaff()
-    if (error) return error
+    if (error) return error as NextResponse
     if (!hasPermission(permissions, 'tasks.access')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }

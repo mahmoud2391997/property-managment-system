@@ -33,6 +33,8 @@ type Props = {
   category?: string
   className?: string
   isLoading?: boolean
+  isLoadingRows?: boolean
+  loadingRowsCount?: number
   currentPage?: number
   totalItems?: number
   pageSize?: number
@@ -55,6 +57,8 @@ export default function ExpensesTable({
   category = 'Property_Related',
   className = '',
   isLoading = false,
+  isLoadingRows = false,
+  loadingRowsCount = 10,
   currentPage = 1,
   totalItems = 0,
   pageSize = 10,

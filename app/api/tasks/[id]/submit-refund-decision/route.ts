@@ -12,10 +12,10 @@ import {
 export async function POST (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-): Promise<NextResponse<SubmitRefundDecisionResponse>> {
+): Promise<NextResponse> {
   try {
     const { staff, permissions, error } = await getUserAndStaff()
-    if (error) return error
+    if (error) return error as NextResponse
 
     if (!hasPermission(permissions, 'tasks.update'))
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

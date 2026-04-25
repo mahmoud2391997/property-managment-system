@@ -121,7 +121,6 @@ export default function ExpensesSection({
         <ExpensesTable
           data={data}
           className='-mx-5! rounded-none! border-x-0 mb-5'
-          noPagnitation={true}
           isLoadingRows={isLoading}
           loadingRowsCount={pageSize}
         />

@@ -1,4 +1,6 @@
 import { requirePermission } from '@/lib/server-permissions'
+import { hasPermission } from '@/lib/has-permission'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
@@ -31,17 +33,17 @@ type PaymentHistoryData = {
 export type LateChargeInfo = {
   days_overdue: number
   applied_at: string
-  rental_payment: {
+  rental_payment?: {
     reference_id: string
     due_payment_timestamp: string | null
   }
-  lease: {
+  lease?: {
     reference_id: string
   }
-  property: {
+  property?: {
     street_address: string
   }
-  room: {
+  room?: {
     title: string
   } | null
 }
@@ -54,7 +56,7 @@ export type PaymentDetailsData = {
   due_payment_timestamp: string | null
   created_at: string
   payment_evidence: string | null
-  lease: {
+  lease?: {
     id: string
     reference_id: string
     monthly_rent: number
@@ -88,7 +90,7 @@ export type PaymentDetailsData = {
     event_on: string | null
     is_payment_fixed: boolean
   } | null
-  late_charge_info: LateChargeInfo | null
+  late_charge_info?: LateChargeInfo | null
   total_amount: number
   total_paid: number
   remaining_amount: number
@@ -117,6 +119,20 @@ async function getPaymentDetails(referenceId: string): Promise<PaymentDetailsDat
 
     if (!staff && !tenant) return null
 
+    // Get user permissions for staff users
+    let canAccessTenants = false
+    let canAccessProperties = false
+    let canAccessLeases = false
+    
+    if (staff) {
+      // Use the existing permission system by checking the user's permissions
+      const { permissions: userPermissions } = await getUserAndStaff()
+      
+      canAccessTenants = Array.isArray(userPermissions) && userPermissions.some((p: any) => p.permission === 'tenants.access')
+      canAccessProperties = Array.isArray(userPermissions) && userPermissions.some((p: any) => p.permission === 'properties.access')
+      canAccessLeases = Array.isArray(userPermissions) && userPermissions.some((p: any) => p.permission === 'leases.access')
+    }
+
     // Build where clause based on user type
     const whereClause = staff
       ? { reference_id: referenceId, organization_id: staff.organization_id }
@@ -138,44 +154,45 @@ async function getPaymentDetails(referenceId: string): Promise<PaymentDetailsDat
             reference_id: true,
             monthly_rent: true,
             payment_day: true,
-            properties: {
-              select: {
-                id: true,
-                code: true,
-                street_address: true,
-                city: true
-              }
-            },
-            rooms: {
-              select: {
-                id: true,
-                title: true
-              }
-            },
-            tenants: {
-              select: {
-                id: true,
-                type: true,
-                profile_pic: true,
-                individual_tenants: {
-                  select: {
-                    first_name: true,
-                    last_name: true,
-                    phone_number: true
-                  }
-                },
-                company_tenants: {
-                  select: {
-                    company_name: true
-                  }
-                },
-                users: {
-                  select: {
-                    email: true
-                  }
+            // Only include lease data if user has lease access permission
+            ...(canAccessLeases && {
+              properties: {
+                select: {
+                  id: true,
+                  code: true,
+                  street_address: true,
+                  city: true
+                }
+              },
+              rooms: {
+                select: {
+                  id: true,
+                  title: true
+                }
+              },
+              tenants: {
+                select: {
+                  id: true,
+                  type: true,
+                  profile_pic: true,
+                  // Only include detailed tenant info if user has tenant access permission
+                  ...(canAccessTenants && {
+                    individual_tenants: {
+                      select: {
+                        first_name: true,
+                        last_name: true,
+                        phone_number: true
+                      }
+                    },
+                    company_tenants: {
+                      select: {
+                        company_name: true
+                      }
+                    }
+                  })
                 }
               }
-            }
+            })
           }
         },
         charges: {
@@ -274,13 +291,17 @@ async function getPaymentDetails(referenceId: string): Promise<PaymentDetailsDat
     let tenantEmail: string | null = null
 
     if (tenantData) {
-      if (tenantData.type === 'Individual' && tenantData.individual_tenants) {
-        tenantName = `${tenantData.individual_tenants.first_name} ${tenantData.individual_tenants.last_name || ''}`.trim()
-        tenantPhone = tenantData.individual_tenants.phone_number || null
-      } else if (tenantData.type === 'Company' && tenantData.company_tenants) {
-        tenantName = tenantData.company_tenants.company_name
+      if (tenantData.type === 'Individual' && (tenantData as any).individual_tenants && canAccessTenants) {
+        const individualTenant = (tenantData as any).individual_tenants
+        tenantName = `${individualTenant.first_name} ${individualTenant.last_name || ''}`.trim()
+        tenantPhone = individualTenant.phone_number || null
+      } else if (tenantData.type === 'Company' && (tenantData as any).company_tenants && canAccessTenants) {
+        const companyTenant = (tenantData as any).company_tenants
+        tenantName = companyTenant.company_name
+      } else {
+        // If no tenant access, show limited info
+        tenantName = `Tenant ${tenantData.id.slice(0, 8)}...` // Show partial ID instead of name
       }
-      tenantEmail = tenantData.users?.email || null
     }
 
     // Transform payment history with calculated fields
@@ -321,7 +342,8 @@ async function getPaymentDetails(referenceId: string): Promise<PaymentDetailsDat
       due_payment_timestamp: payment.due_payment_timestamp?.toISOString() || null,
       created_at: payment.created_at.toISOString(),
       payment_evidence: payment.payment_evidence,
-      lease: payment.leases ? {
+      // Build lease data based on permissions
+      lease: canAccessLeases && payment.leases ? {
         id: payment.leases.id,
         reference_id: payment.leases.reference_id,
         monthly_rent: payment.leases.monthly_rent.toNumber(),
@@ -341,13 +363,14 @@ async function getPaymentDetails(referenceId: string): Promise<PaymentDetailsDat
           phone: tenantPhone,
           email: tenantEmail
         }
-      } : null,
+      } : undefined,
       charges: transformedCharges,
       payment_history: transformedHistory,
       recurring_config: payment.recurring_configs,
-      late_charge_info: (() => {
+      // Build late charge info based on permissions
+late_charge_info: (() => {
         const lateChargeRecord = payment.payment_late_charges_applied_payment_late_charges_applied_late_charge_payment_idTopayments?.[0]
-        if (!lateChargeRecord) return null
+        if (!lateChargeRecord || !canAccessLeases) return undefined
 
         const rentalPayment = lateChargeRecord.payments_payment_late_charges_applied_rental_payment_idTopayments
         const lease = rentalPayment?.leases
@@ -355,17 +378,21 @@ async function getPaymentDetails(referenceId: string): Promise<PaymentDetailsDat
         return {
           days_overdue: lateChargeRecord.days_overdue_when_applied,
           applied_at: lateChargeRecord.applied_at.toISOString(),
-          rental_payment: {
-            reference_id: rentalPayment?.reference_id || '',
-            due_payment_timestamp: rentalPayment?.due_payment_timestamp?.toISOString() || null
-          },
-          lease: {
-            reference_id: lease?.reference_id || ''
-          },
-          property: {
-            street_address: lease?.properties?.street_address || ''
-          },
-          room: lease?.rooms ? { title: lease.rooms.title } : null
+          ...(rentalPayment && {
+            rental_payment: {
+              reference_id: rentalPayment.reference_id || '',
+              due_payment_timestamp: rentalPayment.due_payment_timestamp?.toISOString() || null
+            }
+          }),
+          ...(lease && {
+            lease: {
+              reference_id: lease.reference_id || ''
+            },
+            property: {
+              street_address: lease.properties?.street_address || ''
+            },
+            room: lease.rooms ? { title: lease.rooms.title } : null
+          })
         }
       })(),
       total_amount: totalAmount,
@@ -407,6 +434,8 @@ export default async function PaymentDetailsPage({ params }: Props) {
     getUserType()
   ])
 
+  console.log('Payment details response:', payment)
+  
   if (!payment) {
     notFound()
   }

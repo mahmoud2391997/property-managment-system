@@ -8,7 +8,7 @@ import { hasPermission } from '@/lib/has-permission'
 export async function POST(request: NextRequest) {
   try {
     const { staff, permissions, error } = await getUserAndStaff()
-    if (error) return error
+    if (error) return error as NextResponse
     if (!hasPermission(permissions, 'tasks.create')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
