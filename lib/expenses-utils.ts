@@ -100,7 +100,7 @@ export type ExpenseWithDetails = {
 }
 
 // Extract type and context info from the appropriate subtype
-function extractSubtypeInfo(expense: RawExpense): {
+function extractSubtypeInfo(expense: RawExpense, hasLeaseAccess: boolean = true): {
   type: string
   context_label: string
   context_label_href: string | null
@@ -118,26 +118,51 @@ function extractSubtypeInfo(expense: RawExpense): {
 
       // For Refund and Agent Commission types, show lease reference_id instead of property
       const isLeaseBased = sub.type === 'Refund' || sub.type === 'Agent_Commission'
-      if (isLeaseBased && sub.leases) {
+      if (isLeaseBased && sub.leases && hasLeaseAccess) {
         const lease = sub.leases
         const hasRoom = lease.rooms && lease.room_id
-        const leaseHref = hasRoom
-          ? `/rooms/${lease.room_id}/leases/${lease.id}/details`
-          : `/properties/${lease.property_id}/leases/${lease.id}/details`
-        const subtitleLabel = hasRoom
+        const hasProperty = lease.properties && lease.property_id
+        const hasValidLeaseId = lease.id && lease.id !== '00000000-0000-0000-0000-000000000000'
+        
+        // Generate lease details URL for lease navigation
+        const leaseHref = hasValidLeaseId && hasProperty && lease.property_id
+          ? `/properties/${lease.property_id}/leases/${lease.id}/details`
+          : null
+        const subtitleLabel = hasValidLeaseId && hasRoom && lease.room_id
           ? `${lease.properties?.code || ''} (${lease.rooms!.title})`
-          : lease.properties?.code || ''
-        const subtitleHref = hasRoom
-          ? `/rooms/${lease.room_id}/overview`
-          : `/properties/${lease.property_id}/overview`
+          : hasValidLeaseId && hasProperty
+          ? lease.properties?.code || ''
+          : 'Unknown Property'
+        // Generate property overview URL for property navigation
+        const subtitleHref = hasValidLeaseId && hasProperty && lease.property_id
+          ? `/properties/${lease.property_id}/overview`
+          : null
 
         return {
           type: sub.type,
-          context_label: lease.reference_id,
+          context_label: lease.reference_id || 'Unknown Lease',
           context_label_href: leaseHref,
           context_id: null,
           context_subtitle: subtitleLabel,
           context_subtitle_href: subtitleHref,
+          is_asset: false
+        }
+      } else if (isLeaseBased && sub.leases && !hasLeaseAccess) {
+        // Show lease ID but make it non-clickable when user doesn't have lease access
+        const lease = sub.leases
+        const hasProperty = lease.properties && lease.property_id
+        
+        return {
+          type: sub.type,
+          context_label: lease.reference_id || 'Unknown Lease',
+          context_label_href: null, // Make lease ID non-clickable
+          context_id: null,
+          context_subtitle: hasProperty && lease.rooms && lease.room_id 
+            ? `${lease.properties?.code || ''} (${lease.rooms!.title})`
+            : hasProperty 
+            ? lease.properties?.code || 'Unknown Property'
+            : 'No Property',
+          context_subtitle_href: hasProperty && lease.property_id ? `/properties/${lease.property_id}/overview` : null,
           is_asset: false
         }
       }
@@ -147,7 +172,7 @@ function extractSubtypeInfo(expense: RawExpense): {
         context_label: sub.properties?.code || 'N/A',
         context_label_href: null,
         context_id: sub.properties?.id || null,
-        context_subtitle: sub.properties?.projects?.title || 'No project',
+        context_subtitle: (sub.properties as any)?.projects?.title || 'No project',
         context_subtitle_href: null,
         is_asset: false
       }
@@ -217,7 +242,7 @@ function extractSubtypeInfo(expense: RawExpense): {
 }
 
 // Transform raw expense from database to display format
-export function transformExpense(expense: RawExpense): ExpenseWithDetails {
+export function transformExpense(expense: RawExpense, hasLeaseAccess: boolean = true): ExpenseWithDetails {
   // Calculate total amount
   let totalAmount: number
 
@@ -278,7 +303,9 @@ export function transformExpense(expense: RawExpense): ExpenseWithDetails {
   const latestPaymentTimestamp = successfulPayments[0]?.paid_at?.toISOString() || expense.created_at.toISOString()
 
   // Extract subtype info
-  const subtypeInfo = extractSubtypeInfo(expense)
+  console.log('Transforming expense with lease access:', hasLeaseAccess, 'expense category:', expense.category)
+  const subtypeInfo = extractSubtypeInfo(expense, hasLeaseAccess)
+  console.log('Transformed subtype info:', subtypeInfo)
 
   return {
     id: expense.reference_id,

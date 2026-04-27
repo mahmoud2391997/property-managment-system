@@ -79,7 +79,7 @@ export default function LeasesSection({ propertyId, roomId }: Props) {
 
       <LeasesTable
         data={leases}
-        className='-mx-5! rounded-none! border-x-0 mb-5'
+        className='w-full rounded-none! border-x-0 mb-5'
         noPagnitation={true}
         onDataRefresh={fetchLeases}
       />

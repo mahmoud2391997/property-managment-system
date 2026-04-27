@@ -4,6 +4,8 @@ export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import ExpenseDetailsContent from './expense-details-content'
 
 type Props = {
@@ -117,22 +119,16 @@ export type ExpenseDetailsData = {
 
 async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsData | null> {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    // Get staff and permissions
+    const { staff: authStaff, permissions, error: authError } = await getUserAndStaff()
+    if (authError || !authStaff) return null
 
-    if (!user) return null
-
-    const staff = await prisma.staff.findUnique({
-      where: { id: user.id },
-      select: { organization_id: true }
-    })
-
-    if (!staff) return null
+    const hasLeaseAccess = hasPermission(permissions, 'leases.access')
 
     const expense = await prisma.expenses.findFirst({
       where: {
         reference_id: referenceId,
-        organization_id: staff.organization_id
+        organization_id: authStaff.organization_id
       },
       select: {
         id: true,
@@ -333,7 +329,7 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
         city: expense.property_expenses.properties.city,
         project_title: expense.property_expenses.properties.projects?.title || null
       } : null,
-      lease: expense.property_expenses.leases ? {
+      lease: hasLeaseAccess && expense.property_expenses.leases ? {
         id: expense.property_expenses.leases.id,
         reference_id: expense.property_expenses.leases.reference_id
       } : null
@@ -411,11 +407,6 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
       payment_percentage: paymentPercentage,
       can_edit: canEdit
     }
-
-    // Log the entire expense details response object
-    console.log('=== EXPENSE DETAILS API RESPONSE ===')
-    console.log('Complete expense details object:', JSON.stringify(expenseDetailsData, null, 2))
-    console.log('=== END EXPENSE DETAILS RESPONSE ===')
 
     return expenseDetailsData
   } catch (error) {

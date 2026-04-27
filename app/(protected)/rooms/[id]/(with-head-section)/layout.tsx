@@ -132,7 +132,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             { label: 'Rooms', href: '/rooms' },
             {
               label:
-                roomConfig?.propertyCode + '(' + roomConfig?.roomTitle + ')'
+                `${roomConfig?.propertyCode || 'N/A'}(${roomConfig?.roomTitle || 'Unknown Room'})`
             }
           ]}
           isLoading={isLoading}
@@ -150,7 +150,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
               <Skeleton className='h-7 w-40 bg-neutral-300' />
             ) : (
               <h1>
-                {roomConfig?.propertyCode + '(' + roomConfig?.roomTitle + ')'}
+                {`${roomConfig?.propertyCode || 'N/A'}(${roomConfig?.roomTitle || 'Unknown Room'})`}
               </h1>
             )}
           </div>

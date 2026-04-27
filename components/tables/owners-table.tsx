@@ -3,7 +3,7 @@
 import {
   ColumnDef
 } from '@tanstack/react-table'
-import { MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { UserAvatar } from '../costume-ui/name-avatar'
 import { Prisma } from '@prisma/client'
 import EditOwnerDialog from '../dialogs/edit-owner-dialog'
+import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 import Link from 'next/link'
 import { usePermissions } from '@/hooks/use-permissions'
 
@@ -42,7 +43,7 @@ export type OwnerWithDetails = Prisma.ownersGetPayload<{
   currentContractCount: number
 }
 
-const getColumns = (canUpdate: boolean): ColumnDef<OwnerWithDetails>[] => [
+const getColumns = (canUpdate: boolean, canDelete: boolean): ColumnDef<OwnerWithDetails>[] => [
   //Checkbox
   {
     id: 'select',
@@ -199,6 +200,41 @@ const getColumns = (canUpdate: boolean): ColumnDef<OwnerWithDetails>[] => [
             >
               Copy email
             </DropdownMenuItem>
+            {canDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <ConfirmationDialog
+                  openDialogButton={
+                    <DropdownMenuItem
+                      className='text-red-600 focus:text-red-600'
+                      onSelect={e => e.preventDefault()}
+                    >
+                      Delete owner
+                    </DropdownMenuItem>
+                  }
+                  title="Delete Owner"
+                  description={`Are you sure you want to delete ${owner.first_name} ${owner.last_name}? This action cannot be undone.`}
+                  confirmationText="DELETE"
+                  onConfirm={async () => {
+                    try {
+                      const response = await fetch(`/api/owners/${owner.id}`, {
+                        method: 'DELETE'
+                      })
+                      
+                      if (!response.ok) {
+                        const error = await response.json()
+                        throw new Error(error.error || 'Failed to delete owner')
+                      }
+                      
+                      window.location.reload()
+                    } catch (error: any) {
+                      console.error('Error deleting owner:', error)
+                      alert(error.message || 'Failed to delete owner')
+                    }
+                  }}
+                />
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )
@@ -212,5 +248,5 @@ type OwnersTableProps = {
 
 export default function OwnersTable({ data }: OwnersTableProps) {
   const { can } = usePermissions()
-  return <Table columns={getColumns(can('owners.update'))} data={data} />
+  return <Table columns={getColumns(can('owners.update'), can('owners.delete'))} data={data} />
 }

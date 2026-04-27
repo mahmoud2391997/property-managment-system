@@ -47,7 +47,7 @@ async function getExpenses(): Promise<{ data: ExpenseWithDetails[]; total: numbe
     ])
 
     return {
-      data: expenses.map(transformExpense),
+      data: expenses.map(e => transformExpense(e as any, true)),
       total
     }
   } catch (error) {

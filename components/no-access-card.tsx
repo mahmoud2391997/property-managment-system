@@ -11,7 +11,7 @@ export function NoAccessCard({ label, className }: NoAccessCardProps) {
   return (
     <div 
       className={cn(
-        'flex flex-col items-center justify-center p-6 bg-gray-50 border border-gray-200 rounded-lg min-h-[120px]',
+        'flex flex-col items-center justify-center w-full p-5 py-2.5 rounded-[12px] bg-(--background-primary) min-h-[200px]',
         className
       )}
     >

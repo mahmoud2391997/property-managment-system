@@ -237,7 +237,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
           </TabGroup>
         )}
       </section>
-      <section className='flex flex-col gap-5 -mx-7.5 -mb-7.5 p-7.5 py-5 bg-(--background-tertiary) min-h-full h-fit'>
+      <section className='flex flex-col gap-5 w-full p-7.5 py-5 bg-(--background-tertiary) min-h-full h-fit'>
         {children}
       </section>
     </>

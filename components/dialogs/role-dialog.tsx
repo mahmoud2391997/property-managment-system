@@ -216,7 +216,7 @@ export default function RoleDialog({ open, onClose, onSaved, editingRole, permis
 
       if (response.ok) {
         toast.success(editingRole ? 'Role updated successfully' : 'Role created successfully')
-        onSaved()
+        // Don't call onSaved() to keep dialog open for further changes
       } else {
         const error = await response.json()
         toast.error(error.error || 'Failed to save role')

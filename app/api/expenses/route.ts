@@ -178,8 +178,9 @@ export async function GET(request: NextRequest) {
         skipCount ? Promise.resolve(-1) : prisma.expenses.count({ where: whereClause })
       ])
 
-      // Transform expenses for display
-      const transformedExpenses = expenses.map(transformExpense)
+      // Transform expenses for display with permission checks
+      const hasLeaseAccess = hasPermission(permissions, 'leases.access')
+      const transformedExpenses = expenses.map(e => transformExpense(e as any, hasLeaseAccess))
 
       return NextResponse.json({
         success: true,
@@ -205,8 +206,16 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Transform expenses for display
-    const transformedExpenses = expenses.map(transformExpense)
+    // Transform expenses for display with permission checks
+    const hasLeaseAccess = hasPermission(permissions, 'leases.access')
+    console.log('Permission check:', {
+      permissions: permissions,
+      hasLeaseAccess: hasLeaseAccess,
+      leasesAccess: permissions?.has('leases.access')
+    })
+    const transformedExpenses = expenses.map((expense) => {
+      return transformExpense(expense as any, hasLeaseAccess)
+    })
 
     return NextResponse.json(transformedExpenses)
   } catch (error: any) {

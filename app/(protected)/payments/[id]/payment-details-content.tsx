@@ -26,6 +26,7 @@ import { formatPaymentTypeLabel, buildWhatsAppLink } from '@/utils/functions'
 import { cn } from '@/lib/utils'
 import Swal from 'sweetalert2'
 import type { PaymentDetailsData } from './page'
+import { usePermissions } from '@/hooks/use-permissions'
 import {
   MoreHorizontal,
   Calendar,
@@ -59,6 +60,7 @@ type Props = {
 
 export default function PaymentDetailsContent({ payment, userType }: Props) {
   const router = useRouter()
+  const { can } = usePermissions()
   const [deleteLoading, setDeleteLoading] = useState(false)
 
 
@@ -215,7 +217,7 @@ export default function PaymentDetailsContent({ payment, userType }: Props) {
 
         {/* Action Buttons */}
         <div className='flex items-center gap-2.5'>
-          {userType === 'staff' && canLogPayment && (
+          {userType === 'staff' && can('payments.update') && canLogPayment && (
             <LogPaymentDialog
               paymentId={payment.reference_id}
               paymentReferenceId={payment.reference_id}

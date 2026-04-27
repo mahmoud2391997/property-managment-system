@@ -849,7 +849,7 @@ export default function PaymentsTable ({
               {!isCancelled && (
                 <>
                   <DropdownMenuSeparator />
-                  {userType === 'staff' ? (
+                  {userType === 'staff' && can('payments.update') ? (
                     <>
                       <DropdownMenuItem
                         disabled={!hasRemainingAmount || isCheckingForLogPayment === payment.id}
@@ -1015,7 +1015,7 @@ export default function PaymentsTable ({
               {payment.status !== 'Cancelled' && (
                 <>
                   <DropdownMenuSeparator />
-                  {userType === 'staff' ? (
+                  {userType === 'staff' && can('payments.update') ? (
                     <>
                       <DropdownMenuItem
                         disabled={!hasRemainingAmount || isCheckingForLogPayment === payment.id}

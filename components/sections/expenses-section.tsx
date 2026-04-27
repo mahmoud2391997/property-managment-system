@@ -123,6 +123,9 @@ export default function ExpensesSection({
           className='-mx-5! rounded-none! border-x-0 mb-5'
           isLoadingRows={isLoading}
           loadingRowsCount={pageSize}
+          canDelete={can('expenses.delete')}
+          canUpdate={can('expenses.update')}
+          canApprove={can('expenses.approve')}
         />
       </>
     </PermissionGate>

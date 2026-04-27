@@ -3,36 +3,36 @@
 import { useState } from 'react'
 import Dialog from '../costume-ui/dialog'
 import EditProject from '../edit-project'
-import Button from '../costume-ui/button'
-import { SettingsIcon } from '../costume-ui/icon'
 
 type Props = {
   projectId: string
   projectName?: string
+  trigger: React.ReactNode
+  onSuccess?: () => void
 }
 
-export default function EditProjectDialog({ projectId, projectName }: Props) {
+export default function EditProjectDialog({ projectId, projectName, trigger, onSuccess }: Props) {
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
 
+  const handleSuccess = () => {
+    setOpen(false)
+    onSuccess?.()
+  }
+
   return (
     <Dialog
-      openDialogButton={
-        <Button
-          icon={<SettingsIcon className='text-neutral-300' />}
-          label='Edit project'
-          type='button'
-          className='w-full justify-start'
-        />
-      }
+      openDialogButton={trigger}
       title={`Edit Project: ${projectName || 'Loading...'}`}
       saveButtonLabel={loading ? 'Updating...' : 'Update'}
       loading={loading}
+      open={open}
+      onOpenChange={setOpen}
     >
       <EditProject
         projectId={projectId}
         onLoadingChange={setLoading}
-        onSuccess={() => setOpen(false)}
+        onSuccess={handleSuccess}
       />
     </Dialog>
   )

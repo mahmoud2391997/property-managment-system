@@ -66,7 +66,7 @@ export default function BookingsSection({ propertyId, roomId }: Props) {
 
         <BookingsTable
           data={bookings}
-          className='-mx-5! rounded-none! border-x-0 mb-5'
+          className='w-full rounded-none! border-x-0 mb-5'
           noPagnitation={true}
         />
       </div>

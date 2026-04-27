@@ -22,7 +22,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import EditProjectDialog from '../dialogs/edit-project-dialog'
 
 export const columns: ColumnDef<Project>[] = [
-  //Checkbox
+  // Checkbox
   {
     id: 'select',
     header: ({ table }) => (
@@ -45,7 +45,7 @@ export const columns: ColumnDef<Project>[] = [
     enableSorting: false,
     enableHiding: false
   },
-  //Name
+  // Name
   {
     accessorKey: 'name',
     header: () => {
@@ -53,12 +53,11 @@ export const columns: ColumnDef<Project>[] = [
     },
     cell: ({ row }) => (
       <Tooltip content={row.getValue('name')}>
-  {row.getValue('name')}
-</Tooltip>
-
+        {row.getValue('name')}
+      </Tooltip>
     )
   },
-  //State
+  // State
   {
     accessorKey: 'state',
     header: () => <div className='text-left'>State</div>,
@@ -68,7 +67,7 @@ export const columns: ColumnDef<Project>[] = [
       )
     }
   },
-  //Property count
+  // Property count
   {
     accessorKey: 'property_count',
     header: () => <div className='text-left'>Property Count</div>,
@@ -80,7 +79,7 @@ export const columns: ColumnDef<Project>[] = [
       )
     }
   },
-  //Actions
+  // Actions
   {
     id: 'actions',
     header: 'Actions',
@@ -104,14 +103,48 @@ export const columns: ColumnDef<Project>[] = [
             >
               Copy project ID
             </DropdownMenuItem>
+               <DropdownMenuItem>View customer</DropdownMenuItem>
+            <DropdownMenuItem>View payment details</DropdownMenuItem>
             <DropdownMenuSeparator />
             {can('projects.update') && (
-              <EditProjectDialog 
-                projectId={project.id} 
-                projectName={project.name} 
+              <EditProjectDialog
+                projectId={project.id}
+                projectName={project.name}
+                trigger={
+                  <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                    Edit project
+                  </DropdownMenuItem>
+                }
+                onSuccess={() => window.location.reload()}
               />
             )}
-            {can('projects.delete') && <DropdownMenuItem>Delete project</DropdownMenuItem>}
+            {can('projects.delete') && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className='text-red-600 focus:text-red-700'
+                  onClick={async () => {
+                    if (window.confirm('Are you sure you want to delete this project?')) {
+                      try {
+                        const response = await fetch(`/api/projects/${project.id}`, {
+                          method: 'DELETE'
+                        })
+                        if (response.ok) {
+                          window.location.reload()
+                        } else {
+                          const data = await response.json()
+                          alert(data.error || 'Failed to delete project')
+                        }
+                      } catch {
+                        alert('Failed to delete project')
+                      }
+                    }
+                  }}
+                >
+                  Delete project
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )
