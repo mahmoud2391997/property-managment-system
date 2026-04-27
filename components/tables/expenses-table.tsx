@@ -42,6 +42,8 @@ type Props = {
   canGoPrevious?: boolean
   onNextPage?: () => void
   onPreviousPage?: () => void
+  canDelete?: boolean
+  canUpdate?: boolean
 }
 
 const CONTEXT_COLUMN_HEADER: Record<string, string> = {
@@ -65,12 +67,17 @@ export default function ExpensesTable({
   canGoNext = false,
   canGoPrevious = false,
   onNextPage,
-  onPreviousPage
+  onPreviousPage,
+  canDelete: canDeleteProp,
+  canUpdate: canUpdateProp
 }: Props) {
   const hasServerPagination = onNextPage !== undefined || onPreviousPage !== undefined
   const [refreshingExpenseId, setRefreshingExpenseId] = useState<string | null>(null)
   const [isDeletingExpense, setIsDeletingExpense] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+
+  const canDelete = canDeleteProp ?? false
+  const canUpdate = canUpdateProp ?? false
 
   const handleDeleteExpense = async (expenseReferenceId: string) => {
     setDeleteLoading(true)
@@ -401,7 +408,7 @@ export default function ExpensesTable({
                   View details
                 </Link>
               </DropdownMenuItem>
-              {expense.payment_percentage === 0 && !isCancelled && (
+              {canUpdate && expense.payment_percentage === 0 && !isCancelled && (
                 <DropdownMenuItem asChild>
                   <Link href={`/expenses/${expense.id}/edit`}>
                     <Pencil size={14} className='mr-2' />
@@ -415,44 +422,50 @@ export default function ExpensesTable({
                 <Copy size={14} className='mr-2' />
                 Copy expense ID
               </DropdownMenuItem>
-              {!isCancelled && (
+              {(canUpdate || canDelete) && !isCancelled && (
                 <>
                   <DropdownMenuSeparator />
-                  <LogExpensePaymentDialog
-                    expenseId={expense.id}
-                    expenseReferenceId={expense.id}
-                    maxAmount={expense.amount * (1 - expense.payment_percentage / 100)}
-                    trigger={
-                      <DropdownMenuItem
-                        disabled={!hasRemainingAmount}
-                        onSelect={(e) => e.preventDefault()}
-                      >
-                        <Banknote size={14} className='mr-2' />
-                        Log payment
-                      </DropdownMenuItem>
-                    }
-                    onSuccess={() => {
-                      setRefreshingExpenseId(expense.id)
-                      window.location.reload()
-                    }}
-                  />
-                  <DropdownMenuSeparator />
-                  <ConfirmationDialog
-                    openDialogButton={
-                      <DropdownMenuItem
-                        className='text-red-600 focus:text-red-600'
-                        disabled={expense.payment_percentage > 0 || isDeletingExpense === expense.id}
-                        onSelect={(e) => e.preventDefault()}
-                      >
-                        <Trash2 size={14} className='mr-2' />
-                        Delete expense
-                      </DropdownMenuItem>
-                    }
-                    title='Delete Expense'
-                    description={`Are you sure you want to delete expense ${expense.id}? This action cannot be undone.`}
-                    onConfirm={() => handleDeleteExpense(expense.id)}
-                    loading={deleteLoading}
-                  />
+                  {canUpdate && (
+                    <LogExpensePaymentDialog
+                      expenseId={expense.id}
+                      expenseReferenceId={expense.id}
+                      maxAmount={expense.amount * (1 - expense.payment_percentage / 100)}
+                      trigger={
+                        <DropdownMenuItem
+                          disabled={!hasRemainingAmount}
+                          onSelect={(e) => e.preventDefault()}
+                        >
+                          <Banknote size={14} className='mr-2' />
+                          Log payment
+                        </DropdownMenuItem>
+                      }
+                      onSuccess={() => {
+                        setRefreshingExpenseId(expense.id)
+                        window.location.reload()
+                      }}
+                    />
+                  )}
+                  {canDelete && expense.payment_percentage === 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <ConfirmationDialog
+                        openDialogButton={
+                          <DropdownMenuItem
+                            className='text-red-600 focus:text-red-600'
+                            disabled={isDeletingExpense === expense.id}
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            <Trash2 size={14} className='mr-2' />
+                            Delete expense
+                          </DropdownMenuItem>
+                        }
+                        title='Delete Expense'
+                        description={`Are you sure you want to delete expense ${expense.id}? This action cannot be undone.`}
+                        onConfirm={() => handleDeleteExpense(expense.id)}
+                        loading={deleteLoading}
+                      />
+                    </>
+                  )}
                 </>
               )}
             </DropdownMenuContent>
@@ -462,7 +475,7 @@ export default function ExpensesTable({
     })
 
     return base
-  }, [category, showContextColumn, contextHeader])
+  }, [category, showContextColumn, contextHeader, canDelete, canUpdate])
 
   // Helper function to get display status
   const getDisplayStatus = (expense: ExpenseWithDetails) => {
@@ -542,7 +555,7 @@ export default function ExpensesTable({
                   View details
                 </Link>
               </DropdownMenuItem>
-              {expense.payment_percentage === 0 && expense.status !== 'Cancelled' && (
+              {canUpdate && expense.payment_percentage === 0 && expense.status !== 'Cancelled' && (
                 <DropdownMenuItem asChild>
                   <Link href={`/expenses/${expense.id}/edit`}>
                     <Pencil size={14} className='mr-2' />
@@ -554,44 +567,50 @@ export default function ExpensesTable({
                 <Copy size={14} className='mr-2' />
                 Copy expense ID
               </DropdownMenuItem>
-              {expense.status !== 'Cancelled' && (
+              {(canUpdate || canDelete) && expense.status !== 'Cancelled' && (
                 <>
                   <DropdownMenuSeparator />
-                  <LogExpensePaymentDialog
-                    expenseId={expense.id}
-                    expenseReferenceId={expense.id}
-                    maxAmount={expense.amount * (1 - expense.payment_percentage / 100)}
-                    trigger={
-                      <DropdownMenuItem
-                        disabled={!hasRemainingAmount}
-                        onSelect={(e) => e.preventDefault()}
-                      >
-                        <Banknote size={14} className='mr-2' />
-                        Log payment
-                      </DropdownMenuItem>
-                    }
-                    onSuccess={() => {
-                      setRefreshingExpenseId(expense.id)
-                      window.location.reload()
-                    }}
-                  />
-                  <DropdownMenuSeparator />
-                  <ConfirmationDialog
-                    openDialogButton={
-                      <DropdownMenuItem
-                        className='text-red-600 focus:text-red-600'
-                        disabled={expense.payment_percentage > 0 || isDeletingExpense === expense.id}
-                        onSelect={(e) => e.preventDefault()}
-                      >
-                        <Trash2 size={14} className='mr-2' />
-                        Delete expense
-                      </DropdownMenuItem>
-                    }
-                    title='Delete Expense'
-                    description={`Are you sure you want to delete expense ${expense.id}? This action cannot be undone.`}
-                    onConfirm={() => handleDeleteExpense(expense.id)}
-                    loading={deleteLoading}
-                  />
+                  {canUpdate && (
+                    <LogExpensePaymentDialog
+                      expenseId={expense.id}
+                      expenseReferenceId={expense.id}
+                      maxAmount={expense.amount * (1 - expense.payment_percentage / 100)}
+                      trigger={
+                        <DropdownMenuItem
+                          disabled={!hasRemainingAmount}
+                          onSelect={(e) => e.preventDefault()}
+                        >
+                          <Banknote size={14} className='mr-2' />
+                          Log payment
+                        </DropdownMenuItem>
+                      }
+                      onSuccess={() => {
+                        setRefreshingExpenseId(expense.id)
+                        window.location.reload()
+                      }}
+                    />
+                  )}
+                  {canDelete && expense.payment_percentage === 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <ConfirmationDialog
+                        openDialogButton={
+                          <DropdownMenuItem
+                            className='text-red-600 focus:text-red-600'
+                            disabled={isDeletingExpense === expense.id}
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            <Trash2 size={14} className='mr-2' />
+                            Delete expense
+                          </DropdownMenuItem>
+                        }
+                        title='Delete Expense'
+                        description={`Are you sure you want to delete expense ${expense.id}? This action cannot be undone.`}
+                        onConfirm={() => handleDeleteExpense(expense.id)}
+                        loading={deleteLoading}
+                      />
+                    </>
+                  )}
                 </>
               )}
             </DropdownMenuContent>

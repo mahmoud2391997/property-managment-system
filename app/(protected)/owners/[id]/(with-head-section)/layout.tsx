@@ -21,6 +21,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
 import EditOwnerDialog from '@/components/dialogs/edit-owner-dialog'
+import { PermissionGate } from '@/components/permission-gate'
 
 type OwnerBasicInfo = {
   id: string
@@ -144,18 +145,20 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              {ownerInfo && (
-                <EditOwnerDialog
-                  ownerId={ownerId}
-                  initialData={ownerInfo}
-                  trigger={
-                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                      Edit Owner
-                    </DropdownMenuItem>
-                  }
-                  onSuccess={handleEditSuccess}
-                />
-              )}
+              <PermissionGate permission='owners.update'>
+                {ownerInfo && (
+                  <EditOwnerDialog
+                    ownerId={ownerId}
+                    initialData={ownerInfo}
+                    trigger={
+                      <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                        Edit Owner
+                      </DropdownMenuItem>
+                    }
+                    onSuccess={handleEditSuccess}
+                  />
+                )}
+              </PermissionGate>
               <DropdownMenuSeparator />
               {ownerInfo?.phone_number && (
                 <DropdownMenuItem

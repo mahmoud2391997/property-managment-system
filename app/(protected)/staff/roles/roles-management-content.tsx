@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Users, Shield, Edit, Trash2, ArrowLeft } from 'lucide-react'
+import { Plus, Users, Shield, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import RoleDialog from '@/components/dialogs/role-dialog'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
+import Breadcrumb from '@/components/costume-ui/breadcrumb'
 import { toast } from 'sonner'
 
 type Role = {
@@ -163,17 +164,15 @@ export default function RolesManagementContent() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/staff">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Roles Management</h1>
-            <p className="text-muted-foreground">Manage user roles and permissions</p>
-          </div>
+        <div>
+          <Breadcrumb
+            items={[
+              { label: 'Staff', href: '/staff' },
+              { label: 'Manage Roles' }
+            ]}
+          />
+          <h1 className="text-2xl font-bold">Roles Management</h1>
+          <p className="text-muted-foreground">Manage user roles and permissions</p>
         </div>
         <Button onClick={handleCreateRole}>
           <Plus className="w-4 h-4 mr-2" />

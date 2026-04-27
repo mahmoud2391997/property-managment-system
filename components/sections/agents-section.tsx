@@ -6,6 +6,7 @@ import SearchInput from '@/components/costume-ui/search-input'
 import AgentsTable, { AgentWithDetails } from '@/components/tables/agents-table'
 import AddAgentDialog from '@/components/dialogs/add-agent-dialog'
 import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
 
 interface AgentsSectionProps {
   agents: AgentWithDetails[]

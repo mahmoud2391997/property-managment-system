@@ -1,5 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 export async function updateSession (request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -124,6 +126,44 @@ export async function updateSession (request: NextRequest) {
         const url = request.nextUrl.clone()
         url.pathname = '/unauthorized'
         return NextResponse.redirect(url)
+      }
+
+      // Staff permission checks
+      const pathPermissionMap: Record<string, string> = {
+        '/properties': 'properties.access',
+        '/bookings': 'bookings.access',
+        '/leases': 'leases.access',
+        '/tasks': 'tasks.access',
+        '/tickets': 'tickets.access',
+        '/expenses': 'expenses.access',
+        '/payments': 'payments.access',
+        '/tenants': 'tenants.access',
+        '/staff': 'staff.access',
+        '/agents': 'agents.access',
+        '/owners': 'owners.access',
+        '/vendors': 'vendors.access',
+        '/projects': 'projects.access',
+        '/rooms': 'rooms.access',
+        '/reports': 'reports.access',
+        '/notices': 'notices.access',
+        '/contracts': 'contracts.access',
+        '/notifications': 'notifications.access',
+        '/views': 'views.access',
+        '/staff/roles': 'roles.access',
+        '/tenant_screening': 'tenant_screening.access',
+        '/recurring': 'recurring.access',
+      }
+
+      for (const [path, permission] of Object.entries(pathPermissionMap)) {
+        if (request.nextUrl.pathname.startsWith(path)) {
+          const { permissions } = await getUserAndStaff()
+          if (permissions && !hasPermission(permissions, permission)) {
+            const url = request.nextUrl.clone()
+            url.pathname = '/unauthorized'
+            return NextResponse.redirect(url)
+          }
+          break
+        }
       }
     } else {
       // Non-staff users cannot access onboarding

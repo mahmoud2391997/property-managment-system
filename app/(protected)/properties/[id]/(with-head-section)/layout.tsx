@@ -25,6 +25,7 @@ import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import { toast } from 'sonner'
 import InitiatePreparationFlowDrawer from '@/components/dialogs/initiate-preparation-flow-drawer'
 import AssignOwnerDialog from '@/components/dialogs/assign-owner-dialog'
+import { PermissionGate } from '@/components/permission-gate'
 
 type Props = {
   children: React.ReactNode
@@ -159,11 +160,13 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => router.push(`/properties/${id}/edit`)}
-              >
-                Edit Property
-              </DropdownMenuItem>
+              <PermissionGate permission='properties.update'>
+                <DropdownMenuItem
+                  onClick={() => router.push(`/properties/${id}/edit`)}
+                >
+                  Edit Property
+                </DropdownMenuItem>
+              </PermissionGate>
               <AssignOwnerDialog
                 propertyId={propertyId}
                 currentOwnerId={propertyOwnerId}
@@ -188,25 +191,27 @@ const WithHeadSectionLayout = ({ children }: Props) => {
                 />
               )}
               <DropdownMenuSeparator />
-              <ConfirmationDialog
-                openDialogButton={
-                  <button type='button' className='delete-dropdown-button'>
-                    Delete Property
-                  </button>
-                }
-                title='Delete Property'
-                description={
-                  <>
-                    Are you sure you want to delete{' '}
-                    <strong>{propertyCode}</strong>? This action cannot be
-                    undone. All associated data (rooms, views, configurations)
-                    will be permanently removed.
-                  </>
-                }
-                onConfirm={handleDeleteProperty}
-                confirmButtonLabel='Delete'
-                confirmButtonLoadingLabel='Deleting...'
-              />
+              <PermissionGate permission='properties.delete'>
+                <ConfirmationDialog
+                  openDialogButton={
+                    <button type='button' className='delete-dropdown-button'>
+                      Delete Property
+                    </button>
+                  }
+                  title='Delete Property'
+                  description={
+                    <>
+                      Are you sure you want to delete{' '}
+                      <strong>{propertyCode}</strong>? This action cannot be
+                      undone. All associated data (rooms, views, configurations)
+                      will be permanently removed.
+                    </>
+                  }
+                  onConfirm={handleDeleteProperty}
+                  confirmButtonLabel='Delete'
+                  confirmButtonLoadingLabel='Deleting...'
+                />
+              </PermissionGate>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

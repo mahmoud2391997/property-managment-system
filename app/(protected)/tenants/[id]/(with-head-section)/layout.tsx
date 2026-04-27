@@ -24,6 +24,7 @@ import { toast } from 'sonner'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
 import EditTenantDialog from '@/components/dialogs/edit-tenant-dialog'
+import { PermissionGate } from '@/components/permission-gate'
 
 type TenantBasicInfo = {
   id: string
@@ -206,18 +207,20 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              {tenantInfo && (
-                <EditTenantDialog
-                  tenantId={tenantId}
-                  initialData={tenantInfo}
-                  trigger={
-                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                      Edit Tenant
-                    </DropdownMenuItem>
-                  }
-                  onSuccess={handleEditSuccess}
-                />
-              )}
+              <PermissionGate permission='tenants.update'>
+                {tenantInfo && (
+                  <EditTenantDialog
+                    tenantId={tenantId}
+                    initialData={tenantInfo}
+                    trigger={
+                      <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                        Edit Tenant
+                      </DropdownMenuItem>
+                    }
+                    onSuccess={handleEditSuccess}
+                  />
+                )}
+              </PermissionGate>
               <DropdownMenuSeparator />
               {tenantInfo?.phone_number && (
                 <DropdownMenuItem
@@ -267,24 +270,26 @@ const WithHeadSectionLayout = ({ children }: Props) => {
                 </>
               )}
               <DropdownMenuSeparator />
-              <ConfirmationDialog
-                openDialogButton={
-                  <button type='button' className='delete-dropdown-button'>
-                    Delete Tenant
-                  </button>
-                }
-                title='Delete Tenant'
-                description={
-                  <>
-                    Are you sure you want to delete{' '}
-                    <strong>{displayName}</strong>? This action cannot be
-                    undone. All associated data will be permanently removed.
-                  </>
-                }
-                onConfirm={handleDeleteTenant}
-                confirmButtonLabel='Delete'
-                confirmButtonLoadingLabel='Deleting...'
-              />
+              <PermissionGate permission='tenants.delete'>
+                <ConfirmationDialog
+                  openDialogButton={
+                    <button type='button' className='delete-dropdown-button'>
+                      Delete Tenant
+                    </button>
+                  }
+                  title='Delete Tenant'
+                  description={
+                    <>
+                      Are you sure you want to delete{' '}
+                      <strong>{displayName}</strong>? This action cannot be
+                      undone. All associated data will be permanently removed.
+                    </>
+                  }
+                  onConfirm={handleDeleteTenant}
+                  confirmButtonLabel='Delete'
+                  confirmButtonLoadingLabel='Deleting...'
+                />
+              </PermissionGate>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

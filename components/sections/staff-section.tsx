@@ -7,11 +7,11 @@ import Button from '@/components/costume-ui/button'
 import { RoleButtonIcon } from '@/components/costume-ui/icon'
 import StaffTable from '@/components/tables/staff-table'
 import AddStaffDialog from '@/components/dialogs/add-staff-dialog'
-import RolePopupDialog from '@/components/dialogs/role-popup-dialog'
 import { Prisma } from '@prisma/client'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PermissionGate } from '@/components/permission-gate'
 import { NoAccessCard } from '@/components/no-access-card'
+import Link from 'next/link'
 
 type StaffWithRole = Prisma.staffGetPayload<{
   select: {
@@ -40,7 +40,6 @@ interface StaffSectionProps {
 export default function StaffSection({ staff, currentUserId }: StaffSectionProps) {
   const { can } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
-  const [isRolePopupOpen, setIsRolePopupOpen] = useState(false)
 
   const filteredStaff = useMemo(() => {
     if (!searchTerm.trim()) {
@@ -94,12 +93,15 @@ export default function StaffSection({ staff, currentUserId }: StaffSectionProps
           />
           {/* Buttons */}
           <div className={cn('flex items-center gap-2.5', 'py-5')}>
-            <Button
-              icon={<RoleButtonIcon className='text-neutral-300' />}
-              label='Roles'
-              className='bg-(--secondary-color)'
-              onClick={() => setIsRolePopupOpen(true)}
-            />
+            <PermissionGate permission="roles.access" fallback={null}>
+              <Link href="/staff/roles">
+                <Button
+                  icon={<RoleButtonIcon className='text-neutral-300' />}
+                  label='Manage Roles'
+                  className='bg-(--secondary-color)'
+                />
+              </Link>
+            </PermissionGate>
 
             <PermissionGate permission="staff.create" fallback={null}>
               <AddStaffDialog />
@@ -108,14 +110,6 @@ export default function StaffSection({ staff, currentUserId }: StaffSectionProps
         </div>
         {/* Table */}
         <StaffTable data={filteredStaff} currentUserId={currentUserId} />
-        
-        {/* Role Popup Dialog */}
-        <RolePopupDialog
-          open={isRolePopupOpen}
-          onClose={() => setIsRolePopupOpen(false)}
-          staff={staff}
-          currentUserId={currentUserId}
-        />
       </>
     </PermissionGate>
   )

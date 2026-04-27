@@ -40,28 +40,9 @@ export default function RoleDialog({ open, onClose, onSaved, editingRole, permis
   const [loading, setLoading] = useState(false)
   const [loadingPermissions, setLoadingPermissions] = useState(true)
   const normalizedPermissions = useMemo(() => {
-    return Object.entries(permissions).reduce((acc, [module, modulePermissions]) => {
-      const dedupedByAction = new Map<string, Permission>()
-
-      for (const permission of modulePermissions) {
-        const existing = dedupedByAction.get(permission.action)
-        if (!existing) {
-          dedupedByAction.set(permission.action, permission)
-          continue
-        }
-
-        const existingLooksRaw = existing.title === `${module}.${existing.action}` || existing.title.includes('.')
-        const candidateLooksReadable =
-          permission.title !== `${module}.${permission.action}` && !permission.title.includes('.')
-
-        if (existingLooksRaw && candidateLooksReadable) {
-          dedupedByAction.set(permission.action, permission)
-        }
-      }
-
-      acc[module] = Array.from(dedupedByAction.values())
-      return acc
-    }, {} as Record<string, Permission[]>)
+    // Permissions are already grouped by module from the API
+    // No need for deduplication since each module has unique actions
+    return permissions
   }, [permissions])
 
   const getPermissionTitle = (module: string, permission: Permission) => {

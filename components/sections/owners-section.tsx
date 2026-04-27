@@ -6,6 +6,7 @@ import SearchInput from '@/components/costume-ui/search-input'
 import OwnersTable, { OwnerWithDetails } from '@/components/tables/owners-table'
 import AddOwnerDialog from '@/components/dialogs/add-owner-dialog'
 import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
 
 interface OwnersSectionProps {
   owners: OwnerWithDetails[]

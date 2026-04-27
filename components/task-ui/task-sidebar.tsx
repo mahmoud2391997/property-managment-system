@@ -9,6 +9,8 @@ import { ResolveTaskDialog } from './task-actions'
 import type { TaskDetail, StaffMember, TaskType, PriorityLevel, TimelineEvent } from './types'
 import { TASK_TYPES, REGULAR_TASK_TYPES, PRIORITY_LEVELS, getStatusColor, formatDateTime } from './types'
 import { cn } from '@/lib/utils'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
 
 type Props = {
   task: TaskDetail
@@ -45,6 +47,8 @@ export default function TaskSidebar({
   const [selectedType, setSelectedType] = useState<TaskType>(task.type)
   const [pendingPriority, setPendingPriority] = useState<PriorityLevel | null>(null)
   const [selectedPriority, setSelectedPriority] = useState<PriorityLevel>(task.priority)
+
+  const { can } = usePermissions()
 
   // Derive loading states from actionLoading prop
   const isTypeLoading = actionLoading === 'type'
@@ -87,8 +91,8 @@ export default function TaskSidebar({
   const isAssignee = task.assignment?.staffId === currentStaff.id
   const isInProgress = task.status === 'In Progress'
 
-  // Can resolve: only assignee when In Progress
-  const canResolve = isAssignee && isInProgress
+  // Can resolve: only with permission, assignee when In Progress
+  const canResolve = can('tasks.complete') && isAssignee && isInProgress
 
   // Type change handlers
   const handleTypeSelect = (newType: string) => {
@@ -219,119 +223,163 @@ export default function TaskSidebar({
     <div className='w-full lg:w-[260px] lg:shrink-0 order-first lg:order-last'>
       <div className='lg:sticky lg:top-6 space-y-4 lg:space-y-6 p-4 lg:p-0 bg-(--background-secondary) lg:bg-transparent rounded-xl lg:rounded-none mb-4 lg:mb-0'>
         {/* Staff Assigned Section */}
-        <TaskStaffAssignedSection
-          assignedStaff={task.assignment ? {
-            id: task.assignment.staffId,
-            name: task.assignment.staffName,
-            avatar: task.assignment.staffAvatar
-          } : null}
-          pendingStaff={task.pendingAssignment ? {
-            id: task.pendingAssignment.staffId,
-            name: task.pendingAssignment.staffName,
-            avatar: task.pendingAssignment.staffAvatar
-          } : null}
-          staffList={staffList}
-          currentStaffId={currentStaff.id}
-          onAssign={onAssign}
-          onUnassign={onUnassign}
-          onCancelAssignment={onCancelAssignment}
-          disabled={isResolved}
-          actionLoading={actionLoading}
-        />
+        <PermissionGate permission='tasks.assign' fallback={
+          <TaskStaffAssignedSection
+            assignedStaff={task.assignment ? {
+              id: task.assignment.staffId,
+              name: task.assignment.staffName,
+              avatar: task.assignment.staffAvatar
+            } : null}
+            pendingStaff={task.pendingAssignment ? {
+              id: task.pendingAssignment.staffId,
+              name: task.pendingAssignment.staffName,
+              avatar: task.pendingAssignment.staffAvatar
+            } : null}
+            staffList={staffList}
+            currentStaffId={currentStaff.id}
+            onAssign={onAssign}
+            onUnassign={onUnassign}
+            onCancelAssignment={onCancelAssignment}
+            disabled={true}
+            actionLoading={actionLoading}
+          />
+        }>
+          <TaskStaffAssignedSection
+            assignedStaff={task.assignment ? {
+              id: task.assignment.staffId,
+              name: task.assignment.staffName,
+              avatar: task.assignment.staffAvatar
+            } : null}
+            pendingStaff={task.pendingAssignment ? {
+              id: task.pendingAssignment.staffId,
+              name: task.pendingAssignment.staffName,
+              avatar: task.pendingAssignment.staffAvatar
+            } : null}
+            staffList={staffList}
+            currentStaffId={currentStaff.id}
+            onAssign={onAssign}
+            onUnassign={onUnassign}
+            onCancelAssignment={onCancelAssignment}
+            disabled={isResolved}
+            actionLoading={actionLoading}
+          />
+        </PermissionGate>
 
         {/* Type */}
-        <div className='pb-5 border-b border-(--border-light)'>
-          <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
-            Type
-          </span>
-          <Select
-            label='Type'
-            items={typeItems}
-            placeholder='Select type'
-            value={selectedType}
-            className='w-full'
-            onChange={handleTypeSelect}
-            disabled={isResolved || !!pendingType}
-          />
-          {/* Confirm type change UI */}
-          {pendingType && (
-            <div className='mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg'>
-              <p className='texts-body-small text-(--text-secondary) mb-2'>
-                Change type to{' '}
-                <span className='texts-body-small-medium text-(--text-primary)'>
-                  {pendingType}
-                </span>
-                ?
-              </p>
-              <div className='flex gap-2'>
-                <button
-                  onClick={handleConfirmTypeChange}
-                  disabled={isTypeLoading}
-                  className='flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white texts-body-small-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50'
-                >
-                  {isTypeLoading ? (
-                    <Loader2 size={14} className='animate-spin' />
-                  ) : null}
-                  {isTypeLoading ? 'Updating...' : 'Confirm'}
-                </button>
-                <button
-                  onClick={handleCancelTypeChange}
-                  disabled={isTypeLoading}
-                  className='flex-1 px-3 py-1.5 bg-white border border-(--border-default) text-(--text-primary) texts-body-small-medium rounded-md hover:bg-neutral-50 transition-colors disabled:opacity-50'
-                >
-                  Cancel
-                </button>
-              </div>
+        <PermissionGate permission='tasks.update' fallback={
+          <div className='pb-5 border-b border-(--border-light)'>
+            <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
+              Type
+            </span>
+            <div className='texts-body-medium-medium text-(--text-primary)'>
+              {task.type}
             </div>
-          )}
-        </div>
+          </div>
+        }>
+          <div className='pb-5 border-b border-(--border-light)'>
+            <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
+              Type
+            </span>
+            <Select
+              label='Type'
+              items={typeItems}
+              placeholder='Select type'
+              value={selectedType}
+              className='w-full'
+              onChange={handleTypeSelect}
+              disabled={isResolved || !!pendingType}
+            />
+            {/* Confirm type change UI */}
+            {pendingType && (
+              <div className='mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg'>
+                <p className='texts-body-small text-(--text-secondary) mb-2'>
+                  Change type to{' '}
+                  <span className='texts-body-small-medium text-(--text-primary)'>
+                    {pendingType}
+                  </span>
+                  ?
+                </p>
+                <div className='flex gap-2'>
+                  <button
+                    onClick={handleConfirmTypeChange}
+                    disabled={isTypeLoading}
+                    className='flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white texts-body-small-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50'
+                  >
+                    {isTypeLoading ? (
+                      <Loader2 size={14} className='animate-spin' />
+                    ) : null}
+                    {isTypeLoading ? 'Updating...' : 'Confirm'}
+                  </button>
+                  <button
+                    onClick={handleCancelTypeChange}
+                    disabled={isTypeLoading}
+                    className='flex-1 px-3 py-1.5 bg-white border border-(--border-default) text-(--text-primary) texts-body-small-medium rounded-md hover:bg-neutral-50 transition-colors disabled:opacity-50'
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </PermissionGate>
 
         {/* Priority */}
-        <div className='pb-5 border-b border-(--border-light)'>
-          <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
-            Priority
-          </span>
-          <Select
-            label='Priority'
-            items={priorityItems}
-            placeholder='Select priority'
-            value={selectedPriority}
-            className='w-full'
-            onChange={handlePrioritySelect}
-            disabled={isResolved || !!pendingPriority}
-          />
-          {/* Confirm priority change UI */}
-          {pendingPriority && (
-            <div className='mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg'>
-              <p className='texts-body-small text-(--text-secondary) mb-2'>
-                Change priority to{' '}
-                <span className='texts-body-small-medium text-(--text-primary)'>
-                  {pendingPriority}
-                </span>
-                ?
-              </p>
-              <div className='flex gap-2'>
-                <button
-                  onClick={handleConfirmPriorityChange}
-                  disabled={isPriorityLoading}
-                  className='flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white texts-body-small-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50'
-                >
-                  {isPriorityLoading ? (
-                    <Loader2 size={14} className='animate-spin' />
-                  ) : null}
-                  {isPriorityLoading ? 'Updating...' : 'Confirm'}
-                </button>
-                <button
-                  onClick={handleCancelPriorityChange}
-                  disabled={isPriorityLoading}
-                  className='flex-1 px-3 py-1.5 bg-white border border-(--border-default) text-(--text-primary) texts-body-small-medium rounded-md hover:bg-neutral-50 transition-colors disabled:opacity-50'
-                >
-                  Cancel
-                </button>
-              </div>
+        <PermissionGate permission='tasks.update' fallback={
+          <div className='pb-5 border-b border-(--border-light)'>
+            <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
+              Priority
+            </span>
+            <div className='texts-body-medium-medium text-(--text-primary)'>
+              {task.priority}
             </div>
-          )}
-        </div>
+          </div>
+        }>
+          <div className='pb-5 border-b border-(--border-light)'>
+            <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
+              Priority
+            </span>
+            <Select
+              label='Priority'
+              items={priorityItems}
+              placeholder='Select priority'
+              value={selectedPriority}
+              className='w-full'
+              onChange={handlePrioritySelect}
+              disabled={isResolved || !!pendingPriority}
+            />
+            {/* Confirm priority change UI */}
+            {pendingPriority && (
+              <div className='mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg'>
+                <p className='texts-body-small text-(--text-secondary) mb-2'>
+                  Change priority to{' '}
+                  <span className='texts-body-small-medium text-(--text-primary)'>
+                    {pendingPriority}
+                  </span>
+                  ?
+                </p>
+                <div className='flex gap-2'>
+                  <button
+                    onClick={handleConfirmPriorityChange}
+                    disabled={isPriorityLoading}
+                    className='flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white texts-body-small-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50'
+                  >
+                    {isPriorityLoading ? (
+                      <Loader2 size={14} className='animate-spin' />
+                    ) : null}
+                    {isPriorityLoading ? 'Updating...' : 'Confirm'}
+                  </button>
+                  <button
+                    onClick={handleCancelPriorityChange}
+                    disabled={isPriorityLoading}
+                    className='flex-1 px-3 py-1.5 bg-white border border-(--border-default) text-(--text-primary) texts-body-small-medium rounded-md hover:bg-neutral-50 transition-colors disabled:opacity-50'
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </PermissionGate>
 
         {/* Status Section */}
         <div className='pb-5 border-b border-(--border-light)'>
@@ -372,40 +420,57 @@ export default function TaskSidebar({
         </div>
 
         {/* Due Date */}
-        <div className='pb-5 border-b border-(--border-light)'>
-          <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
-            Due Date
-          </span>
-
-          {/* Has due date - show it with edit/remove options */}
-          {task.dueDate && !showDueDateEdit && !showDueDateRemove && (
-            <div className='flex items-center justify-between p-2 rounded-lg bg-(--background-secondary) border border-(--border-default)'>
-              <div className='flex items-center gap-2'>
+        <PermissionGate permission='tasks.update' fallback={
+          <div className='pb-5 border-b border-(--border-light)'>
+            <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
+              Due Date
+            </span>
+            {task.dueDate ? (
+              <div className='flex items-center gap-2 p-2 rounded-lg bg-(--background-secondary) border border-(--border-default)'>
                 <Calendar size={16} className='text-(--text-secondary)' />
                 <span className='texts-body-small text-(--text-primary)'>
                   {formatDateTime(task.dueDate)}
                 </span>
               </div>
-              {!isResolved && (
-                <div className='flex items-center gap-1'>
-                  <button
-                    onClick={() => setShowDueDateEdit(true)}
-                    className='p-1.5 rounded-md hover:bg-blue-50 text-(--text-muted) hover:text-blue-500 transition-colors'
-                    title='Change due date'
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    onClick={() => setShowDueDateRemove(true)}
-                    className='p-1.5 rounded-md hover:bg-red-50 text-(--text-muted) hover:text-red-500 transition-colors'
-                    title='Remove due date'
-                  >
-                    <X size={14} />
-                  </button>
+            ) : (
+              <p className='texts-body-small text-(--text-secondary)'>No due date set</p>
+            )}
+          </div>
+        }>
+          <div className='pb-5 border-b border-(--border-light)'>
+            <span className='texts-body-small-medium text-(--text-secondary) uppercase tracking-wide block mb-3'>
+              Due Date
+            </span>
+
+            {/* Has due date - show it with edit/remove options */}
+            {task.dueDate && !showDueDateEdit && !showDueDateRemove && (
+              <div className='flex items-center justify-between p-2 rounded-lg bg-(--background-secondary) border border-(--border-default)'>
+                <div className='flex items-center gap-2'>
+                  <Calendar size={16} className='text-(--text-secondary)' />
+                  <span className='texts-body-small text-(--text-primary)'>
+                    {formatDateTime(task.dueDate)}
+                  </span>
                 </div>
-              )}
-            </div>
-          )}
+                {!isResolved && (
+                  <div className='flex items-center gap-1'>
+                    <button
+                      onClick={() => setShowDueDateEdit(true)}
+                      className='p-1.5 rounded-md hover:bg-blue-50 text-(--text-muted) hover:text-blue-500 transition-colors'
+                      title='Change due date'
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={() => setShowDueDateRemove(true)}
+                      className='p-1.5 rounded-md hover:bg-red-50 text-(--text-muted) hover:text-red-500 transition-colors'
+                      title='Remove due date'
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
           {/* Edit due date form */}
           {task.dueDate && showDueDateEdit && (
@@ -531,6 +596,7 @@ export default function TaskSidebar({
             <p className='texts-body-small text-(--text-secondary)'>No due date set</p>
           )}
         </div>
+        </PermissionGate>
 
         {/* Location Info */}
         {task.location && (

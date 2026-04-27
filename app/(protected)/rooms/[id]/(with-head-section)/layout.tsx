@@ -22,6 +22,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import { toast } from 'sonner'
 import InitiatePreparationFlowDrawer from '@/components/dialogs/initiate-preparation-flow-drawer'
+import { PermissionGate } from '@/components/permission-gate'
 
 type Props = {
   children: React.ReactNode
@@ -162,11 +163,13 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => router.push(`/rooms/${roomId}/edit`)}
-              >
-                Edit room
-              </DropdownMenuItem>
+              <PermissionGate permission='rooms.update'>
+                <DropdownMenuItem
+                  onClick={() => router.push(`/rooms/${roomId}/edit`)}
+                >
+                  Edit room
+                </DropdownMenuItem>
+              </PermissionGate>
               {roomConfig?.status === 'Vacant' && (
                 <InitiatePreparationFlowDrawer
                   roomId={roomId}
@@ -180,25 +183,27 @@ const WithHeadSectionLayout = ({ children }: Props) => {
                 />
               )}
               <DropdownMenuSeparator />
-              <ConfirmationDialog
-                openDialogButton={
-                  <button type='button' className='delete-dropdown-button'>
-                    Delete Room
-                  </button>
-                }
-                title='Delete Room'
-                description={
-                  <>
-                    Are you sure you want to delete{' '}
-                    <strong>{roomConfig?.roomTitle}</strong>? This action cannot
-                    be undone. All associated data (views, configurations) will
-                    be permanently removed.
-                  </>
-                }
-                onConfirm={handleDeleteRoom}
-                confirmButtonLabel='Delete'
-                confirmButtonLoadingLabel='Deleting...'
-              />
+              <PermissionGate permission='rooms.delete'>
+                <ConfirmationDialog
+                  openDialogButton={
+                    <button type='button' className='delete-dropdown-button'>
+                      Delete Room
+                    </button>
+                  }
+                  title='Delete Room'
+                  description={
+                    <>
+                      Are you sure you want to delete{' '}
+                      <strong>{roomConfig?.roomTitle}</strong>? This action cannot
+                      be undone. All associated data (views, configurations) will
+                      be permanently removed.
+                    </>
+                  }
+                  onConfirm={handleDeleteRoom}
+                  confirmButtonLabel='Delete'
+                  confirmButtonLoadingLabel='Deleting...'
+                />
+              </PermissionGate>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -23,7 +23,7 @@ export async function POST(
 
     const { staff: baseStaff, permissions, error } = await getUserAndStaff()
     if (error) return error as NextResponse
-    if (!hasPermission(permissions, 'tasks.update')) {
+    if (!hasPermission(permissions, 'tasks.assign')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
