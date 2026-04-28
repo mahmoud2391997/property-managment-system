@@ -619,24 +619,7 @@ export default function OverviewContent ({ propertyId }: Props) {
     router.push(`/properties/${propertyId}/leases/add-lease`)
   }
 
-  const handleUnassignOwner = async () => {
-    try {
-      const response = await fetch(`/api/properties/${propertyId}/assign-owner`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner_id: null })
-      })
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to unassign owner')
-      }
-      FeedbackToasts.updated('Owner', 'Owner unassigned successfully')
-      fetchOverviewData()
-    } catch (err: any) {
-      FeedbackToasts.operationFailed('Unassign owner', err.message)
-    }
-  }
-
+  
   const handleCancelBooking = async () => {
     if (!overviewData?.booking) return
     try {
@@ -792,9 +775,9 @@ export default function OverviewContent ({ propertyId }: Props) {
                   ? formatDate(overviewData.contract.due_date)
                   : '—'
               }
-              user_name={overviewData.contract.owner.name}
+              user_name={overviewData.contract.owner?.name || 'No Owner'}
               user_type='Owner'
-              user_avatar={overviewData.contract.owner.profile_thumb}
+              user_avatar={overviewData.contract.owner?.profile_thumb}
               detailsLink={`/properties/${propertyId}/contracts`}
             />
           ) : can('contracts.create') ? (
@@ -817,75 +800,7 @@ export default function OverviewContent ({ propertyId }: Props) {
           )}
         </PermissionGate>
 
-        {/* Property Owner Card */}
-        {overviewData?.propertyOwner && (
-          <div
-            className={cn(
-              'flex flex-col w-full',
-              'w-full p-5 rounded-[12px]',
-              'bg-(--background-primary)'
-            )}
-          >
-            {/* Head */}
-            <div className={cn('flex justify-between items-center', 'w-full')}>
-              <div className='flex gap-2.5'>
-                {/* Icon */}
-                <div
-                  className={cn(
-                    'flex items-center justify-center rounded-[7px]',
-                    'h-[31] w-[31]',
-                    'bg-(--info-light) text-(--info-main)'
-                  )}
-                >
-                  <ArrowUpRight size={19} strokeWidth={1.5} />
-                </div>
-                {/* Title */}
-                <div className='flex flex-col'>
-                  <h3>Property Owner</h3>
-                  <span className='texts-caption-large text-(--text-secondary)'>
-                    Property ownership
-                  </span>
-                </div>
-              </div>
-              {can('owners.update') && (
-                <ConfirmationDialog
-                  openDialogButton={
-                    <Button variant='ghost' className='h-8 w-8 p-0'>
-                      <span className='sr-only'>Unassign owner</span>
-                      <X className='h-6! w-6! text-neutral-600' />
-                    </Button>
-                  }
-                  title='Unassign Owner'
-                  description={<>Are you sure you want to unassign <strong>{overviewData.propertyOwner.name}</strong> from this property?</>}
-                  onConfirm={handleUnassignOwner}
-                  confirmButtonLabel='Unassign'
-                  confirmButtonLoadingLabel='Unassigning...'
-                  variant='confirm'
-                />
-              )}
-            </div>
-            {/* Body - Owner Info */}
-            <div className='w-full pt-[15] border-t border-(--border-light) mt-4'>
-              <div className='flex items-center gap-2.5 select-none'>
-                <UserAvatar
-                  imgSrc={overviewData.propertyOwner.profile_thumb}
-                  name={overviewData.propertyOwner.name}
-                  size={40}
-                  className='texts-body-large-medium'
-                />
-                <div className='flex-1 flex flex-col'>
-                  <span className='texts-body-large-medium'>
-                    {overviewData.propertyOwner.name}
-                  </span>
-                  <span className='texts-caption-large text-(--text-secondary)'>
-                    Property Owner
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
+        
         {/* Booking Card */}
         <PermissionGate 
           permission="bookings.access" 

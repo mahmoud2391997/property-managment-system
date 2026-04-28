@@ -167,17 +167,19 @@ const WithHeadSectionLayout = ({ children }: Props) => {
                   Edit Property
                 </DropdownMenuItem>
               </PermissionGate>
-              <AssignOwnerDialog
-                propertyId={propertyId}
-                currentOwnerId={propertyOwnerId}
-                hasActiveContract={hasActiveContract}
-                onSuccess={() => window.location.reload()}
-                trigger={
-                  <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                    {propertyOwnerId ? 'Change owner' : 'Assign owner'}
-                  </DropdownMenuItem>
-                }
-              />
+              <PermissionGate permission='properties.assign_owner'>
+                <AssignOwnerDialog
+                  propertyId={propertyId}
+                  currentOwnerId={propertyOwnerId}
+                  hasActiveContract={hasActiveContract}
+                  onSuccess={() => window.location.reload()}
+                  trigger={
+                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                      {propertyOwnerId ? 'Change owner' : 'Assign owner'}
+                    </DropdownMenuItem>
+                  }
+                />
+              </PermissionGate>
               {propertyStatus === 'Vacant' && (
                 <InitiatePreparationFlowDrawer
                   propertyId={propertyId}

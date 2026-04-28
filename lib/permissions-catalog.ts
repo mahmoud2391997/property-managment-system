@@ -20,6 +20,7 @@ export const PERMISSIONS: PermissionDef[] = [
   { module: 'properties', action: 'create', title: 'Create Property', description: 'Create a new property' },
   { module: 'properties', action: 'update', title: 'Update Property', description: 'Edit an existing property' },
   { module: 'properties', action: 'delete', title: 'Delete Property', description: 'Delete a property' },
+  { module: 'properties', action: 'assign_owner', title: 'Assign Owner', description: 'Assign an owner to a property' },
 
   // rooms
   { module: 'rooms', action: 'access', title: 'Access Rooms', description: 'View the Rooms module, list, and any room detail' },
