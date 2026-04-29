@@ -599,7 +599,7 @@ model expenses {
   created_at          DateTime            @default(now()) @db.Timestamptz(6)
   created_by          String?             @db.Uuid
   status              payment_status
-  reference_id        String              @default("'XP-202500000001'::text")
+  reference_id        String?             @default("XP-202500000001")
   recurring_config_id String?             @db.Uuid
   description         String?
   expense_evidence    String?
@@ -2079,14 +2079,15 @@ enum payment_status {
 enum payment_type {
   Lease_Initial_Charges @map("Lease Initial Charges")
   Fines_or_Penalties    @map("Fines or Penalties")
+  Utilities
+  Cleaning_Service      @map("Cleaning Service")
+  Parking
+  Miscellaneous_Others  @map("Miscellaneous/Others")
+  Rental
   Internet_Bill         @map("Internet Bill")
   Water_Bill            @map("Water Bill")
   Electricity_Bill      @map("Electricity Bill")
   Sewerage_Bill         @map("Sewerage Bill")
-  Cleaning_Service      @map("Cleaning Service")
-  Parking
-  Rental
-  Miscellaneous_Others  @map("Miscellaneous/Others")
   Rental_Adjustment     @map("Rental Adjustment")
   Late_Payment_Charges  @map("Late Payment Charges")
   Booking
