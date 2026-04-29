@@ -10,8 +10,8 @@ import Link from 'next/link'
 import { PaymentWithDetails } from '@/lib/payments-utils'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import { Tab, TabGroup } from '../costume-ui/tab'
-import { useEffect, useCallback, useMemo } from 'react'
-import TableFilter, { type FilterAttribute, type FilterValue } from '../costume-ui/table-filter'
+import { useEffect, useCallback, useMemo, useState } from 'react'
+import TableFilter, { type FilterAttribute, type FilterValue, ActiveFilterChips } from '../costume-ui/table-filter'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PermissionGate } from '@/components/permission-gate'
 import { NoAccessCard } from '@/components/no-access-card'
@@ -55,7 +55,8 @@ const PAYMENT_FILTER_ATTRIBUTES: FilterAttribute[] = [
     ]
   },
   { key: 'property', label: 'Property', type: 'text' },
-  { key: 'tenant_name', label: 'Tenant', type: 'text' }
+  { key: 'tenant_name', label: 'Tenant', type: 'text' },
+  { key: 'due_month', label: 'Due Month', type: 'month' }
 ]
 
 interface PaymentsSectionProps {
@@ -70,6 +71,7 @@ export default function PaymentsSection ({
   userType
 }: PaymentsSectionProps) {
   const { can } = usePermissions()
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
   const {
     data,
     isLoading,
@@ -97,7 +99,8 @@ export default function PaymentsSection ({
       type: '',
       recurring_pattern: '',
       property: '',
-      tenant_name: ''
+      tenant_name: '',
+      due_month: ''
     },
     // Map filter keys to actual data property names
     filterKeyMapping: {
@@ -146,6 +149,21 @@ export default function PaymentsSection ({
     updateFilters(filterObj)
   }, [updateFilters])
 
+  const handleRemoveFilter = useCallback((id: string) => {
+    const filterToRemove = advancedFilters.find(f => f.id === id)
+    if (filterToRemove) {
+      updateFilters({ [filterToRemove.attribute]: '' })
+    }
+  }, [advancedFilters, updateFilters])
+
+  const handleClearAllFilters = useCallback(() => {
+    const filterObj: Record<string, string> = {}
+    PAYMENT_FILTER_ATTRIBUTES.forEach(attr => {
+      filterObj[attr.key] = ''
+    })
+    updateFilters(filterObj)
+  }, [updateFilters])
+
   // Listen for payment updates from the payment gateway return flow
   useEffect(() => {
     const handlePaymentUpdate = (event: CustomEvent) => {
@@ -171,11 +189,13 @@ export default function PaymentsSection ({
           'w-full'
         )}
       >
-        <div className='flex items-center gap-2'>
+        <div className='flex items-center gap-2 w-full sm:w-auto flex-1 max-w-md'>
           <TableFilter
             attributes={PAYMENT_FILTER_ATTRIBUTES}
             filters={advancedFilters}
             onFiltersChange={handleFiltersChange}
+            open={isFilterOpen}
+            onOpenChange={setIsFilterOpen}
           />
           <SearchInput
             placeholder='Search payments'
@@ -206,6 +226,16 @@ export default function PaymentsSection ({
           </PermissionGate>
         </div>
       </div>
+
+      {/* Active Filters */}
+      <ActiveFilterChips
+        filters={advancedFilters}
+        attributes={PAYMENT_FILTER_ATTRIBUTES}
+        onRemove={handleRemoveFilter}
+        onClearAll={handleClearAllFilters}
+        onEdit={() => setIsFilterOpen(true)}
+        className='mt-3 mb-1'
+      />
 
       {/* Status Tabs */}
       <TabGroup showButton={true} className='-mx-5 px-5 mb-3'>

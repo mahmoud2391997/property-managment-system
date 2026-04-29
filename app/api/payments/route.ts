@@ -188,6 +188,7 @@ export async function GET (request: NextRequest) {
     const recurringPatternFilter = searchParams.get('recurring_pattern')?.trim() || ''
     const propertyFilter = searchParams.get('property')?.trim() || ''
     const tenantNameFilter = searchParams.get('tenant_name')?.trim() || ''
+    const dueMonth = searchParams.get('due_month') || ''
 
     // Property/Room context filters (for property/room overview pages)
     const propertyId = searchParams.get('propertyId')?.trim() || ''
@@ -253,6 +254,13 @@ export async function GET (request: NextRequest) {
               }
             }
           })
+        }
+
+        // Due month filter
+        if (dueMonth) {
+          const start = new Date(`${dueMonth}-01T00:00:00Z`)
+          const end = new Date(start); end.setMonth(end.getMonth() + 1)
+          filters.push({ due_payment_timestamp: { gte: start, lt: end } })
         }
 
         // Property ID filter (for property overview page - only property-level leases and bookings)
@@ -403,11 +411,9 @@ export async function GET (request: NextRequest) {
 
       // Fetch payments - for calculated fields (Paid Late, Partially Paid, Overdue, recurring_pattern),
       // we need to fetch more data and filter after transformation
-      const needsCalculatedStatusFilter =
-        statusFilter &&
-        !['Paid', 'Pending', 'Cancelled', 'all'].includes(statusFilter)
+      const needsFrontendStatusFilter = Boolean(statusFilter && statusFilter !== 'all')
 
-      const needsFrontendFiltering = needsCalculatedStatusFilter || recurringPatternFilter
+      const needsFrontendFiltering = needsFrontendStatusFilter || recurringPatternFilter
 
       // Build payment select object based on permissions
       const paymentSelect = buildPaymentSelect(hasTenantAccess, hasLeaseAccess)
@@ -437,7 +443,7 @@ export async function GET (request: NextRequest) {
       // Apply frontend filtering for calculated fields
       if (needsFrontendFiltering) {
         // Filter by calculated status
-        if (needsCalculatedStatusFilter) {
+        if (needsFrontendStatusFilter) {
           transformedPayments = transformedPayments.filter(
             payment => payment.status === statusFilter
           )

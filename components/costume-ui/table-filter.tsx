@@ -1,18 +1,19 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { SlidersHorizontal, Plus, X, Trash2 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import Select from '@/components/costume-ui/select'
 import Input from '@/components/costume-ui/input'
 import Button from '@/components/costume-ui/button'
 import DatePicker from '@/components/costume-ui/date-picker'
+import MonthPicker from '@/components/costume-ui/month-picker'
 import { cn } from '@/lib/utils'
 
 export type FilterAttribute = {
   key: string
   label: string
-  type: 'text' | 'select' | 'date'
+  type: 'text' | 'select' | 'date' | 'month'
   options?: { value: string; label: string }[]
 }
 
@@ -27,23 +28,36 @@ type Props = {
   filters: FilterValue[]
   onFiltersChange: (filters: FilterValue[]) => void
   className?: string
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export default function TableFilter({
   attributes,
   filters,
   onFiltersChange,
-  className
+  className,
+  open: controlledOpen,
+  onOpenChange: setControlledOpen
 }: Props) {
-  const [open, setOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : uncontrolledOpen
   const [localFilters, setLocalFilters] = useState<FilterValue[]>(filters)
 
-  // Sync local filters when prop changes
-  const handleOpen = (isOpen: boolean) => {
-    if (isOpen) {
+  // Sync local filters when popover opens or filters change externally while open
+  useEffect(() => {
+    if (open) {
       setLocalFilters(filters)
     }
-    setOpen(isOpen)
+  }, [open, filters])
+
+  const handleOpen = (isOpen: boolean) => {
+    if (isControlled && setControlledOpen) {
+      setControlledOpen(isOpen)
+    } else {
+      setUncontrolledOpen(isOpen)
+    }
   }
 
   const addFilter = useCallback(() => {
@@ -76,14 +90,16 @@ export default function TableFilter({
 
   const clearAllFilters = useCallback(() => {
     setLocalFilters([])
-  }, [])
+    onFiltersChange([])
+    handleOpen(false)
+  }, [onFiltersChange, isControlled, setControlledOpen])
 
   const applyFilters = useCallback(() => {
     // Only apply filters that have both attribute and value
     const validFilters = localFilters.filter(f => f.attribute && f.value)
     onFiltersChange(validFilters)
-    setOpen(false)
-  }, [localFilters, onFiltersChange])
+    handleOpen(false)
+  }, [localFilters, onFiltersChange, isControlled, setControlledOpen])
 
   const getAttributeConfig = (key: string) => {
     return attributes.find(a => a.key === key)
@@ -98,6 +114,9 @@ export default function TableFilter({
   }
 
   const activeFilterCount = filters.length
+
+  const validLocalFilters = localFilters.filter(f => f.attribute && f.value)
+  const hasChanges = JSON.stringify(validLocalFilters) !== JSON.stringify(filters)
 
   return (
     <Popover open={open} onOpenChange={handleOpen}>
@@ -170,6 +189,16 @@ export default function TableFilter({
                           value={filter.value ? new Date(filter.value) : undefined}
                           onValueChange={(date) => updateFilter(filter.id, 'value', date ? date.toISOString().split('T')[0] : '')}
                         />
+                      ) : attrConfig?.type === 'month' ? (
+                        <MonthPicker
+                          value={filter.value ? new Date(`${filter.value}-01`) : undefined}
+                          onValueChange={(date) => {
+                            if (!date) return updateFilter(filter.id, 'value', '')
+                            const y = date.getFullYear()
+                            const m = String(date.getMonth() + 1).padStart(2, '0')
+                            updateFilter(filter.id, 'value', `${y}-${m}`)
+                          }}
+                        />
                       ) : (
                         <Input
                           type='text'
@@ -212,12 +241,13 @@ export default function TableFilter({
             <Button
               variant='secondary'
               label='Cancel'
-              onClick={() => setOpen(false)}
+              onClick={() => handleOpen(false)}
               className='text-sm!'
             />
             <Button
               label='Apply'
               onClick={applyFilters}
+              disabled={!hasChanges}
               className='text-sm!'
             />
           </div>
@@ -233,12 +263,14 @@ export function ActiveFilterChips({
   attributes,
   onRemove,
   onClearAll,
+  onEdit,
   className
 }: {
   filters: FilterValue[]
   attributes: FilterAttribute[]
   onRemove: (id: string) => void
   onClearAll: () => void
+  onEdit?: (id: string) => void
   className?: string
 }) {
   if (filters.length === 0) return null
@@ -255,6 +287,10 @@ export function ActiveFilterChips({
     if (attr?.type === 'date' && value) {
       return new Date(value).toLocaleDateString()
     }
+    if (attr?.type === 'month' && value) {
+      const [y, m] = value.split('-')
+      return new Date(+y, +m - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    }
     return value
   }
 
@@ -263,7 +299,15 @@ export function ActiveFilterChips({
       {filters.map((filter) => (
         <div
           key={filter.id}
-          className='flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 texts-caption-large text-blue-800'
+          className={cn(
+            'flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 texts-caption-large text-blue-800',
+            onEdit && 'cursor-pointer hover:bg-blue-100 transition-colors'
+          )}
+          onClick={(e) => {
+            // Prevent triggering if clicked on the close button
+            if ((e.target as HTMLElement).closest('button')) return;
+            onEdit?.(filter.id);
+          }}
         >
           <span className='font-medium'>{getAttributeLabel(filter.attribute)}:</span>
           <span>{getValueLabel(filter.attribute, filter.value)}</span>

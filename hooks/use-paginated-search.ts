@@ -31,6 +31,7 @@ interface UsePaginatedSearchReturn<T> {
   updateItem: (id: string, updates: Partial<T>) => void
   updateFilters: (newFilters: Record<string, string>) => void
   activeFilters: Record<string, string>
+  resetSearch: () => void
 }
 
 export function usePaginatedSearch<T> ({
@@ -290,8 +291,11 @@ useEffect(() => {
   // ============================================
 
   const handleSearchChange = useCallback((value: string) => {
-    
     setSearchInputValue(value)
+  }, [])
+
+  const resetSearch = useCallback(() => {
+    setSearchInputValue('')
   }, [])
 
   useEffect(() => {
@@ -412,6 +416,7 @@ useEffect(() => {
     pageSize,
     updateItem,
     updateFilters,
-    activeFilters: urlFilters
+    activeFilters: urlFilters,
+    resetSearch
   }
 }

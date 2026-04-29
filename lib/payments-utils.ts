@@ -160,7 +160,13 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
 
     if (isFullyPaid) {
       // Check if last payment was after due date
-      status = (dueDate && latestPaymentDate && latestPaymentDate > dueDate) ? 'Paid Late' : 'Paid'
+      let isPaidLate = false;
+      if (dueDate && latestPaymentDate) {
+        const d1 = new Date(dueDate);
+        d1.setUTCHours(23, 59, 59, 999);
+        isPaidLate = latestPaymentDate.getTime() > d1.getTime();
+      }
+      status = isPaidLate ? 'Paid Late' : 'Paid'
     } else {
       // Not fully paid - check priority: Overdue > Partially Paid > Pending
       if (isOverdue) {
