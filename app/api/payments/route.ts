@@ -4,157 +4,172 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { transformPayment } from '@/lib/payments-utils'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 // Shared select for payment queries
-const paymentSelect = {
-  reference_id: true,
-  type: true,
-  status: true,
-  due_payment_timestamp: true,
-  created_at: true,
-  payment_evidence: true,
-  leases: {
-    select: {
-      id: true,
-      reference_id: true,
-      property_id: true,
-      room_id: true,
-      properties: {
-        select: {
-          code: true,
-          projects: {
-            select: {
-              title: true
+// Build dynamic payment select object based on permissions
+const buildPaymentSelect = (hasTenantAccess: boolean, hasLeaseAccess: boolean) => {
+  // Base select fields (always included)
+  const baseSelect = {
+    reference_id: true,
+    type: true,
+    status: true,
+    due_payment_timestamp: true,
+    created_at: true,
+    payment_evidence: true,
+    charges: {
+      select: {
+        amount: true,
+        is_taxed: true
+      }
+    },
+    payment_history: {
+      orderBy: {
+        paid_at: 'desc' as const
+      },
+      select: {
+        paid_at: true,
+        amount: true,
+        status: true,
+        payment_method: true,
+        created_at: true
+      }
+    },
+    recurring_configs: {
+      select: {
+        every: true,
+        time_unit: true,
+        event_on: true
+      }
+    },
+  }
+
+  // Lease select (only when hasLeaseAccess is true)
+  const leaseSelect = hasLeaseAccess ? {
+    leases: {
+      select: {
+        id: true,
+        reference_id: true,
+        property_id: true,
+        room_id: true,
+        properties: {
+          select: {
+            code: true,
+            projects: {
+              select: {
+                title: true
+              }
             }
           }
-        }
-      },
-      rooms: {
-        select: {
-          title: true
-        }
-      },
-      tenants: {
-        select: {
-          id: true,
-          type: true,
-          profile_pic: true,
-          individual_tenants: {
-            select: {
-              first_name: true,
-              last_name: true
-            }
-          },
-          company_tenants: {
-            select: {
-              company_name: true
-            }
-          }
-        }
-      },
-      late_payment_charges: {
-        select: {
-          days_after_due: true,
-          amount: true
         },
-        orderBy: {
-          days_after_due: 'asc' as const
+        rooms: {
+          select: {
+            title: true
+          }
+        },
+        tenants: {
+          select: {
+            id: true,
+            type: true,
+            profile_pic: true,
+            // Only include detailed tenant info if user has tenant access permission
+            ...(hasTenantAccess && {
+              individual_tenants: {
+                select: {
+                  first_name: true,
+                  last_name: true
+                }
+              },
+              company_tenants: {
+                select: {
+                  company_name: true
+                }
+              }
+            })
+          }
+        },
+        late_payment_charges: {
+          select: {
+            days_after_due: true,
+            amount: true
+          },
+          orderBy: {
+            days_after_due: 'asc' as const
+          }
         }
       }
     }
-  },
-  charges: {
-    select: {
-      amount: true,
-      is_taxed: true
-    }
-  },
-  payment_history: {
-    orderBy: {
-      paid_at: 'desc' as const
-    },
-    select: {
-      paid_at: true,
-      amount: true,
-      status: true,
-      payment_method: true,
-      created_at: true
-    }
-  },
-  recurring_configs: {
-    select: {
-      every: true,
-      time_unit: true,
-      event_on: true
-    }
-  },
-  bookings: {
-    select: {
-      property_id: true,
-      room_id: true,
-      properties: {
-        select: {
-          code: true,
-          projects: {
-            select: {
-              title: true
+  } : {}
+
+  // Booking select (always included for non-lease payments)
+  const bookingSelect = {
+    bookings: {
+      select: {
+        property_id: true,
+        room_id: true,
+        properties: {
+          select: {
+            code: true,
+            projects: {
+              select: {
+                title: true
+              }
             }
           }
-        }
-      },
-      rooms: {
-        select: {
-          title: true
-        }
-      },
-      tenants: {
-        select: {
-          id: true,
-          type: true,
-          profile_pic: true,
-          individual_tenants: {
-            select: {
-              first_name: true,
-              last_name: true
-            }
-          },
-          company_tenants: {
-            select: {
-              company_name: true
-            }
+        },
+        rooms: {
+          select: {
+            title: true
+          }
+        },
+        tenants: {
+          select: {
+            id: true,
+            type: true,
+            profile_pic: true,
+            // Only include detailed tenant info if user has tenant access permission
+            ...(hasTenantAccess && {
+              individual_tenants: {
+                select: {
+                  first_name: true,
+                  last_name: true
+                }
+              },
+              company_tenants: {
+                select: {
+                  company_name: true
+                }
+              }
+            })
           }
         }
       }
     }
   }
+
+  return { ...baseSelect, ...leaseSelect, ...bookingSelect }
 }
 
 export async function GET (request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
+    const { user, staff, permissions, error } = await getUserAndStaff()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (error) return error
+
+    if (!hasPermission(permissions, 'payments.access')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Check if user is staff
-    const staff = await prisma.staff.findUnique({
-      where: { id: user.id },
-      select: { organization_id: true }
-    })
+    // Check if user has tenant access permission
+    const hasTenantAccess = hasPermission(permissions, 'tenants.access')
+    const hasLeaseAccess = hasPermission(permissions, 'leases.access')
 
-    // Check if user is tenant
+    // Check if user is tenant (for tenant-specific access)
     const tenant = await prisma.tenants.findUnique({
       where: { id: user.id },
       select: { id: true }
     })
-
-    if (!staff && !tenant) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
 
     const { searchParams } = new URL(request.url)
 
@@ -356,7 +371,7 @@ export async function GET (request: NextRequest) {
             ]
           }
         : {
-            leases: { tenant_id: tenant!.id },
+            leases: { tenant_id: tenant?.id },
             ...(search && {
               OR: [
                 { reference_id: { contains: search, mode: 'insensitive' } },
@@ -394,6 +409,9 @@ export async function GET (request: NextRequest) {
 
       const needsFrontendFiltering = needsCalculatedStatusFilter || recurringPatternFilter
 
+      // Build payment select object based on permissions
+      const paymentSelect = buildPaymentSelect(hasTenantAccess, hasLeaseAccess)
+
       // If we need frontend filtering, fetch all matching records (without pagination)
       // Then apply pagination after filtering
       const [payments, total] = await Promise.all([
@@ -414,7 +432,7 @@ export async function GET (request: NextRequest) {
       ])
 
       // Transform payments for display
-      let transformedPayments = payments.map(transformPayment)
+      let transformedPayments = payments.map(p => transformPayment(p as any))
 
       // Apply frontend filtering for calculated fields
       if (needsFrontendFiltering) {
@@ -462,7 +480,7 @@ export async function GET (request: NextRequest) {
     // Build where clause - filter by property/room through leases relation
     const whereClause: any = staff
       ? { organization_id: staff.organization_id, status: { not: 'Unset' } }
-      : { leases: { tenant_id: tenant!.id }, status: { not: 'Unset' } }
+      : { leases: { tenant_id: tenant?.id }, status: { not: 'Unset' } }
 
     // If propertyId provided, filter payments through leases or bookings -> property_id
     // Also filter room_id: null to only get property-level payments (not room payments)
@@ -499,6 +517,9 @@ export async function GET (request: NextRequest) {
       ]
     }
 
+    // Build payment select object based on permissions
+    const paymentSelect = buildPaymentSelect(hasTenantAccess, hasLeaseAccess)
+
     // Fetch payments with related data
     const payments = await prisma.payments.findMany({
       where: whereClause,
@@ -509,7 +530,7 @@ export async function GET (request: NextRequest) {
     })
 
     // Transform payments for display
-    const transformedPayments = payments.map(transformPayment)
+    const transformedPayments = payments.map(p => transformPayment(p as any))
 
     return NextResponse.json(transformedPayments)
   } catch (error: any) {

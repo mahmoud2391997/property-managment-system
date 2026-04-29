@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import AgentsTable, { AgentWithDetails } from '@/components/tables/agents-table'
 import AddAgentDialog from '@/components/dialogs/add-agent-dialog'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
 
 interface AgentsSectionProps {
   agents: AgentWithDetails[]
@@ -12,6 +14,7 @@ interface AgentsSectionProps {
 
 export default function AgentsSection({ agents }: AgentsSectionProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const { can } = usePermissions()
 
   const filteredAgents = useMemo(() => {
     if (!searchTerm.trim()) {
@@ -53,7 +56,7 @@ export default function AgentsSection({ agents }: AgentsSectionProps) {
         />
         {/* Buttons */}
         <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <AddAgentDialog />
+          {can('agents.create') && <AddAgentDialog />}
         </div>
       </div>
       {/* Table */}

@@ -7,6 +7,7 @@ import ExpensesSection from '@/components/sections/expenses-section'
 import { transformExpense, ExpenseWithDetails } from '@/lib/expenses-utils'
 import { expenseSelect } from '@/app/api/expenses/route'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
+import { requirePermission } from '@/lib/server-permissions'
 
 const PAGE_SIZE = 10
 
@@ -46,7 +47,7 @@ async function getExpenses(): Promise<{ data: ExpenseWithDetails[]; total: numbe
     ])
 
     return {
-      data: expenses.map(transformExpense),
+      data: expenses.map(e => transformExpense(e as any, true)),
       total
     }
   } catch (error) {
@@ -56,6 +57,7 @@ async function getExpenses(): Promise<{ data: ExpenseWithDetails[]; total: numbe
 }
 
 const Expenses = async () => {
+  await requirePermission('expenses.access')
   const { data: initialData, total: initialTotal } = await getExpenses()
 
   return (

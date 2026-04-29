@@ -14,6 +14,7 @@ import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import { useCallback, useMemo } from 'react'
 import { Tab, TabGroup } from '../costume-ui/tab'
 import TableFilter, { type FilterAttribute, type FilterValue } from '../costume-ui/table-filter'
+import { usePermissions } from '@/hooks/use-permissions'
 
 // Define filterable attributes for properties
 const PROPERTY_FILTER_ATTRIBUTES: FilterAttribute[] = [
@@ -39,6 +40,7 @@ interface PropertiesSectionProps {
 }
 
 export default function PropertiesSection({ initialData, initialTotal }: PropertiesSectionProps) {
+  const { can } = usePermissions()
   const {
     data,
     isLoading,
@@ -134,20 +136,24 @@ export default function PropertiesSection({ initialData, initialTotal }: Propert
         </div>
         {/* Buttons */}
         <div className='flex items-center gap-2.5'>
-          <Link href='/properties/import-properties'>
-            <Button
-              variant='secondary'
-              icon={<ImportButtonIcon className='text-neutral-400' />}
-              label='Import'
-            />
-          </Link>
+          {can('properties.create') && (
+            <>
+              <Link href='/properties/import-properties'>
+                <Button
+                  variant='secondary'
+                  icon={<ImportButtonIcon className='text-neutral-400' />}
+                  label='Import'
+                />
+              </Link>
 
-          <Link href='/properties/add-property'>
-            <Button
-              icon={<AddButtonIcon className='text-neutral-300' />}
-              label='Add Property'
-            />
-          </Link>
+              <Link href='/properties/add-property'>
+                <Button
+                  icon={<AddButtonIcon className='text-neutral-300' />}
+                  label='Add Property'
+                />
+              </Link>
+            </>
+          )}
         </div>
       </div>
 

@@ -1,3 +1,4 @@
+import { requirePermission } from '@/lib/server-permissions'
 export const dynamic = 'force-dynamic'
 
 import { Suspense } from 'react'
@@ -127,6 +128,7 @@ function DashboardSkeleton() {
 }
 
 export default async function Dashboard() {
+  await requirePermission('dashboard.access')
   const organizationId = await getOrganizationId()
 
   if (!organizationId) {

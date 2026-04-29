@@ -52,6 +52,32 @@ export async function POST(
     if (!staff && !tenant) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
+    if (staff) {
+      const staffRole = await prisma.staff.findUnique({
+        where: { id: staff.id },
+        select: {
+          roles: {
+            select: {
+              roles_permissions: {
+                select: {
+                  permissions: {
+                    select: { module: true, action: true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      })
+      const permissions = new Set(
+        staffRole?.roles?.roles_permissions.map(
+          rp => `${rp.permissions.module}.${rp.permissions.action}`
+        ) ?? []
+      )
+      if (!permissions.has('payments.update')) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
 
     const { id: reference_id } = await params
 

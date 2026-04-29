@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import PaymentFormCore from '@/components/payment-form-core'
 import ActionPageSkeleton from '@/components/loading-ui/action-page-skeleton'
+import { PermissionGuard } from '@/components/permission-guard'
 
 type ActiveLeaseData = {
   hasActiveLease: boolean
@@ -72,21 +73,23 @@ const RoomAddPayment = () => {
   const locationLabel = `${leaseData.propertyCode} (${leaseData.roomTitle})`
 
   return (
-    <PaymentFormCore
-      leaseReferenceId={leaseData.leaseReferenceId}
-      tenantId={leaseData.tenantId}
-      tenantName={leaseData.tenantName}
-      locationLabel={locationLabel}
-      isRoomRented={true}
-      successRedirectUrl={`/rooms/${roomId}/overview`}
-      breadcrumbItems={[
-        { label: 'Rooms', href: '/rooms' },
-        { label: leaseData.roomTitle, href: `/rooms/${roomId}/overview` },
-        { label: 'Add Payment' }
-      ]}
-      pageTitle='Add Payment'
-      pageSubtitle={`Create a new payment for ${leaseData.roomTitle}`}
-    />
+    <PermissionGuard permission='payments.create'>
+      <PaymentFormCore
+        leaseReferenceId={leaseData.leaseReferenceId}
+        tenantId={leaseData.tenantId}
+        tenantName={leaseData.tenantName}
+        locationLabel={locationLabel}
+        isRoomRented={true}
+        successRedirectUrl={`/rooms/${roomId}/overview`}
+        breadcrumbItems={[
+          { label: 'Rooms', href: '/rooms' },
+          { label: leaseData.roomTitle, href: `/rooms/${roomId}/overview` },
+          { label: 'Add Payment' }
+        ]}
+        pageTitle='Add Payment'
+        pageSubtitle={`Create a new payment for ${leaseData.roomTitle}`}
+      />
+    </PermissionGuard>
   )
 }
 

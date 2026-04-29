@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import OwnersTable, { OwnerWithDetails } from '@/components/tables/owners-table'
 import AddOwnerDialog from '@/components/dialogs/add-owner-dialog'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
 
 interface OwnersSectionProps {
   owners: OwnerWithDetails[]
@@ -12,6 +14,7 @@ interface OwnersSectionProps {
 
 export default function OwnersSection({ owners }: OwnersSectionProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const { can } = usePermissions()
 
   const filteredOwners = useMemo(() => {
     if (!searchTerm.trim()) {
@@ -53,7 +56,7 @@ export default function OwnersSection({ owners }: OwnersSectionProps) {
         />
         {/* Buttons */}
         <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <AddOwnerDialog />
+          {can('owners.create') && <AddOwnerDialog />}
         </div>
       </div>
       {/* Table */}

@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils'
 import ProjectsSection from '@/components/sections/projects-section'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { requirePermission } from '@/lib/server-permissions'
 
 async function getProjects() {
   const supabase = await createClient()
@@ -50,6 +51,7 @@ async function getProjects() {
 }
 
 const Projects = async () => {
+  await requirePermission('projects.access')
   const projects = await getProjects()
 
   return (

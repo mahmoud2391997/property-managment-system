@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import LeaseDetailsContent from '@/components/lease-details/lease-details-content'
 import { getLeaseDetails } from '@/utils/get-lease-details'
+import { requirePermission } from '@/lib/server-permissions'
 
 type Props = {
   params: Promise<{ id: string; leaseId: string }>
@@ -163,6 +164,7 @@ async function getUserType(): Promise<{ userType: 'staff' | 'tenant'; organizati
 }
 
 export default async function LeaseDetailsPage({ params }: Props) {
+  await requirePermission('leases.access')
   const { userType, organizationId, tenantId } = await getUserType()
 
   if (!organizationId && !tenantId) {

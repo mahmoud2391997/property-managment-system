@@ -18,18 +18,21 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useParams } from 'next/navigation'
 import { Property } from '@/types'
 import { propertiesData } from '@/utils/data'
+import { usePermissions } from '@/hooks/use-permissions'
 import { useSingleSelectOption } from '@/hooks/useSingleSelectOption'
 import { useRouter, usePathname } from 'next/navigation'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import { toast } from 'sonner'
 import InitiatePreparationFlowDrawer from '@/components/dialogs/initiate-preparation-flow-drawer'
 import AssignOwnerDialog from '@/components/dialogs/assign-owner-dialog'
+import { PermissionGate } from '@/components/permission-gate'
 
 type Props = {
   children: React.ReactNode
 }
 const WithHeadSectionLayout = ({ children }: Props) => {
   const router = useRouter()
+  const { can } = usePermissions()
 
   const { id: propertyId } = useParams<{ id: string }>()
   const [propertyCode, setPropertyCode] = useState<string | null>(null)
@@ -38,72 +41,64 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const [propertyOwnerId, setPropertyOwnerId] = useState<string | null>(null)
   const [hasActiveContract, setHasActiveContract] = useState<boolean>(false)
   const [isPropertyCodeLoading, setIsPropertyCodeLoading] =
-    useState<boolean>(true)
+    useState<boolean>(false) // Start with false since we'll get it from overview data
 
   const pathname = usePathname()
   const segments = pathname.split('/')
   const lastSegment = segments[segments.length - 1]
-  const routes = ['overview', 'rooms', 'views', 'bookings', 'leases', 'contracts']
 
   const params = useParams()
   const id = params.id as string
   const propertyData: Property | undefined = propertiesData.find(
     p => p.id === id
   )
-  const {
-    options: tabs,
-    selectByIndex,
-    selectedIndex
-  } = useSingleSelectOption([
-    {
-      label: 'Overview',
-      isSelected: lastSegment === routes[0]
-    },
-    {
-      label: 'Rooms',
-      isSelected: lastSegment === routes[1]
-    },
-    {
-      label: 'Views',
-      isSelected: lastSegment === routes[2]
-    },
-    {
-      label: 'Bookings',
-      isSelected: lastSegment === routes[3]
-    },
-    {
-      label: 'Leases',
-      isSelected: lastSegment === routes[4]
-    },
-    {
-      label: 'Contracts',
-      isSelected: lastSegment === routes[5]
-    }
-  ])
+  const TABS = [
+    { label: 'Overview',  href: `/properties/${id}/overview`,  permission: 'properties.access' },
+    { label: 'Rooms',     href: `/properties/${id}/rooms`,     permission: 'rooms.access' },
+    { label: 'Views',     href: `/properties/${id}/views`,     permission: 'views.access' },
+    { label: 'Bookings',  href: `/properties/${id}/bookings`,  permission: 'bookings.access' },
+    { label: 'Leases',    href: `/properties/${id}/leases`,    permission: 'leases.access' },
+    { label: 'Contracts', href: `/properties/${id}/contracts`, permission: 'contracts.access' },
+  ]
 
-  // Fetch property code, status, and images
-  const fetchPropertyData = async () => {
+  const filteredTabs = TABS.filter(t => can(t.permission))
+
+  const {
+    options: tabOptions,
+    selectByIndex
+  } = useSingleSelectOption(filteredTabs.map((tab: any) => ({
+    label: tab.label,
+    isSelected: lastSegment === tab.href.split('/').pop()
+  })))
+
+  // Fetch property code (no special permissions required)
+  const fetchPropertyCode = async () => {
     setIsPropertyCodeLoading(true)
-    const response = await fetch(`/api/leases/${propertyId}/property-code`)
-    if (response.ok) {
+    
+    try {
+      const response = await fetch(`/api/properties/${propertyId}/code`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        setPropertyCode(data.propertyCode)
+        setIsPropertyCodeLoading(false)
+      } else {
+        console.error('Failed to fetch property code:', response.status, response.statusText)
+        setIsPropertyCodeLoading(false)
+      }
+    } catch (error) {
+      console.error('Network error:', error)
       setIsPropertyCodeLoading(false)
-      const data = await response.json()
-      setPropertyCode(data.property)
-      setPropertyStatus(data.status)
-      setPropertyImages(data.images || [])
-      setPropertyOwnerId(data.assignedOwner?.id || null)
-      setHasActiveContract(data.hasActiveContract || false)
     }
   }
 
   useEffect(() => {
-    fetchPropertyData()
+    fetchPropertyCode()
   }, [propertyId])
 
-  const handleTabClick = (index: number) => {
-    const route = routes[index]
-    if (route) {
-      router.push(`/properties/${id}/${route}`)
+  const handleTabClick = (href?: string) => {
+    if (href) {
+      router.push(href)
     }
   }
 
@@ -151,7 +146,9 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             {isPropertyCodeLoading ? (
               <Skeleton className='h-7 w-40 bg-neutral-300' />
             ) : (
-              <h1>{propertyCode}</h1>
+              <div>
+                <h1>{propertyCode || 'No property code'}</h1>
+                              </div>
             )}
           </div>
           <DropdownMenu>
@@ -163,27 +160,31 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => router.push(`/properties/${id}/edit`)}
-              >
-                Edit Property
-              </DropdownMenuItem>
-              <AssignOwnerDialog
-                propertyId={propertyId}
-                currentOwnerId={propertyOwnerId}
-                hasActiveContract={hasActiveContract}
-                onSuccess={() => window.location.reload()}
-                trigger={
-                  <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                    {propertyOwnerId ? 'Change owner' : 'Assign owner'}
-                  </DropdownMenuItem>
-                }
-              />
+              <PermissionGate permission='properties.update'>
+                <DropdownMenuItem
+                  onClick={() => router.push(`/properties/${id}/edit`)}
+                >
+                  Edit Property
+                </DropdownMenuItem>
+              </PermissionGate>
+              <PermissionGate permission='properties.assign_owner'>
+                <AssignOwnerDialog
+                  propertyId={propertyId}
+                  currentOwnerId={propertyOwnerId}
+                  hasActiveContract={hasActiveContract}
+                  onSuccess={() => window.location.reload()}
+                  trigger={
+                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                      {propertyOwnerId ? 'Change owner' : 'Assign owner'}
+                    </DropdownMenuItem>
+                  }
+                />
+              </PermissionGate>
               {propertyStatus === 'Vacant' && (
                 <InitiatePreparationFlowDrawer
                   propertyId={propertyId}
                   locationName={propertyCode || ''}
-                  onSuccess={fetchPropertyData}
+                  onSuccess={fetchPropertyCode}
                   trigger={
                     <DropdownMenuItem onSelect={e => e.preventDefault()}>
                       Mark as Not Ready
@@ -192,51 +193,53 @@ const WithHeadSectionLayout = ({ children }: Props) => {
                 />
               )}
               <DropdownMenuSeparator />
-              <ConfirmationDialog
-                openDialogButton={
-                  <button type='button' className='delete-dropdown-button'>
-                    Delete Property
-                  </button>
-                }
-                title='Delete Property'
-                description={
-                  <>
-                    Are you sure you want to delete{' '}
-                    <strong>{propertyCode}</strong>? This action cannot be
-                    undone. All associated data (rooms, views, configurations)
-                    will be permanently removed.
-                  </>
-                }
-                onConfirm={handleDeleteProperty}
-                confirmButtonLabel='Delete'
-                confirmButtonLoadingLabel='Deleting...'
-              />
+              <PermissionGate permission='properties.delete'>
+                <ConfirmationDialog
+                  openDialogButton={
+                    <button type='button' className='delete-dropdown-button'>
+                      Delete Property
+                    </button>
+                  }
+                  title='Delete Property'
+                  description={
+                    <>
+                      Are you sure you want to delete{' '}
+                      <strong>{propertyCode}</strong>? This action cannot be
+                      undone. All associated data (rooms, views, configurations)
+                      will be permanently removed.
+                    </>
+                  }
+                  onConfirm={handleDeleteProperty}
+                  confirmButtonLabel='Delete'
+                  confirmButtonLoadingLabel='Deleting...'
+                />
+              </PermissionGate>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
         {isPropertyCodeLoading ? (
           <div className='flex gap-6'>
-            {tabs.map((_, index) => (
+            {tabOptions.map((_: any, index: number) => (
               <Skeleton key={index} className='h-5 w-16 bg-neutral-300' />
             ))}
           </div>
         ) : (
           <TabGroup>
-            {tabs.map((tab, index) => (
+            {tabOptions.map((tab: any, index: number) => (
               <Tab
                 key={index}
                 label={tab.label}
                 isSelected={tab.isSelected}
                 onClick={() => {
                   selectByIndex(index)
-                  handleTabClick(index)
+                  handleTabClick(filteredTabs[index]?.href)
                 }}
               />
             ))}
           </TabGroup>
         )}
       </section>
-      <section className='flex flex-col gap-5 -mx-7.5 -mb-7.5 p-7.5 py-5 bg-(--background-tertiary) min-h-full h-fit'>
+      <section className='flex flex-col gap-5 w-full p-7.5 py-5 bg-(--background-tertiary) min-h-full h-fit'>
         {children}
       </section>
     </>

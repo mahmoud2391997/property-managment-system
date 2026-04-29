@@ -9,6 +9,8 @@ import { ticketTypes } from '@/utils/data'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import Button from '@/components/costume-ui/button'
 import { CheckCircle2, XCircle } from 'lucide-react'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
 
 type StaffMember = {
   id: string
@@ -82,15 +84,17 @@ export default function TicketSidebar({
   const [statusLoading, setStatusLoading] = useState(false)
   const [showStaleAlert, setShowStaleAlert] = useState(false)
 
+  const { can } = usePermissions()
+
   // Check if ticket is resolved or closed
   const isTicketClosed = currentStatus === 'Resolved' || currentStatus === 'Closed'
 
   // Check if current user is the assigned staff
   const isAssignedStaff = assignedStaff?.id === currentUserId
 
-  // Determine which status actions are available for staff
-  const canMarkComplete = isStaff && isAssignedStaff && rawStatus === 'In_Progress'
-  const canForceClose = isStaff && !isTicketClosed
+  // Determine which status actions are available for staff (with permission check)
+  const canMarkComplete = can('tickets.resolve') && isStaff && isAssignedStaff && rawStatus === 'In_Progress'
+  const canForceClose = can('tickets.resolve') && isStaff && !isTicketClosed
 
   const handleStaleAlertClose = () => {
     setShowStaleAlert(false)

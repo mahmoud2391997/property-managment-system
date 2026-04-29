@@ -23,6 +23,7 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import EditTenantDialog from '../dialogs/edit-tenant-dialog'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type TenantsTableProps = {
   data: TenantWithDetails[]
@@ -51,6 +52,9 @@ export default function TenantsTable ({
 }: TenantsTableProps) {
   const hasServerPagination =
     onNextPage !== undefined || onPreviousPage !== undefined
+  const { can } = usePermissions()
+  const canUpdateTenant = can('tenants.update')
+  const canDeleteTenant = can('tenants.delete')
 
   const columns: ColumnDef<TenantWithDetails>[] = [
     //Checkbox
@@ -304,7 +308,7 @@ export default function TenantsTable ({
                 Copy email
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              {tenant.accountStatus === 'Pending' && (
+              {tenant.accountStatus === 'Pending' && canUpdateTenant && (
                 <DropdownMenuItem
                   onClick={handleResendInvite}
                   disabled={isResending}
@@ -312,51 +316,55 @@ export default function TenantsTable ({
                   {isResending ? 'Sending...' : 'Resend Invitation'}
                 </DropdownMenuItem>
               )}
-              <EditTenantDialog
-                tenantId={tenant.id}
-                initialData={{
-                  id: tenant.id,
-                  type: tenant.type,
-                  profile_pic: tenant.profile_pic,
-                  profile_thumb: tenant.profile_thumb,
-                  first_name: tenant.first_name,
-                  last_name: tenant.last_name,
-                  identity_type: tenant.identity_type,
-                  identity_number: tenant.identity_number,
-                  phone_number: tenant.phone_number,
-                  email: tenant.email,
-                  accountStatus: tenant.accountStatus
-                }}
-                trigger={
-                  <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                    Edit Tenant
-                  </DropdownMenuItem>
-                }
-                onSuccess={() => window.location.reload()}
-              />
+              {canUpdateTenant && (
+                <EditTenantDialog
+                  tenantId={tenant.id}
+                  initialData={{
+                    id: tenant.id,
+                    type: tenant.type,
+                    profile_pic: tenant.profile_pic,
+                    profile_thumb: tenant.profile_thumb,
+                    first_name: tenant.first_name,
+                    last_name: tenant.last_name,
+                    identity_type: tenant.identity_type,
+                    identity_number: tenant.identity_number,
+                    phone_number: tenant.phone_number,
+                    email: tenant.email,
+                    accountStatus: tenant.accountStatus
+                  }}
+                  trigger={
+                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                      Edit Tenant
+                    </DropdownMenuItem>
+                  }
+                  onSuccess={() => window.location.reload()}
+                />
+              )}
               <Link href={`/tenants/${tenant.id}/overview`}>
                 <DropdownMenuItem>View details</DropdownMenuItem>
               </Link>
-              <ConfirmationDialog
-                openDialogButton={
-                  <button
-                    type='button'
-                    className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'
-                  >
-                    Delete Tenant
-                  </button>
-                }
-                title='Delete Tenant'
-                description={`Are you sure you want to delete ${
-                  tenant.first_name
-                }${
-                  tenant.last_name ? ` ${tenant.last_name}` : ''
-                }? This will permanently remove their account and all associated data.`}
-                confirmationText='DELETE'
-                onConfirm={handleDelete}
-                loading={isDeleting}
-                confirmButtonLabel='Delete Tenant'
-              />
+              {canDeleteTenant && (
+                <ConfirmationDialog
+                  openDialogButton={
+                    <button
+                      type='button'
+                      className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'
+                    >
+                      Delete Tenant
+                    </button>
+                  }
+                  title='Delete Tenant'
+                  description={`Are you sure you want to delete ${
+                    tenant.first_name
+                  }${
+                    tenant.last_name ? ` ${tenant.last_name}` : ''
+                  }? This will permanently remove their account and all associated data.`}
+                  confirmationText='DELETE'
+                  onConfirm={handleDelete}
+                  loading={isDeleting}
+                  confirmButtonLabel='Delete Tenant'
+                />
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )
@@ -548,7 +556,7 @@ export default function TenantsTable ({
                 Copy email
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              {tenant.accountStatus === 'Pending' && (
+              {tenant.accountStatus === 'Pending' && canUpdateTenant && (
                 <DropdownMenuItem
                   onClick={handleResendInvite}
                   disabled={isResending}
@@ -556,49 +564,53 @@ export default function TenantsTable ({
                   {isResending ? 'Sending...' : 'Resend Invitation'}
                 </DropdownMenuItem>
               )}
-              <EditTenantDialog
-                tenantId={tenant.id}
-                initialData={{
-                  id: tenant.id,
-                  type: tenant.type,
-                  profile_pic: tenant.profile_pic,
-                  profile_thumb: tenant.profile_thumb,
-                  first_name: tenant.first_name,
-                  last_name: tenant.last_name,
-                  identity_type: tenant.identity_type,
-                  identity_number: tenant.identity_number,
-                  phone_number: tenant.phone_number,
-                  email: tenant.email,
-                  accountStatus: tenant.accountStatus
-                }}
-                trigger={
-                  <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                    Edit Tenant
-                  </DropdownMenuItem>
-                }
-                onSuccess={() => window.location.reload()}
-              />
+              {canUpdateTenant && (
+                <EditTenantDialog
+                  tenantId={tenant.id}
+                  initialData={{
+                    id: tenant.id,
+                    type: tenant.type,
+                    profile_pic: tenant.profile_pic,
+                    profile_thumb: tenant.profile_thumb,
+                    first_name: tenant.first_name,
+                    last_name: tenant.last_name,
+                    identity_type: tenant.identity_type,
+                    identity_number: tenant.identity_number,
+                    phone_number: tenant.phone_number,
+                    email: tenant.email,
+                    accountStatus: tenant.accountStatus
+                  }}
+                  trigger={
+                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                      Edit Tenant
+                    </DropdownMenuItem>
+                  }
+                  onSuccess={() => window.location.reload()}
+                />
+              )}
               <DropdownMenuItem
                 onClick={() => router.push(`/tenants/${tenant.id}/overview`)}
               >
                 View details
               </DropdownMenuItem>
-              <ConfirmationDialog
-                openDialogButton={
-                  <button
-                    type='button'
-                    className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'
-                  >
-                    Delete Tenant
-                  </button>
-                }
-                title='Delete Tenant'
-                description={`Are you sure you want to delete ${fullName}? This will permanently remove their account and all associated data.`}
-                confirmationText='DELETE'
-                onConfirm={handleDelete}
-                loading={isDeleting}
-                confirmButtonLabel='Delete Tenant'
-              />
+              {canDeleteTenant && (
+                <ConfirmationDialog
+                  openDialogButton={
+                    <button
+                      type='button'
+                      className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'
+                    >
+                      Delete Tenant
+                    </button>
+                  }
+                  title='Delete Tenant'
+                  description={`Are you sure you want to delete ${fullName}? This will permanently remove their account and all associated data.`}
+                  confirmationText='DELETE'
+                  onConfirm={handleDelete}
+                  loading={isDeleting}
+                  confirmButtonLabel='Delete Tenant'
+                />
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

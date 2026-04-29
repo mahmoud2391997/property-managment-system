@@ -16,6 +16,7 @@ import type { properties, projects } from '@prisma/client'
 import { useRouter } from 'next/navigation'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { ComboBoxitemsType } from '@/types'
+import { PermissionGuard } from '@/components/permission-guard'
 
 type PropertyWithProject = properties & { projects?: projects | null }
 
@@ -245,7 +246,8 @@ const AddRoom = () => {
   }))
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
+    <PermissionGuard permission="rooms.create">
+      <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
       {/* Head section */}
       <AddPageHead
         crumb_items={[
@@ -349,7 +351,8 @@ const AddRoom = () => {
         }}
         defaultCollapse
       />
-    </form>
+      </form>
+    </PermissionGuard>
   )
 }
 

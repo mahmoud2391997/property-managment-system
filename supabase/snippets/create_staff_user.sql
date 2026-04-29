@@ -19,7 +19,7 @@
 DO $$
 DECLARE
   -- ============ EDIT THESE ============
-  v_email             text := 'newstaff@example.com';
+  v_email             text := 'staffuser' || (SELECT COUNT(*)::text FROM auth.users WHERE email LIKE 'staffuser%') || '@example.com';
   v_password          text := 'ChangeMe123!';          -- minimum 6 chars; tell the user to change after first login
   v_first_name        text := 'Jane';
   v_last_name         text := 'Doe';                    -- optional, can be NULL

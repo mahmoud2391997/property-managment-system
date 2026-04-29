@@ -3,16 +3,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ leaseId: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'leases.initiate_ending_flow'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { leaseId } = await params
     const body = await request.json()
 

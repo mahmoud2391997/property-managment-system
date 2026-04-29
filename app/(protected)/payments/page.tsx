@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
@@ -10,6 +11,7 @@ import { transformPayment, PaymentWithDetails } from '@/lib/payments-utils'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
 import { payment_status } from '@prisma/client'
 import { PaymentSummary } from '@/components/costume-ui/payall-ui'
+import { getUserType } from '@/utils/getUserType'
 
 
 const PAGE_SIZE = 10
@@ -198,10 +200,21 @@ async function getPayments (): Promise<{
 }
 
 const Payments = async () => {
+  // Check user authentication (supports both staff and tenants)
+  const { userType, error } = await getUserType()
+  if (error) {
+    // Redirect to login if not authenticated
+    if (error.status === 401) {
+      redirect('/login')
+    }
+    // Redirect to unauthorized page if user not found
+    redirect('/unauthorized')
+  }
+
   const {
     data: initialData,
     total: initialTotal,
-    userType
+    userType: paymentsUserType
   } = await getPayments()
 
   return (
@@ -215,9 +228,9 @@ const Payments = async () => {
           <PaymentsSection
             initialData={initialData}
             initialTotal={initialTotal}
-            userType={userType}
+            userType={paymentsUserType}
           />
-          {userType === 'tenant' && <PaymentSummary />}
+          {paymentsUserType === 'tenant' && <PaymentSummary />}
         </div>
 
       </PaymentsPageWrapper>

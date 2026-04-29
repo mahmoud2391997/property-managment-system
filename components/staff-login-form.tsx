@@ -16,6 +16,11 @@ import { login } from "@/app/(auth)/login/staff/actions";
 import { useState } from "react";
 import { Loader2Icon, CheckCircle2 } from "lucide-react";
 
+function isNextRedirectError(error: unknown): boolean {
+  const maybeError = error as { digest?: unknown }
+  return typeof maybeError?.digest === "string" && maybeError.digest.startsWith("NEXT_REDIRECT")
+}
+
 const LoginForm = ({
   className,
   ...props
@@ -38,7 +43,8 @@ const LoginForm = ({
       const error: string | void = await login(formData);
       if (error)
         setError(error);
-    } catch {
+    } catch (error) {
+      if (isNextRedirectError(error)) return
       setError("Unable to connect. Please check your internet and try again");
     }
 

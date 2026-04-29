@@ -29,7 +29,9 @@ import InputGroup from './input-group'
 import { cn } from '@/lib/utils'
 
 type props = {
-  openDialogButton: React.ReactElement
+  openDialogButton?: React.ReactElement
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   title: string
   description: string | React.ReactNode
   confirmationText?: string
@@ -45,6 +47,8 @@ type props = {
 
 export default function ConfirmationDialog ({
   openDialogButton,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
   title,
   description,
   confirmationText = 'DELETE',
@@ -58,8 +62,9 @@ export default function ConfirmationDialog ({
   variant = 'danger'
 }: props) {
   const [inputValue, setInputValue] = useState('')
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
   const [internalLoading, setInternalLoading] = useState(false)
+  const open = controlledOpen ?? internalOpen
 
   const loading = externalLoading || internalLoading
   // For 'confirm' variant, no text input required
@@ -74,7 +79,10 @@ export default function ConfirmationDialog ({
     try {
       await onConfirm()
       setInputValue('')
-      setOpen(false)
+      controlledOnOpenChange?.(false)
+      if (controlledOpen === undefined) {
+        setInternalOpen(false)
+      }
     } catch (error) {
       // Keep dialog open on error - parent handles error display
     } finally {
@@ -84,7 +92,10 @@ export default function ConfirmationDialog ({
 
   const handleOpenChange = (newOpen: boolean) => {
     if (loading) return // Prevent closing while loading
-    setOpen(newOpen)
+    controlledOnOpenChange?.(newOpen)
+    if (controlledOpen === undefined) {
+      setInternalOpen(newOpen)
+    }
     if (!newOpen) {
       setInputValue('')
     }
@@ -94,7 +105,9 @@ export default function ConfirmationDialog ({
   if (variant === 'confirm') {
     return (
       <AlertDialog open={open} onOpenChange={handleOpenChange}>
-        <AlertDialogTrigger asChild>{openDialogButton}</AlertDialogTrigger>
+        {openDialogButton ? (
+          <AlertDialogTrigger asChild>{openDialogButton}</AlertDialogTrigger>
+        ) : null}
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -125,7 +138,9 @@ export default function ConfirmationDialog ({
   // Use full Dialog for 'danger' and 'warning' variants (with text input confirmation)
   return (
     <ShadcnDialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>{openDialogButton}</DialogTrigger>
+      {openDialogButton ? (
+        <DialogTrigger asChild>{openDialogButton}</DialogTrigger>
+      ) : null}
       <DialogContent className='py-0! px-0! overflow-visible! sm:max-w-[425px]'>
         <DialogHeader className='px-4 pt-3! border-b border-(--border-strong)'>
           <DialogTitle asChild>

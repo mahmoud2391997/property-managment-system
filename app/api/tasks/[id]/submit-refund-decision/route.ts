@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import {
   SubmitRefundDecisionRequestBody,
   SubmitRefundDecisionResponse
@@ -11,11 +12,13 @@ import {
 export async function POST (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-): Promise<NextResponse<SubmitRefundDecisionResponse>> {
+): Promise<NextResponse> {
   try {
-    const { staff, error } = await getUserAndStaff()
-    if (error) return error
+    const { staff, permissions, error } = await getUserAndStaff()
+    if (error) return error as NextResponse
 
+    if (!hasPermission(permissions, 'tasks.update'))
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id: taskId } = await params
     const body: SubmitRefundDecisionRequestBody = await request.json()
     const { decision, charges, report, attachment } = body

@@ -12,6 +12,9 @@ import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import { Tab, TabGroup } from '../costume-ui/tab'
 import { useEffect, useCallback, useMemo } from 'react'
 import TableFilter, { type FilterAttribute, type FilterValue } from '../costume-ui/table-filter'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
 
 // Define filterable attributes for payments
 const PAYMENT_FILTER_ATTRIBUTES: FilterAttribute[] = [
@@ -66,6 +69,7 @@ export default function PaymentsSection ({
   initialTotal,
   userType
 }: PaymentsSectionProps) {
+  const { can } = usePermissions()
   const {
     data,
     isLoading,
@@ -180,8 +184,8 @@ export default function PaymentsSection ({
           />
         </div>
         {/* Buttons */}
-        {userType === 'staff' && (
-          <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
+        <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
+          <PermissionGate permission="recurring.access" fallback={null}>
             <Link href='/payments/recurring-configs' className='flex-1 sm:flex-none'>
               <Button
                 variant='secondary'
@@ -190,6 +194,8 @@ export default function PaymentsSection ({
                 className='w-full'
               />
             </Link>
+          </PermissionGate>
+          <PermissionGate permission="payments.create" fallback={null}>
             <Link href='/payments/add-payment' className='flex-1 sm:flex-none'>
               <Button
                 icon={<AddButtonIcon className='text-neutral-300' />}
@@ -197,8 +203,8 @@ export default function PaymentsSection ({
                 className='w-full'
               />
             </Link>
-          </div>
-        )}
+          </PermissionGate>
+        </div>
       </div>
 
       {/* Status Tabs */}

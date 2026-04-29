@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import * as XLSX from 'xlsx'
 
 type ImportError = {
@@ -24,23 +25,10 @@ const VALID_STATUSES = ['Ready', 'Pending_Inspection', 'Under_Preparation'] as c
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Get staff info to get organization_id
-    const staff = await prisma.staff.findUnique({
-      where: { id: user.id },
-      select: { organization_id: true }
-    })
-
-    if (!staff) {
-      return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
+    const { user, staff, permissions, error } = await getUserAndStaff()
+    if (error) return error
+    if (!hasPermission(permissions, 'properties.create')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // Parse form data

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import VendorsTable, { VendorWithDetails } from '@/components/tables/vendors-table'
 import AddVendorDialog from '@/components/dialogs/add-vendor-dialog'
+import { usePermissions } from '@/hooks/use-permissions'
 
 interface VendorsSectionProps {
   vendors: VendorWithDetails[]
@@ -12,6 +13,7 @@ interface VendorsSectionProps {
 
 export default function VendorsSection({ vendors }: VendorsSectionProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const { can } = usePermissions()
 
   const filteredVendors = useMemo(() => {
     if (!searchTerm.trim()) {
@@ -45,7 +47,7 @@ export default function VendorsSection({ vendors }: VendorsSectionProps) {
         />
         {/* Buttons */}
         <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <AddVendorDialog />
+          {can('vendors.create') && <AddVendorDialog />}
         </div>
       </div>
       {/* Table */}

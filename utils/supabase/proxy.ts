@@ -1,5 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 export async function updateSession (request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -54,23 +56,29 @@ export async function updateSession (request: NextRequest) {
   const isPublicPath = publicPaths.some(path =>
     request.nextUrl.pathname.startsWith(path)
   )
+  const authPaths = [
+    '/login',
+    '/signup',
+    '/forgot-password',
+    '/reset-password',
+    '/setup-password'
+  ]
+  const isAuthPath = authPaths.some(path =>
+    request.nextUrl.pathname.startsWith(path)
+  )
   const isRootPath = request.nextUrl.pathname === '/'
   const isMigratePath = request.nextUrl.pathname === '/migrate'
   const isUnauthorizedPage = request.nextUrl.pathname === '/unauthorized'
 
-  const RESTRICTED_STAFF_EMAILS: String[] = [
-    'majidrafique777@gmail.com',
-    'mickyiyke745@gmail.com'
-  ]
-
-  const RESTRICTED_STAFF_ALLOWED_PATHS = [
-    '/tasks',
-    '/tickets',
-    '/notifications',
-    '/api',
-    '/unauthorized',
-    '/setup-password'
-  ]
+  // Prevent going back to auth pages after login.
+  if (user && isAuthPath) {
+    const userType = user.user_metadata?.user_type
+    if (userType === 'staff' || userType === 'tenant') {
+      const url = request.nextUrl.clone()
+      url.pathname = userType === 'staff' ? '/projects' : '/payments'
+      return NextResponse.redirect(url)
+    }
+  }
 
   if (!user && !isPublicPath) {
     // no user, redirect to login page
@@ -108,25 +116,7 @@ export async function updateSession (request: NextRequest) {
         return NextResponse.redirect(url)
       }
 
-      // Check if staff email is restricted
-      if (hasOrganization) {
-        const isRestrictedStaff = RESTRICTED_STAFF_EMAILS.includes(
-          user.email ?? ''
-        )
-
-        if (isRestrictedStaff) {
-          const isAllowedPath = RESTRICTED_STAFF_ALLOWED_PATHS.some(path =>
-            request.nextUrl.pathname.startsWith(path)
-          )
-
-          if (!isAllowedPath) {
-            const url = request.nextUrl.clone()
-            url.pathname = '/tasks'
-            return NextResponse.redirect(url)
-          }
-        }
-      }
-
+      
       // Staff cannot access tenant-only pages
       const tenantOnlyPaths = ['/rentals']
       const isTenantOnlyPath = tenantOnlyPaths.some(path =>
@@ -136,6 +126,44 @@ export async function updateSession (request: NextRequest) {
         const url = request.nextUrl.clone()
         url.pathname = '/unauthorized'
         return NextResponse.redirect(url)
+      }
+
+      // Staff permission checks
+      const pathPermissionMap: Record<string, string> = {
+        '/properties': 'properties.access',
+        '/bookings': 'bookings.access',
+        '/leases': 'leases.access',
+        '/tasks': 'tasks.access',
+        '/tickets': 'tickets.access',
+        '/expenses': 'expenses.access',
+        '/payments': 'payments.access',
+        '/tenants': 'tenants.access',
+        '/staff': 'staff.access',
+        '/agents': 'agents.access',
+        '/owners': 'owners.access',
+        '/vendors': 'vendors.access',
+        '/projects': 'projects.access',
+        '/rooms': 'rooms.access',
+        '/reports': 'reports.access',
+        '/notices': 'notices.access',
+        '/contracts': 'contracts.access',
+        '/notifications': 'notifications.access',
+        '/views': 'views.access',
+        '/staff/roles': 'roles.access',
+        '/tenant_screening': 'tenant_screening.access',
+        '/recurring': 'recurring.access',
+      }
+
+      for (const [path, permission] of Object.entries(pathPermissionMap)) {
+        if (request.nextUrl.pathname.startsWith(path)) {
+          const { permissions } = await getUserAndStaff()
+          if (permissions && !hasPermission(permissions, permission)) {
+            const url = request.nextUrl.clone()
+            url.pathname = '/unauthorized'
+            return NextResponse.redirect(url)
+          }
+          break
+        }
       }
     } else {
       // Non-staff users cannot access onboarding

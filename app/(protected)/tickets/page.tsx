@@ -7,6 +7,7 @@ import { createClient } from '@/utils/supabase/server'
 import TicketsSection from '@/components/tickets-section'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
 import { Ticket } from '@/types'
+import { requirePermission } from '@/lib/server-permissions'
 
 const PAGE_SIZE = 10
 
@@ -202,6 +203,7 @@ async function getTickets(): Promise<{
 }
 
 const Tickets = async () => {
+  await requirePermission('tickets.access')
   const {
     data: initialData,
     total: initialTotal,

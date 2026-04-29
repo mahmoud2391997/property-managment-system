@@ -7,6 +7,7 @@ import { createAdminClient } from '@/utils/supabase/admin'
 import { redirect } from 'next/navigation'
 import { transformTenant, TenantWithDetails } from '@/lib/tenants-utils'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
+import { requirePermission } from '@/lib/server-permissions'
 
 const PAGE_SIZE = 10
 
@@ -32,12 +33,14 @@ const tenantSelect = {
   }
 }
 
+import { tenant_type } from '@prisma/client'
+
 async function getTenants(organizationId: string): Promise<{ data: TenantWithDetails[]; total: number }> {
   try {
     const whereClause = {
       organization_id: organizationId,
       tenants: {
-        type: 'Individual' as const
+        type: tenant_type.Individual
       }
     }
 
@@ -125,6 +128,7 @@ async function getTenants(organizationId: string): Promise<{ data: TenantWithDet
 }
 
 const Tenants = async () => {
+  await requirePermission('tenants.access')
   const { staff: currentStaff, error } = await getUserAndStaff()
 
   if (error) {

@@ -3,6 +3,7 @@ import StaffSection from '@/components/sections/staff-section'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
+import { requirePermission } from '@/lib/server-permissions'
 
 async function getStaff() {
   const supabase = await createClient()
@@ -80,6 +81,8 @@ async function getStaff() {
 
 
 const Staff = async () => {
+  await requirePermission('staff.access')
+  
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const currentUserId = user?.id
@@ -89,7 +92,7 @@ const Staff = async () => {
   return (
     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
       {/* Heading */}
-      <div>
+      <div className="flex items-center">
         <h1>Staff</h1>
       </div>
       <StaffSection staff={staffList} currentUserId={currentUserId} />

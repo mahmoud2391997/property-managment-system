@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -8,9 +9,11 @@ export async function POST(
   { params }: { params: Promise<{ tenantId: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
     if (error) return error
 
+    if (!hasPermission(permissions, 'tenants.upload_identity_doc'))
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { tenantId } = await params
 
     // Verify tenant belongs to organization

@@ -21,6 +21,7 @@ import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 import { useRouter } from 'next/navigation'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
 import { toast } from 'sonner'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type StaffWithRole = Prisma.staffGetPayload<{
   select: {
@@ -142,6 +143,7 @@ export const columns: ColumnDef<StaffWithRole>[] = [
     cell: ({ row }) => {
       const staff = row.original
       const router = useRouter()
+      const { can } = usePermissions()
       const [isResending, setIsResending] = useState(false)
       const [isDeleting, setIsDeleting] = useState(false)
 
@@ -241,20 +243,22 @@ export const columns: ColumnDef<StaffWithRole>[] = [
                 {isResending ? 'Sending...' : 'Resend Invitation'}
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem>View details</DropdownMenuItem>
-            <ConfirmationDialog
-              openDialogButton={
-                <button className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'>
-                  Delete staff
-                </button>
-              }
-              title='Delete Staff Member'
-              description={`Are you sure you want to delete ${staff.first_name}${staff.last_name ? ` ${staff.last_name}` : ''}? This will permanently remove their account and all associated data.`}
-              confirmationText='DELETE'
-              onConfirm={handleDelete}
-              loading={isDeleting}
-              confirmButtonLabel='Delete Staff'
-            />
+            {can('staff.update') && <DropdownMenuItem>View details</DropdownMenuItem>}
+            {can('staff.delete') && (
+              <ConfirmationDialog
+                openDialogButton={
+                  <button className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'>
+                    Delete staff
+                  </button>
+                }
+                title='Delete Staff Member'
+                description={`Are you sure you want to delete ${staff.first_name}${staff.last_name ? ` ${staff.last_name}` : ''}? This will permanently remove their account and all associated data.`}
+                confirmationText='DELETE'
+                onConfirm={handleDelete}
+                loading={isDeleting}
+                confirmButtonLabel='Delete Staff'
+              />
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )

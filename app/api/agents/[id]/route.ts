@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function PATCH(
@@ -7,10 +8,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'agents.update'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id } = await params
 
     // Verify the agent exists and belongs to the same organization
@@ -73,6 +78,48 @@ export async function PATCH(
     console.error('Error updating agent:', error)
     return NextResponse.json(
       { error: 'Failed to update agent' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { staff, permissions, error } = await getUserAndStaff()
+
+    if (error) return error
+
+    if (!hasPermission(permissions, 'agents.delete'))
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+    const { id } = await params
+
+    const existingAgent = await prisma.agents.findFirst({
+      where: {
+        id,
+        organization_id: staff.organization_id
+      }
+    })
+
+    if (!existingAgent) {
+      return NextResponse.json(
+        { error: 'Agent not found or unauthorized' },
+        { status: 404 }
+      )
+    }
+
+    await prisma.agents.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error('Error deleting agent:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete agent' },
       { status: 500 }
     )
   }

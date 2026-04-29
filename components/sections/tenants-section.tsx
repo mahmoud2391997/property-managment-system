@@ -12,6 +12,7 @@ import { TenantWithDetails } from '@/lib/tenants-utils'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import { Tab, TabGroup } from '../costume-ui/tab'
 import TableFilter, { type FilterAttribute, type FilterValue } from '../costume-ui/table-filter'
+import { usePermissions } from '@/hooks/use-permissions'
 
 // Define filterable attributes for tenants
 const TENANT_FILTER_ATTRIBUTES: FilterAttribute[] = [
@@ -57,6 +58,7 @@ export default function TenantsSection({
   initialData,
   initialTotal
 }: TenantsSectionProps) {
+  const { can } = usePermissions()
   const {
     data,
     isLoading,
@@ -158,15 +160,19 @@ export default function TenantsSection({
         </div>
         {/* Buttons */}
         <div className='flex items-center gap-2.5'>
-          <Link href='/tenants/import-tenants' className='flex-1 sm:flex-none'>
-            <Button
-              variant='secondary'
-              icon={<ImportButtonIcon className='text-neutral-400' />}
-              label='Import'
-              className='w-full'
-            />
-          </Link>
-          <AddTenantDialog />
+          {can('tenants.create') && (
+            <>
+              <Link href='/tenants/import-tenants' className='flex-1 sm:flex-none'>
+                <Button
+                  variant='secondary'
+                  icon={<ImportButtonIcon className='text-neutral-400' />}
+                  label='Import'
+                  className='w-full'
+                />
+              </Link>
+              <AddTenantDialog />
+            </>
+          )}
         </div>
       </div>
 

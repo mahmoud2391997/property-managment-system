@@ -2,13 +2,18 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 export async function GET() {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'projects.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     // Fetch projects for this organization
     const projects = await prisma.projects.findMany({
       where: {
@@ -36,10 +41,14 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { staff, user, error } = await getUserAndStaff()
+    const { staff, user, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'projects.create'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const body = await request.json()
     const { title, state } = body
 

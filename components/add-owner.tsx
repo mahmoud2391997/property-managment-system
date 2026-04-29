@@ -5,6 +5,7 @@ import InputGroup from './costume-ui/input-group'
 import { FeedbackToasts } from './costume-ui/feedback-toast'
 import { useRouter } from 'next/navigation'
 import PhotoUploader from './costume-ui/photo-uploader'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type Props = {
   onSuccess?: () => void
@@ -13,6 +14,7 @@ type Props = {
 
 const AddOwner = ({ onSuccess, onLoadingChange }: Props) => {
   const router = useRouter()
+  const { can } = usePermissions()
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
   const [firstName, setFirstName] = useState<string>('')
@@ -22,6 +24,15 @@ const AddOwner = ({ onSuccess, onLoadingChange }: Props) => {
   const [profileImage, setProfileImage] = useState<Blob | null>(null)
   const [profileThumb, setProfileThumb] = useState<Blob | null>(null)
   const [photoUploaderKey, setPhotoUploaderKey] = useState<number>(0)
+
+  // Early return if user doesn't have permission to create owners
+  if (!can('owners.create')) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        You don't have permission to create owners.
+      </div>
+    )
+  }
 
   const handlePhotoSave = (mainBlob: Blob, thumbBlob: Blob) => {
     setProfileImage(mainBlob)

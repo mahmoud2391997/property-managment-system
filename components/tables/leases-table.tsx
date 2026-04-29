@@ -18,6 +18,7 @@ import { LeaseWithDetails } from '@/types'
 import { UserAvatar } from '../costume-ui/name-avatar'
 import { cn } from '@/lib/utils'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
+import { usePermissions } from '@/hooks/use-permissions'
 import InitiateLeaseEndingDrawer from '../dialogs/initiate-lease-ending-drawer'
 import ScheduleRentalChangeDialog from '../dialogs/schedule-rental-change-dialog'
 import RentalHistoryDialog from '../dialogs/rental-history-dialog'
@@ -62,7 +63,8 @@ function formatCurrency(amount: number): string {
 }
 
 const createColumns = (
-  onDataRefresh?: () => void
+  onDataRefresh?: () => void,
+  canTerminate = false
 ): ColumnDef<LeaseWithDetails>[] => [
   // Checkbox
   {
@@ -311,7 +313,7 @@ const createColumns = (
     enableHiding: false,
     cell: ({ row }) => {
       const lease = row.original
-      const canEndLease = lease.status === 'Current'
+      const canEndLease = canTerminate && lease.status === 'Current'
       const isEnded = lease.status === 'Ended'
 
       return (
@@ -403,15 +405,20 @@ type Props = {
   className?: string
   noPagnitation?: boolean
   onDataRefresh?: () => void
+  canTerminate?: boolean
 }
 
 export default function LeasesTable({
   data,
   className = '',
   noPagnitation = false,
-  onDataRefresh
+  onDataRefresh,
+  canTerminate: canTerminateProp
 }: Props) {
-  const columns = createColumns(onDataRefresh)
+  const { can } = usePermissions()
+  const canTerminate = canTerminateProp ?? can('leases.terminate')
+
+  const columns = createColumns(onDataRefresh, canTerminate)
 
   return (
     <Table

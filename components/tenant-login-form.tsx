@@ -11,6 +11,11 @@ import { createClient } from "@/utils/supabase/client";
 import { useState } from "react";
 import { Loader2Icon, CheckCircle2, Eye, EyeOff } from "lucide-react";
 
+function isNextRedirectError(error: unknown): boolean {
+  const maybeError = error as { digest?: unknown }
+  return typeof maybeError?.digest === "string" && maybeError.digest.startsWith("NEXT_REDIRECT")
+}
+
 const TenantLoginForm = ({
   className,
   ...props
@@ -36,7 +41,8 @@ const TenantLoginForm = ({
       const error: string | void = await login(formData);
       if (error)
         setError(error);
-    } catch {
+    } catch (error) {
+      if (isNextRedirectError(error)) return
       setError("Unable to connect. Please check your internet and try again");
     }
 

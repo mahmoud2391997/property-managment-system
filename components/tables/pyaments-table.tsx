@@ -41,6 +41,7 @@ import Link from 'next/link'
 import MobileCardSkeleton from '../loading-ui/mobile-card-skeleton'
 import { formatPaymentTypeLabel } from '@/utils/functions'
 import MobileCardContainer from '../costume-ui/mobile-card-container'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type Props = {
   data: PaymentWithDetails[]
@@ -109,6 +110,7 @@ export default function PaymentsTable ({
   onNextPage,
   onPreviousPage
 }: Props) {
+  const { can } = usePermissions()
   const hasServerPagination = onNextPage !== undefined || onPreviousPage !== undefined
   const [isProcessingPayment, setIsProcessingPayment] = useState<string | null>(null)
   const [isCheckingStatus, setIsCheckingStatus] = useState<string | null>(null)
@@ -505,24 +507,42 @@ export default function PaymentsTable ({
               // Tenant uses /rentals/[leaseId]/details path
               const tenantHref = lease_id ? `/rentals/${lease_id}` : null
 
-              // Staff navigation to property/room
+              // Staff navigation to property/room - check permissions
               if (userType === 'staff' && staffHref) {
-                return (
-                  <Link
-                    href={staffHref}
-                    className='block group hover:underline'
-                  >
-                    <div className='text-left texts-table-cell-primary group-hover:underline'>
-                      {property}
-                    </div>
-                    <div className='text-left texts-table-cell-secondary group-hover:underline'>
-                      {room}
-                    </div>
-                  </Link>
+                const hasPropertyAccess = property_id && (
+                  room_id ? can('rooms.access') : can('properties.access')
                 )
+                
+                if (hasPropertyAccess) {
+                  return (
+                    <Link
+                      href={staffHref}
+                      className='block group hover:underline'
+                    >
+                      <div className='text-left texts-table-cell-primary group-hover:underline'>
+                        {property}
+                      </div>
+                      <div className='text-left texts-table-cell-secondary group-hover:underline'>
+                        {room}
+                      </div>
+                    </Link>
+                  )
+                } else {
+                  // Show property info without link if no permission
+                  return (
+                    <div>
+                      <div className='text-left texts-table-cell-primary'>
+                        {property}
+                      </div>
+                      <div className='text-left texts-table-cell-secondary'>
+                        {room}
+                      </div>
+                    </div>
+                  )
+                }
               }
 
-              // Tenant navigation to lease details
+              // Tenant navigation to lease details - check lease access permission
               if (userType === 'tenant' && tenantHref) {
                 return (
                   <Link
@@ -829,7 +849,7 @@ export default function PaymentsTable ({
               {!isCancelled && (
                 <>
                   <DropdownMenuSeparator />
-                  {userType === 'staff' ? (
+                  {userType === 'staff' && can('payments.update') ? (
                     <>
                       <DropdownMenuItem
                         disabled={!hasRemainingAmount || isCheckingForLogPayment === payment.id}
@@ -995,7 +1015,7 @@ export default function PaymentsTable ({
               {payment.status !== 'Cancelled' && (
                 <>
                   <DropdownMenuSeparator />
-                  {userType === 'staff' ? (
+                  {userType === 'staff' && can('payments.update') ? (
                     <>
                       <DropdownMenuItem
                         disabled={!hasRemainingAmount || isCheckingForLogPayment === payment.id}

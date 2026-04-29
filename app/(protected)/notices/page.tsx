@@ -8,8 +8,10 @@ import React from 'react'
 import Dialog from '@/components/costume-ui/dialog'
 import AddNotice from '@/components/add-notice'
 import { UnderDevelopment } from '@/components/costume-ui/under-development'
+import { requirePermission } from '@/lib/server-permissions'
 
-const Notices = () => {
+const Notices = async () => {
+  await requirePermission('notices.access')
   if (true) {
       return (
         <UnderDevelopment />

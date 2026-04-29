@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -8,10 +9,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'owners.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id } = await params
 
     // Fetch owner with properties and contracts
@@ -127,10 +132,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'owners.update'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id } = await params
 
     // Verify the owner exists and belongs to the same organization
@@ -266,6 +275,61 @@ export async function PATCH(
     console.error('Error updating owner:', error)
     return NextResponse.json(
       { error: 'Failed to update owner' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { staff, permissions, error } = await getUserAndStaff()
+
+    if (error) return error
+
+    if (!hasPermission(permissions, 'owners.delete'))
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+    const { id } = await params
+
+    const existingOwner = await prisma.owners.findFirst({
+      where: {
+        id,
+        organization_id: staff.organization_id
+      }
+    })
+
+    if (!existingOwner) {
+      return NextResponse.json(
+        { error: 'Owner not found or unauthorized' },
+        { status: 404 }
+      )
+    }
+
+    const linkedPropertiesCount = await prisma.properties.count({
+      where: {
+        owner_id: id
+      }
+    })
+
+    if (linkedPropertiesCount > 0) {
+      return NextResponse.json(
+        { error: 'Cannot delete owner with assigned properties' },
+        { status: 400 }
+      )
+    }
+
+    await prisma.owners.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error('Error deleting owner:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete owner' },
       { status: 500 }
     )
   }

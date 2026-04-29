@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download, X } from 'lucide-react'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { useRouter } from 'next/navigation'
+import { PermissionGuard } from '@/components/permission-guard'
 
 const VALID_IDENTITY_TYPES = ['mykad', 'passport'] as const
 
@@ -151,7 +152,8 @@ const ImportTenants = () => {
   }
 
   return (
-    <div className='flex flex-col gap-5'>
+    <PermissionGuard permission="tenants.create">
+      <div className='flex flex-col gap-5'>
       {/* Head section */}
       <section className='flex flex-col gap-2.5'>
         <Breadcrumb
@@ -377,7 +379,8 @@ const ImportTenants = () => {
           />
         </div>
       </div>
-    </div>
+      </div>
+    </PermissionGuard>
   )
 }
 

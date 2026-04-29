@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { parseLocalDateTime } from '@/utils/formatTime'
 
 export async function GET(
@@ -8,10 +9,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'views.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id } = await params
 
     // Fetch view with property/room to verify organization access
@@ -82,10 +87,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'views.update'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id } = await params
     const body = await request.json()
     const { date, time, firstName, lastName, phoneNumber, email, timezone_offset } = body

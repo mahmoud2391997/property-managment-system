@@ -11,6 +11,7 @@ import {
 import ProjectsTable from '@/components/tables/projects-table'
 import AddProjectDialog from '@/components/dialogs/add-project-dialog'
 import { Project } from '@/types'
+import { usePermissions } from '@/hooks/use-permissions'
 
 interface ProjectsSectionProps {
   projects: Project[]
@@ -18,6 +19,7 @@ interface ProjectsSectionProps {
 
 export default function ProjectsSection({ projects }: ProjectsSectionProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const { can } = usePermissions()
 
   const filteredProjects = useMemo(() => {
     if (!searchTerm.trim()) {
@@ -58,7 +60,7 @@ export default function ProjectsSection({ projects }: ProjectsSectionProps) {
             className='bg-(--error-main)!'
           /> */}
 
-          <AddProjectDialog />
+          {can('projects.create') && <AddProjectDialog />}
         </div>
       </div>
       {/* Table */}

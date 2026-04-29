@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import ViewConversionModal, { ViewDecision } from '@/components/view-conversion-modal'
+import { PermissionGuard } from '@/components/permission-guard'
 
 // Helper to calculate end date (end date is start_date + number_of_months, same day of month)
 const calculateEndDate = (startDate: Date, numberOfMonths: number): Date => {
@@ -396,20 +397,21 @@ const AddLease = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
-      {/* Head section */}
-      <AddPageHead
-        crumb_items={[
-          { label: 'Properties', href: '/properties' },
-          { label: propertyCode, href: `/properties/${propertyId}/leases` },
-          { label: 'Add Lease' }
-        ]}
-        isCrumbLoading={isPropertyCodeLoading}
-        title='Add a lease'
-        subtitle='Provide lease details and terms'
-        className='mb-7.5'
-        isSubmitting={isSubmitting}
-      />
+    <PermissionGuard permission='leases.create'>
+      <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
+        {/* Head section */}
+        <AddPageHead
+          crumb_items={[
+            { label: 'Properties', href: '/properties' },
+            { label: propertyCode, href: `/properties/${propertyId}/leases` },
+            { label: 'Add Lease' }
+          ]}
+          isCrumbLoading={isPropertyCodeLoading}
+          title='Add a lease'
+          subtitle='Provide lease details and terms'
+          className='mb-7.5'
+          isSubmitting={isSubmitting}
+        />
       {/* Default config loading feedback - non-blocking */}
       <div className={`
         flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-300
@@ -676,7 +678,8 @@ const AddLease = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </form>
+      </form>
+    </PermissionGuard>
   )
 }
 

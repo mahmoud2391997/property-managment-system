@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 // Helper function to parse lease conflict errors from database trigger
 function parseLeaseConflictError (errorMessage: string): string | null {
@@ -34,10 +35,14 @@ function parseLeaseConflictError (errorMessage: string): string | null {
 
 export async function POST (request: Request) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'leases.create'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const body = await request.json()
     const {
       property_id,

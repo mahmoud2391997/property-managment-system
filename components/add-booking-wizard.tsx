@@ -16,6 +16,8 @@ import { type ComboBoxitemsType } from '@/types'
 import { Info } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { formatDateForAPI } from '@/utils/formatTime'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
 
 const STEPS = [
   { number: 1, title: 'Tenant' },
@@ -306,40 +308,57 @@ export default function AddBookingWizard({
               >
                 Existing Tenant
               </button>
-              <button
-                type='button'
-                onClick={() => {
-                  setTenantMode('new')
-                  setSelectedTenantId('')
-                  setError('')
-                }}
-                className={cn(
-                  'flex-1 py-2.5 text-sm font-medium transition-colors border-l border-(--border-strong)',
-                  tenantMode === 'new'
-                    ? 'bg-(--secondary-color) text-(--text-inverse)'
-                    : 'bg-(--background-primary) text-(--text-secondary) hover:bg-neutral-50'
-                )}
-              >
-                New Tenant
-              </button>
+              <PermissionGate permission="tenants.access" fallback={
+                <div className='p-5 text-center'>
+                  <p className='text-(--text-secondary)'>You do not have permission to access tenant information.</p>
+                </div>
+              }>
+                <button
+                  type='button'
+                  onClick={() => {
+                    setTenantMode('new')
+                    setSelectedTenantId('')
+                    setError('')
+                  }}
+                  className={cn(
+                    'flex-1 py-2.5 text-sm font-medium transition-colors border-l border-(--border-strong)',
+                    tenantMode === 'new'
+                      ? 'bg-(--secondary-color) text-(--text-inverse)'
+                      : 'bg-(--background-primary) text-(--text-secondary) hover:bg-neutral-50'
+                  )}
+                >
+                  New Tenant
+                </button>
+              </PermissionGate>
             </div>
 
             {/* Existing Tenant Search */}
             {tenantMode === 'existing' && (
-              <InputGroup label='Select Tenant' isRequired>
-                <Combobox
-                  items={tenants}
-                  placeholder='Select a tenant'
-                  searchPlaceholder='Search by name or ID...'
-                  showAvatar
-                  value={selectedTenantId}
-                  onValueChange={setSelectedTenantId}
-                  isLoading={loadingTenants}
-                  loadingMessage='Loading tenants...'
-                  NotFoundMessage='No tenants found'
-                  disabled={isSubmitting}
-                />
-              </InputGroup>
+              <PermissionGate permission="tenants.access" fallback={
+                <InputGroup label='Select Tenant' isRequired>
+                  <Combobox
+                    items={[]}
+                    placeholder='You do not have permission to access tenants'
+                    searchPlaceholder=''
+                    disabled={true}
+                  />
+                </InputGroup>
+              }>
+                <InputGroup label='Select Tenant' isRequired>
+                  <Combobox
+                    items={tenants}
+                    placeholder='Select a tenant'
+                    searchPlaceholder='Search by name or ID...'
+                    showAvatar
+                    value={selectedTenantId}
+                    onValueChange={setSelectedTenantId}
+                    isLoading={loadingTenants}
+                    loadingMessage='Loading tenants...'
+                    NotFoundMessage='No tenants found'
+                    disabled={isSubmitting}
+                  />
+                </InputGroup>
+              </PermissionGate>
             )}
 
             {/* New Tenant Form */}

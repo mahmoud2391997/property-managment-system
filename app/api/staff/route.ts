@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { NextResponse } from 'next/server'
@@ -7,10 +8,14 @@ import { getBaseUrl } from '@/utils/get-base-url'
 
 export async function GET (request: Request) {
   try {
-    const { user, staff: currentStaff, error } = await getUserAndStaff()
+    const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'staff.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { searchParams } = new URL(request.url)
     const selectParam = searchParams.get('select')
 
@@ -75,27 +80,44 @@ export async function GET (request: Request) {
 }
 
 async function generateStaffId (organizationId: string): Promise<string> {
-  const lastStaff = await prisma.staff.findFirst({
+  // Get all staff IDs for this organization and find the highest number
+  const staffMembers = await prisma.staff.findMany({
     where: { organization_id: organizationId },
-    orderBy: { created_at: 'desc' },
     select: { staff_id: true }
   })
 
-  if (!lastStaff) {
+  if (!staffMembers || staffMembers.length === 0) {
     return 'STF-0001'
   }
 
-  const lastNumber = parseInt(lastStaff.staff_id.split('-')[1])
-  const newNumber = lastNumber + 1
+  // Extract numeric parts and find the highest
+  const numbers = staffMembers
+    .map(s => parseInt(s.staff_id.split('-')[1]))
+    .filter(n => !isNaN(n))
+  
+  const maxNumber = Math.max(...numbers)
+  const newNumber = maxNumber + 1
   return `STF-${newNumber.toString().padStart(4, '0')}`
 }
 
 export async function POST (request: Request) {
+  const supabaseAdmin = createAdminClient()
+  
+  // Declare at function scope to be accessible in catch block
+  let authUserId: string | null = null
+  let profilePicUrl: string | null = null
+  let profileThumbUrl: string | null = null
+  let supabase: Awaited<ReturnType<typeof createClient>> | null = null
+  
   try {
-    const { user, staff: currentStaff, error } = await getUserAndStaff()
+    const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+    if (!hasPermission(permissions, 'staff.create')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
     const formData = await request.formData()
     const firstName = formData.get('firstName') as string
     const lastName = formData.get('lastName') as string | null
@@ -143,11 +165,11 @@ export async function POST (request: Request) {
       )
     }
 
-    const supabase = await createClient()
-    const supabaseAdmin = createAdminClient()
+    const supabaseOrNull = await createClient()
+    supabase = supabaseOrNull
 
     // Create auth user first (unconfirmed, will manually send invite)
-    const { data: authData, error: authError } =
+    const { data: newAuthUser, error: authError } =
       await supabaseAdmin.auth.admin.createUser({
         email: email.trim(),
         email_confirm: false,
@@ -156,7 +178,7 @@ export async function POST (request: Request) {
         }
       })
 
-    if (authError || !authData.user) {
+    if (authError || !newAuthUser?.user) {
       console.error('Error creating auth user:', authError)
 
       // Check for duplicate email error - Supabase returns status 422 for duplicate emails
@@ -174,6 +196,8 @@ export async function POST (request: Request) {
       )
     }
 
+    authUserId = newAuthUser.user.id
+
     // Send custom confirmation email with staff-specific redirect
     const { error: inviteError } =
       await supabaseAdmin.auth.admin.inviteUserByEmail(email.trim(), {
@@ -183,23 +207,20 @@ export async function POST (request: Request) {
     if (inviteError) {
       console.error('Error sending invite email:', inviteError)
       // Clean up the created user
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      await supabaseAdmin.auth.admin.deleteUser(authUserId)
       return NextResponse.json(
         { error: 'Failed to send confirmation email' },
         { status: 500 }
       )
     }
 
-    let profilePicUrl: string | null = null
-    let profileThumbUrl: string | null = null
-
     // Upload images to Supabase Storage if provided
     if (profileImage && profileThumb) {
-      const staffId = authData.user.id
+      const staffId = authUserId!
 
       // Upload main profile image
       const mainImageBuffer = Buffer.from(await profileImage.arrayBuffer())
-      const { data: mainData, error: mainError } = await supabase.storage
+      const { data: mainData, error: mainError } = await supabase!.storage
         .from('staff')
         .upload(`${staffId}/profile.jpg`, mainImageBuffer, {
           contentType: 'image/jpeg',
@@ -209,7 +230,7 @@ export async function POST (request: Request) {
       if (mainError) {
         console.error('Error uploading main image:', mainError)
         // Clean up auth user if image upload fails
-        await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+        await supabaseAdmin.auth.admin.deleteUser(authUserId)
         return NextResponse.json(
           { error: 'Failed to upload profile image' },
           { status: 500 }
@@ -218,7 +239,7 @@ export async function POST (request: Request) {
 
       // Upload thumbnail
       const thumbImageBuffer = Buffer.from(await profileThumb.arrayBuffer())
-      const { data: thumbData, error: thumbError } = await supabase.storage
+      const { data: thumbData, error: thumbError } = await supabase!.storage
         .from('staff')
         .upload(`${staffId}/thumb.jpg`, thumbImageBuffer, {
           contentType: 'image/jpeg',
@@ -228,8 +249,8 @@ export async function POST (request: Request) {
       if (thumbError) {
         console.error('Error uploading thumbnail:', thumbError)
         // Clean up main image and auth user if thumb upload fails
-        await supabase.storage.from('staff').remove([mainData.path])
-        await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+        await supabase!.storage.from('staff').remove([mainData.path])
+        await supabaseAdmin.auth.admin.deleteUser(authUserId)
         return NextResponse.json(
           { error: 'Failed to upload thumbnail image' },
           { status: 500 }
@@ -237,11 +258,11 @@ export async function POST (request: Request) {
       }
 
       // Get public URLs
-      const { data: mainUrl } = supabase.storage
+      const { data: mainUrl } = supabase!.storage
         .from('staff')
         .getPublicUrl(mainData.path)
 
-      const { data: thumbUrl } = supabase.storage
+      const { data: thumbUrl } = supabase!.storage
         .from('staff')
         .getPublicUrl(thumbData.path)
 
@@ -249,78 +270,107 @@ export async function POST (request: Request) {
       profileThumbUrl = thumbUrl.publicUrl
     }
 
-    // Generate staff ID
-    const staffId = await generateStaffId(currentStaff.organization_id)
-
-    // Create staff record
-    try {
-      const newStaff = await prisma.staff.create({
-        data: {
-          id: authData.user.id,
-          staff_id: staffId,
-          first_name: firstName.trim(),
-          last_name: lastName?.trim() || null,
-          phone_number: phoneNumber.trim(),
-          role_id: roleId,
-          profile_pic: profilePicUrl,
-          profile_thumb: profileThumbUrl,
-          organization_id: currentStaff.organization_id,
-          created_by: user.id
+    // Generate staff ID (with retry logic for race conditions)
+    let staffId: string = ''
+    let newStaff: any
+    let attempts = 0
+    const maxAttempts = 3
+    
+    while (attempts < maxAttempts) {
+      try {
+        staffId = await generateStaffId(currentStaff.organization_id)
+        break
+      } catch (error) {
+        attempts++
+        if (attempts >= maxAttempts) {
+          throw new Error('Failed to generate staff ID after multiple attempts')
         }
-      })
-
-      return NextResponse.json(
-        {
-          success: true,
-          staff: {
-            id: newStaff.id,
-            staffId: newStaff.staff_id,
-            firstName: newStaff.first_name,
-            lastName: newStaff.last_name,
-            email: email.trim(),
-            roleId: newStaff.role_id,
-            profilePic: newStaff.profile_pic,
-            profileThumb: newStaff.profile_thumb
-          }
-        },
-        { status: 201 }
-      )
-    } catch (dbError: any) {
-      console.error('Error creating staff record:', dbError)
-      // Clean up auth user and images if database insert fails
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-      if (profilePicUrl && profileThumbUrl) {
-        await supabase.storage
-          .from('staff')
-          .remove([
-            `${authData.user.id}/profile.jpg`,
-            `${authData.user.id}/thumb.jpg`
-          ])
+        // Small delay to allow other concurrent operations to complete
+        await new Promise(resolve => setTimeout(resolve, 100))
       }
-
-      // Check for specific database constraint violations
-      // PostgreSQL error code 23505 is for unique constraint violations
-      if (dbError.code === 'P2002' || dbError.code === '23505') {
-        // Prisma code P2002 means unique constraint failed
-        const target = dbError.meta?.target || []
-        if (target.includes('staff_id')) {
-          return NextResponse.json(
-            { error: 'A staff member with this ID already exists' },
-            { status: 400 }
-          )
-        }
-      }
-
-      // Don't expose internal database errors to users
-      return NextResponse.json(
-        { error: 'Failed to create staff member. Please try again.' },
-        { status: 500 }
-      )
     }
-  } catch (error: any) {
-    console.error('Error creating staff:', error)
+
+    // Create staff record with retry logic
+    attempts = 0
+    
+    while (attempts < maxAttempts) {
+      try {
+        newStaff = await prisma.staff.create({
+          data: {
+            id: authUserId,
+            staff_id: staffId,
+            first_name: firstName.trim(),
+            last_name: lastName?.trim() || null,
+            phone_number: phoneNumber.trim(),
+            role_id: roleId,
+            profile_pic: profilePicUrl,
+            profile_thumb: profileThumbUrl,
+            organization_id: currentStaff.organization_id,
+            created_by: user.id
+          }
+        })
+        break
+      } catch (dbError: any) {
+        attempts++
+        
+        // If it's a unique constraint violation on staff_id, regenerate and retry
+        if (dbError.code === 'P2002' && dbError.meta?.target?.includes('staff_id') && attempts < maxAttempts) {
+          staffId = await generateStaffId(currentStaff.organization_id)
+          continue
+        }
+        
+        // For other errors or max attempts reached, throw
+        throw dbError
+      }
+    }
+
     return NextResponse.json(
-      { error: 'Failed to create staff' },
+      {
+        success: true,
+        staff: {
+          id: newStaff.id,
+          staffId: newStaff.staff_id,
+          firstName: newStaff.first_name,
+          lastName: newStaff.last_name,
+          email: email.trim(),
+          roleId: newStaff.role_id,
+          profilePic: newStaff.profile_pic,
+          profileThumb: newStaff.profile_thumb
+        }
+      },
+      { status: 201 }
+    )
+  } catch (dbError: any) {
+    console.error('Error creating staff record:', dbError)
+    // Clean up auth user and images if database insert fails
+    if (authUserId) {
+      await supabaseAdmin.auth.admin.deleteUser(authUserId)
+    }
+    if (profilePicUrl && profileThumbUrl && authUserId && supabase) {
+      await supabase!.storage
+        .from('staff')
+        .remove([
+          `${authUserId}/profile.jpg`,
+          `${authUserId}/thumb.jpg`
+        ])
+    }
+
+    // Check for specific database constraint violations
+    // PostgreSQL error code 23505 is for unique constraint violations
+    if (dbError.code === 'P2002' || dbError.code === '23505') {
+      // Prisma code P2002 means unique constraint failed
+      const target = dbError.meta?.target || []
+      if (target.includes('staff_id')) {
+        return NextResponse.json(
+          { error: 'A staff member with this ID already exists' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Don't expose internal database errors to users
+    return NextResponse.json(
+      { error: 'Failed to create staff member. Please try again.' },
       { status: 500 }
     )
   }
@@ -328,10 +378,14 @@ export async function POST (request: Request) {
 
 export async function DELETE (request: Request) {
   try {
-    const { user, staff: currentStaff, error } = await getUserAndStaff()
+    const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
-    if (error) return error
+// ... (rest of the code remains the same)
 
+
+    if (!hasPermission(permissions, 'staff.delete'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { searchParams } = new URL(request.url)
     const staffId = searchParams.get('id')
 
@@ -358,7 +412,7 @@ export async function DELETE (request: Request) {
       )
     }
 
-    if (targetStaff.organization_id !== currentStaff.organization_id) {
+    if (targetStaff.organization_id !== currentStaff?.organization_id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
@@ -372,7 +426,7 @@ export async function DELETE (request: Request) {
 
     // Check if target staff is the organization creator
     const organization = await prisma.organizations.findUnique({
-      where: { id: currentStaff.organization_id },
+      where: { id: currentStaff?.organization_id },
       select: { created_by: true }
     })
 
