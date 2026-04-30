@@ -16,10 +16,18 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { PermissionGate } from '@/components/permission-gate'
 import { NoAccessCard } from '@/components/no-access-card'
 
-// Define filterable attributes for payments
-const PAYMENT_FILTER_ATTRIBUTES: FilterAttribute[] = [
-  { key: 'payment_id', label: 'Payment ID', type: 'text' },
-  { key: 'lease_id', label: 'Lease ID', type: 'text' },
+// Define filterable attributes for payments (lease ID filter is conditional)
+const getPaymentFilterAttributes = (can: (permission: string) => boolean): FilterAttribute[] => {
+  const baseAttributes: FilterAttribute[] = [
+    { key: 'payment_id', label: 'Payment ID', type: 'text' },
+  ]
+  
+  // Only add lease ID filter if user has lease access permission
+  if (can('leases.access')) {
+    baseAttributes.push({ key: 'lease_id', label: 'Lease ID', type: 'text' })
+  }
+  
+  baseAttributes.push(
   {
     key: 'type',
     label: 'Type',
@@ -57,7 +65,10 @@ const PAYMENT_FILTER_ATTRIBUTES: FilterAttribute[] = [
   { key: 'property', label: 'Property', type: 'text' },
   { key: 'tenant_name', label: 'Tenant', type: 'text' },
   { key: 'due_month', label: 'Due Month', type: 'month' }
-]
+  )
+  
+  return baseAttributes
+}
 
 interface PaymentsSectionProps {
   initialData: PaymentWithDetails[]
@@ -140,7 +151,7 @@ export default function PaymentsSection ({
     })
 
     // Clear filters that were removed
-    PAYMENT_FILTER_ATTRIBUTES.forEach(attr => {
+    getPaymentFilterAttributes(can).forEach(attr => {
       if (!filterObj[attr.key]) {
         filterObj[attr.key] = ''
       }
@@ -158,11 +169,11 @@ export default function PaymentsSection ({
 
   const handleClearAllFilters = useCallback(() => {
     const filterObj: Record<string, string> = {}
-    PAYMENT_FILTER_ATTRIBUTES.forEach(attr => {
+    getPaymentFilterAttributes(can).forEach(attr => {
       filterObj[attr.key] = ''
     })
     updateFilters(filterObj)
-  }, [updateFilters])
+  }, [updateFilters, can])
 
   // Listen for payment updates from the payment gateway return flow
   useEffect(() => {
@@ -191,7 +202,7 @@ export default function PaymentsSection ({
       >
         <div className='flex items-center gap-2 w-full sm:w-auto flex-1 max-w-md'>
           <TableFilter
-            attributes={PAYMENT_FILTER_ATTRIBUTES}
+            attributes={getPaymentFilterAttributes(can)}
             filters={advancedFilters}
             onFiltersChange={handleFiltersChange}
             open={isFilterOpen}
@@ -230,7 +241,7 @@ export default function PaymentsSection ({
       {/* Active Filters */}
       <ActiveFilterChips
         filters={advancedFilters}
-        attributes={PAYMENT_FILTER_ATTRIBUTES}
+        attributes={getPaymentFilterAttributes(can)}
         onRemove={handleRemoveFilter}
         onClearAll={handleClearAllFilters}
         onEdit={() => setIsFilterOpen(true)}

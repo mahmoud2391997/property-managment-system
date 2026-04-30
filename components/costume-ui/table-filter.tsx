@@ -90,9 +90,7 @@ export default function TableFilter({
 
   const clearAllFilters = useCallback(() => {
     setLocalFilters([])
-    onFiltersChange([])
-    handleOpen(false)
-  }, [onFiltersChange, isControlled, setControlledOpen])
+  }, [])
 
   const applyFilters = useCallback(() => {
     // Only apply filters that have both attribute and value
