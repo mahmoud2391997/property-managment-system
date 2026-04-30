@@ -493,7 +493,7 @@ export default function PaymentsTable ({
             accessorKey: 'property',
             header: () => <div className='text-left'>Property</div>,
             cell: ({ row }) => {
-              const { property, property_id, room, room_id, lease_id } = row.original
+              const { property, property_id, room, room_id, lease_id, lease_reference_id } = row.original
 
               // Build navigation URL based on user type
               // Staff: navigate to property/room overview
@@ -513,30 +513,116 @@ export default function PaymentsTable ({
                   room_id ? can('rooms.access') : can('properties.access')
                 )
                 
+                // Build separate navigation URLs
+                const propertyHref = property_id ? `/properties/${property_id}/overview` : null
+                const roomHref = room_id ? `/rooms/${room_id}/overview` : null
+                const hasLeaseAccess = can('leases.access')
+
                 if (hasPropertyAccess) {
                   return (
-                    <Link
-                      href={staffHref}
-                      className='block group hover:underline'
-                    >
-                      <div className='text-left texts-table-cell-primary group-hover:underline'>
-                        {property}
-                      </div>
-                      <div className='text-left texts-table-cell-secondary group-hover:underline'>
-                        {room}
-                      </div>
-                    </Link>
+                    <div className={hasLeaseAccess && lease_reference_id ? 'space-y-1' : ''}>
+                      {/* Lease ID - only show if user has lease access and lease exists */}
+                      {hasLeaseAccess && lease_reference_id && (
+                        <Link
+                          href={room_id ? `/rooms/${room_id}/leases/${lease_id}/details` : `/properties/${property_id}/leases/${lease_id}/details`}
+                          className='block text-left texts-table-cell-secondary hover:underline'
+                        >
+                          {lease_reference_id}
+                        </Link>
+                      )}
+                      {/* Property and Room - show on same line when lease exists */}
+                      {hasLeaseAccess && lease_reference_id ? (
+                        <div className='flex items-center gap-1'>
+                          {/* Property */}
+                          {propertyHref && (
+                            <Link
+                              href={propertyHref}
+                              className='block group hover:underline'
+                            >
+                              <div className='text-left texts-table-cell-primary group-hover:underline'>
+                                {property}
+                              </div>
+                            </Link>
+                          )}
+                          {/* Room */}
+                          {room && roomHref && (
+                            <Link
+                              href={roomHref}
+                              className='block group hover:underline'
+                            >
+                              <div className='text-left texts-table-cell-secondary group-hover:underline'>
+                                ({room})
+                              </div>
+                            </Link>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          {/* Property */}
+                          {propertyHref && (
+                            <Link
+                              href={propertyHref}
+                              className='block group hover:underline'
+                            >
+                              <div className='text-left texts-table-cell-primary group-hover:underline'>
+                                {property}
+                              </div>
+                            </Link>
+                          )}
+                          {/* Room */}
+                          {room && roomHref && (
+                            <Link
+                              href={roomHref}
+                              className='block group hover:underline'
+                            >
+                              <div className='text-left texts-table-cell-secondary group-hover:underline'>
+                                {room}
+                              </div>
+                            </Link>
+                          )}
+                        </>
+                      )}
+                    </div>
                   )
                 } else {
                   // Show property info without link if no permission
                   return (
-                    <div>
-                      <div className='text-left texts-table-cell-primary'>
-                        {property}
-                      </div>
-                      <div className='text-left texts-table-cell-secondary'>
-                        {room}
-                      </div>
+                    <div className={hasLeaseAccess && lease_reference_id ? 'space-y-1' : ''}>
+                      {/* Lease ID - only show if user has lease access and lease exists */}
+                      {hasLeaseAccess && lease_reference_id && (
+                        <Link
+                          href={room_id ? `/rooms/${room_id}/leases/${lease_id}/details` : `/properties/${property_id}/leases/${lease_id}/details`}
+                          className='block text-left texts-table-cell-secondary hover:underline'
+                        >
+                          {lease_reference_id}
+                        </Link>
+                      )}
+                      {/* Property and Room - show on same line when lease exists */}
+                      {hasLeaseAccess && lease_reference_id ? (
+                        <div className='flex items-center gap-1'>
+                          {/* Property */}
+                          <div className='text-left texts-table-cell-primary'>
+                            {property}
+                          </div>
+                          {/* Room */}
+                          {room && (
+                            <div className='text-left texts-table-cell-secondary'>
+                              ({room})
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          {/* Property */}
+                          <div className='text-left texts-table-cell-primary'>
+                            {property}
+                          </div>
+                          {/* Room */}
+                          <div className='text-left texts-table-cell-secondary'>
+                            {room}
+                          </div>
+                        </>
+                      )}
                     </div>
                   )
                 }
@@ -544,29 +630,110 @@ export default function PaymentsTable ({
 
               // Tenant navigation to lease details - check lease access permission
               if (userType === 'tenant' && tenantHref) {
+                const hasLeaseAccess = can('leases.access')
+                
                 return (
-                  <Link
-                    href={tenantHref}
-                    className='block group hover:underline'
-                  >
-                    <div className='text-left texts-table-cell-primary group-hover:underline'>
-                      {property}
-                    </div>
-                    <div className='text-left texts-table-cell-secondary group-hover:underline'>
-                      {room}
-                    </div>
-                  </Link>
+                  <div className={hasLeaseAccess && lease_reference_id ? 'space-y-1' : ''}>
+                    {/* Lease ID - only show if user has lease access and lease exists */}
+                    {hasLeaseAccess && lease_reference_id && (
+                      <Link
+                        href={`/leases/${lease_id}`}
+                        className='block text-left texts-table-cell-secondary hover:underline'
+                      >
+                        {lease_reference_id}
+                      </Link>
+                    )}
+                    {/* Property and Room - show on same line when lease exists */}
+                    {hasLeaseAccess && lease_reference_id ? (
+                      <div className='flex items-center gap-1'>
+                        {/* Property */}
+                        <Link
+                          href={tenantHref}
+                          className='block group hover:underline'
+                        >
+                          <div className='text-left texts-table-cell-primary group-hover:underline'>
+                            {property}
+                          </div>
+                        </Link>
+                        {/* Room */}
+                        {room && (
+                          <Link
+                            href={tenantHref}
+                            className='block group hover:underline'
+                          >
+                            <div className='text-left texts-table-cell-secondary group-hover:underline'>
+                              ({room})
+                            </div>
+                          </Link>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        {/* Property */}
+                        <Link
+                          href={tenantHref}
+                          className='block group hover:underline'
+                        >
+                          <div className='text-left texts-table-cell-primary group-hover:underline'>
+                            {property}
+                          </div>
+                        </Link>
+                        {/* Room */}
+                        {room && (
+                          <Link
+                            href={tenantHref}
+                            className='block group hover:underline'
+                          >
+                            <div className='text-left texts-table-cell-secondary group-hover:underline'>
+                              {room}
+                            </div>
+                          </Link>
+                        )}
+                      </>
+                    )}
+                  </div>
                 )
               }
 
+              const hasLeaseAccess = can('leases.access')
+              
               return (
-                <div>
-                  <div className='text-left texts-table-cell-primary'>
-                    {property}
-                  </div>
-                  <div className='text-left texts-table-cell-secondary'>
-                    {room}
-                  </div>
+                <div className={hasLeaseAccess && lease_reference_id ? 'space-y-1' : ''}>
+                  {/* Lease ID - only show if user has lease access and lease exists */}
+                  {hasLeaseAccess && lease_reference_id && (
+                    <Link
+                      href={`/leases/${lease_id}`}
+                      className='block text-left texts-table-cell-secondary hover:underline'
+                    >
+                      {lease_reference_id}
+                    </Link>
+                  )}
+                  {/* Property and Room - show on same line when lease exists */}
+                  {hasLeaseAccess && lease_reference_id ? (
+                    <div className='flex items-center gap-1'>
+                      {/* Property */}
+                      <div className='text-left texts-table-cell-primary'>
+                        {property}
+                      </div>
+                      {/* Room */}
+                      {room && (
+                        <div className='text-left texts-table-cell-secondary'>
+                          ({room})
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      {/* Property */}
+                      <div className='text-left texts-table-cell-primary'>
+                        {property}
+                      </div>
+                      {/* Room */}
+                      <div className='text-left texts-table-cell-secondary'>
+                        {room}
+                      </div>
+                    </>
+                  )}
                 </div>
               )
             }
