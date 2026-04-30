@@ -39,6 +39,7 @@ export const expenseSelect = {
   property_expenses: {
     select: {
       type: true,
+      vendors: { select: { name: true } },
       properties: {
         select: {
           id: true,
@@ -69,11 +70,12 @@ export const expenseSelect = {
       }
     }
   },
-  company_expenses: { select: { type: true, is_asset: true } },
+  company_expenses: { select: { type: true, is_asset: true, vendors: { select: { name: true } } } },
   purchase_expenses: {
     select: {
       type: true,
       is_asset: true,
+      vendors: { select: { name: true } },
       properties: {
         select: {
           id: true,
@@ -128,6 +130,22 @@ export async function GET(request: NextRequest) {
     const skipCount = searchParams.get('skipCount') === 'true'
     const category = searchParams.get('category') || 'Property_Related'
 
+    const type = searchParams.get('type') || ''
+    const referenceId = searchParams.get('reference_id') || ''
+    const dueMonth = searchParams.get('due_month') || '' // YYYY-MM
+    const dueMonthTimezoneOffset = parseInt(searchParams.get('due_month_timezone_offset') || '0', 10)
+    const property = searchParams.get('property') || ''
+    const leaseId = searchParams.get('lease_id') || ''
+    const vendor = searchParams.get('vendor') || ''
+    const isClaimed = searchParams.get('is_claimed') || ''
+    const contractId = searchParams.get('contract_id') || ''
+    const ownerName = searchParams.get('owner_name') || ''
+    const staffName = searchParams.get('staff_name') || ''
+    const month = searchParams.get('month') || ''
+    const isAsset = searchParams.get('is_asset') || ''
+    const recurringPattern = searchParams.get('recurring_pattern') || ''
+    const rawStatus = searchParams.get('status') || ''
+
     // If paginate mode is enabled, use pagination/search logic
     if (paginate) {
       // Build where clause with search and category filter
@@ -159,12 +177,112 @@ export async function GET(request: NextRequest) {
           { staff_expenses: { staff: { last_name: { contains: search, mode: 'insensitive' } } } }
         )
       }
+      if (search && category === 'Company_Related') {
+        searchConditions.push(
+          { company_expenses: { vendors: { name: { contains: search, mode: 'insensitive' } } } }
+        )
+      }
+      if (search && category === 'Purchase_Related') {
+        searchConditions.push(
+          { purchase_expenses: { vendors: { name: { contains: search, mode: 'insensitive' } } } },
+          { purchase_expenses: { properties: { code: { contains: search, mode: 'insensitive' } } } }
+        )
+      }
 
       const whereClause: any = {
         organization_id: staff.organization_id,
-        category: category,
+        category,
         ...(searchConditions.length > 0 && { OR: searchConditions })
       }
+
+      // Global filters
+      if (referenceId) {
+        whereClause.reference_id = { contains: referenceId, mode: 'insensitive' }
+      }
+      if (dueMonth) {
+        const [year, month] = dueMonth.split('-').map(Number)
+        const startUtc = Date.UTC(year, month - 1, 1) + dueMonthTimezoneOffset * 60 * 1000
+        const endUtc = Date.UTC(year, month, 1) + dueMonthTimezoneOffset * 60 * 1000
+        whereClause.due_payment_date = { gte: new Date(startUtc), lt: new Date(endUtc) }
+      }
+      if (recurringPattern === 'Recurring') {
+        whereClause.recurring_config_id = { not: null }
+      } else if (recurringPattern === 'One-time') {
+        whereClause.recurring_config_id = null
+      }
+      // Only filter on raw DB status values; calculated ones are client-side
+      if (rawStatus === 'Paid' || rawStatus === 'Pending' || rawStatus === 'Cancelled') {
+        whereClause.status = rawStatus
+      }
+
+      // Category-specific
+      if (category === 'Property_Related') {
+        const sub: any = {}
+        if (type) sub.type = type
+        if (isClaimed) sub.is_claimed = isClaimed === 'true'
+        if (vendor) sub.vendors = { name: { contains: vendor, mode: 'insensitive' } }
+        if (property) sub.properties = { code: { contains: property, mode: 'insensitive' } }
+        if (leaseId) sub.leases = { reference_id: { contains: leaseId, mode: 'insensitive' } }
+        if (Object.keys(sub).length) whereClause.property_expenses = sub
+      }
+
+      if (category === 'Contract_Related') {
+        const sub: any = {}
+        if (type) sub.type = type
+        if (contractId || ownerName) {
+          sub.contracts = {}
+          if (contractId) sub.contracts.reference_id = { contains: contractId, mode: 'insensitive' }
+          if (ownerName) {
+            sub.contracts.owners = {
+              OR: [
+                { first_name: { contains: ownerName, mode: 'insensitive' } },
+                { last_name: { contains: ownerName, mode: 'insensitive' } }
+              ]
+            }
+          }
+        }
+        if (Object.keys(sub).length) whereClause.contract_expenses = sub
+      }
+
+      if (category === 'Staff_Related') {
+        const sub: any = {}
+        if (type) sub.type = type
+        if (staffName) {
+          sub.staff = {
+            OR: [
+              { first_name: { contains: staffName, mode: 'insensitive' } },
+              { last_name: { contains: staffName, mode: 'insensitive' } }
+            ]
+          }
+        }
+        if (month) {
+          const start = new Date(`${month}-01`)
+          const end = new Date(start); end.setMonth(end.getMonth() + 1)
+          sub.month = { gte: start, lt: end }
+        }
+        if (Object.keys(sub).length) whereClause.staff_expenses = sub
+      }
+
+      if (category === 'Company_Related') {
+        const sub: any = {}
+        if (type) sub.type = type
+        if (isAsset) sub.is_asset = isAsset === 'true'
+        if (isClaimed) sub.is_claimed = isClaimed === 'true'
+        if (vendor) sub.vendors = { name: { contains: vendor, mode: 'insensitive' } }
+        if (Object.keys(sub).length) whereClause.company_expenses = sub
+      }
+
+      if (category === 'Purchase_Related') {
+        const sub: any = {}
+        if (type) sub.type = type
+        if (isAsset) sub.is_asset = isAsset === 'true'
+        if (isClaimed) sub.is_claimed = isClaimed === 'true'
+        if (vendor) sub.vendors = { name: { contains: vendor, mode: 'insensitive' } }
+        if (property) sub.properties = { code: { contains: property, mode: 'insensitive' } }
+        if (Object.keys(sub).length) whereClause.purchase_expenses = sub
+      }
+
+      const needsFrontendStatusFilter = Boolean(rawStatus && rawStatus !== 'all')
 
       // Fetch expenses and optionally total count in parallel
       const [expenses, total] = await Promise.all([
@@ -172,15 +290,43 @@ export async function GET(request: NextRequest) {
           where: whereClause,
           select: expenseSelect,
           orderBy: { created_at: 'desc' },
-          skip: (page - 1) * limit,
-          take: limit
+          ...(needsFrontendStatusFilter
+            ? {}
+            : { skip: (page - 1) * limit, take: limit }
+          )
         }),
-        skipCount ? Promise.resolve(-1) : prisma.expenses.count({ where: whereClause })
+        needsFrontendStatusFilter || skipCount ? Promise.resolve(-1) : prisma.expenses.count({ where: whereClause })
       ])
 
       // Transform expenses for display with permission checks
       const hasLeaseAccess = hasPermission(permissions, 'leases.access')
-      const transformedExpenses = expenses.map(e => transformExpense(e as any, hasLeaseAccess))
+      let transformedExpenses = expenses.map(e => transformExpense(e as any, hasLeaseAccess))
+
+      if (needsFrontendStatusFilter) {
+        transformedExpenses = transformedExpenses.filter(expense => {
+          // Group "Paid" with "Paid Late"
+          if (rawStatus === 'Paid') {
+            return expense.status === 'Paid' || expense.status === 'Paid Late'
+          }
+          // Group "Pending" with "Overdue"
+          if (rawStatus === 'Pending') {
+            return expense.status === 'Pending' || expense.status === 'Overdue'
+          }
+          // Other statuses remain as-is
+          return expense.status === rawStatus
+        })
+
+        const startIndex = (page - 1) * limit
+        const paginatedExpenses = transformedExpenses.slice(startIndex, startIndex + limit)
+
+        return NextResponse.json({
+          success: true,
+          data: paginatedExpenses,
+          total: transformedExpenses.length,
+          page,
+          pageSize: limit
+        })
+      }
 
       return NextResponse.json({
         success: true,

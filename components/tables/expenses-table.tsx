@@ -358,19 +358,8 @@ export default function ExpensesTable({
           )
         }
 
-        // Calculate display status based on due date and payment
-        const now = new Date()
-        const dueDate = due_date ? new Date(due_date) : null
-        const isFullyPaid = payment_percentage >= 100
-        const isOverdue = dueDate ? now > dueDate : false
-        const latestPaymentDate = latest_payment_timestamp ? new Date(latest_payment_timestamp) : null
-
-        let displayStatus: ExpenseWithDetails['status']
-        if (isFullyPaid) {
-          displayStatus = (dueDate && latestPaymentDate && latestPaymentDate > dueDate) ? 'Paid Late' : 'Paid'
-        } else {
-          displayStatus = isOverdue ? 'Overdue' : 'Pending'
-        }
+        // Use the transformed status from the API instead of recalculating
+        const displayStatus = status
 
         const statusKey = displayStatus.toLowerCase().replace(/\s/g, '-')
 
@@ -387,7 +376,8 @@ export default function ExpensesTable({
                   'data-[status=paid]:bg-green-100 data-[status=paid]:text-green-800',
                   'data-[status=paid-late]:bg-yellow-100 data-[status=paid-late]:text-yellow-800',
                   'data-[status=pending]:bg-gray-100 data-[status=pending]:text-gray-800',
-                  'data-[status=overdue]:bg-red-100 data-[status=overdue]:text-red-800'
+                  'data-[status=overdue]:bg-red-100 data-[status=overdue]:text-red-800',
+                  'data-[status=partially-paid]:bg-blue-100 data-[status=partially-paid]:text-blue-800'
                 )}
               >
                 {displayStatus}
@@ -525,18 +515,8 @@ export default function ExpensesTable({
 
   // Helper function to get display status
   const getDisplayStatus = (expense: ExpenseWithDetails) => {
-    if (expense.status === 'Cancelled') return 'Cancelled'
-
-    const now = new Date()
-    const dueDate = expense.due_date ? new Date(expense.due_date) : null
-    const isFullyPaid = expense.payment_percentage >= 100
-    const isOverdue = dueDate ? now > dueDate : false
-    const latestPaymentDate = expense.latest_payment_timestamp ? new Date(expense.latest_payment_timestamp) : null
-
-    if (isFullyPaid) {
-      return (dueDate && latestPaymentDate && latestPaymentDate > dueDate) ? 'Paid Late' : 'Paid'
-    }
-    return isOverdue ? 'Overdue' : 'Pending'
+    // Use the transformed status from the API instead of recalculating
+    return expense.status
   }
 
   // Mobile Card Component
@@ -568,7 +548,8 @@ export default function ExpensesTable({
                   'data-[status=paid-late]:bg-yellow-100 data-[status=paid-late]:text-yellow-800',
                   'data-[status=pending]:bg-gray-100 data-[status=pending]:text-gray-800',
                   'data-[status=overdue]:bg-red-100 data-[status=overdue]:text-red-800',
-                  'data-[status=cancelled]:bg-neutral-200 data-[status=cancelled]:text-neutral-600'
+                  'data-[status=cancelled]:bg-neutral-200 data-[status=cancelled]:text-neutral-600',
+                  'data-[status=partially-paid]:bg-blue-100 data-[status=partially-paid]:text-blue-800'
                 )}
               >
                 {displayStatus}

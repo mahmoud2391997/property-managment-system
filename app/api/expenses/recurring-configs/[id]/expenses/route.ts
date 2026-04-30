@@ -78,7 +78,7 @@ export async function GET(
 
       return {
         id: expense.id,
-        reference_id: expense.reference_id,
+        reference_id: expense.reference_id || '',
         type: expense.property_expenses?.type || expense.company_expenses?.type || null,
         status: expense.status,
         due_date: expense.due_payment_date?.toISOString() || null,

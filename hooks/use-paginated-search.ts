@@ -14,6 +14,8 @@ interface UsePaginatedSearchOptions<T> {
   filterKeyMapping?: Record<string, string>
   /** Filter keys that should use partial/case-insensitive matching instead of exact match */
   textFilterKeys?: string[]
+  /** Filter keys that represent a month (YYYY-MM) to match against a date property */
+  monthFilterKeys?: string[]
 }
 
 interface UsePaginatedSearchReturn<T> {
@@ -31,6 +33,7 @@ interface UsePaginatedSearchReturn<T> {
   updateItem: (id: string, updates: Partial<T>) => void
   updateFilters: (newFilters: Record<string, string>) => void
   activeFilters: Record<string, string>
+  resetSearch: () => void
 }
 
 export function usePaginatedSearch<T> ({
@@ -41,7 +44,8 @@ export function usePaginatedSearch<T> ({
   debounceMs = 1000,
   defaultFilters = {},
   filterKeyMapping = {},
-  textFilterKeys = []
+  textFilterKeys = [],
+  monthFilterKeys = []
 }: UsePaginatedSearchOptions<T>): UsePaginatedSearchReturn<T> {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -131,6 +135,15 @@ export function usePaginatedSearch<T> ({
             params.delete(key)
           }
         })
+
+        const dueMonthValue = updates.filters.due_month
+        if (dueMonthValue !== undefined) {
+          if (dueMonthValue && dueMonthValue !== defaultFilters.due_month) {
+            params.set('due_month_timezone_offset', String(new Date().getTimezoneOffset()))
+          } else {
+            params.delete('due_month_timezone_offset')
+          }
+        }
       }
 
       const queryString = params.toString()
@@ -185,9 +198,16 @@ export function usePaginatedSearch<T> ({
         if (search) params.set('search', search)
 
         Object.entries(filters).forEach(([key, value]) => {
-          if (value && value !== 'all') params.set(key, value)
+          if (value && value !== 'all') {
+            params.set(key, value)
+            if (key === 'due_month') {
+              params.set('due_month_timezone_offset', String(new Date().getTimezoneOffset()))
+            }
+          }
         })
 
+        console.log('[DEBUG] Sending API request with params:', params.toString())
+        
         // Handle apiRoute that may already have query params
         const separator = apiRoute.includes('?') ? '&' : '?'
         const response = await fetch(`${apiRoute}${separator}${params.toString()}`)
@@ -290,8 +310,11 @@ useEffect(() => {
   // ============================================
 
   const handleSearchChange = useCallback((value: string) => {
-    
     setSearchInputValue(value)
+  }, [])
+
+  const resetSearch = useCallback(() => {
+    setSearchInputValue('')
   }, [])
 
   useEffect(() => {
@@ -341,6 +364,16 @@ useEffect(() => {
           // Get the actual data property name (use mapping if provided, otherwise use filter key)
           const dataKey = filterKeyMapping[filterKey] || filterKey
           const itemValue = (item as any)[dataKey]
+
+          // Check if this is a month filter
+          if (monthFilterKeys.includes(filterKey)) {
+            if (!itemValue) return false
+            const dateObj = new Date(itemValue as string | number | Date)
+            if (isNaN(dateObj.getTime())) return false
+            const y = dateObj.getFullYear()
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0')
+            return `${y}-${m}` === filterValue
+          }
 
           // Check if this is a text filter (partial/case-insensitive match)
           if (textFilterKeys.includes(filterKey)) {
@@ -412,6 +445,7 @@ useEffect(() => {
     pageSize,
     updateItem,
     updateFilters,
-    activeFilters: urlFilters
+    activeFilters: urlFilters,
+    resetSearch
   }
 }

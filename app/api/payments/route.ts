@@ -188,6 +188,8 @@ export async function GET (request: NextRequest) {
     const recurringPatternFilter = searchParams.get('recurring_pattern')?.trim() || ''
     const propertyFilter = searchParams.get('property')?.trim() || ''
     const tenantNameFilter = searchParams.get('tenant_name')?.trim() || ''
+    const dueMonth = searchParams.get('due_month')?.trim() || ''
+    const dueMonthTimezoneOffset = parseInt(searchParams.get('due_month_timezone_offset') || '0', 10)
 
     // Property/Room context filters (for property/room overview pages)
     const propertyId = searchParams.get('propertyId')?.trim() || ''
@@ -253,6 +255,17 @@ export async function GET (request: NextRequest) {
               }
             }
           })
+        }
+
+// Due month filter
+        if (dueMonth) {
+          console.log('[API] Applying due_month filter inside buildAdvancedFilters:', dueMonth)
+          const [year, month] = dueMonth.split('-').map(Number)
+          const startUtc = Date.UTC(year, month - 1, 1) + dueMonthTimezoneOffset * 60 * 1000
+          const endUtc = Date.UTC(year, month, 1) + dueMonthTimezoneOffset * 60 * 1000
+          const start = new Date(startUtc)
+          const end = new Date(endUtc)
+          filters.push({ due_payment_timestamp: { gte: start, lt: end } })
         }
 
         // Property ID filter (for property overview page - only property-level leases and bookings)
@@ -401,13 +414,13 @@ export async function GET (request: NextRequest) {
             ]
           }
 
+      console.log('[DEBUG] Final whereClause:', JSON.stringify(whereClause, null, 2))
+
       // Fetch payments - for calculated fields (Paid Late, Partially Paid, Overdue, recurring_pattern),
       // we need to fetch more data and filter after transformation
-      const needsCalculatedStatusFilter =
-        statusFilter &&
-        !['Paid', 'Pending', 'Cancelled', 'all'].includes(statusFilter)
+      const needsFrontendStatusFilter = Boolean(statusFilter && statusFilter !== 'all')
 
-      const needsFrontendFiltering = needsCalculatedStatusFilter || recurringPatternFilter
+      const needsFrontendFiltering = needsFrontendStatusFilter || recurringPatternFilter
 
       // Build payment select object based on permissions
       const paymentSelect = buildPaymentSelect(hasTenantAccess, hasLeaseAccess)
@@ -417,7 +430,10 @@ export async function GET (request: NextRequest) {
       const [payments, total] = await Promise.all([
         prisma.payments.findMany({
           where: whereClause,
-          select: paymentSelect,
+          select: {
+            ...paymentSelect,
+            due_payment_timestamp: true // Ensure we get the due date for debugging
+          },
           orderBy: { created_at: 'desc' },
           ...(needsFrontendFiltering
             ? {}
@@ -431,16 +447,56 @@ export async function GET (request: NextRequest) {
           : prisma.payments.count({ where: whereClause })
       ])
 
+      // Debug: Log initial payments
+      console.log('Initial payments from DB:', {
+        count: payments.length,
+        payments: payments.map(p => ({
+          id: p.reference_id,
+          due_payment_timestamp: p.due_payment_timestamp,
+          due_date: p.due_payment_timestamp ? new Date(p.due_payment_timestamp).toISOString() : null
+        }))
+      })
+
+      // Debug: Log raw payments before transformation
+      console.log('[API] Raw payments from DB:', {
+        count: payments.length,
+        payments: payments.map(p => ({
+          id: p.reference_id,
+          due_payment_timestamp: p.due_payment_timestamp,
+          due_timestamp_type: typeof p.due_payment_timestamp,
+          due_timestamp_iso: p.due_payment_timestamp?.toISOString()
+        }))
+      })
+
       // Transform payments for display
       let transformedPayments = payments.map(p => transformPayment(p as any))
+      
+      // Debug: Log transformed data
+      console.log('[API] Transformed payments:', {
+        count: transformedPayments.length,
+        payments: transformedPayments.map(p => ({
+          id: p.id,
+          due_date: p.due_date,
+          due_date_type: typeof p.due_date
+        }))
+      })
 
       // Apply frontend filtering for calculated fields
       if (needsFrontendFiltering) {
-        // Filter by calculated status
-        if (needsCalculatedStatusFilter) {
-          transformedPayments = transformedPayments.filter(
-            payment => payment.status === statusFilter
-          )
+        // Filter by calculated status with grouping
+        if (needsFrontendStatusFilter) {
+          transformedPayments = transformedPayments.filter(payment => {
+            // Group "Paid" with "Paid Late"
+            if (statusFilter === 'Paid') {
+              return payment.status === 'Paid' || payment.status === 'Paid Late'
+            }
+            // Group "Pending" with "Overdue"
+            if (statusFilter === 'Pending') {
+              return payment.status === 'Pending' || payment.status === 'Overdue'
+            }
+            // Other statuses remain as-is
+            return payment.status === statusFilter
+          })
         }
 
         // Filter by recurring pattern
@@ -452,19 +508,23 @@ export async function GET (request: NextRequest) {
 
         // Apply pagination after filtering
         const startIndex = (page - 1) * limit
-        const paginatedPayments = transformedPayments.slice(
-          startIndex,
-          startIndex + limit
-        )
-
-        return NextResponse.json({
-          success: true,
-          data: paginatedPayments,
-          total: transformedPayments.length,
-          page,
-          pageSize: limit
-        })
+        const endIndex = startIndex + limit
+        transformedPayments = transformedPayments.slice(startIndex, endIndex)
       }
+
+      // Debug: Log final filtered result
+      console.log('Final filtered result:', {
+        originalCount: payments.length,
+        transformedCount: transformedPayments.length,
+        filteredPayments: transformedPayments.map(p => ({
+          id: p.id,
+          due_date: p.due_date,
+          due_date_iso: p.due_date ? new Date(p.due_date).toISOString() : null
+        })),
+        hasFrontendFiltering: needsFrontendFiltering,
+        statusFilter: statusFilter,
+        recurringPatternFilter: recurringPatternFilter
+      })
 
       return NextResponse.json({
         success: true,

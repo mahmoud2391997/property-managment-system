@@ -103,7 +103,7 @@ export type PaymentWithDetails = {
   room_id: string | null
   lease_id: string | null
   lease_reference_id: string | null
-  due_date: Date | null
+  due_date: string | null
   issued_at: string
   recurring_pattern: 'Recurring' | 'One-time'
   recurring_pattern_description: string
@@ -160,7 +160,13 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
 
     if (isFullyPaid) {
       // Check if last payment was after due date
-      status = (dueDate && latestPaymentDate && latestPaymentDate > dueDate) ? 'Paid Late' : 'Paid'
+      let isPaidLate = false;
+      if (dueDate && latestPaymentDate) {
+        const d1 = new Date(dueDate);
+        d1.setUTCHours(23, 59, 59, 999);
+        isPaidLate = latestPaymentDate.getTime() > d1.getTime();
+      }
+      status = isPaidLate ? 'Paid Late' : 'Paid'
     } else {
       // Not fully paid - check priority: Overdue > Partially Paid > Pending
       if (isOverdue) {
@@ -251,7 +257,7 @@ export function transformPayment(payment: RawPayment): PaymentWithDetails {
     room_id: payment.leases?.room_id || payment.bookings?.room_id || null,
     lease_id: payment.leases?.id || null,
     lease_reference_id: payment.leases?.reference_id || null,
-    due_date: payment.due_payment_timestamp,
+    due_date: payment.due_payment_timestamp?.toISOString() || null,
     issued_at: payment.created_at.toISOString(),
     recurring_pattern: isRecurring ? 'Recurring' : 'One-time',
     recurring_pattern_description: recurringDescription,

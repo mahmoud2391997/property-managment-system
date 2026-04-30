@@ -184,8 +184,7 @@ export async function POST (
         })
 
         let nextSequence = 1
-        if (latestExpense) {
-          // Extract the last 8 digits and increment
+        if (latestExpense && latestExpense.reference_id) {
           const lastSequence = parseInt(latestExpense.reference_id.slice(-8))
           nextSequence = lastSequence + 1
         }

@@ -92,7 +92,7 @@ export type ExpenseWithDetails = {
   recurring_pattern: 'Recurring' | 'One-time'
   recurring_pattern_description: string
   amount: number
-  status: 'Paid' | 'Paid Late' | 'Pending' | 'Overdue' | 'Cancelled'
+  status: 'Paid' | 'Paid Late' | 'Pending' | 'Partially Paid' | 'Overdue' | 'Cancelled'
   payment_percentage: number
   has_pending_payments: boolean
   latest_payment_timestamp: string
@@ -275,7 +275,32 @@ export function transformExpense(expense: RawExpense, hasLeaseAccess: boolean = 
   const hasPendingPayments = expense.payment_history.some(h => h.status === 'Pending')
 
   // Get status
-  const status = expense.status as 'Paid' | 'Paid Late' | 'Pending' | 'Overdue' | 'Cancelled'
+  let status: 'Paid' | 'Paid Late' | 'Pending' | 'Partially Paid' | 'Overdue' | 'Cancelled'
+  if (expense.status === 'Cancelled') {
+    status = 'Cancelled'
+  } else {
+    const now = new Date()
+    const dueDate = expense.due_payment_date
+    const isFullyPaid = paymentPercentage >= 100
+    const isPartiallyPaid = paymentPercentage > 0 && paymentPercentage < 100
+    const isOverdue = dueDate ? now > dueDate : false
+    const latestPaymentDate = successfulPayments[0]?.paid_at
+    if (isFullyPaid) {
+      let isPaidLate = false;
+      if (dueDate && latestPaymentDate) {
+        const d1 = new Date(dueDate);
+        d1.setUTCHours(23, 59, 59, 999);
+        isPaidLate = latestPaymentDate.getTime() > d1.getTime();
+      }
+      status = isPaidLate ? 'Paid Late' : 'Paid'
+    } else if (isOverdue) {
+      status = 'Overdue'
+    } else if (isPartiallyPaid) {
+      status = 'Partially Paid'
+    } else {
+      status = 'Pending'
+    }
+  }
 
   // Get recurring pattern info
   const recurringConfig = expense.recurring_configs
