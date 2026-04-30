@@ -133,6 +133,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type') || ''
     const referenceId = searchParams.get('reference_id') || ''
     const dueMonth = searchParams.get('due_month') || '' // YYYY-MM
+    const dueMonthTimezoneOffset = parseInt(searchParams.get('due_month_timezone_offset') || '0', 10)
     const property = searchParams.get('property') || ''
     const leaseId = searchParams.get('lease_id') || ''
     const vendor = searchParams.get('vendor') || ''
@@ -199,9 +200,10 @@ export async function GET(request: NextRequest) {
         whereClause.reference_id = { contains: referenceId, mode: 'insensitive' }
       }
       if (dueMonth) {
-        const start = new Date(`${dueMonth}-01T00:00:00Z`)
-        const end = new Date(start); end.setMonth(end.getMonth() + 1)
-        whereClause.due_payment_date = { gte: start, lt: end }
+        const [year, month] = dueMonth.split('-').map(Number)
+        const startUtc = Date.UTC(year, month - 1, 1) + dueMonthTimezoneOffset * 60 * 1000
+        const endUtc = Date.UTC(year, month, 1) + dueMonthTimezoneOffset * 60 * 1000
+        whereClause.due_payment_date = { gte: new Date(startUtc), lt: new Date(endUtc) }
       }
       if (recurringPattern === 'Recurring') {
         whereClause.recurring_config_id = { not: null }
@@ -301,7 +303,18 @@ export async function GET(request: NextRequest) {
       let transformedExpenses = expenses.map(e => transformExpense(e as any, hasLeaseAccess))
 
       if (needsFrontendStatusFilter) {
-        transformedExpenses = transformedExpenses.filter(e => e.status === rawStatus)
+        transformedExpenses = transformedExpenses.filter(expense => {
+          // Group "Paid" with "Paid Late"
+          if (rawStatus === 'Paid') {
+            return expense.status === 'Paid' || expense.status === 'Paid Late'
+          }
+          // Group "Pending" with "Overdue"
+          if (rawStatus === 'Pending') {
+            return expense.status === 'Pending' || expense.status === 'Overdue'
+          }
+          // Other statuses remain as-is
+          return expense.status === rawStatus
+        })
 
         const startIndex = (page - 1) * limit
         const paginatedExpenses = transformedExpenses.slice(startIndex, startIndex + limit)

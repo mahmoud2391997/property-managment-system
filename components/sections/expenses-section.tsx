@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { ExpenseWithDetails } from '@/lib/expenses-utils'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import SectionTab from '../costume-ui/section-tab'
+import { Tab, TabGroup } from '../costume-ui/tab'
 import { Building2, FileText, User, Briefcase, ShoppingCart } from 'lucide-react'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PermissionGate } from '@/components/permission-gate'
@@ -194,6 +195,8 @@ const CATEGORY_TABS = [
   { key: 'Purchase_Related', label: 'Purchase', icon: <ShoppingCart size={14} /> }
 ]
 
+const STATUS_OPTIONS = ['all', 'Paid', 'Paid Late', 'Partially Paid', 'Overdue', 'Pending', 'Cancelled']
+
 interface ExpensesSectionProps {
   initialData: ExpenseWithDetails[]
   initialTotal: number
@@ -247,16 +250,24 @@ export default function ExpensesSection({
       contract_id: 'context_label',
       property: 'context_label',
       owner_name: 'context_subtitle',
-      staff_name: 'context_label'
+      staff_name: 'context_label',
+      due_month: 'due_date'
     },
     textFilterKeys: [
       'reference_id', 'property', 'lease_id', 'vendor',
       'contract_id', 'owner_name', 'staff_name', 'status'
-    ]
+    ],
+    monthFilterKeys: ['due_month', 'month']
   })
 
   const currentCategory = activeFilters.category || 'Property_Related'
   const selectedIndex = CATEGORY_TABS.findIndex(tab => tab.key === currentCategory)
+
+  // Status tabs
+  const currentStatus = activeFilters.status || 'all'
+  const handleStatusTabClick = (status: string) => {
+    updateFilters({ status })
+  }
 
   const currentAttributes = useMemo(() => {
     return [...GLOBAL_EXPENSE_FILTERS, ...(CATEGORY_FILTERS[currentCategory] || [])]
@@ -264,7 +275,7 @@ export default function ExpensesSection({
 
   const advancedFilters = useMemo(() => {
     return Object.entries(activeFilters)
-      .filter(([key, value]) => value && key !== 'category' && currentAttributes.some(a => a.key === key))
+      .filter(([key, value]) => value && key !== 'category' && key !== 'status' && currentAttributes.some(a => a.key === key))
       .map(([key, value]) => ({
         id: key,
         attribute: key,
@@ -328,7 +339,7 @@ export default function ExpensesSection({
     >
       <>
         {/* Category Filter */}
-        <div className={cn('flex flex-col gap-5', 'w-full')}>
+        <div className={cn('flex justify-center w-full')}>
           <SectionTab
             options={CATEGORY_TABS}
             selectedIndex={selectedIndex}
@@ -355,9 +366,9 @@ export default function ExpensesSection({
               placeholder={`Search ${currentCategory.split('_')[0].toLowerCase()} expenses`}
               value={searchTerm}
               onChange={e => handleSearchChange(e.target.value)}
+              className='flex-1'
             />
           </div>
-          {/* Buttons */}
           <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
             <PermissionGate permission="recurring.access" fallback={null}>
               <Link href='/expenses/recurring-configs' className='flex-1 sm:flex-none'>
@@ -381,16 +392,20 @@ export default function ExpensesSection({
           </div>
         </div>
 
-        {/* Active Filters */}
-        <ActiveFilterChips
-          filters={advancedFilters}
-          attributes={currentAttributes}
-          onRemove={handleRemoveFilter}
-          onClearAll={handleClearAllFilters}
-          onEdit={() => setIsFilterOpen(true)}
-          className='-mt-1 mb-2'
-        />
+        {/* Status Tabs */}
+        <TabGroup showButton={true} className='-mx-5 px-5 mb-3'>
+          {STATUS_OPTIONS.map((status) => (
+            <Tab
+              key={status}
+              label={status === 'all' ? 'All' : status}
+              isSelected={currentStatus === status}
+              onClick={() => handleStatusTabClick(status)}
+              className='texts-tab-secondary'
+            />
+          ))}
+        </TabGroup>
 
+        
         {/* Table */}
         <ExpensesTable
           data={data}

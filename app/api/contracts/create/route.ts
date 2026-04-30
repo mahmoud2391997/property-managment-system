@@ -164,8 +164,8 @@ export async function POST(request: Request) {
         .padStart(4, '0')}`
 
       let expenseNextSequence = 1
-      if (latestExpense) {
-        const lastSequence = parseInt(latestExpense.reference_id.slice(-8))
+      if (latestExpense && latestExpense.reference_id) {
+        const lastSequence = parseInt((latestExpense.reference_id || '').slice(-8))
         expenseNextSequence = lastSequence + 1
       }
 

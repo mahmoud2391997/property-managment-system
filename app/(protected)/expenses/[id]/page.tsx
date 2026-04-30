@@ -385,10 +385,10 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
 
     const expenseDetailsData = {
       id: expense.id,
-      reference_id: expense.reference_id,
+      reference_id: expense.reference_id || '',
       category: expense.category,
-      description: expense.description,
-      expense_evidence: expense.expense_evidence,
+      description: expense.description || '',
+      expense_evidence: expense.expense_evidence || '',
       status: expense.status,
       due_payment_date: expense.due_payment_date?.toISOString() || null,
       created_at: expense.created_at.toISOString(),

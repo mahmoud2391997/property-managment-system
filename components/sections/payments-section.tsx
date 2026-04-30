@@ -116,10 +116,12 @@ export default function PaymentsSection ({
     // Map filter keys to actual data property names
     filterKeyMapping: {
       payment_id: 'id',
-      lease_id: 'lease_reference_id'
+      lease_id: 'lease_reference_id',
+      due_month: 'due_date'
     },
     // Text filters use partial/case-insensitive matching
-    textFilterKeys: ['payment_id', 'lease_id', 'property', 'tenant_name']
+    textFilterKeys: ['payment_id', 'lease_id', 'property', 'tenant_name'],
+    monthFilterKeys: ['due_month']
   })
 
   const statusOptions = ['all', 'Paid', 'Paid Late', 'Partially Paid', 'Overdue', 'Pending', 'Cancelled']
@@ -127,7 +129,7 @@ export default function PaymentsSection ({
   // Current status from URL (via activeFilters)
   const currentStatus = activeFilters.status || 'all'
 
-  // Handle tab selection - updates URL which triggers refetch
+// Handle tab selection - updates URL which triggers refetch
   const handleTabClick = (status: string) => {
     updateFilters({ status })
   }
@@ -135,7 +137,7 @@ export default function PaymentsSection ({
   // Convert activeFilters (Record) to FilterValue[] for TableFilter component
   const advancedFilters = useMemo((): FilterValue[] => {
     return Object.entries(activeFilters)
-      .filter(([key, value]) => value && key !== 'status') // Exclude status (handled by tabs)
+      .filter(([key, value]) => value && key !== 'status')
       .map(([key, value]) => ({ id: key, attribute: key, value }))
   }, [activeFilters])
 
@@ -158,7 +160,8 @@ export default function PaymentsSection ({
     })
 
     updateFilters(filterObj)
-  }, [updateFilters])
+  }, [updateFilters, can])
+console.log(data);
 
   const handleRemoveFilter = useCallback((id: string) => {
     const filterToRemove = advancedFilters.find(f => f.id === id)
@@ -238,16 +241,6 @@ export default function PaymentsSection ({
         </div>
       </div>
 
-      {/* Active Filters */}
-      <ActiveFilterChips
-        filters={advancedFilters}
-        attributes={getPaymentFilterAttributes(can)}
-        onRemove={handleRemoveFilter}
-        onClearAll={handleClearAllFilters}
-        onEdit={() => setIsFilterOpen(true)}
-        className='mt-3 mb-1'
-      />
-
       {/* Status Tabs */}
       <TabGroup showButton={true} className='-mx-5 px-5 mb-3'>
         {statusOptions.map((status) => (
@@ -274,6 +267,7 @@ export default function PaymentsSection ({
           canGoPrevious={canGoPrevious}
           onNextPage={goToNextPage}
           onPreviousPage={goToPreviousPage}
+          refreshingPaymentId={null}
         />
       </div>
     </>
