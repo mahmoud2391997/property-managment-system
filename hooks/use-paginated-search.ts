@@ -16,6 +16,8 @@ interface UsePaginatedSearchOptions<T> {
   textFilterKeys?: string[]
   /** Filter keys that represent a month (YYYY-MM) to match against a date property */
   monthFilterKeys?: string[]
+  /** Filter keys that represent a date (YYYY-MM-DD) to match against a date property */
+  dateFilterKeys?: string[]
 }
 
 interface UsePaginatedSearchReturn<T> {
@@ -45,7 +47,8 @@ export function usePaginatedSearch<T> ({
   defaultFilters = {},
   filterKeyMapping = {},
   textFilterKeys = [],
-  monthFilterKeys = []
+  monthFilterKeys = [],
+  dateFilterKeys = []
 }: UsePaginatedSearchOptions<T>): UsePaginatedSearchReturn<T> {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -197,16 +200,12 @@ export function usePaginatedSearch<T> ({
 
         if (search) params.set('search', search)
 
-        Object.entries(filters).forEach(([key, value]) => {
-          if (value && value !== 'all') {
-            params.set(key, value)
-            if (key === 'due_month') {
-              params.set('due_month_timezone_offset', String(new Date().getTimezoneOffset()))
-            }
-          }
+Object.entries(filters).forEach(([key, value]) => {
+          if (value && value !== 'all') params.set(key, value)
         })
-
-        console.log('[DEBUG] Sending API request with params:', params.toString())
+        
+        // Pass timezone offset for correct due date filtering
+        params.set('due_month_timezone_offset', new Date().getTimezoneOffset().toString())
         
         // Handle apiRoute that may already have query params
         const separator = apiRoute.includes('?') ? '&' : '?'
@@ -373,6 +372,17 @@ useEffect(() => {
             const y = dateObj.getFullYear()
             const m = String(dateObj.getMonth() + 1).padStart(2, '0')
             return `${y}-${m}` === filterValue
+          }
+
+          // Check if this is a date filter
+          if (dateFilterKeys.includes(filterKey)) {
+            if (!itemValue) return false
+            const dateObj = new Date(itemValue as string | number | Date)
+            if (isNaN(dateObj.getTime())) return false
+            const y = dateObj.getFullYear()
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0')
+            const d = String(dateObj.getDate()).padStart(2, '0')
+            return `${y}-${m}-${d}` === filterValue
           }
 
           // Check if this is a text filter (partial/case-insensitive match)

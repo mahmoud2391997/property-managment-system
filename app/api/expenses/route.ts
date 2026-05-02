@@ -134,6 +134,9 @@ export async function GET(request: NextRequest) {
     const referenceId = searchParams.get('reference_id') || ''
     const dueMonth = searchParams.get('due_month') || '' // YYYY-MM
     const dueMonthTimezoneOffset = parseInt(searchParams.get('due_month_timezone_offset') || '0', 10)
+    const dueDate = searchParams.get('due_date')?.trim() || ''
+    const dueDateFrom = searchParams.get('dueDateFrom')?.trim() || ''
+    const dueDateTo = searchParams.get('dueDateTo')?.trim() || ''
     const property = searchParams.get('property') || ''
     const leaseId = searchParams.get('lease_id') || ''
     const vendor = searchParams.get('vendor') || ''
@@ -204,6 +207,24 @@ export async function GET(request: NextRequest) {
         const startUtc = Date.UTC(year, month - 1, 1) + dueMonthTimezoneOffset * 60 * 1000
         const endUtc = Date.UTC(year, month, 1) + dueMonthTimezoneOffset * 60 * 1000
         whereClause.due_payment_date = { gte: new Date(startUtc), lt: new Date(endUtc) }
+      }
+      if (dueDate) {
+        const [year, month, day] = dueDate.split('-').map(Number)
+        const startUtc = Date.UTC(year, month - 1, day) + dueMonthTimezoneOffset * 60 * 1000
+        const endUtc = Date.UTC(year, month - 1, day + 1) + dueMonthTimezoneOffset * 60 * 1000
+        whereClause.due_payment_date = { gte: new Date(startUtc), lt: new Date(endUtc) }
+      }
+      if (dueDateFrom || dueDateTo) {
+        const rangeFilter: any = {}
+        if (dueDateFrom) {
+          const [year, month, day] = dueDateFrom.split('-').map(Number)
+          rangeFilter.gte = new Date(Date.UTC(year, month - 1, day) + dueMonthTimezoneOffset * 60 * 1000)
+        }
+        if (dueDateTo) {
+          const [year, month, day] = dueDateTo.split('-').map(Number)
+          rangeFilter.lt = new Date(Date.UTC(year, month - 1, day + 1) + dueMonthTimezoneOffset * 60 * 1000)
+        }
+        whereClause.due_payment_date = rangeFilter
       }
       if (recurringPattern === 'Recurring') {
         whereClause.recurring_config_id = { not: null }

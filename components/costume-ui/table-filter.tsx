@@ -184,8 +184,14 @@ export default function TableFilter({
                         />
                       ) : attrConfig?.type === 'date' ? (
                         <DatePicker
-                          value={filter.value ? new Date(filter.value) : undefined}
-                          onValueChange={(date) => updateFilter(filter.id, 'value', date ? date.toISOString().split('T')[0] : '')}
+                          value={filter.value ? new Date(filter.value + 'T00:00:00') : undefined}
+                          onValueChange={(date) => {
+                            if (!date) return updateFilter(filter.id, 'value', '')
+                            const y = date.getFullYear()
+                            const m = String(date.getMonth() + 1).padStart(2, '0')
+                            const d = String(date.getDate()).padStart(2, '0')
+                            updateFilter(filter.id, 'value', `${y}-${m}-${d}`)
+                          }}
                         />
                       ) : attrConfig?.type === 'month' ? (
                         <MonthPicker

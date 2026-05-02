@@ -190,6 +190,9 @@ export async function GET (request: NextRequest) {
     const tenantNameFilter = searchParams.get('tenant_name')?.trim() || ''
     const dueMonth = searchParams.get('due_month')?.trim() || ''
     const dueMonthTimezoneOffset = parseInt(searchParams.get('due_month_timezone_offset') || '0', 10)
+    const dueDate = searchParams.get('due_date')?.trim() || ''
+    const dueDateFrom = searchParams.get('dueDateFrom')?.trim() || ''
+    const dueDateTo = searchParams.get('dueDateTo')?.trim() || ''
 
     // Property/Room context filters (for property/room overview pages)
     const propertyId = searchParams.get('propertyId')?.trim() || ''
@@ -259,13 +262,36 @@ export async function GET (request: NextRequest) {
 
 // Due month filter
         if (dueMonth) {
-          console.log('[API] Applying due_month filter inside buildAdvancedFilters:', dueMonth)
           const [year, month] = dueMonth.split('-').map(Number)
           const startUtc = Date.UTC(year, month - 1, 1) + dueMonthTimezoneOffset * 60 * 1000
           const endUtc = Date.UTC(year, month, 1) + dueMonthTimezoneOffset * 60 * 1000
           const start = new Date(startUtc)
           const end = new Date(endUtc)
           filters.push({ due_payment_timestamp: { gte: start, lt: end } })
+        }
+
+        // Exact due date filter
+        if (dueDate) {
+          const [year, month, day] = dueDate.split('-').map(Number)
+          const startUtc = Date.UTC(year, month - 1, day) + dueMonthTimezoneOffset * 60 * 1000
+          const endUtc = Date.UTC(year, month - 1, day + 1) + dueMonthTimezoneOffset * 60 * 1000
+          const start = new Date(startUtc)
+          const end = new Date(endUtc)
+          filters.push({ due_payment_timestamp: { gte: start, lt: end } })
+        }
+
+        // Due date range filter
+        if (dueDateFrom || dueDateTo) {
+          const rangeFilter: any = {}
+          if (dueDateFrom) {
+            const [year, month, day] = dueDateFrom.split('-').map(Number)
+            rangeFilter.gte = new Date(Date.UTC(year, month - 1, day) + dueMonthTimezoneOffset * 60 * 1000)
+          }
+          if (dueDateTo) {
+            const [year, month, day] = dueDateTo.split('-').map(Number)
+            rangeFilter.lt = new Date(Date.UTC(year, month - 1, day + 1) + dueMonthTimezoneOffset * 60 * 1000)
+          }
+          filters.push({ due_payment_timestamp: rangeFilter })
         }
 
         // Property ID filter (for property overview page - only property-level leases and bookings)
@@ -414,8 +440,6 @@ export async function GET (request: NextRequest) {
             ]
           }
 
-      console.log('[DEBUG] Final whereClause:', JSON.stringify(whereClause, null, 2))
-
       // Fetch payments - for calculated fields (Paid Late, Partially Paid, Overdue, recurring_pattern),
       // we need to fetch more data and filter after transformation
       const needsFrontendStatusFilter = Boolean(statusFilter && statusFilter !== 'all')
@@ -447,39 +471,10 @@ export async function GET (request: NextRequest) {
           : prisma.payments.count({ where: whereClause })
       ])
 
-      // Debug: Log initial payments
-      console.log('Initial payments from DB:', {
-        count: payments.length,
-        payments: payments.map(p => ({
-          id: p.reference_id,
-          due_payment_timestamp: p.due_payment_timestamp,
-          due_date: p.due_payment_timestamp ? new Date(p.due_payment_timestamp).toISOString() : null
-        }))
-      })
-
-      // Debug: Log raw payments before transformation
-      console.log('[API] Raw payments from DB:', {
-        count: payments.length,
-        payments: payments.map(p => ({
-          id: p.reference_id,
-          due_payment_timestamp: p.due_payment_timestamp,
-          due_timestamp_type: typeof p.due_payment_timestamp,
-          due_timestamp_iso: p.due_payment_timestamp?.toISOString()
-        }))
-      })
+      // Transform payments
 
       // Transform payments for display
-      let transformedPayments = payments.map(p => transformPayment(p as any))
-      
-      // Debug: Log transformed data
-      console.log('[API] Transformed payments:', {
-        count: transformedPayments.length,
-        payments: transformedPayments.map(p => ({
-          id: p.id,
-          due_date: p.due_date,
-          due_date_type: typeof p.due_date
-        }))
-      })
+let transformedPayments = payments.map(p => transformPayment(p as any))
 
       // Apply frontend filtering for calculated fields
       if (needsFrontendFiltering) {
@@ -511,20 +506,6 @@ export async function GET (request: NextRequest) {
         const endIndex = startIndex + limit
         transformedPayments = transformedPayments.slice(startIndex, endIndex)
       }
-
-      // Debug: Log final filtered result
-      console.log('Final filtered result:', {
-        originalCount: payments.length,
-        transformedCount: transformedPayments.length,
-        filteredPayments: transformedPayments.map(p => ({
-          id: p.id,
-          due_date: p.due_date,
-          due_date_iso: p.due_date ? new Date(p.due_date).toISOString() : null
-        })),
-        hasFrontendFiltering: needsFrontendFiltering,
-        statusFilter: statusFilter,
-        recurringPatternFilter: recurringPatternFilter
-      })
 
       return NextResponse.json({
         success: true,

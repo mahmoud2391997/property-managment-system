@@ -140,7 +140,7 @@ const paymentSelect = {
   }
 }
 
-async function getPayments (): Promise<{
+async function getPayments(): Promise<{
   data: PaymentWithDetails[]
   total: number
   userType: 'staff' | 'tenant'

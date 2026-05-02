@@ -64,7 +64,8 @@ const getPaymentFilterAttributes = (can: (permission: string) => boolean): Filte
   },
   { key: 'property', label: 'Property', type: 'text' },
   { key: 'tenant_name', label: 'Tenant', type: 'text' },
-  { key: 'due_month', label: 'Due Month', type: 'month' }
+  { key: 'due_month', label: 'Due Month', type: 'month' },
+  { key: 'due_date', label: 'Due Date', type: 'date' }
   )
   
   return baseAttributes
@@ -111,7 +112,8 @@ export default function PaymentsSection ({
       recurring_pattern: '',
       property: '',
       tenant_name: '',
-      due_month: ''
+      due_month: '',
+      due_date: ''
     },
     // Map filter keys to actual data property names
     filterKeyMapping: {
@@ -121,7 +123,8 @@ export default function PaymentsSection ({
     },
     // Text filters use partial/case-insensitive matching
     textFilterKeys: ['payment_id', 'lease_id', 'property', 'tenant_name'],
-    monthFilterKeys: ['due_month']
+    monthFilterKeys: ['due_month'],
+    dateFilterKeys: ['due_date']
   })
 
   const statusOptions = ['all', 'Paid', 'Paid Late', 'Partially Paid', 'Overdue', 'Pending', 'Cancelled']
@@ -129,7 +132,7 @@ export default function PaymentsSection ({
   // Current status from URL (via activeFilters)
   const currentStatus = activeFilters.status || 'all'
 
-// Handle tab selection - updates URL which triggers refetch
+  // Handle tab selection - updates URL which triggers refetch
   const handleTabClick = (status: string) => {
     updateFilters({ status })
   }
@@ -161,7 +164,6 @@ export default function PaymentsSection ({
 
     updateFilters(filterObj)
   }, [updateFilters, can])
-console.log(data);
 
   const handleRemoveFilter = useCallback((id: string) => {
     const filterToRemove = advancedFilters.find(f => f.id === id)

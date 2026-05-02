@@ -9,6 +9,7 @@ import PasswordSetupGuard from '@/components/password-setup-guard'
 import { PullToRefresh } from '@/components/pull-to-refresh'
 import { CommandPaletteProvider } from '@/contexts/command-palette-context'
 import GlobalDialogs from '@/components/global-dialogs'
+import SecondarySidebar from '@/components/secondary-sidebar'
 
 export default async function ProtectedLayout ({
   children
@@ -48,6 +49,7 @@ export default async function ProtectedLayout ({
                 <NextTopLoader color='#000' shadow={false} showSpinner={false} height={2} />
                 {children}
               </PullToRefresh>
+              <SecondarySidebar className='hidden md:flex' />
             </main>
 
             <GlobalDialogs />

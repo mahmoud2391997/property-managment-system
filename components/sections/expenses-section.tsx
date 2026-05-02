@@ -43,7 +43,8 @@ const GLOBAL_EXPENSE_FILTERS: FilterAttribute[] = [
       { value: 'One-time', label: 'One-time' }
     ]
   },
-  { key: 'due_month', label: 'Due Month', type: 'month' }
+  { key: 'due_month', label: 'Due Month', type: 'month' },
+  { key: 'due_date', label: 'Due Date', type: 'date' }
 ]
 
 const CATEGORY_FILTERS: Record<string, FilterAttribute[]> = {
@@ -234,6 +235,7 @@ export default function ExpensesSection({
       reference_id: '',
       recurring_pattern: '',
       due_month: '',
+      due_date: '',
       type: '',
       property: '',
       lease_id: '',
@@ -251,13 +253,15 @@ export default function ExpensesSection({
       property: 'context_label',
       owner_name: 'context_subtitle',
       staff_name: 'context_label',
-      due_month: 'due_date'
+      due_month: 'due_date',
+      due_date: 'due_date'
     },
     textFilterKeys: [
       'reference_id', 'property', 'lease_id', 'vendor',
       'contract_id', 'owner_name', 'staff_name', 'status'
     ],
-    monthFilterKeys: ['due_month', 'month']
+    monthFilterKeys: ['due_month', 'month'],
+    dateFilterKeys: ['due_date']
   })
 
   const currentCategory = activeFilters.category || 'Property_Related'
@@ -322,10 +326,9 @@ export default function ExpensesSection({
     const newCategory = CATEGORY_TABS[index].key
     const cleared: Record<string, string> = { category: newCategory }
     for (const key of ALL_CATEGORY_FILTER_KEYS) cleared[key] = ''
-    cleared.status = ''
-    cleared.reference_id = ''
-    cleared.recurring_pattern = ''
-    cleared.due_month = ''
+    for (const filter of GLOBAL_EXPENSE_FILTERS) {
+      if (filter.key !== 'category') cleared[filter.key] = ''
+    }
     resetSearch()
     updateFilters(cleared)
   }
