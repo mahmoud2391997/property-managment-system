@@ -34,9 +34,15 @@ Through extensive discussion the design and scope have been agreed. Two prerequi
   - Tasks: one chip per day, urgent flagged inline (e.g. "🔧 5 tasks due (1 urgent)").
   - Assignment requests: one chip per day.
   - Lease/refund/rent-change/booking events: one chip per day per type.
-- **Click behavior**:
-  - **Clickable** (destination page exists): payments, expenses, tasks, assignments → navigate to filtered page.
-  - **Not clickable for now** (no destination page): leases, bookings, refunds, rent changes. Will become clickable later when those pages are built.
+- **Click behavior — system event chips**:
+  - **All system chips open a popover on click** (not direct navigation). The popover shows a quick summary of what the chip represents:
+    - The day, the event type, the count, and the total amount where relevant
+    - A short list of the top items in the bucket (e.g. first 5–10 rows: "Unit 4B — John Tan — RM 1,800")
+    - A "View all →" button at the bottom **only when the chip has a destination page** (payments, expenses, tasks, assignments). Clicking the button navigates to the filtered page.
+    - **Inert chips** (leases, bookings, refunds, rent changes — no destination page yet) show the same popover with the summary list, but **without** the "View all →" button. The popover is the only surface for these events in v1.
+  - **Click behavior — manual event chips**:
+    - Clicking a manual event chip on the month grid **opens the event detail modal** (different from system chips). The modal shows full event details (title, time, duration, description, attendees) and offers edit/delete actions for the creator.
+    - Manual events also render in the hour grid below; clicking there opens the same modal.
 
 ### Hour grid (bottom half)
 - Vertical 24-hour timeline for the day selected in the month grid above.
@@ -64,25 +70,29 @@ Through extensive discussion the design and scope have been agreed. Two prerequi
 
 ## Events to show on the calendar (agreed list)
 
+All system chips share the same click pattern: **click → popover with quick summary**. The "View all →" column below indicates whether the popover also exposes a navigation button to a filtered destination page.
+
 ### System chips (date-based, auto-generated, aggregated, due/overdue)
 
-| # | Event | Source data | Click target |
+| # | Event | Source data | "View all →" target (popover button) |
 |---|---|---|---|
 | 1 | Payments due / overdue | `payments.due_payment_timestamp` where `status = Pending` | `/payments?dueDate=X&status=Pending` (after prereq filter built) |
 | 2 | Expenses due / overdue (per category) | `expenses.due_payment_date` + `expenses.category` where calculated status ∈ (Pending, Overdue) | `/expenses?category=Y&dueDate=X` (after prereq filter built) |
 | 3 | Tasks due / overdue | latest `task_due_dates.due_date` per task where `task_state ∈ (Open, In_Progress, Needs_Modification)` | `/tasks?dueDate=X&status=Open,In_Progress,Needs_Modification` ✅ filter already exists |
 | 4 | Pending assignment requests | `task_assignments.requested_at` where `status = Pending` for current user | `/tasks` "Pending My Assignment" tab ✅ already exists |
-| 5 | Lease starts | `leases.start_date` | Inert (no destination) |
-| 6 | Lease ends | `leases.ended_at` + `lease_end_schedule.scheduled_date` | Inert |
-| 7 | Lease expiry reminders | computed: `lease.end_date − expiry_days_before_reminder` | Inert |
-| 8 | Refunds pending / SLA breached | `task_flow_instances` of refund type + `refund_decisions.submitted_at` | Inert |
-| 9 | Scheduled rent changes effective | `scheduled_rental_changes.effective_from` where status = `Scheduled` | Inert |
+| 5 | Lease starts | `leases.start_date` | None (popover summary only) |
+| 6 | Lease ends | `leases.ended_at` + `lease_end_schedule.scheduled_date` | None |
+| 7 | Lease expiry reminders | computed: `lease.end_date − expiry_days_before_reminder` | None |
+| 8 | Refunds pending / SLA breached | `task_flow_instances` of refund type + `refund_decisions.submitted_at` | None |
+| 9 | Scheduled rent changes effective | `scheduled_rental_changes.effective_from` where status = `Scheduled` | None |
 
 ### Manual layer (time-based, staff-created)
 
-| # | Event | Storage | Click target |
+Manual events do **not** use the popover pattern. They open a full modal on click.
+
+| # | Event | Storage | Click behavior |
 |---|---|---|---|
-| 10 | Custom events | new `calendar_events` table | Opens event detail modal |
+| 10 | Custom events | new `calendar_events` table | Opens event detail modal (full details + edit/delete) |
 
 ## Verified findings (codebase reality check)
 
@@ -151,17 +161,19 @@ Ask the user to add:
 - Header: month/year + prev/next + Today + Create event.
 
 **C3. Calendar API endpoints**
-- `GET /api/calendar/month?from=YYYY-MM-DD&to=YYYY-MM-DD` — returns aggregated chip data for the month range. Internally runs the per-chip-type aggregate queries and merges results by date.
-- `GET /api/calendar/day-detail?date=YYYY-MM-DD&type=X` — returns the row list for a specific day + chip type (used by the popover).
+- `GET /api/calendar/month?from=YYYY-MM-DD&to=YYYY-MM-DD` — returns aggregated chip data for the month range. Internally runs the per-chip-type aggregate queries and merges results by date. Returns count + total per chip per day, **not** the full row list.
+- `GET /api/calendar/chip-summary?date=YYYY-MM-DD&type=X&limit=10` — returns the **popover payload** for a chip click: count, total, and the top N items in the bucket (lazy-loaded only when the popover opens). Used by every system chip's popover.
 - `POST /api/calendar/events` — create manual event.
 - `PATCH /api/calendar/events/[id]` — edit manual event.
 - `DELETE /api/calendar/events/[id]` — delete manual event.
+- `GET /api/calendar/events/[id]` — fetch full event detail for the manual event modal.
 
 **C4. Month grid component**
 - Renders 6×7 grid (always 6 weeks for layout stability).
 - Each cell takes day's chip aggregates, renders chips per the design rules.
-- Chip click → navigate (if destination exists) or popover (if inert).
-- Day cell click → updates the hour grid below.
+- **System chip click → opens popover** (via the `Chip` + `ChipPopover` components) showing summary + top items + optional "View all →" button. Popover lazy-loads its payload from `/api/calendar/chip-summary` on open.
+- **Manual event chip click → opens event detail modal** (different component from system popover).
+- Day cell click (empty area, not on a chip) → updates the hour grid below.
 
 **C5. Hour grid component**
 - Renders 24h vertical timeline for the selected day.
@@ -197,10 +209,11 @@ Ask the user to add:
 - New: `app/(protected)/calendar/components/month-grid.tsx`
 - New: `app/(protected)/calendar/components/day-cell.tsx`
 - New: `app/(protected)/calendar/components/chip.tsx`
+- New: `app/(protected)/calendar/components/chip-popover.tsx` — popover for system chips (summary + top items + optional "View all →")
 - New: `app/(protected)/calendar/components/hour-grid.tsx`
-- New: `app/(protected)/calendar/components/event-modal.tsx`
+- New: `app/(protected)/calendar/components/event-modal.tsx` — manual event create/edit/detail modal
 - New: `app/api/calendar/month/route.ts`
-- New: `app/api/calendar/day-detail/route.ts`
+- New: `app/api/calendar/chip-summary/route.ts` — popover lazy-load endpoint
 - New: `app/api/calendar/events/route.ts`
 - New: `app/api/calendar/events/[id]/route.ts`
 - New: `lib/calendar-utils.ts` — date math, aggregation helpers, computed-event expansion
@@ -233,20 +246,29 @@ Ask the user to add:
    - Seed a payment due 3 days ago (status=Pending) → see overdue (red) chip on that past date.
    - Mark the payment as paid → chip disappears on next refresh.
    - Repeat for expenses (each category), tasks, assignment requests.
-   - Confirm lease/refund/rent-change chips appear but are inert (no navigation).
 
-4. **Hour grid:**
-   - Click a day in the month grid → hour grid below updates.
+4. **Chip popover behavior:**
+   - Click a payments chip → popover opens with date, total count, total amount, top items list, and a "View all →" button. Click the button → navigates to `/payments` filtered by that date and `status=Pending`.
+   - Click an expenses chip (any category) → popover opens with summary + "View all →" → navigates to `/expenses` on the right category tab and pre-filtered by date.
+   - Click a tasks chip → popover opens with summary + "View all →" → navigates to `/tasks?dueDate=X&status=Open,In_Progress,Needs_Modification`.
+   - Click an assignment requests chip → popover opens with summary + "View all →" → navigates to `/tasks` "Pending My Assignment" tab.
+   - Click a lease start / lease end / lease expiry / refund / rent-change chip → popover opens with the same summary structure but **no "View all →" button** (these are inert in v1).
+   - Confirm popover content is lazy-loaded (network call only fires on open, not on calendar load).
+
+5. **Hour grid + manual events:**
+   - Click an empty area of a day cell in the month grid → hour grid below updates.
    - Create a manual event with timestamp + duration → appears as time block in the hour grid + as all-day chip on the month grid for that day.
    - Create a manual event without duration → renders as point marker.
+   - **Click the manual event chip on the month grid → opens the event detail modal** (NOT a popover — this is the difference from system chips).
+   - Click the manual event in the hour grid → same modal opens.
    - Edit / delete event → reflected in both grids.
 
-5. **Performance:**
+6. **Performance:**
    - With realistic data volume (1000+ payments, 500+ expenses, 200+ tasks across the org), measure month load time. Should be < 1s under normal network.
    - Confirm only one network round-trip per chip type for the month view.
    - Confirm chip detail popover lazy-loads on click, not upfront.
 
-6. **Aggregation correctness:**
+7. **Aggregation correctness:**
    - 100 unpaid rents on the same day → chip shows "100 rent due — RM <total>".
    - Mix of past-due and same-day → past chip is red, today's is neutral.
    - Multiple expense categories on same day → 5 separate chips.
