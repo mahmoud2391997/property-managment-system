@@ -55,7 +55,7 @@ export default function AppSidebar () {
   const [userType, setUserType] = useState<'staff' | 'tenant' | null>(null)
   const [userInfo, setUserInfo] = useState<{
     firstName: string
-    lastName: string
+    lastName: string | null
     profileThumb: string | null
     role: string
   } | null>(null)
@@ -586,7 +586,7 @@ export default function AppSidebar () {
               !effectiveSidebarOpen && 'hidden'
             )}>
               <UserAvatar
-                name={`${userInfo.firstName} ${userInfo.lastName}`.trim()}
+                name={`${userInfo.firstName}${userInfo.lastName ? ` ${userInfo.lastName}` : ''}`.trim()}
                 imgSrc={userInfo.profileThumb || undefined}
                 size={30}
                 className='shrink-0 text-sm'
