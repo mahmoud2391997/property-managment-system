@@ -5,8 +5,13 @@ import { getComputedCalendarEvents } from '@/lib/calendar-utils'
 
 export async function GET(request: NextRequest) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
     if (error) return error
+
+    const canPayments = permissions.has('payments.access')
+    const canExpenses = permissions.has('expenses.access')
+    const canTasks = permissions.has('tasks.access')
+    const canRentals = permissions.has('leases.access')
 
     const { searchParams } = new URL(request.url)
     const from = searchParams.get('from')
@@ -17,7 +22,9 @@ export async function GET(request: NextRequest) {
     }
 
     const startDate = new Date(from)
+    startDate.setHours(0, 0, 0, 0)
     const endDate = new Date(to)
+    endDate.setHours(0, 0, 0, 0)
 
     const getLocalDateStr = (d: Date) => {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -26,14 +33,14 @@ export async function GET(request: NextRequest) {
     const chipsByDate: Record<string, any[]> = {}
 
     // Fetch Payments
-    const payments = await prisma.payments.findMany({
+    const payments = canPayments ? await prisma.payments.findMany({
       where: {
         organization_id: staff.organization_id,
         due_payment_timestamp: { gte: startDate, lte: endDate },
         status: 'Pending'
       },
       select: { due_payment_timestamp: true, charges: { select: { amount: true } } }
-    })
+    }) : []
     
     // Group Payments
     const paymentsGrouped: Record<string, { count: number; total: number }> = {}
@@ -49,14 +56,14 @@ export async function GET(request: NextRequest) {
     })
     
     // Fetch Expenses grouped by category
-    const expenses = await prisma.expenses.findMany({
+    const expenses = canExpenses ? await prisma.expenses.findMany({
       where: {
         organization_id: staff.organization_id,
         due_payment_date: { gte: startDate, lte: endDate },
         status: 'Pending'
       },
       select: { due_payment_date: true, category: true, charges: { select: { amount: true } } }
-    })
+    }) : []
 
     const expensesGrouped: Record<string, Record<string, { count: number; total: number }>> = {}
     expenses.forEach(e => {
@@ -72,10 +79,15 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Fetch Tasks with urgent count
-    const tasks = await prisma.task_due_dates.findMany({
+    // Fetch Tasks with urgent count (only unresolved tasks)
+    const tasks = canTasks ? await prisma.task_due_dates.findMany({
       where: {
-        tasks: { organization_id: staff.organization_id },
+        tasks: {
+          organization_id: staff.organization_id,
+          task_statuses: {
+            none: { state: 'Resolved' }
+          }
+        },
         due_date: { gte: startDate, lte: endDate }
       },
       include: {
@@ -85,7 +97,7 @@ export async function GET(request: NextRequest) {
           }
         }
       }
-    })
+    }) : []
 
     const tasksGrouped: Record<string, { count: number; urgent: number }> = {}
     tasks.forEach(t => {
@@ -100,13 +112,13 @@ export async function GET(request: NextRequest) {
     })
 
     // Fetch Task Assignments
-    const taskAssignments = await prisma.task_assignments.findMany({
+    const taskAssignments = canTasks ? await prisma.task_assignments.findMany({
       where: {
         status: 'Pending',
         requested_at: { gte: startDate, lte: endDate }
       },
       select: { requested_at: true }
-    })
+    }) : []
 
     const assignmentsGrouped: Record<string, number> = {}
     taskAssignments.forEach(a => {
@@ -117,13 +129,13 @@ export async function GET(request: NextRequest) {
     })
 
     // Fetch Calendar Events
-    const events = await prisma.calendar_events.findMany({
+    const events = canRentals ? await prisma.calendar_events.findMany({
       where: {
         organization_id: staff.organization_id,
         timestamp: { gte: startDate, lte: endDate }
       },
       select: { timestamp: true }
-    })
+    }) : []
 
     const eventsGrouped: Record<string, number> = {}
     events.forEach(e => {
@@ -133,8 +145,27 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Fetch Bookings
+    const bookings = canRentals ? await prisma.bookings.findMany({
+      where: {
+        properties: { organization_id: staff.organization_id },
+        move_in_timestamp: { gte: startDate, lte: endDate },
+        status: 'Current'
+      },
+      select: { move_in_timestamp: true, tenants: { select: { individual_tenants: { select: { first_name: true, last_name: true } } } }, properties: { select: { code: true } }, rooms: { select: { title: true } } }
+    }) : []
+
+    const bookingsGrouped: Record<string, { count: number }> = {}
+    bookings.forEach(b => {
+      if (b.move_in_timestamp) {
+        const dateStr = getLocalDateStr(b.move_in_timestamp)
+        if (!bookingsGrouped[dateStr]) bookingsGrouped[dateStr] = { count: 0 }
+        bookingsGrouped[dateStr].count += 1
+      }
+    })
+
     // Fetch Computed Events
-    const computed = await getComputedCalendarEvents(staff.organization_id, startDate, endDate)
+    const computed = canRentals ? await getComputedCalendarEvents(staff.organization_id, startDate, endDate) : { leases: [], rentChanges: [], leaseStarts: [], leaseEnds: [] }
 
     const leaseStartsGrouped: Record<string, { count: number; totalRent: number }> = {}
     computed.leaseStarts.forEach(l => {
@@ -181,13 +212,14 @@ export async function GET(request: NextRequest) {
 
     // Build the chips
     const current = new Date(startDate)
+    current.setHours(0, 0, 0, 0)
+    
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
     while (current <= endDate) {
       const dateStr = getLocalDateStr(current)
-      const currentReset = new Date(current)
-      currentReset.setHours(0, 0, 0, 0)
+      const isOverdue = current < today
       
       const chips: any[] = []
 
@@ -196,24 +228,28 @@ export async function GET(request: NextRequest) {
           type: 'payment',
           count: paymentsGrouped[dateStr].count,
           total: paymentsGrouped[dateStr].total,
-          label: 'rent due',
-          status: currentReset < today ? 'overdue' : 'due',
+          label: isOverdue ? 'rent overdue' : 'rent due',
+          status: isOverdue ? 'overdue' : 'due',
           hasViewAll: true,
-          viewAllUrl: '/payments'
+          viewAllUrl: '/payments',
+          date: dateStr
         })
       }
 
       if (expensesGrouped[dateStr]) {
         Object.entries(expensesGrouped[dateStr]).forEach(([cat, data]) => {
-          const catLabel = cat.replace(/_/g, ' ').toLowerCase() + ' expenses due'
+          const suffix = isOverdue ? ' expenses overdue' : ' expenses due'
+          const catLabel = cat.replace(/_/g, ' ').toLowerCase() + suffix
           chips.push({
             type: 'expense',
             count: data.count,
             total: data.total,
             label: catLabel,
-            status: currentReset < today ? 'overdue' : 'due',
+            status: isOverdue ? 'overdue' : 'due',
             hasViewAll: true,
-            viewAllUrl: '/expenses'
+            viewAllUrl: '/expenses',
+            date: dateStr,
+            category: cat
           })
         })
       }
@@ -223,10 +259,11 @@ export async function GET(request: NextRequest) {
           type: 'task',
           count: tasksGrouped[dateStr].count,
           urgentCount: tasksGrouped[dateStr].urgent,
-          label: 'tasks due',
-          status: currentReset < today ? 'overdue' : 'due',
+          label: isOverdue ? 'tasks overdue' : 'tasks due',
+          status: isOverdue ? 'overdue' : 'due',
           hasViewAll: true,
-          viewAllUrl: '/tasks'
+          viewAllUrl: '/tasks',
+          date: dateStr
         })
       }
 
@@ -234,10 +271,11 @@ export async function GET(request: NextRequest) {
         chips.push({
           type: 'assignment_request',
           count: assignmentsGrouped[dateStr],
-          label: 'assignment requests',
-          status: currentReset < today ? 'overdue' : 'due',
+          label: isOverdue ? 'assignment requests overdue' : 'assignment requests',
+          status: isOverdue ? 'overdue' : 'due',
           hasViewAll: true,
-          viewAllUrl: '/tasks'
+          viewAllUrl: '/tasks',
+          date: dateStr
         })
       }
 
@@ -247,21 +285,32 @@ export async function GET(request: NextRequest) {
           count: eventsGrouped[dateStr],
           label: 'events',
           hasViewAll: true,
-          viewAllUrl: '/calendar'
+          viewAllUrl: '/calendar',
+          date: dateStr
+        })
+      }
+
+      if (bookingsGrouped[dateStr]) {
+        chips.push({
+          type: 'booking',
+          count: bookingsGrouped[dateStr].count,
+          label: 'bookings',
+          status: isOverdue ? 'overdue' : 'due',
+          date: dateStr
         })
       }
 
       if (leaseStartsGrouped[dateStr]) {
-        chips.push({ type: 'lease_start', count: leaseStartsGrouped[dateStr].count, total: leaseStartsGrouped[dateStr].totalRent, label: 'lease start' })
+        chips.push({ type: 'lease_start', count: leaseStartsGrouped[dateStr].count, total: leaseStartsGrouped[dateStr].totalRent, label: isOverdue ? 'lease start overdue' : 'lease start', status: isOverdue ? 'overdue' : 'due', date: dateStr })
       }
       if (leaseEndsGrouped[dateStr]) {
-        chips.push({ type: 'lease_end', count: leaseEndsGrouped[dateStr].count, total: leaseEndsGrouped[dateStr].totalRent, label: 'lease end' })
+        chips.push({ type: 'lease_end', count: leaseEndsGrouped[dateStr].count, total: leaseEndsGrouped[dateStr].totalRent, label: isOverdue ? 'lease end overdue' : 'lease end', status: isOverdue ? 'overdue' : 'due', date: dateStr })
       }
       if (remindersGrouped[dateStr]) {
-        chips.push({ type: 'expiry_reminder', count: remindersGrouped[dateStr], label: 'expiry reminders' })
+        chips.push({ type: 'expiry_reminder', count: remindersGrouped[dateStr], label: isOverdue ? 'expiry reminders overdue' : 'expiry reminders', status: isOverdue ? 'overdue' : 'due', date: dateStr })
       }
       if (rentChangesGrouped[dateStr]) {
-        chips.push({ type: 'rent_change', count: rentChangesGrouped[dateStr].count, total: rentChangesGrouped[dateStr].total, label: 'rent changes' })
+        chips.push({ type: 'rent_change', count: rentChangesGrouped[dateStr].count, total: rentChangesGrouped[dateStr].total, label: isOverdue ? 'rent changes overdue' : 'rent changes', status: isOverdue ? 'overdue' : 'due', date: dateStr })
       }
 
       if (chips.length > 0) {

@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 export type FilterAttribute = {
   key: string
   label: string
-  type: 'text' | 'select' | 'date' | 'month'
+  type: 'text' | 'select' | 'date' | 'dateRange' | 'month'
   options?: { value: string; label: string }[]
 }
 
@@ -45,10 +45,12 @@ export default function TableFilter({
   const open = isControlled ? controlledOpen : uncontrolledOpen
   const [localFilters, setLocalFilters] = useState<FilterValue[]>(filters)
 
-  // Sync local filters when popover opens or filters change externally while open
+  // Sync local filters when popover opens
   useEffect(() => {
     if (open) {
       setLocalFilters(filters)
+    } else {
+      setLocalFilters([])
     }
   }, [open, filters])
 
@@ -95,7 +97,24 @@ export default function TableFilter({
   const applyFilters = useCallback(() => {
     // Only apply filters that have both attribute and value
     const validFilters = localFilters.filter(f => f.attribute && f.value)
-    onFiltersChange(validFilters)
+    
+    // Keep dateRange filters as-is, don't expand them
+    const outputFilters: FilterValue[] = []
+    for (const f of validFilters) {
+      const attrConfig = getAttributeConfig(f.attribute)
+      if (attrConfig?.type === 'dateRange') {
+        const parts = f.value.split(',')
+        const from = parts[0]?.trim()
+        const to = parts[1]?.trim()
+        if (from || to) {
+          outputFilters.push(f)
+        }
+      } else {
+        outputFilters.push(f)
+      }
+    }
+    
+    onFiltersChange(outputFilters)
     handleOpen(false)
   }, [localFilters, onFiltersChange, isControlled, setControlledOpen])
 
@@ -108,7 +127,12 @@ export default function TableFilter({
     const usedAttributes = localFilters
       .filter(f => f.id !== currentFilterId && f.attribute)
       .map(f => f.attribute)
-    return attributes.filter(a => !usedAttributes.includes(a.key))
+    return attributes.filter(a => {
+      if (usedAttributes.includes(a.key)) return false
+      // Hide internal range keys from dropdown
+      if (a.key === 'dueDateFrom' || a.key === 'dueDateTo') return false
+      return true
+    })
   }
 
   const activeFilterCount = filters.length
@@ -182,6 +206,39 @@ export default function TableFilter({
                           value={filter.value}
                           onChange={(value) => updateFilter(filter.id, 'value', value)}
                         />
+                      ) : attrConfig?.type === 'dateRange' ? (
+                        <div className='flex flex-col gap-2 w-full'>
+                          <div className='grid grid-cols-[auto_1fr] items-center gap-0 w-full'>
+                            <span className='texts-body-small text-(--text-secondary) whitespace-nowrap w-12'>From</span>
+                            <DatePicker
+                              className='w-full'
+                              value={filter.value ? (() => {
+                                const parts = filter.value.split(',')
+                                return parts[0] ? new Date(parts[0] + 'T00:00:00') : undefined
+                              })() : undefined}
+                              onValueChange={(date) => {
+                                const parts = filter.value ? filter.value.split(',') : ['', '']
+                                const from = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : ''
+                                updateFilter(filter.id, 'value', `${from},${parts[1] || ''}`)
+                              }}
+                            />
+                          </div>
+                          <div className='grid grid-cols-[auto_1fr] items-center gap-0 w-full'>
+                            <span className='texts-body-small text-(--text-secondary) whitespace-nowrap w-12'>To</span>
+                            <DatePicker
+                              className='w-full'
+                              value={filter.value ? (() => {
+                                const parts = filter.value.split(',')
+                                return parts[1] ? new Date(parts[1] + 'T00:00:00') : undefined
+                              })() : undefined}
+                              onValueChange={(date) => {
+                                const parts = filter.value ? filter.value.split(',') : ['', '']
+                                const to = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : ''
+                                updateFilter(filter.id, 'value', `${parts[0] || ''},${to}`)
+                              }}
+                            />
+                          </div>
+                        </div>
                       ) : attrConfig?.type === 'date' ? (
                         <DatePicker
                           value={filter.value ? new Date(filter.value + 'T00:00:00') : undefined}
@@ -217,7 +274,7 @@ export default function TableFilter({
                     {/* Remove Button */}
                     <button
                       onClick={() => removeFilter(filter.id)}
-                      className='flex items-center justify-center h-10 w-10 sm:w-10 sm:shrink-0 rounded-[5px] text-(--text-secondary) hover:text-red-600 hover:bg-red-50 transition-colors self-end sm:self-auto'
+                      className='flex items-center justify-center h-10 w-10 sm:w-10 sm:shrink-0 rounded-[5px] text-(--text-secondary) hover:text-red-600 hover:bg-red-50 transition-colors self-start sm:self-auto'
                     >
                       <Trash2 size={16} />
                     </button>
@@ -280,6 +337,8 @@ export function ActiveFilterChips({
   if (filters.length === 0) return null
 
   const getAttributeLabel = (key: string) => {
+    if (key === 'dueDateFrom') return 'Due From'
+    if (key === 'dueDateTo') return 'Due To'
     return attributes.find(a => a.key === key)?.label || key
   }
 
@@ -288,8 +347,17 @@ export function ActiveFilterChips({
     if (attr?.type === 'select' && attr.options) {
       return attr.options.find(o => o.value === value)?.label || value
     }
+    if (attr?.type === 'dateRange' && value) {
+      const parts = value.split(',').map(p => p.trim()).filter(Boolean)
+      const from = parts[0]
+      const to = parts[1]
+      const parts_labels: string[] = []
+      if (from) parts_labels.push(`From: ${new Date(from).toLocaleDateString('en-GB')}`)
+      if (to) parts_labels.push(`To: ${new Date(to).toLocaleDateString('en-GB')}`)
+      return parts_labels.join(' — ')
+    }
     if (attr?.type === 'date' && value) {
-      return new Date(value).toLocaleDateString()
+      return new Date(value).toLocaleDateString('en-GB')
     }
     if (attr?.type === 'month' && value) {
       const [y, m] = value.split('-')

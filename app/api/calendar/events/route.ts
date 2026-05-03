@@ -38,8 +38,12 @@ export async function GET(request: NextRequest) {
 // Create a manual event
 export async function POST(request: NextRequest) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
     if (error) return error
+
+    if (!permissions.has('calendar.create')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const body = await request.json()
     const { title, timestamp, duration_minutes, description, is_for_all_staff } = body

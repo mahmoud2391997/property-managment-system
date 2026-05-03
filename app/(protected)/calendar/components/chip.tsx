@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 interface ChipData {
-  type: 'payment' | 'expense' | 'task' | 'manual_event' | 'info' | 'lease_start' | 'lease_end' | 'expiry_reminder' | 'rent_change' | 'assignment_request'
+  type: 'payment' | 'expense' | 'task' | 'manual_event' | 'info' | 'lease_start' | 'lease_end' | 'expiry_reminder' | 'rent_change' | 'assignment_request' | 'booking'
   count: number
   total?: number
   urgentCount?: number
@@ -12,6 +12,8 @@ interface ChipData {
   status?: 'due' | 'overdue'
   hasViewAll?: boolean
   viewAllUrl?: string
+  date?: string
+  category?: string
 }
 
 interface ChipProps {
@@ -30,13 +32,14 @@ export function Chip({ chip, onClick }: ChipProps) {
                chip.type === 'lease_start' ? '🔑' :
                chip.type === 'lease_end' ? '📦' :
                chip.type === 'expiry_reminder' ? '⚠️' :
-               chip.type === 'rent_change' ? '📈' : '📅'
+               chip.type === 'rent_change' ? '📈' :
+               chip.type === 'booking' ? '🏠' : '📅'
 
   return (
     <button
       onClick={(e) => onClick(e, chip)}
       className={cn(
-        'w-full text-left px-2 py-1 rounded text-[11px] leading-tight truncate transition-colors',
+        'w-auto text-left px-2 py-1 rounded text-[11px] leading-tight transition-colors',
         isOverdue
           ? 'bg-(--danger-light) text-(--danger-main) hover:bg-(--danger-light)/80 border-l-2 border-(--danger-main)'
           : 'bg-(--background-secondary) text-(--text-primary) hover:bg-(--border-default) border-l-2 border-(--border-default)'
@@ -74,7 +77,9 @@ export function ChipPopover({ chip, date, onClose }: ChipPopoverProps) {
       const month = String(date.getMonth() + 1).padStart(2, '0')
       const day = String(date.getDate()).padStart(2, '0')
       const dateStr = `${year}-${month}-${day}`
-      const response = await fetch(`/api/calendar/chip-summary?date=${dateStr}&type=${chip.type}`)
+      const params = new URLSearchParams({ date: dateStr, type: chip.type })
+      if (chip.category) params.set('category', chip.category)
+      const response = await fetch(`/api/calendar/chip-summary?${params.toString()}`)
       if (response.ok) {
         const data = await response.json()
         setItems(data.items || [])
@@ -194,7 +199,15 @@ export function ChipPopover({ chip, date, onClose }: ChipPopoverProps) {
               <div className='flex items-center gap-3'>
                 {chip.hasViewAll && chip.viewAllUrl && (
                   <a
-                    href={chip.viewAllUrl}
+                    href={(() => {
+                      if (!chip.date) return chip.viewAllUrl!
+                      if (chip.type === 'payment') return `${chip.viewAllUrl}?due_date=${chip.date}&status=Pending`
+                      if (chip.type === 'expense' && chip.category) return `${chip.viewAllUrl}?due_date=${chip.date}&category=${chip.category}`
+                      if (chip.type === 'expense') return `${chip.viewAllUrl}?due_date=${chip.date}`
+                      if (chip.type === 'task') return `${chip.viewAllUrl}?due_date=${chip.date}&status=Open`
+                      if (chip.type === 'assignment_request') return `${chip.viewAllUrl}?status=Pending My Assignment`
+                      return `${chip.viewAllUrl}?due_date=${chip.date}`
+                    })()}
                     className='text-xs text-(--primary-main) hover:underline font-medium'
                   >
                     View all →

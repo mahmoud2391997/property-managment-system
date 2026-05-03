@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Clock, Trash2 } from 'lucide-react'
 import Button from '@/components/costume-ui/button'
+import { cn } from '@/lib/utils'
 
 interface Attendee {
   id: string
@@ -26,9 +27,10 @@ interface EventModalProps {
   selectedDate: Date
   onSuccess?: () => void
   editEvent?: CalendarEvent | null
+  canEdit?: boolean
 }
 
-export default function EventModal({ open, onOpenChange, selectedDate, onSuccess, editEvent }: EventModalProps) {
+export default function EventModal({ open, onOpenChange, selectedDate, onSuccess, editEvent, canEdit = true }: EventModalProps) {
   const [title, setTitle] = useState('')
   const [timestamp, setTimestamp] = useState('')
   const [durationMinutes, setDurationMinutes] = useState('')
@@ -48,7 +50,9 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
       fetchAttendees()
       if (editEvent) {
         setTitle(editEvent.title)
-        setTimestamp(new Date(editEvent.timestamp).toISOString().slice(0, 16))
+        const d = new Date(editEvent.timestamp)
+        const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+        setTimestamp(local)
         setDurationMinutes(editEvent.duration_minutes?.toString() || '')
         setDescription(editEvent.description || '')
         setIsForAllStaff(editEvent.is_for_all_staff)
@@ -175,9 +179,9 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
     <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50'>
       <div className='bg-(--background-primary) rounded-xl shadow-lg w-full max-w-md mx-4 max-h-[90vh] overflow-auto'>
         <div className='flex items-center justify-between px-6 py-4 border-b border-(--border-default)'>
-          <h2 className='text-lg font-semibold'>{editEvent ? 'Edit Event' : 'Create Event'}</h2>
+          <h2 className='text-lg font-semibold'>{editEvent ? (canEdit ? 'Edit Event' : 'View Event') : 'Create Event'}</h2>
           <div className='flex items-center gap-2'>
-            {editEvent && (
+            {editEvent && canEdit && (
               <button
                 onClick={handleDelete}
                 disabled={deleting}
@@ -203,7 +207,11 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
               type='text'
               value={title}
               onChange={e => setTitle(e.target.value)}
-              className='w-full px-3 py-2 rounded-lg border border-(--border-default) bg-(--background-primary) focus:outline-none focus:ring-2 focus:ring-(--primary-main)'
+              readOnly={editEvent && !canEdit}
+              className={cn(
+                'w-full px-3 py-2 rounded-lg border border-(--border-default) focus:outline-none focus:ring-2 focus:ring-(--primary-main)',
+                editEvent && !canEdit ? 'bg-(--background-secondary) text-(--text-secondary) cursor-not-allowed' : 'bg-(--background-primary)'
+              )}
               placeholder='Meeting, Reminder, etc.'
               required
             />
@@ -215,7 +223,11 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
               type='datetime-local'
               value={timestamp || formatDefaultTimestamp(selectedDate)}
               onChange={e => setTimestamp(e.target.value)}
-              className='w-full px-3 py-2 rounded-lg border border-(--border-default) bg-(--background-primary) focus:outline-none focus:ring-2 focus:ring-(--primary-main)'
+              readOnly={editEvent && !canEdit}
+              className={cn(
+                'w-full px-3 py-2 rounded-lg border border-(--border-default) focus:outline-none focus:ring-2 focus:ring-(--primary-main)',
+                editEvent && !canEdit ? 'bg-(--background-secondary) text-(--text-secondary) cursor-not-allowed' : 'bg-(--background-primary)'
+              )}
               required
             />
           </div>
@@ -231,7 +243,11 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
               type='number'
               value={durationMinutes}
               onChange={e => setDurationMinutes(e.target.value)}
-              className='w-full px-3 py-2 rounded-lg border border-(--border-default) bg-(--background-primary) focus:outline-none focus:ring-2 focus:ring-(--primary-main)'
+              readOnly={editEvent && !canEdit}
+              className={cn(
+                'w-full px-3 py-2 rounded-lg border border-(--border-default) focus:outline-none focus:ring-2 focus:ring-(--primary-main)',
+                editEvent && !canEdit ? 'bg-(--background-secondary) text-(--text-secondary) cursor-not-allowed' : 'bg-(--background-primary)'
+              )}
               placeholder='30'
               min='1'
             />
@@ -242,7 +258,11 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
-              className='w-full px-3 py-2 rounded-lg border border-(--border-default) bg-(--background-primary) focus:outline-none focus:ring-2 focus:ring-(--primary-main) resize-none'
+              readOnly={editEvent && !canEdit}
+              className={cn(
+                'w-full px-3 py-2 rounded-lg border border-(--border-default) focus:outline-none focus:ring-2 focus:ring-(--primary-main) resize-none',
+                editEvent && !canEdit ? 'bg-(--background-secondary) text-(--text-secondary) cursor-not-allowed' : 'bg-(--background-primary)'
+              )}
               rows={3}
               placeholder='Optional details...'
             />
@@ -257,6 +277,7 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
                 setIsForAllStaff(e.target.checked)
                 if (e.target.checked) setSelectedAttendees([])
               }}
+              disabled={editEvent && !canEdit}
               className='rounded border-(--border-default)'
             />
             <label htmlFor='allStaff' className='text-sm'>All staff</label>
@@ -266,8 +287,11 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
             <label className='block text-sm font-medium mb-1'>Attendees</label>
             <button
               type='button'
-              onClick={() => setShowAttendeeDropdown(!showAttendeeDropdown)}
-              className='w-full px-3 py-2 rounded-lg border border-(--border-default) bg-(--background-primary) text-left text-sm focus:outline-none focus:ring-2 focus:ring-(--primary-main)'
+              onClick={() => canEdit && setShowAttendeeDropdown(!showAttendeeDropdown)}
+              className={cn(
+                'w-full px-3 py-2 rounded-lg border border-(--border-default) text-left text-sm focus:outline-none focus:ring-2 focus:ring-(--primary-main)',
+                editEvent && !canEdit ? 'bg-(--background-secondary) text-(--text-secondary) cursor-not-allowed' : 'bg-(--background-primary)'
+              )}
             >
               {isForAllStaff
                 ? `All staff (${attendees.length})`
@@ -302,6 +326,7 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
                           toggleAttendee(a.id)
                         }
                       }}
+                      disabled={!canEdit}
                       className='rounded border-(--border-default)'
                     />
                     <span>{a.first_name} {a.last_name || ''}</span>
@@ -319,13 +344,15 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
                       className='inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-(--background-secondary) rounded-full'
                     >
                       {attendee.first_name} {attendee.last_name || ''}
-                      <button
-                        type='button'
-                        onClick={() => toggleAttendee(id)}
-                        className='text-(--text-secondary) hover:text-(--text-primary)'
-                      >
-                        ×
-                      </button>
+                      {canEdit && (
+                        <button
+                          type='button'
+                          onClick={() => toggleAttendee(id)}
+                          className='text-(--text-secondary) hover:text-(--text-primary)'
+                        >
+                          ×
+                        </button>
+                      )}
                     </span>
                   ) : null
                 })}
@@ -344,17 +371,19 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
             <Button
               type='button'
               variant='secondary'
-              label='Cancel'
+              label={editEvent && !canEdit ? 'Close' : 'Cancel'}
               onClick={() => handleOpenChange(false)}
               className='flex-1'
             />
-            <Button
-              type='submit'
-              label={editEvent ? 'Update' : 'Create'}
-              loading={loading}
-              disabled={!title || loading}
-              className='flex-1'
-            />
+            {!editEvent || (editEvent && canEdit) ? (
+              <Button
+                type='submit'
+                label={editEvent ? 'Update' : 'Create'}
+                loading={loading}
+                disabled={!title || loading}
+                className='flex-1'
+              />
+            ) : null}
           </div>
         </form>
       </div>

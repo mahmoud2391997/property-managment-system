@@ -36,7 +36,7 @@ const getPaymentFilterAttributes = (can: (permission: string) => boolean): Filte
       // Booking
       { value: 'Booking', label: 'Booking' },
       // Core rent
-      { value: 'Rental', label: 'Rental' },
+      { value: 'Rental', label: 'Rent' },
       { value: 'Rental_Adjustment', label: 'Rental Adjustment' },
       { value: 'Lease_Initial_Charges', label: 'Lease Initial Charges' },
       // Utilities
@@ -65,7 +65,10 @@ const getPaymentFilterAttributes = (can: (permission: string) => boolean): Filte
   { key: 'property', label: 'Property', type: 'text' },
   { key: 'tenant_name', label: 'Tenant', type: 'text' },
   { key: 'due_month', label: 'Due Month', type: 'month' },
-  { key: 'due_date', label: 'Due Date', type: 'date' }
+  { key: 'due_date', label: 'Due Date', type: 'date' },
+  { key: 'due_date_range', label: 'Due Date Range', type: 'dateRange' },
+  { key: 'dueDateFrom', label: 'Due From', type: 'date' },
+  { key: 'dueDateTo', label: 'Due To', type: 'date' }
   )
   
   return baseAttributes
@@ -113,18 +116,23 @@ export default function PaymentsSection ({
       property: '',
       tenant_name: '',
       due_month: '',
-      due_date: ''
+      due_date: '',
+      dueDateFrom: '',
+      dueDateTo: ''
     },
     // Map filter keys to actual data property names
     filterKeyMapping: {
       payment_id: 'id',
       lease_id: 'lease_reference_id',
-      due_month: 'due_date'
+      due_month: 'due_date',
+      due_date: 'due_date',
+      dueDateFrom: 'due_date',
+      dueDateTo: 'due_date'
     },
     // Text filters use partial/case-insensitive matching
     textFilterKeys: ['payment_id', 'lease_id', 'property', 'tenant_name'],
     monthFilterKeys: ['due_month'],
-    dateFilterKeys: ['due_date']
+    dateFilterKeys: ['due_date', 'dueDateFrom', 'dueDateTo']
   })
 
   const statusOptions = ['all', 'Paid', 'Paid Late', 'Partially Paid', 'Overdue', 'Pending', 'Cancelled']
@@ -139,9 +147,23 @@ export default function PaymentsSection ({
 
   // Convert activeFilters (Record) to FilterValue[] for TableFilter component
   const advancedFilters = useMemo((): FilterValue[] => {
-    return Object.entries(activeFilters)
-      .filter(([key, value]) => value && key !== 'status')
-      .map(([key, value]) => ({ id: key, attribute: key, value }))
+    const filters: FilterValue[] = []
+    const from = activeFilters.dueDateFrom
+    const to = activeFilters.dueDateTo
+    
+    // Combine dueDateFrom/dueDateTo into single due_date_range filter for display
+    if (from || to) {
+      filters.push({ id: 'due_date_range', attribute: 'due_date_range', value: `${from || ''},${to || ''}` })
+    }
+    
+    // Add all other filters
+    Object.entries(activeFilters)
+      .filter(([key, value]) => value && key !== 'status' && key !== 'dueDateFrom' && key !== 'dueDateTo')
+      .forEach(([key, value]) => {
+        filters.push({ id: key, attribute: key, value })
+      })
+    
+    return filters
   }, [activeFilters])
 
   // Handle advanced filters change - convert FilterValue[] to Record and update
@@ -151,7 +173,13 @@ export default function PaymentsSection ({
     // Set values for active filters
     newFilters.forEach(f => {
       if (f.attribute && f.value) {
-        filterObj[f.attribute] = f.value
+        if (f.attribute === 'due_date_range') {
+          const parts = f.value.split(',')
+          if (parts[0]) filterObj.dueDateFrom = parts[0].trim()
+          if (parts[1]) filterObj.dueDateTo = parts[1].trim()
+        } else {
+          filterObj[f.attribute] = f.value
+        }
       }
     })
 
@@ -161,6 +189,9 @@ export default function PaymentsSection ({
         filterObj[attr.key] = ''
       }
     })
+    // Also clear expanded date range filters
+    if (!filterObj.dueDateFrom) filterObj.dueDateFrom = ''
+    if (!filterObj.dueDateTo) filterObj.dueDateTo = ''
 
     updateFilters(filterObj)
   }, [updateFilters, can])
@@ -168,7 +199,11 @@ export default function PaymentsSection ({
   const handleRemoveFilter = useCallback((id: string) => {
     const filterToRemove = advancedFilters.find(f => f.id === id)
     if (filterToRemove) {
-      updateFilters({ [filterToRemove.attribute]: '' })
+      if (filterToRemove.attribute === 'due_date_range') {
+        updateFilters({ dueDateFrom: '', dueDateTo: '' })
+      } else {
+        updateFilters({ [filterToRemove.attribute]: '' })
+      }
     }
   }, [advancedFilters, updateFilters])
 
@@ -177,6 +212,8 @@ export default function PaymentsSection ({
     getPaymentFilterAttributes(can).forEach(attr => {
       filterObj[attr.key] = ''
     })
+    filterObj.dueDateFrom = ''
+    filterObj.dueDateTo = ''
     updateFilters(filterObj)
   }, [updateFilters, can])
 

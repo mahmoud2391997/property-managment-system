@@ -52,6 +52,18 @@ export async function PATCH(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
+    if (existing.created_by !== staff.id) {
+      return NextResponse.json({ error: 'You can only edit events you created' }, { status: 403 })
+    }
+
+    const eventDate = new Date(existing.timestamp)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    if (eventDate < today) {
+      return NextResponse.json({ error: 'Cannot edit events in the past' }, { status: 400 })
+    }
+
     const event = await prisma.calendar_events.update({
       where: { id },
       data: {
@@ -95,6 +107,18 @@ export async function DELETE(
 
     if (!existing) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    }
+
+    if (existing.created_by !== staff.id) {
+      return NextResponse.json({ error: 'You can only delete events you created' }, { status: 403 })
+    }
+
+    const eventDate = new Date(existing.timestamp)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    if (eventDate < today) {
+      return NextResponse.json({ error: 'Cannot delete events in the past' }, { status: 400 })
     }
 
     await prisma.calendar_events.delete({ where: { id } })

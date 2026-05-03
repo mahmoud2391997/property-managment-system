@@ -44,7 +44,10 @@ const GLOBAL_EXPENSE_FILTERS: FilterAttribute[] = [
     ]
   },
   { key: 'due_month', label: 'Due Month', type: 'month' },
-  { key: 'due_date', label: 'Due Date', type: 'date' }
+  { key: 'due_date', label: 'Due Date', type: 'date' },
+  { key: 'due_date_range', label: 'Due Date Range', type: 'dateRange' },
+  { key: 'dueDateFrom', label: 'Due From', type: 'date' },
+  { key: 'dueDateTo', label: 'Due To', type: 'date' }
 ]
 
 const CATEGORY_FILTERS: Record<string, FilterAttribute[]> = {
@@ -236,6 +239,8 @@ export default function ExpensesSection({
       recurring_pattern: '',
       due_month: '',
       due_date: '',
+      dueDateFrom: '',
+      dueDateTo: '',
       type: '',
       property: '',
       lease_id: '',
@@ -254,14 +259,16 @@ export default function ExpensesSection({
       owner_name: 'context_subtitle',
       staff_name: 'context_label',
       due_month: 'due_date',
-      due_date: 'due_date'
+      due_date: 'due_date',
+      dueDateFrom: 'due_date',
+      dueDateTo: 'due_date'
     },
     textFilterKeys: [
       'reference_id', 'property', 'lease_id', 'vendor',
       'contract_id', 'owner_name', 'staff_name', 'status'
     ],
     monthFilterKeys: ['due_month', 'month'],
-    dateFilterKeys: ['due_date']
+    dateFilterKeys: ['due_date', 'dueDateFrom', 'dueDateTo']
   })
 
   const currentCategory = activeFilters.category || 'Property_Related'
@@ -278,13 +285,23 @@ export default function ExpensesSection({
   }, [currentCategory])
 
   const advancedFilters = useMemo(() => {
-    return Object.entries(activeFilters)
-      .filter(([key, value]) => value && key !== 'category' && key !== 'status' && currentAttributes.some(a => a.key === key))
-      .map(([key, value]) => ({
-        id: key,
-        attribute: key,
-        value
-      }))
+    const filters: FilterValue[] = []
+    const from = activeFilters.dueDateFrom
+    const to = activeFilters.dueDateTo
+    
+    // Combine dueDateFrom/dueDateTo into single due_date_range filter for display
+    if (from || to) {
+      filters.push({ id: 'due_date_range', attribute: 'due_date_range', value: `${from || ''},${to || ''}` })
+    }
+    
+    // Add all other filters
+    Object.entries(activeFilters)
+      .filter(([key, value]) => value && key !== 'category' && key !== 'status' && key !== 'dueDateFrom' && key !== 'dueDateTo' && currentAttributes.some(a => a.key === key))
+      .forEach(([key, value]) => {
+        filters.push({ id: key, attribute: key, value })
+      })
+    
+    return filters
   }, [activeFilters, currentAttributes])
 
   const handleFiltersChange = useCallback((newFilters: FilterValue[]) => {
@@ -293,7 +310,13 @@ export default function ExpensesSection({
     // Set values for active filters
     newFilters.forEach(f => {
       if (f.attribute && f.value) {
-        filterObj[f.attribute] = f.value
+        if (f.attribute === 'due_date_range') {
+          const parts = f.value.split(',')
+          if (parts[0]) filterObj.dueDateFrom = parts[0].trim()
+          if (parts[1]) filterObj.dueDateTo = parts[1].trim()
+        } else {
+          filterObj[f.attribute] = f.value
+        }
       }
     })
 
@@ -303,6 +326,9 @@ export default function ExpensesSection({
         filterObj[attr.key] = ''
       }
     })
+    // Also clear expanded date range filters
+    if (!filterObj.dueDateFrom) filterObj.dueDateFrom = ''
+    if (!filterObj.dueDateTo) filterObj.dueDateTo = ''
 
     updateFilters(filterObj)
   }, [updateFilters, currentAttributes])
@@ -310,7 +336,11 @@ export default function ExpensesSection({
   const handleRemoveFilter = useCallback((id: string) => {
     const filterToRemove = advancedFilters.find(f => f.id === id)
     if (filterToRemove) {
-      updateFilters({ [filterToRemove.attribute]: '' })
+      if (filterToRemove.attribute === 'due_date_range') {
+        updateFilters({ dueDateFrom: '', dueDateTo: '' })
+      } else {
+        updateFilters({ [filterToRemove.attribute]: '' })
+      }
     }
   }, [advancedFilters, updateFilters])
 
@@ -319,6 +349,8 @@ export default function ExpensesSection({
     currentAttributes.forEach(attr => {
       filterObj[attr.key] = ''
     })
+    filterObj.dueDateFrom = ''
+    filterObj.dueDateTo = ''
     updateFilters(filterObj)
   }, [currentAttributes, updateFilters])
 

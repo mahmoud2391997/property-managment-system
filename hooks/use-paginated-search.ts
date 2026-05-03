@@ -138,15 +138,6 @@ export function usePaginatedSearch<T> ({
             params.delete(key)
           }
         })
-
-        const dueMonthValue = updates.filters.due_month
-        if (dueMonthValue !== undefined) {
-          if (dueMonthValue && dueMonthValue !== defaultFilters.due_month) {
-            params.set('due_month_timezone_offset', String(new Date().getTimezoneOffset()))
-          } else {
-            params.delete('due_month_timezone_offset')
-          }
-        }
       }
 
       const queryString = params.toString()
@@ -382,7 +373,15 @@ useEffect(() => {
             const y = dateObj.getFullYear()
             const m = String(dateObj.getMonth() + 1).padStart(2, '0')
             const d = String(dateObj.getDate()).padStart(2, '0')
-            return `${y}-${m}-${d}` === filterValue
+            const dateStr = `${y}-${m}-${d}`
+
+            if (filterKey.endsWith('From')) {
+              return dateStr >= filterValue
+            }
+            if (filterKey.endsWith('To')) {
+              return dateStr <= filterValue
+            }
+            return dateStr === filterValue
           }
 
           // Check if this is a text filter (partial/case-insensitive match)

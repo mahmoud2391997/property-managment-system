@@ -10,6 +10,7 @@ import { PullToRefresh } from '@/components/pull-to-refresh'
 import { CommandPaletteProvider } from '@/contexts/command-palette-context'
 import GlobalDialogs from '@/components/global-dialogs'
 import SecondarySidebar from '@/components/secondary-sidebar'
+import { createClient } from '@/utils/supabase/server'
 
 export default async function ProtectedLayout ({
   children
@@ -18,6 +19,11 @@ export default async function ProtectedLayout ({
 }) {
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get('sidebar_state')?.value === 'true'
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const isTenant = user?.role === 'tenant'
+
   return (
     <PasswordSetupGuard>
       <UserProvider>
@@ -49,7 +55,7 @@ export default async function ProtectedLayout ({
                 <NextTopLoader color='#000' shadow={false} showSpinner={false} height={2} />
                 {children}
               </PullToRefresh>
-              <SecondarySidebar className='hidden md:flex' />
+              {!isTenant && <SecondarySidebar className='hidden md:flex' />}
             </main>
 
             <GlobalDialogs />

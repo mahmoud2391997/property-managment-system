@@ -163,4 +163,7 @@ export const PERMISSIONS: PermissionDef[] = [
   { module: 'financial', action: 'access', title: 'Access Financial', description: 'View financial reports and analytics' },
   { module: 'financial', action: 'overview', title: 'Financial Overview', description: 'View financial overview and metrics' },
   { module: 'financial', action: 'reports', title: 'Financial Reports', description: 'Generate financial reports' },
+
+  // calendar
+  { module: 'calendar', action: 'create', title: 'Create Calendar Events', description: 'Create custom calendar events' },
 ]

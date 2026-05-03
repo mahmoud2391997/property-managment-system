@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState, useCallback } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Chip, ChipPopover } from './chip'
 
@@ -6,10 +6,11 @@ interface MonthGridProps {
   currentDate: Date
   selectedDate: Date
   onDayClick: (date: Date) => void
+  onEventClick?: (event: { id: string }) => void
 }
 
 interface ChipData {
-  type: 'payment' | 'expense' | 'task' | 'manual_event' | 'info' | 'lease_start' | 'lease_end' | 'expiry_reminder' | 'rent_change' | 'assignment_request'
+  type: 'payment' | 'expense' | 'task' | 'manual_event' | 'info' | 'lease_start' | 'lease_end' | 'expiry_reminder' | 'rent_change' | 'assignment_request' | 'booking'
   count: number
   total?: number
   urgentCount?: number
@@ -23,14 +24,12 @@ interface ChipsByDate {
   [dateStr: string]: ChipData[]
 }
 
-export default function MonthGrid({ currentDate, selectedDate, onDayClick }: MonthGridProps) {
+export default function MonthGrid({ currentDate, selectedDate, onDayClick, onEventClick }: MonthGridProps) {
   const [chips, setChips] = useState<ChipsByDate>({})
   const [selectedChip, setSelectedChip] = useState<ChipData | null>(null)
   const [selectedChipDate, setSelectedChipDate] = useState<Date | null>(null)
-  const [expandedDate, setExpandedDate] = useState<Date | null>(null)
 
   useEffect(() => {
-    // Load chips for current month
     const fetchChips = async () => {
       try {
         const year = currentDate.getFullYear()
@@ -101,13 +100,6 @@ export default function MonthGrid({ currentDate, selectedDate, onDayClick }: Mon
            date.getFullYear() === selectedDate.getFullYear()
   }
 
-  const isExpanded = (date: Date | null) => {
-    if (!date || !expandedDate) return false
-    return date.getDate() === expandedDate.getDate() &&
-           date.getMonth() === expandedDate.getMonth() &&
-           date.getFullYear() === expandedDate.getFullYear()
-  }
-
   const getDateStr = (date: Date | null) => {
     if (!date) return null
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -118,17 +110,21 @@ export default function MonthGrid({ currentDate, selectedDate, onDayClick }: Mon
   const handleChipClick = (e: React.MouseEvent, chip: ChipData, date: Date | null) => {
     e.stopPropagation()
     if (chip.type === 'manual_event') {
-      if (date) onDayClick(date)
+      if (date && onEventClick) {
+        fetch(`/api/calendar/events?date=${getDateStr(date)}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.events?.[0]) {
+              onEventClick(data.events[0])
+            }
+          })
+          .catch(() => {})
+      }
       return
     }
     setSelectedChip(chip)
     setSelectedChipDate(date)
   }
-
-  const handleMoreClick = useCallback((e: React.MouseEvent, date: Date | null) => {
-    e.stopPropagation()
-    setExpandedDate(date)
-  }, [])
 
   return (
     <div className='flex flex-col h-full relative'>
@@ -158,12 +154,9 @@ export default function MonthGrid({ currentDate, selectedDate, onDayClick }: Mon
                   date={date}
                   isToday={isToday(date)}
                   isSelected={isSelected(date)}
-                  isExpanded={isExpanded(date)}
                   chips={dayChips}
                   onClick={() => date && onDayClick(date)}
                   onChipClick={handleChipClick}
-                  onMoreClick={handleMoreClick}
-                  onCollapseClick={() => setExpandedDate(null)}
                 />
               )
             })}
@@ -180,16 +173,13 @@ export default function MonthGrid({ currentDate, selectedDate, onDayClick }: Mon
   )
 }
 
-function DayCellWithChips({ date, isToday, isSelected, isExpanded, chips, onClick, onChipClick, onMoreClick, onCollapseClick }: {
+function DayCellWithChips({ date, isToday, isSelected, chips, onClick, onChipClick }: {
   date: Date | null
   isToday: boolean
   isSelected: boolean
-  isExpanded: boolean
   chips: ChipData[]
   onClick: () => void
   onChipClick: (e: React.MouseEvent, chip: ChipData, date: Date | null) => void
-  onMoreClick: (e: React.MouseEvent, date: Date | null) => void
-  onCollapseClick: () => void
 }) {
   if (!date) {
     return (
@@ -202,8 +192,8 @@ function DayCellWithChips({ date, isToday, isSelected, isExpanded, chips, onClic
       onClick={onClick}
       className={cn(
         'border border-(--border-default) p-1 text-left transition-colors hover:bg-(--background-secondary) cursor-pointer flex flex-col',
-        (isSelected || isExpanded) && 'bg-(--background-secondary) ring-2 ring-inset ring-(--primary-main)',
-        isExpanded ? 'max-h-[200px]' : 'min-h-[80px]'
+        isSelected && 'bg-(--background-secondary) ring-2 ring-inset ring-(--primary-main)',
+        'min-h-[80px] overflow-visible'
       )}
     >
       <div className='flex flex-col gap-0.5'>
@@ -216,41 +206,15 @@ function DayCellWithChips({ date, isToday, isSelected, isExpanded, chips, onClic
           {date.getDate()}
         </span>
         
-        {isExpanded ? (
-          <div className='flex flex-col gap-0.5 overflow-y-auto flex-1 w-full'>
-            {chips.map((chip, index) => (
-              <Chip 
-                key={index} 
-                chip={chip} 
-                onClick={(e, clickedChip) => onChipClick(e, clickedChip, date)} 
-              />
-            ))}
-            <button 
-              className='text-[10px] text-(--text-secondary) px-0.5 text-left hover:text-(--primary-main) transition-colors'
-              onClick={(e) => { e.stopPropagation(); onCollapseClick() }}
-            >
-              Show less
-            </button>
-          </div>
-        ) : (
-          <div className='flex flex-col gap-0.5 overflow-hidden w-full'>
-            {chips.slice(0, 3).map((chip, index) => (
-              <Chip 
-                key={index} 
-                chip={chip} 
-                onClick={(e, clickedChip) => onChipClick(e, clickedChip, date)} 
-              />
-            ))}
-            {chips.length > 3 && (
-              <button 
-                className='text-[10px] text-(--text-secondary) px-0.5 text-left hover:text-(--primary-main) transition-colors'
-                onClick={(e) => onMoreClick(e, date)}
-              >
-                +{chips.length - 3} more
-              </button>
-            )}
-          </div>
-        )}
+        <div className='flex flex-wrap gap-0.5 w-full'>
+          {chips.map((chip, index) => (
+            <Chip 
+              key={index} 
+              chip={chip} 
+              onClick={(e, clickedChip) => onChipClick(e, clickedChip, date)} 
+            />
+          ))}
+        </div>
       </div>
     </div>
   )

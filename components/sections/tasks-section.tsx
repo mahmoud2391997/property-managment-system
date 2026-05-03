@@ -102,7 +102,8 @@ export default function TasksSection({
     filterKeyMapping: {
       task_id: 'id'
     },
-    textFilterKeys: ['task_id', 'property', 'room', 'created_by', 'assigned_to', 'assigned_by']
+    textFilterKeys: ['task_id', 'property', 'room', 'created_by', 'assigned_to', 'assigned_by'],
+    dateFilterKeys: ['due_date']
   })
 
   const statusOptions = [

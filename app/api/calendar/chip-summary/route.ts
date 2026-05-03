@@ -4,16 +4,40 @@ import { getUserAndStaff } from '@/utils/getUserAndStaff'
 
 export async function GET(request: NextRequest) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
     if (error) return error
+
+    const canPayments = permissions.has('payments.access')
+    const canExpenses = permissions.has('expenses.access')
+    const canTasks = permissions.has('tasks.access')
+    const canRentals = permissions.has('leases.access')
 
     const { searchParams } = new URL(request.url)
     const date = searchParams.get('date')
     const type = searchParams.get('type')
+    const category = searchParams.get('category')
     const limit = parseInt(searchParams.get('limit') || '10')
 
     if (!date || !type) {
       return NextResponse.json({ error: 'Missing date or type parameters' }, { status: 400 })
+    }
+
+    const permissionMap: Record<string, boolean> = {
+      payment: canPayments,
+      expense: canExpenses,
+      task: canTasks,
+      assignment_request: canTasks,
+      lease_start: canRentals,
+      lease_end: canRentals,
+      expiry_reminder: canRentals,
+      rent_change: canRentals,
+      manual_event: canRentals,
+      booking: canRentals,
+      info: true
+    }
+
+    if (!permissionMap[type]) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const [year, month, day] = date.split('-').map(Number)
@@ -111,12 +135,16 @@ export async function GET(request: NextRequest) {
         break
 
       case 'expense':
+        const expenseWhere: any = {
+          organization_id: staff.organization_id,
+          due_payment_date: { gte: startOfDay, lte: endOfDay },
+          status: 'Pending'
+        }
+        if (category) {
+          expenseWhere.category = category
+        }
         const expenses = await prisma.expenses.findMany({
-          where: {
-            organization_id: staff.organization_id,
-            due_payment_date: { gte: startOfDay, lte: endOfDay },
-            status: 'Pending'
-          },
+          where: expenseWhere,
           include: {
             charges: { select: { title: true, amount: true } },
             property_expenses: { select: { property_id: true, type: true } }
@@ -125,11 +153,7 @@ export async function GET(request: NextRequest) {
         })
 
         count = await prisma.expenses.count({
-          where: {
-            organization_id: staff.organization_id,
-            due_payment_date: { gte: startOfDay, lte: endOfDay },
-            status: 'Pending'
-          }
+          where: expenseWhere
         })
 
         items = expenses.map(e => ({
@@ -356,6 +380,44 @@ export async function GET(request: NextRequest) {
           created_by: a.staff_task_assignments_assigner_idTostaff
             ? `${a.staff_task_assignments_assigner_idTostaff.first_name} ${a.staff_task_assignments_assigner_idTostaff.last_name}`
             : 'N/A'
+        }))
+        break
+
+      case 'booking':
+        const dayBookings = await prisma.bookings.findMany({
+          where: {
+            properties: { organization_id: staff.organization_id },
+            move_in_timestamp: { gte: startOfDay, lte: endOfDay },
+            status: 'Current'
+          },
+          include: {
+            properties: { select: { code: true } },
+            rooms: { select: { title: true } },
+            tenants: {
+              include: {
+                individual_tenants: { select: { first_name: true, last_name: true } }
+              }
+            }
+          },
+          take: limit
+        })
+
+        count = await prisma.bookings.count({
+          where: {
+            properties: { organization_id: staff.organization_id },
+            move_in_timestamp: { gte: startOfDay, lte: endOfDay },
+            status: 'Current'
+          }
+        })
+
+        items = dayBookings.map(b => ({
+          title: b.reference_id,
+          tenant: b.tenants?.individual_tenants
+            ? `${b.tenants.individual_tenants.first_name} ${b.tenants.individual_tenants.last_name}`
+            : 'N/A',
+          property: b.properties?.code || 'N/A',
+          room: b.rooms?.title || 'Whole unit',
+          due_date: b.move_in_timestamp
         }))
         break
 

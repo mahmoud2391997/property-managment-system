@@ -45,7 +45,7 @@ export default function DatePicker ({ className, onValueChange, value, ...props 
           )}
           {...props}
         >
-          {date ? date.toLocaleDateString() : 'Select date'}
+          {date ? date.toLocaleDateString('en-GB') : 'Select date'}
           <CalendarIcon size={18} />
         </Button>
       </PopoverTrigger>

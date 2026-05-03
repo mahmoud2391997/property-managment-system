@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus } from 'lucide-react'
 import Button from '@/components/costume-ui/button'
 import MonthGrid from './components/month-grid'
@@ -15,6 +15,7 @@ interface CalendarEvent {
   duration_minutes: number | null
   description: string | null
   is_for_all_staff: boolean
+  created_by: string
   calendar_event_attendees?: { staff: { id: string; first_name: string; last_name: string | null } }[]
 }
 
@@ -24,6 +25,14 @@ export default function CalendarPage() {
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false)
   const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [staffId, setStaffId] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/user/info')
+      .then(r => r.json())
+      .then(data => { if (data.staff?.id) setStaffId(data.staff.id) })
+      .catch(() => {})
+  }, [])
 
   const goToPrevMonth = () => {
     setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
@@ -68,6 +77,15 @@ export default function CalendarPage() {
     setIsCreateEventOpen(open)
   }
 
+  const canEditEvent = (event: CalendarEvent): boolean => {
+    if (!staffId) return false
+    if (event.created_by !== staffId) return false
+    const eventDate = new Date(event.timestamp)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return eventDate >= today
+  }
+
   const monthYear = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
   return (
@@ -78,12 +96,14 @@ export default function CalendarPage() {
           <h1 className='text-lg font-semibold'>Calendar</h1>
         </div>
         <div className='flex items-center gap-2'>
-          <Button
-            variant='secondary'
-            icon={<Plus size={16} />}
-            label='Create Event'
-            onClick={handleCreateEvent}
-          />
+          <PermissionGate permission='calendar.create'>
+            <Button
+              variant='secondary'
+              icon={<Plus size={16} />}
+              label='Create Event'
+              onClick={handleCreateEvent}
+            />
+          </PermissionGate>
         </div>
       </div>
 
@@ -118,6 +138,7 @@ export default function CalendarPage() {
               currentDate={currentMonth}
               selectedDate={selectedDate}
               onDayClick={handleDayClick}
+              onEventClick={handleEventClick}
             />
           </div>
 
@@ -138,6 +159,7 @@ export default function CalendarPage() {
         selectedDate={selectedDate}
         onSuccess={() => setRefreshKey(prev => prev + 1)}
         editEvent={editEvent}
+        canEdit={editEvent ? canEditEvent(editEvent as CalendarEvent) : false}
       />
     </div>
   )
