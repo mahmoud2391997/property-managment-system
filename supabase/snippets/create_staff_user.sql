@@ -31,7 +31,7 @@ DECLARE
   v_organization_title text := 'EzyFusion';             -- will be created if it doesn't exist
   v_organization_type  public.organization_type := 'Property Manager';  -- valid values: 'Owner', 'Property Manager'
 
-  v_role_title         text := 'Admin';                 -- will be created if it doesn't exist for this org
+  v_role_title         text := 'Owner';                 -- will be created if it doesn't exist for this org
   -- ====================================
 
   v_user_id        uuid := gen_random_uuid();
