@@ -42,7 +42,6 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [attendeeSearch, setAttendeeSearch] = useState('')
-  const prevSelectedCount = useRef(0)
   const isMounting = useRef(true)
 
   useEffect(() => {
@@ -65,18 +64,11 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
         setIsForAllStaff(false)
         setSelectedAttendees([])
       }
-      prevSelectedCount.current = 0
       isMounting.current = false
     }
   }, [open, editEvent])
 
-  useEffect(() => {
-    if (attendees.length > 0 && selectedAttendees.length === attendees.length && prevSelectedCount.current === attendees.length - 1) {
-      setIsForAllStaff(true)
-      setSelectedAttendees([])
-    }
-    prevSelectedCount.current = selectedAttendees.length
-  }, [selectedAttendees, attendees.length])
+  const isAllManuallySelected = attendees.length > 0 && selectedAttendees.length === attendees.length
 
   const fetchAttendees = async () => {
     try {
@@ -280,7 +272,7 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
               disabled={editEvent && !canEdit}
               className='rounded border-(--border-default)'
             />
-            <label htmlFor='allStaff' className='text-sm'>All staff</label>
+            <label htmlFor='allStaff' className='text-sm'>All staff (includes future staff)</label>
           </div>
 
           <div>
@@ -294,14 +286,14 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
               )}
             >
               {isForAllStaff
-                ? `All staff (${attendees.length})`
+                ? 'All staff (includes future staff)'
                 : selectedAttendees.length === 0
                   ? 'Select attendees...'
                   : `${selectedAttendees.length} attendee(s) selected`}
             </button>
             {showAttendeeDropdown && (
               <div className='mt-1 w-full bg-(--background-primary) border border-(--border-default) rounded-lg shadow-lg max-h-48 overflow-auto'>
-                <div className='p-2 border-b border-(--border-default) sticky top-0 bg-(--background-primary)'>
+                <div className='p-2 border-b border-(--border-default) sticky top-0 bg-(--background-primary) space-y-1'>
                   <input
                     type='text'
                     value={attendeeSearch}
@@ -309,6 +301,22 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
                     placeholder='Search staff...'
                     className='w-full px-2 py-1 text-sm rounded border border-(--border-default) bg-(--background-primary) focus:outline-none'
                   />
+                  <label className='flex items-center gap-2 px-1 py-1 cursor-pointer text-sm font-medium text-(--primary-main)'>
+                    <input
+                      type='checkbox'
+                      checked={isAllManuallySelected}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          setSelectedAttendees(attendees.map(s => s.id))
+                        } else {
+                          setSelectedAttendees([])
+                        }
+                      }}
+                      disabled={!canEdit}
+                      className='rounded border-(--border-default)'
+                    />
+                    Select all ({attendees.length})
+                  </label>
                 </div>
                 {filteredAttendees.map(a => (
                   <label
@@ -361,7 +369,7 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
             {isForAllStaff && (
               <div className='flex flex-wrap gap-1 mt-2'>
                 <span className='inline-flex items-center px-2 py-0.5 text-xs bg-(--primary-light) text-(--primary-main) rounded-full'>
-                  All staff
+                  All staff (dynamic)
                 </span>
               </div>
             )}

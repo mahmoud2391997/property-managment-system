@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, timestamp, duration_minutes, description, is_for_all_staff } = body
+    const { title, timestamp, duration_minutes, description, is_for_all_staff, attendee_ids } = body
 
     if (!title || !timestamp) {
       return NextResponse.json({ error: 'Title and timestamp are required' }, { status: 400 })
@@ -60,8 +60,16 @@ export async function POST(request: NextRequest) {
         duration_minutes: duration_minutes || null,
         description: description || null,
         is_for_all_staff: is_for_all_staff || false,
-        created_by: staff.id
-      }
+        created_by: staff.id,
+        ...(is_for_all_staff || !attendee_ids || attendee_ids.length === 0 ? {} : {
+          calendar_event_attendees: {
+            create: attendee_ids.map((staffId: string) => ({
+              staff_id: staffId
+            }))
+          }
+        })
+      },
+      include: { calendar_event_attendees: true }
     })
 
     return NextResponse.json({ event })
