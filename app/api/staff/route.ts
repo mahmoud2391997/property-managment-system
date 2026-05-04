@@ -437,6 +437,22 @@ export async function DELETE (request: Request) {
       )
     }
 
+    // Check if target staff has the Owner role
+    const targetStaffWithRole = await prisma.staff.findUnique({
+      where: { id: staffId },
+      select: {
+        id: true,
+        roles: { select: { title: true } }
+      }
+    })
+
+    if (targetStaffWithRole?.roles?.title === 'Owner') {
+      return NextResponse.json(
+        { error: 'Cannot delete staff with Owner role' },
+        { status: 400 }
+      )
+    }
+
     const supabase = await createClient()
     const supabaseAdmin = createAdminClient()
 

@@ -45,7 +45,7 @@ type StaffWithRole = Prisma.staffGetPayload<{
   accountStatus?: 'Activated' | 'Pending'
 }
 
-function StaffActionsCell ({ staff }: { staff: StaffWithRole }) {
+function StaffActionsCell ({ staff, currentUserId }: { staff: StaffWithRole; currentUserId?: string }) {
   const router = useRouter()
   const { can } = usePermissions()
   const { role: currentUserRole } = useUser()
@@ -62,6 +62,7 @@ function StaffActionsCell ({ staff }: { staff: StaffWithRole }) {
 
   const isTargetOwner = (staff as any).roles?.title === 'Owner'
   const canEditStaff = can('staff.update') && (!isTargetOwner || currentUserRole === 'Owner')
+  const isSelf = currentUserId === staff.id
 
   const handleResendInvite = async () => {
     setIsResending(true)
@@ -172,7 +173,7 @@ function StaffActionsCell ({ staff }: { staff: StaffWithRole }) {
               Edit staff
             </DropdownMenuItem>
           )}
-          {can('staff.delete') && (
+          {can('staff.delete') && !isTargetOwner && !isSelf && (
             <ConfirmationDialog
               openDialogButton={
                 <button className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'>
@@ -337,6 +338,13 @@ export default function StaffTable ({ data, currentUserId }: StaffTableProps) {
             </div>
           )
         }
+      }
+    }
+    // Pass currentUserId to actions cell
+    if (col.id === 'actions') {
+      return {
+        ...column,
+        cell: ({ row }) => <StaffActionsCell staff={row.original} currentUserId={currentUserId} />
       }
     }
     return column
