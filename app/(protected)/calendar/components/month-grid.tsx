@@ -2,6 +2,13 @@ import { useMemo, useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Chip, ChipPopover } from './chip'
 
+interface EventItem {
+  id: string
+  title: string
+  timestamp: string
+  description: string | null
+}
+
 interface MonthGridProps {
   currentDate: Date
   selectedDate: Date
@@ -28,6 +35,9 @@ export default function MonthGrid({ currentDate, selectedDate, onDayClick, onEve
   const [chips, setChips] = useState<ChipsByDate>({})
   const [selectedChip, setSelectedChip] = useState<ChipData | null>(null)
   const [selectedChipDate, setSelectedChipDate] = useState<Date | null>(null)
+  const [eventList, setEventList] = useState<EventItem[]>([])
+  const [showEventList, setShowEventList] = useState(false)
+  const [eventListDate, setEventListDate] = useState<string>('')
 
   useEffect(() => {
     const fetchChips = async () => {
@@ -111,11 +121,17 @@ export default function MonthGrid({ currentDate, selectedDate, onDayClick, onEve
     e.stopPropagation()
     if (chip.type === 'manual_event') {
       if (date && onEventClick) {
-        fetch(`/api/calendar/events?date=${getDateStr(date)}`)
+        const dateStr = getDateStr(date) || ''
+        fetch(`/api/calendar/events?date=${dateStr}`)
           .then(r => r.json())
           .then(data => {
-            if (data.events?.[0]) {
-              onEventClick(data.events[0])
+            const events = data.events || []
+            if (events.length === 1) {
+              onEventClick(events[0])
+            } else if (events.length > 1) {
+              setEventList(events)
+              setEventListDate(dateStr)
+              setShowEventList(true)
             }
           })
           .catch(() => {})
@@ -169,6 +185,55 @@ export default function MonthGrid({ currentDate, selectedDate, onDayClick, onEve
         date={selectedChipDate}
         onClose={() => setSelectedChip(null)}
       />
+
+      {showEventList && (
+        <>
+          <div
+            className='fixed inset-0 z-40 bg-black/20'
+            onClick={() => setShowEventList(false)}
+          />
+          <div
+            className='fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-(--background-primary) rounded-lg shadow-xl border border-(--border-default) p-4 w-72 max-h-[80vh] overflow-y-auto'
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className='flex items-start justify-between mb-3'>
+              <h3 className='font-semibold text-sm'>
+                {eventList.length} Events on {new Date(eventListDate + 'T00:00:00').toLocaleDateString()}
+              </h3>
+              <button
+                onClick={() => setShowEventList(false)}
+                className='text-(--text-secondary) hover:text-(--text-primary) p-1'
+              >
+                ×
+              </button>
+            </div>
+            <div className='space-y-2'>
+              {eventList.map((event) => (
+                <div
+                  key={event.id}
+                  className='text-xs py-2 px-3 bg-(--background-secondary) rounded cursor-pointer hover:bg-(--border-default) transition-colors'
+                  onClick={() => {
+                    if (onEventClick) {
+                      onEventClick({ id: event.id })
+                      setShowEventList(false)
+                    }
+                  }}
+                >
+                  <div className='font-medium'>{event.title}</div>
+                  {event.description && (
+                    <div className='text-[10px] text-(--text-secondary) mt-0.5 truncate'>
+                      {event.description}
+                    </div>
+                  )}
+                  <div className='text-[10px] text-(--text-secondary) mt-0.5'>
+                    {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

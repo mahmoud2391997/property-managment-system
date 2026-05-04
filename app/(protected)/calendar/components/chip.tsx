@@ -205,7 +205,7 @@ export function ChipPopover({ chip, date, onClose }: ChipPopoverProps) {
                       if (chip.type === 'expense' && chip.category) return `${chip.viewAllUrl}?due_date=${chip.date}&category=${chip.category}`
                       if (chip.type === 'expense') return `${chip.viewAllUrl}?due_date=${chip.date}`
                       if (chip.type === 'task') return `${chip.viewAllUrl}?due_date=${chip.date}&status=Open`
-                      if (chip.type === 'assignment_request') return `${chip.viewAllUrl}?status=Pending My Assignment`
+                      if (chip.type === 'assignment_request') return `${chip.viewAllUrl}?due_date=${chip.date}&status=Pending My Assignment`
                       return `${chip.viewAllUrl}?due_date=${chip.date}`
                     })()}
                     className='text-xs text-(--primary-main) hover:underline font-medium'

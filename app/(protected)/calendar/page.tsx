@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Button from '@/components/costume-ui/button'
 import MonthGrid from './components/month-grid'
 import HourGrid from './components/hour-grid'
@@ -19,13 +20,31 @@ interface CalendarEvent {
   calendar_event_attendees?: { staff: { id: string; first_name: string; last_name: string | null } }[]
 }
 
-export default function CalendarPage() {
-  const [currentMonth, setCurrentMonth] = useState(new Date())
-  const [selectedDate, setSelectedDate] = useState(new Date())
+function CalendarContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  const now = new Date()
+  const dueDateParam = searchParams.get('due_date')
+  const parsedDate = dueDateParam ? new Date(dueDateParam) : null
+  const initialDate = (parsedDate && !isNaN(parsedDate.getTime())) ? parsedDate : now
+  const initialMonth = (parsedDate && !isNaN(parsedDate.getTime())) ? new Date(parsedDate.getFullYear(), parsedDate.getMonth(), 1) : now
+  
+  const [currentMonth, setCurrentMonth] = useState(initialMonth)
+  const [selectedDate, setSelectedDate] = useState(initialDate)
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false)
   const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [staffId, setStaffId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (dueDateParam && parsedDate && !isNaN(parsedDate.getTime())) {
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('due_date')
+      const newQuery = params.toString()
+      router.replace(`/calendar${newQuery ? `?${newQuery}` : ''}`, { scroll: false })
+    }
+  }, [dueDateParam, parsedDate, searchParams, router])
 
   useEffect(() => {
     fetch('/api/user/info')
@@ -162,5 +181,17 @@ export default function CalendarPage() {
         canEdit={editEvent ? canEditEvent(editEvent as CalendarEvent) : false}
       />
     </div>
+  )
+}
+
+export default function CalendarPage() {
+  return (
+    <Suspense fallback={
+      <div className='flex items-center justify-center h-full'>
+        <div className='text-(--text-secondary)'>Loading...</div>
+      </div>
+    }>
+      <CalendarContent />
+    </Suspense>
   )
 }

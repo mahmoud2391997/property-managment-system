@@ -24,6 +24,7 @@
     "seed:final-working": "npx tsx scripts/seed-final-working.ts",
     "seed:simple-final": "npx tsx scripts/seed-simple-final.ts",
     "seed:working-success": "npx tsx scripts/seed-working-success.ts",
+    "seed:performance": "npx tsx scripts/seed-performance.ts",
     "seed:sql": "./scripts/seed-sql.sh",
     "test": "jest __tests__/ultimate.test.js --verbose",
     "test:ultimate": "jest __tests__/ultimate.test.js --verbose",

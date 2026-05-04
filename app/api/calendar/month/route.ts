@@ -240,14 +240,15 @@ export async function GET(request: NextRequest) {
         Object.entries(expensesGrouped[dateStr]).forEach(([cat, data]) => {
           const suffix = isOverdue ? ' expenses overdue' : ' expenses due'
           const catLabel = cat.replace(/_/g, ' ').toLowerCase() + suffix
+          const isInert = cat === 'Refund' || cat === 'Refunded' || cat === 'refund' || cat.toLowerCase().includes('refund')
           chips.push({
             type: 'expense',
             count: data.count,
             total: data.total,
             label: catLabel,
             status: isOverdue ? 'overdue' : 'due',
-            hasViewAll: true,
-            viewAllUrl: '/expenses',
+            hasViewAll: !isInert,
+            viewAllUrl: isInert ? undefined : '/expenses',
             date: dateStr,
             category: cat
           })
