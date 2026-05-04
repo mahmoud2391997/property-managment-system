@@ -182,5 +182,16 @@ BEGIN
       SELECT 1 FROM public.roles_permissions rp
       WHERE rp.role_id = new_role AND rp.permission_id = p.id
     );
+
+    -- 4. Assign the first staff member to Owner role if they don't have a role
+    SELECT id INTO first_staff_id FROM public.staff
+    WHERE organization_id = org.id AND role_id IS NULL
+    LIMIT 1;
+
+    IF first_staff_id IS NOT NULL THEN
+      UPDATE public.staff SET role_id = new_role
+      WHERE id = first_staff_id;
+      RAISE NOTICE 'Assigned Owner role to staff %', first_staff_id;
+    END IF;
   END LOOP;
 END $$;

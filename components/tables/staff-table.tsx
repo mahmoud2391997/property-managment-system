@@ -1,7 +1,7 @@
 'use client'
 
 import { ColumnDef } from '@tanstack/react-table'
-import { MoreHorizontal, MessageCircle, Pencil } from 'lucide-react'
+import { MoreHorizontal, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -268,7 +268,7 @@ export const columns: ColumnDef<StaffWithRole>[] = [
                   roleId: staff.role_id || '',
                   isOwner: isTargetOwner
                 })}>
-                  <Pencil size={14} /> Edit staff
+                  Edit staff
                 </DropdownMenuItem>
               )}
               {can('staff.delete') && (
