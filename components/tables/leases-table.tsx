@@ -63,8 +63,7 @@ function formatCurrency(amount: number): string {
 }
 
 const createColumns = (
-  onDataRefresh?: () => void,
-  canTerminate = false
+  onDataRefresh?: () => void
 ): ColumnDef<LeaseWithDetails>[] => [
   // Checkbox
   {
@@ -313,7 +312,8 @@ const createColumns = (
     enableHiding: false,
     cell: ({ row }) => {
       const lease = row.original
-      const canEndLease = canTerminate && lease.status === 'Current'
+      const canEndLease = can('leases.end') && lease.status === 'Current'
+      const canTransfer = can('leases.transfer') && lease.status === 'Current'
       const isEnded = lease.status === 'Ended'
 
       return (
@@ -363,20 +363,22 @@ const createColumns = (
                 </DropdownMenuItem>
               }
             />
+            {canTransfer && (
+              <DropdownMenuItem asChild>
+                <Link
+                  href={
+                    lease.room_id
+                      ? `/rooms/${lease.room_id}/leases/${lease.id}/transfer`
+                      : `/properties/${lease.property_id}/leases/${lease.id}/transfer`
+                  }
+                >
+                  Transfer Lease
+                </Link>
+              </DropdownMenuItem>
+            )}
             {canEndLease && (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link
-                    href={
-                      lease.room_id
-                        ? `/rooms/${lease.room_id}/leases/${lease.id}/transfer`
-                        : `/properties/${lease.property_id}/leases/${lease.id}/transfer`
-                    }
-                  >
-                    Transfer Lease
-                  </Link>
-                </DropdownMenuItem>
                 <InitiateLeaseEndingDrawer
                   leaseId={lease.id}
                   propertyName={lease.property?.code || 'Property'}
@@ -405,20 +407,15 @@ type Props = {
   className?: string
   noPagnitation?: boolean
   onDataRefresh?: () => void
-  canTerminate?: boolean
 }
 
 export default function LeasesTable({
   data,
   className = '',
   noPagnitation = false,
-  onDataRefresh,
-  canTerminate: canTerminateProp
+  onDataRefresh
 }: Props) {
-  const { can } = usePermissions()
-  const canTerminate = canTerminateProp ?? can('leases.terminate')
-
-  const columns = createColumns(onDataRefresh, canTerminate)
+  const columns = createColumns(onDataRefresh)
 
   return (
     <Table
