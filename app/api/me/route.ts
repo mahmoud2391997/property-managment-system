@@ -36,10 +36,14 @@ export async function GET() {
     'tenants.view_lease',
     'tenants.make_payment',
     'tenants.view_property',
+    'leases.access',
+    'rentals.access',
     'tickets.access',
     'tickets.create',
     'tickets.update',
-    'notifications.access'
+    'notifications.access',
+    'payments.access',
+    'payments.make_payment'
   ]
 
   return NextResponse.json({
