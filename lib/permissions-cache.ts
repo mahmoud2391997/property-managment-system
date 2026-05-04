@@ -1,26 +1,28 @@
 type Entry = {
   permissions: Set<string>
   roleId: string
+  roleTitle: string | null
   expiresAt: number
 }
 
 const TTL_MS = 30_000
 const store = new Map<string, Entry>()
 
-export function getCached(staffId: string): Set<string> | null {
+export function getCached(staffId: string): { permissions: Set<string>; roleTitle: string | null } | null {
   const entry = store.get(staffId)
   if (!entry) return null
   if (Date.now() > entry.expiresAt) {
     store.delete(staffId)
     return null
   }
-  return entry.permissions
+  return { permissions: entry.permissions, roleTitle: entry.roleTitle }
 }
 
-export function setCached(staffId: string, roleId: string, permissions: Set<string>) {
+export function setCached(staffId: string, roleId: string, roleTitle: string | null, permissions: Set<string>) {
   store.set(staffId, {
     permissions,
     roleId,
+    roleTitle,
     expiresAt: Date.now() + TTL_MS
   })
 }

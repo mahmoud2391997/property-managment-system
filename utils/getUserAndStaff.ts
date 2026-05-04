@@ -60,7 +60,7 @@ async function getUserAndStaffInternal(): Promise<Success | Failure> {
         error: NextResponse.json({ error: 'Staff record not found' }, { status: 404 })
       }
     }
-    return { user, staff, permissions: cached, role: null, error: null }
+    return { user, staff, permissions: cached.permissions, role: cached.roleTitle, error: null }
   }
 
   // Cold path — Prisma join to build the permission set
@@ -101,7 +101,7 @@ async function getUserAndStaffInternal(): Promise<Success | Failure> {
     permissionRows.map((perm) => `${perm.module}.${perm.action}`.trim().toLowerCase())
   )
 
-  setCached(user.id, row.role_id, permissions)
+  setCached(user.id, row.role_id, row.roles?.title ?? null, permissions)
 
   return {
     user,
