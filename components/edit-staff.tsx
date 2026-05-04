@@ -61,7 +61,7 @@ const EditStaff = ({ staffId, firstName, lastName, phoneNumber, roleId, isOwner,
           throw new Error(data.error || 'Failed to fetch roles')
         }
 
-        setRoles(data.roles)
+        setRoles(data.roles.filter((r: Role) => r.title !== 'Owner'))
       } catch (err: any) {
         console.error('Error fetching roles:', err)
         FeedbackToasts.operationFailed(

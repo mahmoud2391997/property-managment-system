@@ -89,6 +89,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
       }
 
+      // Prevent assigning Owner role through edit (Owner must be assigned directly)
+      if (role.title === 'Owner') {
+        return NextResponse.json({ error: 'Cannot assign Owner role via edit' }, { status: 400 })
+      }
+
       updateData.role_id = role_id
     }
 
