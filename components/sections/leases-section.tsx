@@ -45,7 +45,11 @@ export default function LeasesSection({ propertyId, roomId }: Props) {
   }, [fetchLeases])
 
   const handleAddLease = () => {
-    router.push(`/properties/${propertyId}/leases/add-lease`)
+    if (roomId) {
+      router.push(`/rooms/${roomId}/leases/add-lease`)
+    } else if (propertyId) {
+      router.push(`/properties/${propertyId}/leases/add-lease`)
+    }
   }
 
   if (loading) {

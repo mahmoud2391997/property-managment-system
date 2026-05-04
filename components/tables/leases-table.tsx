@@ -62,6 +62,109 @@ function formatCurrency(amount: number): string {
   return `RM ${amount.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+function LeaseActionsCell ({ lease, onDataRefresh }: { lease: LeaseWithDetails; onDataRefresh?: () => void }) {
+  const { can } = usePermissions()
+  const canEndLease = can('leases.end') && lease.status === 'Current'
+  const canTransfer = can('leases.transfer') && lease.status === 'Current'
+  const canEdit = can('leases.update') && (lease.status === 'Current' || lease.status === 'Scheduled')
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant='ghost' className='h-8 w-8 p-0'>
+          <span className='sr-only'>Open menu</span>
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align='end'>
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <DropdownMenuItem
+          onClick={() => navigator.clipboard.writeText(lease.reference_id)}
+        >
+          Copy lease ID
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link
+            href={
+              lease.room_id
+                ? `/rooms/${lease.room_id}/leases/${lease.id}/details`
+                : `/properties/${lease.property_id}/leases/${lease.id}/details`
+            }
+          >
+            View details
+          </Link>
+        </DropdownMenuItem>
+        {canEdit && (
+          <DropdownMenuItem asChild>
+            <Link
+              href={
+                lease.room_id
+                  ? `/rooms/${lease.room_id}/leases/${lease.id}/edit`
+                  : `/properties/${lease.property_id}/leases/${lease.id}/edit`
+              }
+            >
+              Edit Lease
+            </Link>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Rental</DropdownMenuLabel>
+        {canEndLease && (
+          <ScheduleRentalChangeDialog
+            leaseId={lease.id}
+            onSuccess={onDataRefresh}
+            trigger={
+              <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                Schedule rental change
+              </DropdownMenuItem>
+            }
+          />
+        )}
+        <RentalHistoryDialog
+          leaseId={lease.id}
+          trigger={
+            <DropdownMenuItem onSelect={e => e.preventDefault()}>
+              View rental history
+            </DropdownMenuItem>
+          }
+        />
+        {canTransfer && (
+          <DropdownMenuItem asChild>
+            <Link
+              href={
+                lease.room_id
+                  ? `/rooms/${lease.room_id}/leases/${lease.id}/transfer`
+                  : `/properties/${lease.property_id}/leases/${lease.id}/transfer`
+              }
+            >
+              Transfer Lease
+            </Link>
+          </DropdownMenuItem>
+        )}
+        {canEndLease && (
+          <>
+            <DropdownMenuSeparator />
+            <InitiateLeaseEndingDrawer
+              leaseId={lease.id}
+              propertyName={lease.property?.code || 'Property'}
+              unitName={lease.room?.title}
+              tenantName={lease.tenant.last_name
+                ? `${lease.tenant.first_name} ${lease.tenant.last_name}`
+                : lease.tenant.first_name}
+              onSuccess={onDataRefresh}
+              trigger={
+                <button type='button' className='delete-dropdown-button'>
+                  End Lease
+                </button>
+              }
+            />
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 const createColumns = (
   onDataRefresh?: () => void
 ): ColumnDef<LeaseWithDetails>[] => [
@@ -305,95 +408,6 @@ const createColumns = (
       )
     }
   },
-
-function LeaseActionsCell ({ lease, onDataRefresh }: { lease: LeaseWithDetails; onDataRefresh?: () => void }) {
-  const { can } = usePermissions()
-  const canEndLease = can('leases.end') && lease.status === 'Current'
-  const canTransfer = can('leases.transfer') && lease.status === 'Current'
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant='ghost' className='h-8 w-8 p-0'>
-          <span className='sr-only'>Open menu</span>
-          <MoreHorizontal />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align='end'>
-        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuItem
-          onClick={() => navigator.clipboard.writeText(lease.reference_id)}
-        >
-          Copy lease ID
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link
-            href={
-              lease.room_id
-                ? `/rooms/${lease.room_id}/leases/${lease.id}/details`
-                : `/properties/${lease.property_id}/leases/${lease.id}/details`
-            }
-          >
-            View details
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>Rental</DropdownMenuLabel>
-        {canEndLease && (
-          <ScheduleRentalChangeDialog
-            leaseId={lease.id}
-            onSuccess={onDataRefresh}
-            trigger={
-              <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                Schedule rental change
-              </DropdownMenuItem>
-            }
-          />
-        )}
-        <RentalHistoryDialog
-          leaseId={lease.id}
-          trigger={
-            <DropdownMenuItem onSelect={e => e.preventDefault()}>
-              View rental history
-            </DropdownMenuItem>
-          }
-        />
-        {canTransfer && (
-          <DropdownMenuItem asChild>
-            <Link
-              href={
-                lease.room_id
-                  ? `/rooms/${lease.room_id}/leases/${lease.id}/transfer`
-                  : `/properties/${lease.property_id}/leases/${lease.id}/transfer`
-              }
-            >
-              Transfer Lease
-            </Link>
-          </DropdownMenuItem>
-        )}
-        {canEndLease && (
-          <>
-            <DropdownMenuSeparator />
-            <InitiateLeaseEndingDrawer
-              leaseId={lease.id}
-              propertyName={lease.property?.code || 'Property'}
-              unitName={lease.room?.title}
-              tenantName={lease.tenant.last_name
-                ? `${lease.tenant.first_name} ${lease.tenant.last_name}`
-                : lease.tenant.first_name}
-              onSuccess={onDataRefresh}
-              trigger={
-                <button type='button' className='delete-dropdown-button'>
-                  End Lease
-                </button>
-              }
-            />
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
 
   {
     id: 'actions',

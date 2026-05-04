@@ -282,7 +282,7 @@ export async function GET(
       }
     }
 
-    // Transform lease data
+     // Transform lease data
     let leaseData = null
     if (lease) {
       const tenantName = lease.tenants.individual_tenants
@@ -301,6 +301,18 @@ export async function GET(
           const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
           return sum + chargeAmount + tax
         }, 0)
+      }
+
+      // If no pending payment, calculate next due date from payment_day
+      if (!dueDate && lease.payment_day) {
+        const today = new Date()
+        const currentYear = today.getFullYear()
+        const currentMonth = today.getMonth()
+        let calculatedDueDate = new Date(currentYear, currentMonth, lease.payment_day)
+        if (calculatedDueDate < today) {
+          calculatedDueDate = new Date(currentYear, currentMonth + 1, lease.payment_day)
+        }
+        dueDate = calculatedDueDate.toISOString()
       }
 
       leaseData = {

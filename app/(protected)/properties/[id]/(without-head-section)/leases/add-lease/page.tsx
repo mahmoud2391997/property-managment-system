@@ -130,6 +130,7 @@ const AddLease = () => {
 
   // Fetch property code
   useEffect(() => {
+    if (!propertyId || propertyId === 'undefined') return
     const fetchPropertyCode = async () => {
       setIsPropertyCodeLoading(true)
       const response = await fetch(`/api/leases/${propertyId}/property-code`)
@@ -145,6 +146,7 @@ const AddLease = () => {
 
   // Fetch default configurations for this property
   useEffect(() => {
+    if (!propertyId || propertyId === 'undefined') return
     const fetchDefaultConfig = async () => {
       try {
         const response = await fetch(`/api/properties/${propertyId}/default-config`)
@@ -197,6 +199,7 @@ const AddLease = () => {
 
   // Check for existing booking on this property
   useEffect(() => {
+    if (!propertyId || propertyId === 'undefined') return
     const checkBooking = async () => {
       try {
         const response = await fetch(`/api/bookings/check?propertyId=${propertyId}`)
