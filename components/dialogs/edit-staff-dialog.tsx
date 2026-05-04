@@ -3,8 +3,6 @@
 import { useState } from 'react'
 import Dialog from '../costume-ui/dialog'
 import EditStaff from '../edit-staff'
-import Button from '../costume-ui/button'
-import { Pencil } from 'lucide-react'
 
 interface StaffData {
   id: string
@@ -17,26 +15,26 @@ interface StaffData {
 
 interface EditStaffDialogProps {
   staff: StaffData
+  onOpenChange?: (open: boolean) => void
 }
 
-export default function EditStaffDialog({ staff }: EditStaffDialogProps) {
+export default function EditStaffDialog({ staff, onOpenChange }: EditStaffDialogProps) {
   const [loading, setLoading] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
+
+  const handleClose = (isOpen: boolean) => {
+    setOpen(isOpen)
+    onOpenChange?.(isOpen)
+  }
 
   return (
     <Dialog
-      openDialogButton={
-        <Button
-          icon={<Pencil size={16} />}
-          label='Edit Staff'
-          type='button'
-          variant='secondary'
-        />
-      }
       title={`Edit Staff — ${staff.firstName}${staff.lastName ? ` ${staff.lastName}` : ''}`}
       saveButtonLabel={loading ? 'Saving...' : 'Save'}
       loading={loading}
       className='max-w-150!'
+      open={open}
+      onOpenChange={handleClose}
     >
       <EditStaff
         staffId={staff.id}
@@ -46,7 +44,7 @@ export default function EditStaffDialog({ staff }: EditStaffDialogProps) {
         roleId={staff.roleId}
         isOwner={staff.isOwner}
         onLoadingChange={setLoading}
-        onSuccess={() => setOpen(false)}
+        onSuccess={() => handleClose(false)}
       />
     </Dialog>
   )
