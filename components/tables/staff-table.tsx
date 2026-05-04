@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
 import { toast } from 'sonner'
 import { usePermissions } from '@/hooks/use-permissions'
+import { useUser } from '@/contexts/user-context'
 import EditStaffDialog from '@/components/dialogs/edit-staff-dialog'
 
 type StaffWithRole = Prisma.staffGetPayload<{
@@ -146,6 +147,7 @@ export const columns: ColumnDef<StaffWithRole>[] = [
       const staff = row.original
       const router = useRouter()
       const { can } = usePermissions()
+      const { role: currentUserRole } = useUser()
       const [isResending, setIsResending] = useState(false)
       const [isDeleting, setIsDeleting] = useState(false)
       const [editingStaff, setEditingStaff] = useState<{
@@ -156,6 +158,9 @@ export const columns: ColumnDef<StaffWithRole>[] = [
         roleId: string
         isOwner: boolean
       } | null>(null)
+
+      const isTargetOwner = (staff as any).roles?.title === 'Owner'
+      const canEditStaff = can('staff.update') && (!isTargetOwner || currentUserRole === 'Owner')
 
       const handleResendInvite = async () => {
         setIsResending(true)
@@ -254,14 +259,14 @@ export const columns: ColumnDef<StaffWithRole>[] = [
                   {isResending ? 'Sending...' : 'Resend Invitation'}
                 </DropdownMenuItem>
               )}
-              {can('staff.update') && (
+              {canEditStaff && (
                 <DropdownMenuItem onClick={() => setEditingStaff({
                   id: staff.id,
                   firstName: staff.first_name || '',
                   lastName: staff.last_name || null,
                   phoneNumber: staff.phone_number || '',
                   roleId: staff.role_id || '',
-                  isOwner: (staff as any).roles?.title === 'Owner'
+                  isOwner: isTargetOwner
                 })}>
                   <Pencil size={14} /> Edit staff
                 </DropdownMenuItem>
