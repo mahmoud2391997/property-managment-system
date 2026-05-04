@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
 import { toast } from 'sonner'
 import { usePermissions } from '@/hooks/use-permissions'
+import EditStaffDialog from '@/components/dialogs/edit-staff-dialog'
 
 type StaffWithRole = Prisma.staffGetPayload<{
   select: {
@@ -30,6 +31,7 @@ type StaffWithRole = Prisma.staffGetPayload<{
     first_name: true
     last_name: true
     phone_number: true
+    role_id: true
     profile_thumb: true
     roles: {
       select: {
@@ -243,7 +245,22 @@ export const columns: ColumnDef<StaffWithRole>[] = [
                 {isResending ? 'Sending...' : 'Resend Invitation'}
               </DropdownMenuItem>
             )}
-            {can('staff.update') && <DropdownMenuItem>View details</DropdownMenuItem>}
+            {can('staff.update') && (
+              <DropdownMenuItem
+                onSelect={(e) => e.preventDefault()}
+              >
+                <EditStaffDialog
+                  staff={{
+                    id: staff.id,
+                    firstName: staff.first_name || '',
+                    lastName: staff.last_name || null,
+                    phoneNumber: staff.phone_number || '',
+                    roleId: staff.role_id || '',
+                    isOwner: (staff as any).roles?.title === 'Owner'
+                  }}
+                />
+              </DropdownMenuItem>
+            )}
             {can('staff.delete') && (
               <ConfirmationDialog
                 openDialogButton={

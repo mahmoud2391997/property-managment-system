@@ -96,6 +96,7 @@ export const PERMISSIONS: PermissionDef[] = [
   { module: 'staff', action: 'create', title: 'Create Staff', description: 'Create a new staff member' },
   { module: 'staff', action: 'update', title: 'Update Staff', description: 'Edit an existing staff member' },
   { module: 'staff', action: 'delete', title: 'Delete Staff', description: 'Delete a staff member' },
+  { module: 'staff', action: 'change_role', title: 'Change Staff Role', description: 'Change the role of a staff member (requires update permission)' },
 
   // roles
   { module: 'roles', action: 'access', title: 'Access Roles', description: 'View the Roles module and manage role assignments' },

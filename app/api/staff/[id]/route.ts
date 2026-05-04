@@ -18,24 +18,29 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const body = await req.json()
     const { first_name, last_name, phone_number, role_id } = body
 
-    // Get current staff record to check if role_id changed
-    const currentStaffRecord = await prisma.staff.findUnique({
+    // Get current staff record to check role and organization
+    const targetStaff = await prisma.staff.findUnique({
       where: { id: staffId },
-      select: { role_id: true }
+      select: { role_id: true, organization_id: true, roles: { select: { title: true } } }
     })
 
-    if (!currentStaffRecord) {
+    if (!targetStaff) {
       return NextResponse.json({ error: 'Staff member not found' }, { status: 404 })
     }
 
     // Check if this staff belongs to the same organization
-    const staffOrgCheck = await prisma.staff.findUnique({
-      where: { id: staffId },
-      select: { organization_id: true }
-    })
-
-    if (!staffOrgCheck || staffOrgCheck.organization_id !== currentStaff.organization_id) {
+    if (targetStaff.organization_id !== currentStaff.organization_id) {
       return NextResponse.json({ error: 'Staff member not found' }, { status: 404 })
+    }
+
+    // Only Owner can edit other Owner staff
+    const isTargetOwner = targetStaff.roles?.title === 'Owner'
+    const isCurrentUserOwner = await prisma.staff.findFirst({
+      where: { id: user.id, roles: { title: 'Owner' } }
+    })
+    
+    if (isTargetOwner && !isCurrentUserOwner) {
+      return NextResponse.json({ error: 'Only Owner can edit Owner staff members' }, { status: 403 })
     }
 
     // Update staff record
@@ -63,6 +68,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     if (role_id !== undefined) {
+      // Requires staff.change_role permission
+      if (!hasPermission(permissions, 'staff.change_role')) {
+        return NextResponse.json({ error: 'Forbidden: change role permission required' }, { status: 403 })
+      }
+
       if (!role_id || typeof role_id !== 'string') {
         return NextResponse.json({ error: 'Invalid role ID' }, { status: 400 })
       }
@@ -88,7 +98,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     })
 
     // Invalidate cache for this staff member if their role changed
-    const roleIdChanged = role_id !== undefined && role_id !== currentStaffRecord.role_id
+    const roleIdChanged = role_id !== undefined && role_id !== targetStaff.role_id
     if (roleIdChanged) {
       invalidate(staffId)
     }
