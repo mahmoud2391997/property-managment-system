@@ -61,7 +61,7 @@ type LeaseOverview = {
   id: string
   reference_id: string
   monthly_rent: number
-  due_date: string
+  due_date: string | null
   start_date: string
   number_of_months: number | null
   scheduled_change: ScheduledChange | null

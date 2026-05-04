@@ -22,6 +22,8 @@ import { useRouter } from 'next/navigation'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
 import { toast } from 'sonner'
 import { usePermissions } from '@/hooks/use-permissions'
+import { useUser } from '@/contexts/user-context'
+import EditStaffDialog from '@/components/dialogs/edit-staff-dialog'
 
 type StaffWithRole = Prisma.staffGetPayload<{
   select: {
@@ -30,6 +32,7 @@ type StaffWithRole = Prisma.staffGetPayload<{
     first_name: true
     last_name: true
     phone_number: true
+    role_id: true
     profile_thumb: true
     roles: {
       select: {
@@ -40,6 +43,160 @@ type StaffWithRole = Prisma.staffGetPayload<{
 }> & {
   email?: string
   accountStatus?: 'Activated' | 'Pending'
+}
+
+function StaffActionsCell ({ staff }: { staff: StaffWithRole }) {
+  const router = useRouter()
+  const { can } = usePermissions()
+  const { role: currentUserRole } = useUser()
+  const [isResending, setIsResending] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [editingStaff, setEditingStaff] = useState<{
+    id: string
+    firstName: string
+    lastName: string | null
+    phoneNumber: string
+    roleId: string
+    isOwner: boolean
+  } | null>(null)
+
+  const isTargetOwner = (staff as any).roles?.title === 'Owner'
+  const canEditStaff = can('staff.update') && (!isTargetOwner || currentUserRole === 'Owner')
+
+  const handleResendInvite = async () => {
+    setIsResending(true)
+    try {
+      const response = await fetch('/api/staff/resend-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staffId: staff.id })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to resend invitation')
+      }
+
+      toast.success('Invitation email sent successfully!')
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to resend invitation')
+    } finally {
+      setIsResending(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`/api/staff?id=${staff.id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to delete staff')
+      }
+
+      toast.success('Staff member deleted successfully!')
+      router.refresh()
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete staff')
+      setIsDeleting(false)
+    }
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant='ghost' className='h-8 w-8 p-0'>
+            <span className='sr-only'>Open menu</span>
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align='end'>
+          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={() => {
+              const phoneNumber = staff.phone_number || ''
+              if (phoneNumber) {
+                const whatsappUrl = buildWhatsAppLink(phoneNumber)
+                window.open(whatsappUrl, '_blank')
+              }
+            }}
+            className='gap-1'
+          >
+            WhatsApp <span className='font-semibold'>{staff.first_name.trim().split(' ')[0]}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => {
+              const email = staff.email || ''
+              if (email) {
+                const emailUrl = buildEmailLink(email)
+                window.location.href = emailUrl
+              }
+            }}
+            className='gap-1'
+          >
+            Email <span className='font-semibold'>{staff.first_name.trim().split(' ')[0]}</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => navigator.clipboard.writeText(staff.phone_number || '')}
+          >
+            Copy phone number
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => navigator.clipboard.writeText(staff.email || '')}
+          >
+            Copy email
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {staff.accountStatus === 'Pending' && (
+            <DropdownMenuItem
+              onClick={handleResendInvite}
+              disabled={isResending}
+            >
+              {isResending ? 'Sending...' : 'Resend Invitation'}
+            </DropdownMenuItem>
+          )}
+          {canEditStaff && (
+            <DropdownMenuItem onClick={() => setEditingStaff({
+              id: staff.id,
+              firstName: staff.first_name || '',
+              lastName: staff.last_name || null,
+              phoneNumber: staff.phone_number || '',
+              roleId: staff.role_id || '',
+              isOwner: isTargetOwner
+            })}>
+              Edit staff
+            </DropdownMenuItem>
+          )}
+          {can('staff.delete') && (
+            <ConfirmationDialog
+              openDialogButton={
+                <button className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'>
+                  Delete staff
+                </button>
+              }
+              title='Delete Staff Member'
+              description={`Are you sure you want to delete ${staff.first_name}${staff.last_name ? ` ${staff.last_name}` : ''}? This will permanently remove their account and all associated data.`}
+              confirmationText='DELETE'
+              onConfirm={handleDelete}
+              loading={isDeleting}
+              confirmButtonLabel='Delete Staff'
+            />
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {editingStaff && (
+        <EditStaffDialog
+          staff={editingStaff}
+          onOpenChange={(open) => { if (!open) setEditingStaff(null) }}
+        />
+      )}
+    </>
+  )
 }
 
 export const columns: ColumnDef<StaffWithRole>[] = [
@@ -140,129 +297,7 @@ export const columns: ColumnDef<StaffWithRole>[] = [
     id: 'actions',
     header: 'Actions',
     enableHiding: false,
-    cell: ({ row }) => {
-      const staff = row.original
-      const router = useRouter()
-      const { can } = usePermissions()
-      const [isResending, setIsResending] = useState(false)
-      const [isDeleting, setIsDeleting] = useState(false)
-
-      const handleResendInvite = async () => {
-        setIsResending(true)
-        try {
-          const response = await fetch('/api/staff/resend-invite', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ staffId: staff.id })
-          })
-
-          if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to resend invitation')
-          }
-
-          toast.success('Invitation email sent successfully!')
-        } catch (error: any) {
-          toast.error(error.message || 'Failed to resend invitation')
-        } finally {
-          setIsResending(false)
-        }
-      }
-
-      const handleDelete = async () => {
-        setIsDeleting(true)
-        try {
-          const response = await fetch(`/api/staff?id=${staff.id}`, {
-            method: 'DELETE'
-          })
-
-          if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to delete staff')
-          }
-
-          toast.success('Staff member deleted successfully!')
-          router.refresh()
-        } catch (error: any) {
-          toast.error(error.message || 'Failed to delete staff')
-          setIsDeleting(false)
-        }
-      }
-
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant='ghost' className='h-8 w-8 p-0'>
-              <span className='sr-only'>Open menu</span>
-              <MoreHorizontal />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align='end'>
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => {
-                const phoneNumber = staff.phone_number || ''
-                if (phoneNumber) {
-                  const whatsappUrl = buildWhatsAppLink(phoneNumber)
-                  window.open(whatsappUrl, '_blank')
-                }
-              }}
-              className='gap-1'
-            >
-              WhatsApp <span className='font-semibold'>{staff.first_name.trim().split(' ')[0]}</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                const email = staff.email || ''
-                if (email) {
-                  const emailUrl = buildEmailLink(email)
-                  window.location.href = emailUrl
-                }
-              }}
-              className='gap-1'
-            >
-              Email <span className='font-semibold'>{staff.first_name.trim().split(' ')[0]}</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(staff.phone_number || '')}
-            >
-              Copy phone number
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(staff.email || '')}
-            >
-              Copy email
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {staff.accountStatus === 'Pending' && (
-              <DropdownMenuItem
-                onClick={handleResendInvite}
-                disabled={isResending}
-              >
-                {isResending ? 'Sending...' : 'Resend Invitation'}
-              </DropdownMenuItem>
-            )}
-            {can('staff.update') && <DropdownMenuItem>View details</DropdownMenuItem>}
-            {can('staff.delete') && (
-              <ConfirmationDialog
-                openDialogButton={
-                  <button className='w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-accent rounded-sm cursor-default'>
-                    Delete staff
-                  </button>
-                }
-                title='Delete Staff Member'
-                description={`Are you sure you want to delete ${staff.first_name}${staff.last_name ? ` ${staff.last_name}` : ''}? This will permanently remove their account and all associated data.`}
-                confirmationText='DELETE'
-                onConfirm={handleDelete}
-                loading={isDeleting}
-                confirmButtonLabel='Delete Staff'
-              />
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    }
+    cell: ({ row }) => <StaffActionsCell staff={row.original} />
   }
 ]
 

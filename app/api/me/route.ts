@@ -29,13 +29,21 @@ export async function GET() {
   // For tenant users, return tenant-specific permissions
   const tenantPermissions = [
     'tenants.access',
-    'tenants.create', 
+    'tenants.create',
     'tenants.update',
     'tenants.delete',
     'tenants.view_own',
-    'tenants.view_lease', 
+    'tenants.view_lease',
     'tenants.make_payment',
-    'tenants.view_property'
+    'tenants.view_property',
+    'leases.access',
+    'rentals.access',
+    'tickets.access',
+    'tickets.create',
+    'tickets.update',
+    'notifications.access',
+    'payments.access',
+    'payments.make_payment'
   ]
 
   return NextResponse.json({

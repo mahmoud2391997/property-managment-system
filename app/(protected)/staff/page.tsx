@@ -32,6 +32,7 @@ async function getStaff() {
       first_name: true,
       last_name: true,
       phone_number: true,
+      role_id: true,
       profile_pic: true,
       profile_thumb: true,
       roles: {
