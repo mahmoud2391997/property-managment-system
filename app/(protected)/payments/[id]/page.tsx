@@ -427,11 +427,15 @@ async function getUserType(): Promise<'staff' | 'tenant'> {
 }
 
 export default async function PaymentDetailsPage({ params }: Props) {
-  await requirePermission('payments.access')
+  const userType = await getUserType()
+  
+  if (userType !== 'tenant') {
+    await requirePermission('payments.access')
+  }
+
   const { id } = await params
-  const [payment, userType] = await Promise.all([
+  const [payment] = await Promise.all([
     getPaymentDetails(id),
-    getUserType()
   ])
 
   console.log('Payment details response:', payment)

@@ -128,7 +128,14 @@ function DashboardSkeleton() {
 }
 
 export default async function Dashboard() {
-  await requirePermission('dashboard.access')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const userType = user?.user_metadata?.user_type
+
+  if (userType !== 'tenant') {
+    await requirePermission('dashboard.access')
+  }
+
   const organizationId = await getOrganizationId()
 
   if (!organizationId) {

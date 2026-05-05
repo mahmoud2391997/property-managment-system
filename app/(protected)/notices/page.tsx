@@ -11,7 +11,13 @@ import { UnderDevelopment } from '@/components/costume-ui/under-development'
 import { requirePermission } from '@/lib/server-permissions'
 
 const Notices = async () => {
-  await requirePermission('notices.access')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const userType = user?.user_metadata?.user_type
+
+  if (userType !== 'tenant') {
+    await requirePermission('notices.access')
+  }
   if (true) {
       return (
         <UnderDevelopment />

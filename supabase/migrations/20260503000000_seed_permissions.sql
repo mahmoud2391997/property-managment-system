@@ -91,7 +91,6 @@ VALUES
   ('staff', 'create', 'Create Staff', 'Create a new staff member'),
   ('staff', 'update', 'Update Staff', 'Edit an existing staff member'),
   ('staff', 'delete', 'Delete Staff', 'Delete a staff member'),
-  ('staff', 'change_role', 'Change Staff Role', 'Change the role of a staff member (requires update permission)'),
   ('roles', 'access', 'Access Roles', 'View the Roles module and manage role assignments'),
   ('roles', 'create', 'Create Role', 'Create a new role'),
   ('roles', 'update', 'Update Role', 'Edit an existing role'),

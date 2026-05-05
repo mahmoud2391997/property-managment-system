@@ -91,7 +91,7 @@ function transformTicket(ticket: any): Ticket {
     ? `${assignerStaff.first_name} ${assignerStaff.last_name || ''}`.trim()
     : undefined
 
-  return {
+  const transformed = {
     id: ticket.reference_id,
     ticket_id: ticket.id,
     type,
@@ -108,6 +108,16 @@ function transformTicket(ticket: any): Ticket {
     assignment_timestamp: assignment?.responded_at?.toISOString() || '',
     status
   } as Ticket
+
+  console.log('🎫 Transformed ticket:', {
+    reference_id: ticket.reference_id,
+    title: ticket.title,
+    tenantName,
+    property,
+    status
+  })
+
+  return transformed
 }
 
 async function getTickets(): Promise<{
@@ -126,12 +136,28 @@ async function getTickets(): Promise<{
     }
 
     const userMetaType = user.user_metadata?.user_type
+    console.log('🎫 User metadata:', { userId: user.id, userMetaType, allMeta: JSON.stringify(user.user_metadata) })
+    
     let organizationId: string | null = null
     let tenantId: string | null = null
     let userType: 'staff' | 'tenant' = 'staff'
 
+    // Try to determine if user is tenant by checking both metadata and database
+    // First try metadata, then fall back to database lookup
+    const isTenantFromMeta = userMetaType === 'tenant'
+    
+    // Check if user exists as tenant in database
+    const tenantCheck = await prisma.tenants.findUnique({
+      where: { id: user.id },
+      select: { id: true }
+    })
+    
+    const isTenantInDb = !!tenantCheck
+    console.log('🎫 User type detection:', { isTenantFromMeta, isTenantInDb })
+
     // Get organization based on user type
-    if (userMetaType === 'tenant') {
+    if (isTenantFromMeta || isTenantInDb) {
+      console.log('🎫 User is tenant, fetching tenant data...')
       const tenant = await prisma.tenants.findUnique({
         where: { id: user.id },
         select: {
@@ -143,14 +169,29 @@ async function getTickets(): Promise<{
         }
       })
 
+      console.log('🎫 Tenant lookup result:', { found: !!tenant, tenantId: tenant?.id })
+
       if (!tenant) {
-        return { data: [], total: 0, userType: 'staff' }
+        return { data: [], total: 0, userType: 'tenant' }
       }
 
       organizationId = tenant.organizations_tenants[0]?.organization_id || null
       tenantId = tenant.id
       userType = 'tenant'
+
+      // Fallback: if no organizations_tenants entry, get org from tenant's leases
+      if (!organizationId) {
+        const tenantLease = await prisma.leases.findFirst({
+          where: { tenant_id: tenant.id },
+          select: { organization_id: true },
+          orderBy: { created_at: 'desc' }
+        })
+        if (tenantLease) {
+          organizationId = tenantLease.organization_id
+        }
+      }
     } else {
+      console.log('🎫 User is staff')
       const staff = await prisma.staff.findUnique({
         where: { id: user.id },
         select: { organization_id: true }
@@ -176,9 +217,18 @@ async function getTickets(): Promise<{
     // If tenant, only show tickets from their leases
     if (userType === 'tenant' && tenantId) {
       whereClause.leases = {
-        tenant_id: tenantId
+        is: {
+          tenant_id: tenantId
+        }
       }
     }
+
+    console.log('🎫 Fetching tickets:', {
+      userType,
+      tenantId,
+      organizationId,
+      whereClause: JSON.stringify(whereClause, null, 2)
+    })
 
     // Fetch first page of tickets and total count in parallel
     const [tickets, total] = await Promise.all([
@@ -191,25 +241,44 @@ async function getTickets(): Promise<{
       prisma.tickets.count({ where: whereClause })
     ])
 
+    console.log('🎫 Tickets result:', { count: tickets.length, total })
+
     return {
       data: tickets.map(transformTicket),
       total,
       userType
     }
   } catch (error) {
-    console.error('Error fetching tickets:', error)
+    console.error('❌ Error fetching tickets:', error)
+    if (error instanceof Error) {
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+    }
     return { data: [], total: 0, userType: 'staff' }
   }
 }
 
 const Tickets = async () => {
-  await requirePermission('tickets.access')
+  console.log('🎫 Tickets page rendering...')
+  
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const userType = user?.user_metadata?.user_type
+
+  console.log('🎫 User info:', { userId: user?.id, userType })
+
+  if (userType !== 'tenant') {
+    await requirePermission('tickets.access')
+  }
+
   const {
     data: initialData,
     total: initialTotal,
-    userType
+    userType: resolvedUserType
   } = await getTickets()
-
+  
+  console.log('🎫 Tickets page loaded with data:', { count: initialData.length, total: initialTotal })
+  
   return (
     <Suspense fallback={<TablePageSkeleton />}>
       <div className={cn('flex flex-col gap-2.5', 'h-full')}>
@@ -220,7 +289,7 @@ const Tickets = async () => {
         <TicketsSection
           initialData={initialData}
           initialTotal={initialTotal}
-          userType={userType}
+          userType={resolvedUserType}
         />
       </div>
     </Suspense>

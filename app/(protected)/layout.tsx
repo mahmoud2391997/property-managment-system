@@ -11,6 +11,7 @@ import { CommandPaletteProvider } from '@/contexts/command-palette-context'
 import GlobalDialogs from '@/components/global-dialogs'
 import SecondarySidebar from '@/components/secondary-sidebar'
 import { createClient } from '@/utils/supabase/server'
+import { prisma } from '@/lib/prisma'
 
 export default async function ProtectedLayout ({
   children
@@ -22,7 +23,16 @@ export default async function ProtectedLayout ({
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const isTenant = user?.role === 'tenant'
+
+  // Determine user type by checking database (metadata may not be set)
+  let isTenant = false
+  if (user) {
+    const tenantCheck = await prisma.tenants.findUnique({
+      where: { id: user.id },
+      select: { id: true }
+    })
+    isTenant = !!tenantCheck
+  }
 
   return (
     <PasswordSetupGuard>

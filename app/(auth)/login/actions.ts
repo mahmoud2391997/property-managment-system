@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { isRedirectError } from 'next/dist/client/components/redirect-error'
 
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { prisma } from '@/lib/prisma'
 
 export async function login(formData: FormData): Promise<string | void> {
@@ -52,9 +53,14 @@ export async function login(formData: FormData): Promise<string | void> {
   console.log('Tenant found:', tenant ? 'Yes' : 'No')
 
   if (tenant) {
-    console.log('Redirecting to /payments')
+    // Set user_metadata.user_type so proxy/middleware can read it without DB queries
+    const adminSupabase = createAdminClient()
+    await adminSupabase.auth.admin.updateUserById(userId, {
+      user_metadata: { user_type: 'tenant' }
+    })
+    console.log('Redirecting to /rentals')
     revalidatePath('/', 'layout')
-    redirect('/payments')
+    redirect('/rentals')
   }
 
   // Then check staff table
@@ -67,6 +73,11 @@ export async function login(formData: FormData): Promise<string | void> {
   console.log('Staff found:', staff ? 'Yes' : 'No')
 
     if (staff) {
+      // Set user_metadata.user_type so proxy/middleware can read it without DB queries
+      const adminSupabase = createAdminClient()
+      await adminSupabase.auth.admin.updateUserById(userId, {
+        user_metadata: { user_type: 'staff' }
+      })
       console.log('Redirecting to /dashboard')
       revalidatePath('/', 'layout')
       redirect('/dashboard')

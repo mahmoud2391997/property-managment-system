@@ -107,44 +107,59 @@ function transformTicket(ticket: any) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { user, staff, permissions, error } = await getUserAndStaff()
+    const supabase = await createClient()
+    const { data: { user: authUser } } = await supabase.auth.getUser()
 
-    if (error) return error
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    if (!hasPermission(permissions, 'tickets.access'))
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-
+    const userType = authUser.user_metadata?.user_type || null
     let organizationId: string | null = null
     let tenantId: string | null = null
-    let userType: string | null = null
 
-    // For staff users, use staff.organization_id
-    if (staff) {
-      organizationId = staff.organization_id
-    } else {
-      // Handle tenant users (existing logic)
-      const supabase = await createClient()
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      
-      userType = authUser?.user_metadata?.user_type || null
-      if (userType === 'tenant') {
-        const tenant = await prisma.tenants.findUnique({
-          where: { id: authUser?.id },
-          select: {
-            id: true,
-            organizations_tenants: {
-              select: { organization_id: true },
-              take: 1
-            }
+    // Handle tenant users
+    if (userType === 'tenant') {
+      const tenant = await prisma.tenants.findUnique({
+        where: { id: authUser.id },
+        select: {
+          id: true,
+          organizations_tenants: {
+            select: { organization_id: true },
+            take: 1
           }
-        })
-
-        if (!tenant) {
-          return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
         }
+      })
 
-        organizationId = tenant.organizations_tenants[0]?.organization_id || null
-        tenantId = tenant.id
+      if (!tenant) {
+        return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+      }
+
+      organizationId = tenant.organizations_tenants[0]?.organization_id || null
+      tenantId = tenant.id
+
+      // Fallback: if no organizations_tenants entry, get org from tenant's leases
+      if (!organizationId) {
+        const tenantLease = await prisma.leases.findFirst({
+          where: { tenant_id: tenant.id },
+          select: { organization_id: true },
+          orderBy: { created_at: 'desc' }
+        })
+        if (tenantLease) {
+          organizationId = tenantLease.organization_id
+        }
+      }
+    } else {
+      // For staff users, use getUserAndStaff for permission checks
+      const { user, staff, permissions, error } = await getUserAndStaff()
+
+      if (error) return error
+
+      if (!hasPermission(permissions, 'tickets.access'))
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+      if (staff) {
+        organizationId = staff.organization_id
       }
     }
 
@@ -180,7 +195,9 @@ export async function GET(request: NextRequest) {
     // If tenant, only show tickets from their leases
     if (userType === 'tenant' && tenantId) {
       whereClause.leases = {
-        tenant_id: tenantId
+        is: {
+          tenant_id: tenantId
+        }
       }
     }
 
@@ -200,8 +217,9 @@ export async function GET(request: NextRequest) {
 
     // Add DB-level property filter (via lease)
     if (propertyFilter) {
-      whereClause.leases = {
-        ...whereClause.leases,
+      if (!whereClause.leases) whereClause.leases = {}
+      whereClause.leases.is = {
+        ...(whereClause.leases.is || {}),
         properties: {
           code: { contains: propertyFilter, mode: 'insensitive' }
         }
@@ -210,8 +228,9 @@ export async function GET(request: NextRequest) {
 
     // Add DB-level tenant name filter (via lease)
     if (tenantNameFilter) {
-      whereClause.leases = {
-        ...whereClause.leases,
+      if (!whereClause.leases) whereClause.leases = {}
+      whereClause.leases.is = {
+        ...(whereClause.leases.is || {}),
         tenants: {
           OR: [
             { individual_tenants: { first_name: { contains: tenantNameFilter, mode: 'insensitive' } } },
