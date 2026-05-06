@@ -7,24 +7,34 @@ export async function GET(request: NextRequest) {
   try {
     const { staff, permissions, error } = await getUserAndStaff()
     if (error) return error
-
     const canPayments = permissions.has('payments.access')
     const canExpenses = permissions.has('expenses.access')
     const canTasks = permissions.has('tasks.access')
     const canRentals = permissions.has('leases.access')
-
+    
     const { searchParams } = new URL(request.url)
     const from = searchParams.get('from')
     const to = searchParams.get('to')
-
+    const due_date = searchParams.get('due_date')
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '31')
+    
     if (!from || !to) {
       return NextResponse.json({ error: 'Missing from/to parameters' }, { status: 400 })
     }
-
-    const startDate = new Date(from)
-    startDate.setHours(0, 0, 0, 0)
-    const endDate = new Date(to)
-    endDate.setHours(0, 0, 0, 0)
+    
+    const startDate = from ? new Date(from) : new Date()
+    const endDate = to ? new Date(to) : new Date()
+    
+    // If due_date is provided, filter by that date instead of date range
+    if (due_date) {
+      startDate.setFullYear(new Date(due_date).getFullYear())
+      startDate.setMonth(new Date(due_date).getMonth())
+      startDate.setDate(1)
+      endDate.setFullYear(new Date(due_date).getFullYear())
+      endDate.setMonth(new Date(due_date).getMonth())
+      endDate.setDate(31) // End of month
+    }
 
     const getLocalDateStr = (d: Date) => {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -111,19 +121,35 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Fetch Task Assignments
+    // Fetch Task Assignments (filtered by Task due date)
     const taskAssignments = canTasks ? await prisma.task_assignments.findMany({
       where: {
         status: 'Pending',
-        requested_at: { gte: startDate, lte: endDate }
+        tasks: {
+          task_due_dates: {
+            some: {
+              due_date: { gte: startDate, lte: endDate }
+            }
+          }
+        }
       },
-      select: { requested_at: true }
+      include: {
+        tasks: {
+          select: {
+            task_due_dates: {
+              orderBy: { created_at: 'desc' },
+              take: 1
+            }
+          }
+        }
+      }
     }) : []
 
     const assignmentsGrouped: Record<string, number> = {}
     taskAssignments.forEach(a => {
-      if (a.requested_at) {
-        const dateStr = getLocalDateStr(a.requested_at)
+      const dueDate = a.tasks?.task_due_dates?.[0]?.due_date
+      if (dueDate && dueDate >= startDate && dueDate <= endDate) {
+        const dateStr = getLocalDateStr(dueDate)
         assignmentsGrouped[dateStr] = (assignmentsGrouped[dateStr] || 0) + 1
       }
     })

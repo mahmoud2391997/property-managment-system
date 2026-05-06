@@ -701,28 +701,25 @@ export default function TasksTable ({
 
         {/* Server-side Pagination Controls */}
         {hasServerPagination && (
-          <div className='flex items-center justify-between mt-4'>
-            <div className='texts-caption-large text-(--text-secondary)'>
-              Page {currentPage} of {Math.ceil(totalItems / pageSize)} (
-              {totalItems} total)
+          <div className='flex items-center justify-end space-x-2 py-4'>
+            <div className='text-muted-foreground flex-1 text-sm'>
+              Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalItems)} of {totalItems} tasks
             </div>
-            <div className='flex gap-2'>
-              <Button
-                variant='outline'
-                size='sm'
+            <div className='space-x-2'>
+              <button
+                className='inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3'
                 onClick={onPreviousPage}
                 disabled={!canGoPrevious || isLoading}
               >
                 Previous
-              </Button>
-              <Button
-                variant='outline'
-                size='sm'
+              </button>
+              <button
+                className='inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3'
                 onClick={onNextPage}
                 disabled={!canGoNext || isLoading}
               >
                 Next
-              </Button>
+              </button>
             </div>
           </div>
         )}
@@ -749,30 +746,25 @@ export default function TasksTable ({
 
         {/* Server-side Pagination Controls for Mobile */}
         {hasServerPagination && data.length > 0 && (
-          <div className='flex flex-col gap-3 mt-4'>
+          <div className='flex flex-col gap-3 py-4'>
             <div className='text-center texts-caption-large text-(--text-secondary)'>
-              Page {currentPage} of {Math.ceil(totalItems / pageSize)} (
-              {totalItems} total)
+              Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalItems)} of {totalItems} tasks
             </div>
-            <div className='flex gap-2 justify-center'>
-              <Button
-                variant='outline'
-                size='sm'
+            <div className='flex justify-center gap-2'>
+              <button
+                className='inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4'
                 onClick={onPreviousPage}
                 disabled={!canGoPrevious || isLoading}
-                className='flex-1 max-w-[140px]'
               >
                 Previous
-              </Button>
-              <Button
-                variant='outline'
-                size='sm'
+              </button>
+              <button
+                className='inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4'
                 onClick={onNextPage}
                 disabled={!canGoNext || isLoading}
-                className='flex-1 max-w-[140px]'
               >
                 Next
-              </Button>
+              </button>
             </div>
           </div>
         )}

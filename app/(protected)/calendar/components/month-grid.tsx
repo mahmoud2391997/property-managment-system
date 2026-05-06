@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Chip, ChipPopover } from './chip'
+import { Chip, ChipDialog } from './chip'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 
 interface EventItem {
   id: string
@@ -14,6 +15,8 @@ interface MonthGridProps {
   selectedDate: Date
   onDayClick: (date: Date) => void
   onEventClick?: (event: { id: string }) => void
+  initialChips?: ChipsByDate | null
+  dataVersion?: number
 }
 
 interface ChipData {
@@ -31,8 +34,8 @@ interface ChipsByDate {
   [dateStr: string]: ChipData[]
 }
 
-export default function MonthGrid({ currentDate, selectedDate, onDayClick, onEventClick }: MonthGridProps) {
-  const [chips, setChips] = useState<ChipsByDate>({})
+export default function MonthGrid({ currentDate, selectedDate, onDayClick, onEventClick, initialChips, dataVersion }: MonthGridProps) {
+  const [chips, setChips] = useState<ChipsByDate>(initialChips || {})
   const [selectedChip, setSelectedChip] = useState<ChipData | null>(null)
   const [selectedChipDate, setSelectedChipDate] = useState<Date | null>(null)
   const [eventList, setEventList] = useState<EventItem[]>([])
@@ -40,6 +43,11 @@ export default function MonthGrid({ currentDate, selectedDate, onDayClick, onEve
   const [eventListDate, setEventListDate] = useState<string>('')
 
   useEffect(() => {
+    if (initialChips) {
+      setChips(initialChips)
+      return
+    }
+
     const fetchChips = async () => {
       try {
         const year = currentDate.getFullYear()
@@ -60,7 +68,7 @@ export default function MonthGrid({ currentDate, selectedDate, onDayClick, onEve
       }
     }
     fetchChips()
-  }, [currentDate])
+  }, [currentDate, initialChips, dataVersion])
 
   const days = useMemo(() => {
     const year = currentDate.getFullYear()
@@ -144,7 +152,6 @@ export default function MonthGrid({ currentDate, selectedDate, onDayClick, onEve
 
   return (
     <div className='flex flex-col h-full relative'>
-      {/* Weekday headers */}
       <div className='grid grid-cols-7 border-b border-(--border-default)'>
         {weekdays.map(day => (
           <div
@@ -156,7 +163,6 @@ export default function MonthGrid({ currentDate, selectedDate, onDayClick, onEve
         ))}
       </div>
 
-      {/* Weeks */}
       <div className='flex-1 grid grid-rows-6'>
         {weeks.map((week, weekIndex) => (
           <div key={weekIndex} className='grid grid-cols-7'>
@@ -180,7 +186,7 @@ export default function MonthGrid({ currentDate, selectedDate, onDayClick, onEve
         ))}
       </div>
 
-      <ChipPopover
+      <ChipDialog
         chip={selectedChip}
         date={selectedChipDate}
         onClose={() => setSelectedChip(null)}
@@ -246,6 +252,10 @@ function DayCellWithChips({ date, isToday, isSelected, chips, onClick, onChipCli
   onClick: () => void
   onChipClick: (e: React.MouseEvent, chip: ChipData, date: Date | null) => void
 }) {
+  const MAX_VISIBLE = 3
+  const visibleChips = chips.slice(0, MAX_VISIBLE)
+  const remainingCount = chips.length - MAX_VISIBLE
+
   if (!date) {
     return (
       <div className='border border-(--border-default) bg-(--background-secondary)/30 min-h-[80px]' />
@@ -258,7 +268,7 @@ function DayCellWithChips({ date, isToday, isSelected, chips, onClick, onChipCli
       className={cn(
         'border border-(--border-default) p-1 text-left transition-colors hover:bg-(--background-secondary) cursor-pointer flex flex-col',
         isSelected && 'bg-(--background-secondary) ring-2 ring-inset ring-(--primary-main)',
-        'min-h-[80px] overflow-visible'
+        'min-h-[80px] overflow-hidden'
       )}
     >
       <div className='flex flex-col gap-0.5'>
@@ -272,13 +282,36 @@ function DayCellWithChips({ date, isToday, isSelected, chips, onClick, onChipCli
         </span>
         
         <div className='flex flex-wrap gap-0.5 w-full'>
-          {chips.map((chip, index) => (
+          {visibleChips.map((chip, index) => (
             <Chip 
               key={index} 
               chip={chip} 
               onClick={(e, clickedChip) => onChipClick(e, clickedChip, date)} 
             />
           ))}
+          {remainingCount > 0 && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className='px-1.5 py-0.5 rounded text-[10px] font-medium bg-(--border-default) text-(--text-secondary) hover:bg-(--border-strong) transition-colors'
+                >
+                  +{remainingCount} more
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className='w-64 p-2' side='right' sideOffset={4}>
+                <div className='flex flex-col gap-1'>
+                  {chips.map((chip, index) => (
+                    <Chip 
+                      key={index} 
+                      chip={chip} 
+                      onClick={(e, clickedChip) => onChipClick(e, clickedChip, date)} 
+                    />
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
       </div>
     </div>

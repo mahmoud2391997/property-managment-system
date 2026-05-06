@@ -357,10 +357,25 @@ export async function GET(request: NextRequest) {
         const pendingAssignments = await prisma.task_assignments.findMany({
           where: {
             status: 'Pending',
-            requested_at: { gte: startOfDay, lte: endOfDay }
+            tasks: {
+              task_due_dates: {
+                some: {
+                  due_date: { gte: startOfDay, lte: endOfDay }
+                }
+              }
+            }
           },
           include: {
-            tasks: { select: { title: true, reference_id: true } },
+            tasks: {
+              select: {
+                title: true,
+                reference_id: true,
+                task_due_dates: {
+                  orderBy: { created_at: 'desc' },
+                  take: 1
+                }
+              }
+            },
             staff_task_assignments_assigner_idTostaff: { select: { first_name: true, last_name: true } }
           },
           take: limit
@@ -369,14 +384,20 @@ export async function GET(request: NextRequest) {
         count = await prisma.task_assignments.count({
           where: {
             status: 'Pending',
-            requested_at: { gte: startOfDay, lte: endOfDay }
+            tasks: {
+              task_due_dates: {
+                some: {
+                  due_date: { gte: startOfDay, lte: endOfDay }
+                }
+              }
+            }
           }
         })
 
         items = pendingAssignments.map(a => ({
           title: a.tasks.title,
           reference_id: a.tasks.reference_id,
-          due_date: a.requested_at,
+          due_date: a.tasks.task_due_dates[0]?.due_date || null,
           created_by: a.staff_task_assignments_assigner_idTostaff
             ? `${a.staff_task_assignments_assigner_idTostaff.first_name} ${a.staff_task_assignments_assigner_idTostaff.last_name}`
             : 'N/A'

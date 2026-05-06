@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus } from 'lucide-react'
+import { useState, useEffect, useRef, Suspense } from 'react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, RefreshCw } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Button from '@/components/costume-ui/button'
 import MonthGrid from './components/month-grid'
@@ -20,9 +20,23 @@ interface CalendarEvent {
   calendar_event_attendees?: { staff: { id: string; first_name: string; last_name: string | null } }[]
 }
 
+interface MonthCacheData {
+  chips: Record<string, any[]>
+  lastFetched: number
+}
+
+interface DayCacheData {
+  events: any[]
+  lastFetched: number
+}
+
+const MONTH_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const DAY_CACHE_TTL = 2 * 60 * 1000 // 2 minutes
+
 function CalendarContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const monthCache = useRef<Map<string, MonthCacheData>>(new Map())
   
   const now = new Date()
   const dueDateParam = searchParams.get('due_date')
@@ -34,8 +48,12 @@ function CalendarContent() {
   const [selectedDate, setSelectedDate] = useState(initialDate)
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false)
   const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null)
-  const [refreshKey, setRefreshKey] = useState(0)
   const [staffId, setStaffId] = useState<string | null>(null)
+  const [refreshingMonth, setRefreshingMonth] = useState(false)
+  const [dataVersion, setDataVersion] = useState(0)
+  const dayCache = useRef<Map<string, DayCacheData>>(new Map())
+  const [cachedDayData, setCachedDayData] = useState<any[] | null>(null)
+  const [cachedMonthData, setCachedMonthData] = useState<Record<string, any[]> | null>(null)
 
   useEffect(() => {
     if (dueDateParam && parsedDate && !isNaN(parsedDate.getTime())) {
@@ -53,6 +71,68 @@ function CalendarContent() {
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    const monthKey = `${currentMonth.getFullYear()}-${currentMonth.getMonth()}`
+    const cached = monthCache.current.get(monthKey)
+    
+    if (cached && Date.now() - cached.lastFetched < MONTH_CACHE_TTL) {
+      setCachedMonthData(cached.chips)
+      return
+    }
+
+    const fetchChips = async () => {
+      try {
+        const year = currentMonth.getFullYear()
+        const month = currentMonth.getMonth()
+        const firstDay = new Date(year, month, 1)
+        const lastDay = new Date(year, month + 1, 0)
+        
+        const fromStr = firstDay.toISOString()
+        const toStr = lastDay.toISOString()
+        
+        const response = await fetch(`/api/calendar/month?from=${fromStr}&to=${toStr}`)
+        if (response.ok) {
+          const data = await response.json()
+          const chips = data.chips || {}
+          monthCache.current.set(monthKey, { chips, lastFetched: Date.now() })
+          setCachedMonthData(chips)
+        }
+      } catch (error) {
+        console.error('Failed to fetch chips', error)
+      }
+    }
+    fetchChips()
+  }, [currentMonth])
+
+  useEffect(() => {
+    const dayKey = `${selectedDate.getFullYear()}-${selectedDate.getMonth()}-${selectedDate.getDate()}`
+    const cached = dayCache.current.get(dayKey)
+    
+    if (cached && Date.now() - cached.lastFetched < DAY_CACHE_TTL) {
+      setCachedDayData(cached.events)
+      return
+    }
+
+    const fetchEvents = async () => {
+      try {
+        const year = selectedDate.getFullYear()
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
+        const day = String(selectedDate.getDate()).padStart(2, '0')
+        const dateStr = `${year}-${month}-${day}`
+        const response = await fetch(`/api/calendar/events?date=${dateStr}`)
+        if (response.ok) {
+          const data = await response.json()
+          const events = data.events || []
+          dayCache.current.set(dayKey, { events, lastFetched: Date.now() })
+          setCachedDayData(events)
+        }
+      } catch (error) {
+        console.error('Failed to fetch events', error)
+      }
+    }
+    fetchEvents()
+  }, [selectedDate])
+
   const goToPrevMonth = () => {
     setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
   }
@@ -65,6 +145,31 @@ function CalendarContent() {
     const now = new Date()
     setCurrentMonth(now)
     setSelectedDate(now)
+  }
+
+  const refreshMonth = async () => {
+    setRefreshingMonth(true)
+    const monthKey = `${currentMonth.getFullYear()}-${currentMonth.getMonth()}`
+    monthCache.current.delete(monthKey)
+    try {
+      const year = currentMonth.getFullYear()
+      const month = currentMonth.getMonth()
+      const firstDay = new Date(year, month, 1)
+      const lastDay = new Date(year, month + 1, 0)
+      const fromStr = firstDay.toISOString()
+      const toStr = lastDay.toISOString()
+      const response = await fetch(`/api/calendar/month?from=${fromStr}&to=${toStr}`)
+      if (response.ok) {
+        const data = await response.json()
+        const chips = data.chips || {}
+        monthCache.current.set(monthKey, { chips, lastFetched: Date.now() })
+        setCachedMonthData(chips)
+      }
+    } catch (error) {
+      console.error('Failed to refresh month', error)
+    } finally {
+      setRefreshingMonth(false)
+    }
   }
 
   const handleDayClick = (date: Date) => {
@@ -87,6 +192,47 @@ function CalendarContent() {
   const handleCreateEvent = () => {
     setEditEvent(null)
     setIsCreateEventOpen(true)
+  }
+
+  const handleEventSuccess = async () => {
+    const dayKey = `${selectedDate.getFullYear()}-${selectedDate.getMonth()}-${selectedDate.getDate()}`
+    const monthKey = `${currentMonth.getFullYear()}-${currentMonth.getMonth()}`
+    dayCache.current.delete(dayKey)
+    monthCache.current.delete(monthKey)
+
+    try {
+      const year = selectedDate.getFullYear()
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
+      const day = String(selectedDate.getDate()).padStart(2, '0')
+      const dateStr = `${year}-${month}-${day}`
+      const response = await fetch(`/api/calendar/events?date=${dateStr}`)
+      if (response.ok) {
+        const data = await response.json()
+        const events = data.events || []
+        dayCache.current.set(dayKey, { events, lastFetched: Date.now() })
+        setCachedDayData(events)
+      }
+    } catch (error) {
+      console.error('Failed to refresh events', error)
+    }
+
+    try {
+      const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
+      const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
+      const fromStr = firstDay.toISOString()
+      const toStr = lastDay.toISOString()
+      const response = await fetch(`/api/calendar/month?from=${fromStr}&to=${toStr}`)
+      if (response.ok) {
+        const data = await response.json()
+        const chips = data.chips || {}
+        monthCache.current.set(monthKey, { chips, lastFetched: Date.now() })
+        setCachedMonthData(chips)
+      }
+    } catch (error) {
+      console.error('Failed to refresh month chips', error)
+    }
+
+    setDataVersion(prev => prev + 1)
   }
 
   const handleModalClose = (open: boolean) => {
@@ -142,31 +288,42 @@ function CalendarContent() {
             <ChevronRight size={20} />
           </button>
         </div>
-        <Button
-          variant='secondary'
-          label='Today'
-          onClick={goToToday}
-        />
+        <div className='flex items-center gap-2'>
+          <Button
+            variant='secondary'
+            label='Today'
+            onClick={goToToday}
+          />
+          <button
+            onClick={refreshMonth}
+            disabled={refreshingMonth}
+            className='p-2 rounded-lg hover:bg-(--background-secondary) transition-colors disabled:opacity-50'
+            title='Refresh month'
+          >
+            <RefreshCw size={18} className={refreshingMonth ? 'animate-spin' : ''} />
+          </button>
+        </div>
       </div>
 
       <div className='flex-1 overflow-auto bg-(--background-secondary)'>
         <div className='flex flex-col min-h-full p-4 gap-4'>
           <div className='flex-none min-h-[500px] bg-(--background-primary) border border-(--border-default) rounded-xl overflow-hidden shadow-sm'>
             <MonthGrid
-              key={`month-${refreshKey}`}
               currentDate={currentMonth}
               selectedDate={selectedDate}
               onDayClick={handleDayClick}
               onEventClick={handleEventClick}
+              initialChips={cachedMonthData}
+              dataVersion={dataVersion}
             />
           </div>
 
           <div className='flex-none min-h-[400px] h-[500px] bg-(--background-primary) border border-(--border-default) rounded-xl overflow-hidden shadow-sm'>
             <HourGrid 
-              key={`hour-${refreshKey}`}
               selectedDate={selectedDate}
               onEventClick={handleEventClick}
-              refreshKey={refreshKey}
+              initialEvents={cachedDayData}
+              dataVersion={dataVersion}
             />
           </div>
         </div>
@@ -176,9 +333,9 @@ function CalendarContent() {
         open={isCreateEventOpen}
         onOpenChange={handleModalClose}
         selectedDate={selectedDate}
-        onSuccess={() => setRefreshKey(prev => prev + 1)}
+        onSuccess={handleEventSuccess}
         editEvent={editEvent}
-        canEdit={editEvent ? canEditEvent(editEvent as CalendarEvent) : false}
+        canEdit={editEvent ? canEditEvent(editEvent as CalendarEvent) : true}
       />
     </div>
   )

@@ -48,29 +48,46 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { title, timestamp, duration_minutes, description, is_for_all_staff, attendee_ids } = body
 
+    console.log('[CalendarEvents POST] Body:', { title, timestamp, duration_minutes, description, is_for_all_staff, attendee_ids })
+
     if (!title || !timestamp) {
       return NextResponse.json({ error: 'Title and timestamp are required' }, { status: 400 })
     }
 
+    // Validate that the event is not in the past
+    const eventDateTime = new Date(timestamp)
+    const now = new Date()
+    
+    if (eventDateTime < now) {
+      return NextResponse.json({ error: 'Cannot create events in the past' }, { status: 400 })
+    }
+
+    const eventData: any = {
+      organization_id: staff.organization_id,
+      title,
+      timestamp: new Date(timestamp),
+      duration_minutes: duration_minutes || null,
+      description: description || null,
+      is_for_all_staff: is_for_all_staff || false,
+      created_by: staff.id
+    }
+
+    if (!is_for_all_staff && attendee_ids && attendee_ids.length > 0) {
+      eventData.calendar_event_attendees = {
+        create: attendee_ids.map((staffId: string) => ({
+          staff_id: staffId
+        }))
+      }
+    }
+
+    console.log('[CalendarEvents POST] Event data:', JSON.stringify(eventData, null, 2))
+
     const event = await prisma.calendar_events.create({
-      data: {
-        organization_id: staff.organization_id,
-        title,
-        timestamp: new Date(timestamp),
-        duration_minutes: duration_minutes || null,
-        description: description || null,
-        is_for_all_staff: is_for_all_staff || false,
-        created_by: staff.id,
-        ...(is_for_all_staff || !attendee_ids || attendee_ids.length === 0 ? {} : {
-          calendar_event_attendees: {
-            create: attendee_ids.map((staffId: string) => ({
-              staff_id: staffId
-            }))
-          }
-        })
-      },
+      data: eventData,
       include: { calendar_event_attendees: true }
     })
+
+    console.log('[CalendarEvents POST] Created event:', event)
 
     return NextResponse.json({ event })
   } catch (error) {

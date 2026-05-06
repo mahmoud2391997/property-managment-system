@@ -6,7 +6,8 @@ import { useState, useEffect } from 'react'
 interface HourGridProps {
   selectedDate: Date
   onEventClick?: (event: FullEvent) => void
-  refreshKey?: number
+  initialEvents?: any[] | null
+  dataVersion?: number
 }
 
 interface FullEvent {
@@ -37,13 +38,13 @@ function calculateOverlappingEvents(events: FullEvent[]): PositionedEvent[] {
   const groups: FullEvent[][] = []
   for (const event of sorted) {
     const eventStart = event.startHour * 60 + event.startMinute
-    const eventEnd = eventStart + (event.duration_minutes || 60)
+    const eventEnd = event.duration_minutes ? eventStart + event.duration_minutes : eventStart + 1
 
     let placedInGroup = false
     for (const group of groups) {
       const overlaps = group.some(e => {
         const existingStart = e.startHour * 60 + e.startMinute
-        const existingEnd = existingStart + (e.duration_minutes || 60)
+        const existingEnd = e.duration_minutes ? existingStart + e.duration_minutes : existingStart + 1
         return eventStart < existingEnd && eventEnd > existingStart
       })
       if (overlaps) {
@@ -69,14 +70,14 @@ function calculateOverlappingEvents(events: FullEvent[]): PositionedEvent[] {
     const columns: FullEvent[][] = []
     for (const event of group) {
       const eventStart = event.startHour * 60 + event.startMinute
-      const eventEnd = eventStart + (event.duration_minutes || 60)
+      const eventEnd = event.duration_minutes ? eventStart + event.duration_minutes : eventStart + 1
 
       let placedInColumn = false
       for (let colIndex = 0; colIndex < columns.length; colIndex++) {
         const column = columns[colIndex]
         const canFit = column.every(e => {
           const existingStart = e.startHour * 60 + e.startMinute
-          const existingEnd = existingStart + (e.duration_minutes || 60)
+          const existingEnd = e.duration_minutes ? existingStart + e.duration_minutes : existingStart + 1
           return eventStart >= existingEnd || eventEnd <= existingStart
         })
         if (canFit) {
@@ -102,11 +103,29 @@ function calculateOverlappingEvents(events: FullEvent[]): PositionedEvent[] {
   return sorted.map(e => positionedEvents.get(e.id)!)
 }
 
-export default function HourGrid({ selectedDate, onEventClick, refreshKey }: HourGridProps) {
+export default function HourGrid({ selectedDate, onEventClick, initialEvents, dataVersion }: HourGridProps) {
   const hours = Array.from({ length: 24 }, (_, i) => i)
   const [events, setEvents] = useState<PositionedEvent[]>([])
 
   useEffect(() => {
+    if (initialEvents) {
+      const mappedEvents: FullEvent[] = (initialEvents || []).map((e: any) => {
+        const dateObj = new Date(e.timestamp)
+        return {
+          id: e.id,
+          title: e.title,
+          timestamp: e.timestamp,
+          duration_minutes: e.duration_minutes,
+          description: e.description,
+          is_for_all_staff: e.is_for_all_staff,
+          startHour: dateObj.getHours(),
+          startMinute: dateObj.getMinutes()
+        }
+      })
+      setEvents(calculateOverlappingEvents(mappedEvents))
+      return
+    }
+
     const fetchEvents = async () => {
       try {
         const year = selectedDate.getFullYear()
@@ -137,7 +156,7 @@ export default function HourGrid({ selectedDate, onEventClick, refreshKey }: Hou
       }
     }
     fetchEvents()
-  }, [selectedDate, refreshKey])
+  }, [selectedDate, initialEvents, dataVersion])
   
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
@@ -152,62 +171,86 @@ export default function HourGrid({ selectedDate, onEventClick, refreshKey }: Hou
       </div>
 
       <div className='flex-1 overflow-auto'>
-        <div className='relative' style={{ height: `${hours.length * HOUR_HEIGHT}px` }}>
-          {hours.map(hour => {
-            const hourLabel = hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`
-            const top = hour * HOUR_HEIGHT
-            
-            return (
-              <div
-                key={hour}
-                className='absolute left-0 right-0 flex border-b border-(--border-default)'
-                style={{ top, height: `${HOUR_HEIGHT}px` }}
-              >
-                <div className='w-16 flex-shrink-0 px-2 py-1 text-xs text-(--text-secondary)'>
+        <div className='flex'>
+          <div className='flex-none w-16 sticky left-0 z-20 bg-(--background-primary)'>
+            {hours.map(hour => {
+              const hourLabel = hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`
+              return (
+                <div
+                  key={hour}
+                  className='h-[48px] px-2 text-xs text-(--text-secondary) flex items-start pt-1'
+                >
                   {hourLabel}
                 </div>
-                <div className='flex-1' />
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
+          <div className='flex-1 overflow-x-auto'>
+            <div className='relative' style={{ height: `${hours.length * HOUR_HEIGHT}px`, minWidth: `${Math.max(1, events.length > 0 ? Math.max(...events.map(e => e.totalColumns)) : 1) * 200}px` }}>
+              {hours.map(hour => (
+                <div
+                  key={hour}
+                  className='absolute left-0 right-0 border-b border-(--border-default)'
+                  style={{ top: `${hour * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
+                />
+              ))}
 
-          {events.map(event => {
-            const top = (event.startHour * 60 + event.startMinute) / 60 * HOUR_HEIGHT
-            const height = ((event.duration_minutes || 60) / 60) * HOUR_HEIGHT
-            const widthPercent = 100 / event.totalColumns
-            const leftPercent = (event.column / event.totalColumns) * 100
-            const gap = 2
-            const hasDescription = event.description && event.description.trim() !== ''
+              {events.map(event => {
+                const top = (event.startHour * 60 + event.startMinute) / 60 * HOUR_HEIGHT
+                const isPointEvent = !event.duration_minutes
+                const height = isPointEvent ? 20 : (event.duration_minutes! / 60) * HOUR_HEIGHT
+                const columnOffset = event.column * 8
+                const hasDescription = event.description && event.description.trim() !== ''
+                const dateStr = new Date(event.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                const timeStr = `${event.startHour % 12 || 12}:${String(event.startMinute).padStart(2, '0')}${event.startHour >= 12 ? 'PM' : 'AM'}`
+                const durationStr = isPointEvent ? 'No duration' : `${event.duration_minutes} min`
+                const isSmall = height < 36
 
-            return (
-              <div
-                key={event.id}
-                onClick={() => onEventClick?.(event)}
-                className={cn(
-                  'absolute rounded-md p-1.5 text-xs border overflow-hidden transition-shadow hover:shadow-md cursor-pointer group',
-                  'bg-(--info-light) border-(--info-main) text-(--info-main)'
-                )}
-                style={{
-                  top: `${top + 1}px`,
-                  left: `calc(${leftPercent}% + ${gap}px)`,
-                  width: `calc(${widthPercent}% - ${gap * 2}px)`,
-                  height: `${height - 2}px`,
-                  minHeight: hasDescription ? '60px' : '24px'
-                }}
-                title={hasDescription ? `${event.title}\n${event.description}` : event.title}
-              >
-                <div className='font-medium truncate'>{event.title}</div>
-                {hasDescription && (
-                  <div className='text-[10px] opacity-75 line-clamp-2 mt-0.5'>{event.description}</div>
-                )}
-                <div className='text-[10px] opacity-75 mt-0.5'>
-                  {event.startHour % 12 || 12}:{String(event.startMinute).padStart(2, '0')}{event.startHour >= 12 ? 'PM' : 'AM'} — {event.duration_minutes || 60} min
-                </div>
-              </div>
-            )
-          })}
-          
-          <CurrentTimeIndicator selectedDate={selectedDate} hourHeight={HOUR_HEIGHT} />
+                return (
+                  <div
+                    key={event.id}
+                    onClick={() => onEventClick?.(event)}
+                    className={cn(
+                      'absolute rounded-md text-xs border overflow-hidden transition-shadow hover:shadow-md cursor-pointer group w-fit',
+                      isPointEvent || isSmall
+                        ? 'px-2 py-0.5 bg-(--info-light) border-(--info-main) text-(--info-main)'
+                        : 'p-2 bg-(--info-light) border-(--info-main) text-(--info-main)'
+                    )}
+                    style={{
+                      top: isPointEvent ? `${top - 10}px` : `${top + 1}px`,
+                      left: `${columnOffset}px`,
+                      height: isPointEvent || isSmall ? undefined : `${height - 2}px`
+                    }}
+                    title={hasDescription ? `${event.title}\n${event.description}` : event.title}
+                  >
+                    {isSmall || isPointEvent ? (
+                      <div className='flex items-center gap-2 whitespace-nowrap'>
+                        <span className='font-medium'>{event.title}</span>
+                        <span className='text-[10px] opacity-75'>{dateStr}</span>
+                        <span className='text-[10px] opacity-75'>{timeStr}</span>
+                        <span className='text-[10px] opacity-75'>{durationStr}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className='font-medium'>{event.title}</div>
+                        <div className='text-[10px] opacity-75 mt-1 flex items-center gap-2 whitespace-nowrap'>
+                          <span>{dateStr}</span>
+                          <span>{timeStr}</span>
+                          <span>·</span>
+                          <span>{durationStr}</span>
+                        </div>
+                        {hasDescription && (
+                          <div className='text-[10px] opacity-75 line-clamp-2 mt-1'>{event.description}</div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )
+              })}
+              
+              <CurrentTimeIndicator selectedDate={selectedDate} hourHeight={HOUR_HEIGHT} />
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -226,7 +269,7 @@ function CurrentTimeIndicator({ selectedDate, hourHeight }: { selectedDate: Date
   
   return (
     <div
-      className='absolute left-16 right-0 border-t-2 border-(--primary-main) z-10'
+      className='absolute left-0 right-0 border-t-2 border-(--primary-main) z-10'
       style={{ top: `${topPosition}px` }}
     >
       <div className='absolute -left-1.5 -top-1.5 w-3 h-3 rounded-full bg-(--primary-main)' />

@@ -194,6 +194,10 @@ export async function GET (request: NextRequest) {
     const dueDateFrom = searchParams.get('dueDateFrom')?.trim() || ''
     const dueDateTo = searchParams.get('dueDateTo')?.trim() || ''
 
+    // Determine if we need frontend-level filtering
+    const needsFrontendStatusFilter = Boolean(statusFilter && statusFilter !== 'all')
+    const needsFrontendFiltering = needsFrontendStatusFilter || Boolean(recurringPatternFilter)
+
     // Property/Room context filters (for property/room overview pages)
     const propertyId = searchParams.get('propertyId')?.trim() || ''
     const roomId = searchParams.get('roomId')?.trim() || ''
@@ -243,8 +247,11 @@ export async function GET (request: NextRequest) {
           })
         }
 
-        // Tenant name filter
+        // Tenant name filter with pagination support
         if (tenantNameFilter) {
+          const page = parseInt(searchParams.get('page') || '1')
+          const limit = parseInt(searchParams.get('limit') || '100')
+          
           filters.push({
             leases: {
               is: {
@@ -256,15 +263,16 @@ export async function GET (request: NextRequest) {
                   ]
                 }
               }
-            }
+            },
+            skip: (page - 1) * limit // Add pagination skip
           })
         }
 
-// Due month filter
+        // Due month filter
         if (dueMonth) {
           const [year, month] = dueMonth.split('-').map(Number)
-          const startUtc = Date.UTC(year, month - 1, 1) + dueMonthTimezoneOffset * 60 * 1000
-          const endUtc = Date.UTC(year, month, 1) + dueMonthTimezoneOffset * 60 * 1000
+          const startUtc = Date.UTC(year, month - 1, 1) - dueMonthTimezoneOffset * 60 * 1000
+          const endUtc = Date.UTC(year, month, 1) - dueMonthTimezoneOffset * 60 * 1000
           const start = new Date(startUtc)
           const end = new Date(endUtc)
           filters.push({ due_payment_timestamp: { gte: start, lt: end } })
@@ -273,8 +281,8 @@ export async function GET (request: NextRequest) {
         // Exact due date filter
         if (dueDate) {
           const [year, month, day] = dueDate.split('-').map(Number)
-          const startUtc = Date.UTC(year, month - 1, day) + dueMonthTimezoneOffset * 60 * 1000
-          const endUtc = Date.UTC(year, month - 1, day + 1) + dueMonthTimezoneOffset * 60 * 1000
+          const startUtc = Date.UTC(year, month - 1, day) - dueMonthTimezoneOffset * 60 * 1000
+          const endUtc = Date.UTC(year, month - 1, day + 1) - dueMonthTimezoneOffset * 60 * 1000
           const start = new Date(startUtc)
           const end = new Date(endUtc)
           filters.push({ due_payment_timestamp: { gte: start, lt: end } })
@@ -285,11 +293,11 @@ export async function GET (request: NextRequest) {
           const rangeFilter: any = {}
           if (dueDateFrom) {
             const [year, month, day] = dueDateFrom.split('-').map(Number)
-            rangeFilter.gte = new Date(Date.UTC(year, month - 1, day) + dueMonthTimezoneOffset * 60 * 1000)
+            rangeFilter.gte = new Date(Date.UTC(year, month - 1, day) - dueMonthTimezoneOffset * 60 * 1000)
           }
           if (dueDateTo) {
             const [year, month, day] = dueDateTo.split('-').map(Number)
-            rangeFilter.lt = new Date(Date.UTC(year, month - 1, day + 1) + dueMonthTimezoneOffset * 60 * 1000)
+            rangeFilter.lt = new Date(Date.UTC(year, month - 1, day + 1) - dueMonthTimezoneOffset * 60 * 1000)
           }
           filters.push({ due_payment_timestamp: rangeFilter })
         }
@@ -398,12 +406,11 @@ export async function GET (request: NextRequest) {
                 }
               ]
             }),
-            // Filter by DB status (Paid, Pending, Cancelled) if provided and not 'all'
             AND: [
               { status: { not: 'Unset' } },
-              ...(statusFilter &&
-              statusFilter !== 'all' &&
-              ['Paid', 'Pending', 'Cancelled'].includes(statusFilter)
+              // Skip DB status filter when frontend status grouping is active
+              // (frontend groups "Paid"+"Paid Late", "Pending"+"Overdue")
+              ...(!needsFrontendStatusFilter && statusFilter && statusFilter !== 'all' && ['Paid', 'Pending', 'Cancelled'].includes(statusFilter)
                 ? [{ status: statusFilter }]
                 : []),
               ...advancedFilters
@@ -428,12 +435,10 @@ export async function GET (request: NextRequest) {
                 }
               ]
             }),
-            // Filter by DB status (Paid, Pending, Cancelled) if provided and not 'all'
             AND: [
               { status: { not: 'Unset' } },
-              ...(statusFilter &&
-              statusFilter !== 'all' &&
-              ['Paid', 'Pending', 'Cancelled'].includes(statusFilter)
+              // Skip DB status filter when frontend status grouping is active
+              ...(!needsFrontendStatusFilter && statusFilter && statusFilter !== 'all' && ['Paid', 'Pending', 'Cancelled'].includes(statusFilter)
                 ? [{ status: statusFilter }]
                 : []),
               ...advancedFilters
@@ -442,9 +447,6 @@ export async function GET (request: NextRequest) {
 
       // Fetch payments - for calculated fields (Paid Late, Partially Paid, Overdue, recurring_pattern),
       // we need to fetch more data and filter after transformation
-      const needsFrontendStatusFilter = Boolean(statusFilter && statusFilter !== 'all')
-
-      const needsFrontendFiltering = needsFrontendStatusFilter || recurringPatternFilter
 
       // Build payment select object based on permissions
       const paymentSelect = buildPaymentSelect(hasTenantAccess, hasLeaseAccess)
@@ -476,6 +478,8 @@ export async function GET (request: NextRequest) {
       // Transform payments for display
 let transformedPayments = payments.map(p => transformPayment(p as any))
 
+      let filteredTotal = -1
+
       // Apply frontend filtering for calculated fields
       if (needsFrontendFiltering) {
         // Filter by calculated status with grouping
@@ -501,6 +505,9 @@ let transformedPayments = payments.map(p => transformPayment(p as any))
           )
         }
 
+        // Capture total before pagination slicing
+        filteredTotal = transformedPayments.length
+
         // Apply pagination after filtering
         const startIndex = (page - 1) * limit
         const endIndex = startIndex + limit
@@ -510,7 +517,7 @@ let transformedPayments = payments.map(p => transformPayment(p as any))
       return NextResponse.json({
         success: true,
         data: transformedPayments,
-        total,
+        total: needsFrontendFiltering ? filteredTotal : total,
         page,
         pageSize: limit
       })

@@ -299,6 +299,7 @@ export default function PaymentsSection ({
           data={data}
           userType={userType}
           isLoading={isLoading}
+          hasServerPagination={true}
           currentPage={currentPage}
           totalItems={total}
           pageSize={pageSize}

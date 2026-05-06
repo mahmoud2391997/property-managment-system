@@ -102,6 +102,16 @@ export function usePaginatedSearch<T> ({
 
   const useServerSearch = initialTotal > pageSize
 
+  const hasActiveFilters = Object.entries(urlFilters).some(
+    ([key, value]) => value && value !== 'all' && value !== defaultFilters[key]
+  )
+
+  const shouldUseServer = useServerSearch || hasActiveFilters || !!urlSearch
+
+  useEffect(() => {
+    console.log('[PaginatedSearch] shouldUseServer:', shouldUseServer, 'hasActiveFilters:', hasActiveFilters, 'urlFilters:', JSON.stringify(urlFilters), 'page:', urlPage)
+  }, [shouldUseServer, hasActiveFilters, urlFilters, urlPage])
+
   // ============================================
   // URL UPDATE FUNCTION
   // ============================================
@@ -252,7 +262,7 @@ Object.entries(filters).forEach(([key, value]) => {
     const hasNonDefaultFilters = Object.entries(urlFilters).some(
       ([key, value]) => value && value !== defaultFilters[key]
     )
-    if (!useServerSearch && !hasNonDefaultFilters) {
+    if (!shouldUseServer && !hasNonDefaultFilters) {
       // Restore cached data if state was replaced by a non-default fetch
       const cacheKey = buildCacheKey(urlPage, urlSearch, urlFilters)
       const cached = pageCacheRef.current.get(cacheKey)
@@ -281,7 +291,7 @@ Object.entries(filters).forEach(([key, value]) => {
     urlPage,
     urlSearch,
     JSON.stringify(urlFilters),
-    useServerSearch,
+    shouldUseServer,
     debounceMs,
     fetchData
   ])
@@ -332,7 +342,7 @@ useEffect(() => {
   }, [urlPage, updateUrl])
 
   const displayData = useMemo(() => {
-    if (useServerSearch) {
+    if (shouldUseServer) {
       return data
     }
 
@@ -412,7 +422,7 @@ useEffect(() => {
     }
 
     return filteredData
-  }, [data, urlSearch, urlFilters, useServerSearch, defaultFilters, filterKeyMapping, textFilterKeys])
+  }, [data, urlSearch, urlFilters, shouldUseServer, defaultFilters, filterKeyMapping, textFilterKeys])
 
   const updateItem = useCallback((id: string, updates: Partial<T>) => {
     const updateInArray = (arr: T[]) =>

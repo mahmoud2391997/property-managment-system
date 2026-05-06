@@ -56,14 +56,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'You can only edit events you created' }, { status: 403 })
     }
 
-    const eventDate = new Date(existing.timestamp)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    if (eventDate < today) {
-      return NextResponse.json({ error: 'Cannot edit events in the past' }, { status: 400 })
-    }
-
+    // Editing existing events is allowed, even if the event date is in the past.
     const event = await prisma.calendar_events.update({
       where: { id },
       data: {

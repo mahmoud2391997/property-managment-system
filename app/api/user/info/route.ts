@@ -38,14 +38,24 @@ export async function GET() {
         WHERE rp.role_id = ${staff.role_id}::uuid
       ` as { title: string }[]
 
+      // Fetch organization name
+      let orgName = 'N/A'
+      if (staff.organization_id) {
+        const org = await prisma.organizations.findUnique({
+          where: { id: staff.organization_id },
+          select: { title: true }
+        })
+        orgName = org?.title || 'N/A'
+      }
+
       return NextResponse.json({
         userType: 'staff',
         firstName: staff.first_name,
         lastName: staff.last_name,
         profileThumb: staff.profile_thumb,
         role: staff.roles?.title || 'Staff',
-        user: { id: user.id, email: user.email },
-        staff: { id: staff.id, organization_id: staff.organization_id || '' },
+        user: { id: user.id, email: user.email, lastSignIn: user.last_sign_in_at },
+        staff: { id: staff.id, organization_id: staff.organization_id || '', organization_name: orgName },
         permissions: permissions.map(p => p.title)
       })
     }
@@ -84,12 +94,21 @@ export async function GET() {
         lastName = tenant.company_tenants.contact_person_last_name || ''
       }
 
+      const activeLeasesCount = await prisma.leases.count({
+        where: {
+          tenant_id: tenant.id,
+          status: 'Current'
+        }
+      })
+
       return NextResponse.json({
         userType: 'tenant',
         firstName,
         lastName,
         profileThumb: tenant.profile_thumb,
-        role: 'Tenant'
+        role: 'Tenant',
+        user: { id: user.id, email: user.email, lastSignIn: user.last_sign_in_at },
+        tenant: { id: tenant.id, active_leases_count: activeLeasesCount }
       })
     }
 
