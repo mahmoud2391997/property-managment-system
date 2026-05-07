@@ -159,6 +159,10 @@ export async function GET(request: NextRequest) {
     const assignedToFilter = searchParams.get('assigned_to')?.trim() || ''
     const assignedByFilter = searchParams.get('assigned_by')?.trim() || ''
     const dueDateFilter = searchParams.get('due_date')?.trim() || ''
+    const dueMonth = searchParams.get('due_month')?.trim() || ''
+    const dueMonthTimezoneOffset = parseInt(searchParams.get('due_month_timezone_offset') || '0', 10)
+    const dueDateFrom = searchParams.get('dueDateFrom')?.trim() || ''
+    const dueDateTo = searchParams.get('dueDateTo')?.trim() || ''
 
     // If paginate mode is enabled, use pagination/search logic
     if (paginate) {
@@ -201,7 +205,7 @@ export async function GET(request: NextRequest) {
 
       // Check if we need frontend filtering (for fields that require latest from history tables)
       const needsStatusFiltering = statusFilter && statusFilter !== 'all' && statusFilter !== 'Pending My Assignment'
-      const needsFrontendFiltering = needsStatusFiltering || typeFilter || priorityFilter || assignedToFilter || assignedByFilter || dueDateFilter
+      const needsFrontendFiltering = needsStatusFiltering || typeFilter || priorityFilter || assignedToFilter || assignedByFilter || dueDateFilter || dueMonth || dueDateFrom || dueDateTo
 
       // Add status filter
       if (statusFilter && statusFilter !== 'all') {
@@ -275,6 +279,41 @@ export async function GET(request: NextRequest) {
           transformedTasks = transformedTasks.filter(task => {
             if (!task.due_date) return false
             return new Date(task.due_date).toDateString() === filterDate
+          })
+        }
+
+        // Due Month filter
+        if (dueMonth) {
+          const [year, month] = dueMonth.split('-').map(Number)
+          const startUtc = Date.UTC(year, month - 1, 1) + dueMonthTimezoneOffset * 60 * 1000
+          const endUtc = Date.UTC(year, month, 1) + dueMonthTimezoneOffset * 60 * 1000
+          transformedTasks = transformedTasks.filter(task => {
+            if (!task.due_date) return false
+            const tDate = new Date(task.due_date).getTime()
+            return tDate >= startUtc && tDate < endUtc
+          })
+        }
+
+        // Due Date Range filter
+        if (dueDateFrom || dueDateTo) {
+          let startUtc: number | null = null
+          let endUtc: number | null = null
+          
+          if (dueDateFrom) {
+            const [year, month, day] = dueDateFrom.split('-').map(Number)
+            startUtc = Date.UTC(year, month - 1, day) + dueMonthTimezoneOffset * 60 * 1000
+          }
+          if (dueDateTo) {
+            const [year, month, day] = dueDateTo.split('-').map(Number)
+            endUtc = Date.UTC(year, month - 1, day + 1) + dueMonthTimezoneOffset * 60 * 1000
+          }
+
+          transformedTasks = transformedTasks.filter(task => {
+            if (!task.due_date) return false
+            const tDate = new Date(task.due_date).getTime()
+            if (startUtc !== null && tDate < startUtc) return false
+            if (endUtc !== null && tDate >= endUtc) return false
+            return true
           })
         }
 
