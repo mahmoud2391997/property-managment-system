@@ -271,8 +271,8 @@ export async function GET (request: NextRequest) {
         // Due month filter
         if (dueMonth) {
           const [year, month] = dueMonth.split('-').map(Number)
-          const startUtc = Date.UTC(year, month - 1, 1) - dueMonthTimezoneOffset * 60 * 1000
-          const endUtc = Date.UTC(year, month, 1) - dueMonthTimezoneOffset * 60 * 1000
+          const startUtc = Date.UTC(year, month - 1, 1) + dueMonthTimezoneOffset * 60 * 1000
+          const endUtc = Date.UTC(year, month, 1) + dueMonthTimezoneOffset * 60 * 1000
           const start = new Date(startUtc)
           const end = new Date(endUtc)
           filters.push({ due_payment_timestamp: { gte: start, lt: end } })
@@ -281,8 +281,8 @@ export async function GET (request: NextRequest) {
         // Exact due date filter
         if (dueDate) {
           const [year, month, day] = dueDate.split('-').map(Number)
-          const startUtc = Date.UTC(year, month - 1, day) - dueMonthTimezoneOffset * 60 * 1000
-          const endUtc = Date.UTC(year, month - 1, day + 1) - dueMonthTimezoneOffset * 60 * 1000
+          const startUtc = Date.UTC(year, month - 1, day) + dueMonthTimezoneOffset * 60 * 1000
+          const endUtc = Date.UTC(year, month - 1, day + 1) + dueMonthTimezoneOffset * 60 * 1000
           const start = new Date(startUtc)
           const end = new Date(endUtc)
           filters.push({ due_payment_timestamp: { gte: start, lt: end } })
@@ -293,11 +293,11 @@ export async function GET (request: NextRequest) {
           const rangeFilter: any = {}
           if (dueDateFrom) {
             const [year, month, day] = dueDateFrom.split('-').map(Number)
-            rangeFilter.gte = new Date(Date.UTC(year, month - 1, day) - dueMonthTimezoneOffset * 60 * 1000)
+            rangeFilter.gte = new Date(Date.UTC(year, month - 1, day) + dueMonthTimezoneOffset * 60 * 1000)
           }
           if (dueDateTo) {
             const [year, month, day] = dueDateTo.split('-').map(Number)
-            rangeFilter.lt = new Date(Date.UTC(year, month - 1, day + 1) - dueMonthTimezoneOffset * 60 * 1000)
+            rangeFilter.lt = new Date(Date.UTC(year, month - 1, day + 1) + dueMonthTimezoneOffset * 60 * 1000)
           }
           filters.push({ due_payment_timestamp: rangeFilter })
         }
