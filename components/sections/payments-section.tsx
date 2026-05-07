@@ -177,6 +177,21 @@ export default function PaymentsSection ({
           const parts = f.value.split(',')
           if (parts[0]) filterObj.dueDateFrom = parts[0].trim()
           if (parts[1]) filterObj.dueDateTo = parts[1].trim()
+          // Clear other date filters
+          filterObj.due_date = ''
+          filterObj.due_month = ''
+        } else if (f.attribute === 'due_date') {
+          filterObj.due_date = f.value
+          // Clear other date filters
+          filterObj.dueDateFrom = ''
+          filterObj.dueDateTo = ''
+          filterObj.due_month = ''
+        } else if (f.attribute === 'due_month') {
+          filterObj.due_month = f.value
+          // Clear other date filters
+          filterObj.due_date = ''
+          filterObj.dueDateFrom = ''
+          filterObj.dueDateTo = ''
         } else {
           filterObj[f.attribute] = f.value
         }
