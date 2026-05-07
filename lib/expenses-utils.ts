@@ -283,7 +283,7 @@ export function transformExpense(expense: RawExpense, hasLeaseAccess: boolean = 
     const dueDate = expense.due_payment_date
     const isFullyPaid = paymentPercentage >= 100
     const isPartiallyPaid = paymentPercentage > 0 && paymentPercentage < 100
-    const isOverdue = dueDate ? now > dueDate : false
+    const isOverdue = dueDate && (paymentPercentage < 100) && now > new Date(new Date(dueDate).setHours(23, 59, 59, 999))
     const latestPaymentDate = successfulPayments[0]?.paid_at
     if (isFullyPaid) {
       let isPaidLate = false;

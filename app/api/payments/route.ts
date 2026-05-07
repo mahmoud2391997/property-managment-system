@@ -249,9 +249,6 @@ export async function GET (request: NextRequest) {
 
         // Tenant name filter with pagination support
         if (tenantNameFilter) {
-          const page = parseInt(searchParams.get('page') || '1')
-          const limit = parseInt(searchParams.get('limit') || '100')
-          
           filters.push({
             leases: {
               is: {
@@ -263,8 +260,7 @@ export async function GET (request: NextRequest) {
                   ]
                 }
               }
-            },
-            skip: (page - 1) * limit // Add pagination skip
+            }
           })
         }
 

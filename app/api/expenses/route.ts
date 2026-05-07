@@ -202,17 +202,18 @@ export async function GET(request: NextRequest) {
       if (referenceId) {
         whereClause.reference_id = { contains: referenceId, mode: 'insensitive' }
       }
+      const filters: any[] = []
       if (dueMonth) {
         const [year, month] = dueMonth.split('-').map(Number)
         const startUtc = Date.UTC(year, month - 1, 1) + dueMonthTimezoneOffset * 60 * 1000
         const endUtc = Date.UTC(year, month, 1) + dueMonthTimezoneOffset * 60 * 1000
-        whereClause.due_payment_date = { gte: new Date(startUtc), lt: new Date(endUtc) }
+        filters.push({ due_payment_date: { gte: new Date(startUtc), lt: new Date(endUtc) } })
       }
       if (dueDate) {
         const [year, month, day] = dueDate.split('-').map(Number)
         const startUtc = Date.UTC(year, month - 1, day) + dueMonthTimezoneOffset * 60 * 1000
         const endUtc = Date.UTC(year, month - 1, day + 1) + dueMonthTimezoneOffset * 60 * 1000
-        whereClause.due_payment_date = { gte: new Date(startUtc), lt: new Date(endUtc) }
+        filters.push({ due_payment_date: { gte: new Date(startUtc), lt: new Date(endUtc) } })
       }
       if (dueDateFrom || dueDateTo) {
         const rangeFilter: any = {}
@@ -224,7 +225,11 @@ export async function GET(request: NextRequest) {
           const [year, month, day] = dueDateTo.split('-').map(Number)
           rangeFilter.lt = new Date(Date.UTC(year, month - 1, day + 1) + dueMonthTimezoneOffset * 60 * 1000)
         }
-        whereClause.due_payment_date = rangeFilter
+        filters.push({ due_payment_date: rangeFilter })
+      }
+
+      if (filters.length > 0) {
+        whereClause.AND = [...(whereClause.AND || []), ...filters]
       }
       if (recurringPattern === 'Recurring') {
         whereClause.recurring_config_id = { not: null }
