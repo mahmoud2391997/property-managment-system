@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import TableFilter, { ActiveFilterChips, FilterAttribute, FilterValue } from '@/components/costume-ui/table-filter'
+import TableFilter, { FilterAttribute, FilterValue } from '@/components/costume-ui/table-filter'
 import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import Button from '@/components/costume-ui/button'
@@ -405,12 +405,6 @@ export default function ExpensesSection({
                 className='flex-1'
               />
             </div>
-            <ActiveFilterChips
-              filters={advancedFilters}
-              attributes={currentAttributes}
-              onRemove={handleRemoveFilter}
-              onClearAll={handleClearAllFilters}
-            />
           </div>
           <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
             <PermissionGate permission="recurring.access" fallback={null}>

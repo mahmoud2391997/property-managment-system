@@ -8,7 +8,7 @@ import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import { Tab, TabGroup } from '../costume-ui/tab'
 import AddTaskDialog from '../dialogs/add-task-dialog'
 import { useCallback, useMemo } from 'react'
-import TableFilter, { type FilterAttribute, type FilterValue, ActiveFilterChips } from '../costume-ui/table-filter'
+import TableFilter, { type FilterAttribute, type FilterValue } from '../costume-ui/table-filter'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PermissionGate } from '@/components/permission-gate'
 
@@ -248,12 +248,6 @@ export default function TasksSection({
               onChange={e => handleSearchChange(e.target.value)}
             />
           </div>
-          <ActiveFilterChips
-            filters={advancedFilters}
-            attributes={TASK_FILTER_ATTRIBUTES}
-            onRemove={handleRemoveFilter}
-            onClearAll={handleClearAllFilters}
-          />
         </div>
         <PermissionGate permission="tasks.create" fallback={null}>
           <AddTaskDialog onSuccess={handleRefresh} />

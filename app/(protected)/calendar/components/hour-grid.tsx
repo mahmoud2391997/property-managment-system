@@ -171,8 +171,9 @@ export default function HourGrid({ selectedDate, onEventClick, initialEvents, da
       </div>
 
       <div className='flex-1 overflow-auto'>
-        <div className='flex'>
-          <div className='flex-none w-16 sticky left-0 z-20 bg-(--background-primary)'>
+        <div className='flex min-w-fit'>
+          {/* Time Column */}
+          <div className='flex-none w-16 sticky left-0 z-30 bg-(--background-primary) border-r border-(--border-default)'>
             {hours.map(hour => {
               const hourLabel = hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`
               return (
@@ -185,71 +186,82 @@ export default function HourGrid({ selectedDate, onEventClick, initialEvents, da
               )
             })}
           </div>
-          <div className='flex-1 overflow-x-auto'>
-            <div className='relative' style={{ height: `${hours.length * HOUR_HEIGHT}px`, minWidth: `${Math.max(1, events.length > 0 ? Math.max(...events.map(e => e.totalColumns)) : 1) * 200}px` }}>
+
+          {/* Grid Columns */}
+          <div className='flex flex-1 relative bg-(--background-primary)'>
+            {/* Background Hour Lines */}
+            <div className='absolute inset-0 pointer-events-none'>
               {hours.map(hour => (
                 <div
                   key={hour}
-                  className='absolute left-0 right-0 border-b border-(--border-default)'
-                  style={{ top: `${hour * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
+                  className='border-b border-(--border-default)'
+                  style={{ height: `${HOUR_HEIGHT}px` }}
                 />
               ))}
+            </div>
 
-              {events.map(event => {
-                const top = (event.startHour * 60 + event.startMinute) / 60 * HOUR_HEIGHT
-                const isPointEvent = !event.duration_minutes
-                const height = isPointEvent ? 20 : (event.duration_minutes! / 60) * HOUR_HEIGHT
-                const left = (event.column * 100) / event.totalColumns
-                const width = 100 / event.totalColumns
-                const hasDescription = event.description && event.description.trim() !== ''
-                const dateStr = new Date(event.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                const timeStr = `${event.startHour % 12 || 12}:${String(event.startMinute).padStart(2, '0')}${event.startHour >= 12 ? 'PM' : 'AM'}`
-                const durationStr = isPointEvent ? 'No duration' : `${event.duration_minutes} min`
-                const isSmall = height < 36
+            {/* Event Columns */}
+            {Array.from({ length: Math.max(1, events.length > 0 ? Math.max(...events.map(e => e.totalColumns)) : 1) }).map((_, colIndex) => {
+              const colEvents = events.filter(e => e.column === colIndex).sort((a, b) => (a.startHour * 60 + a.startMinute) - (b.startHour * 60 + b.startMinute))
+              let lastEndMinutes = 0
 
-                return (
-                  <div
-                    key={event.id}
-                    onClick={() => onEventClick?.(event)}
-                    className={cn(
-                      'absolute rounded-md text-xs border overflow-hidden transition-shadow hover:shadow-md cursor-pointer group',
-                      isPointEvent || isSmall
-                        ? 'px-2 py-0.5 bg-(--info-light) border-(--info-main) text-(--info-main)'
-                        : 'p-2 bg-(--info-light) border-(--info-main) text-(--info-main)'
-                    )}
-                    style={{
-                      top: isPointEvent ? `${top - 10}px` : `${top + 1}px`,
-                      left: `calc(${left}% + 1px)`,
-                      width: `calc(${width}% - 2px)`,
-                      height: isPointEvent || isSmall ? undefined : `${height - 2}px`
-                    }}
-                    title={hasDescription ? `${event.title}\n${event.description}` : event.title}
-                  >
-                    {isSmall || isPointEvent ? (
-                      <div className='flex flex-wrap items-center gap-x-2 gap-y-0.5'>
-                        <span className='font-medium'>{event.title}</span>
-                        <span className='text-[10px] opacity-75'>{dateStr}</span>
-                        <span className='text-[10px] opacity-75'>{timeStr}</span>
-                        <span className='text-[10px] opacity-75'>{durationStr}</span>
+              return (
+                <div 
+                  key={colIndex} 
+                  className='relative flex-none w-fit min-w-[150px] border-r border-(--border-default)/30 last:border-r-0 flex flex-col'
+                  style={{ minHeight: `${hours.length * HOUR_HEIGHT}px` }}
+                >
+                  {colEvents.map(event => {
+                    const startMinutes = event.startHour * 60 + event.startMinute
+                    const spacerMinutes = startMinutes - lastEndMinutes
+                    const spacerHeight = (spacerMinutes / 60) * HOUR_HEIGHT
+                    
+                    const duration = event.duration_minutes || 30
+                    const height = (duration / 60) * HOUR_HEIGHT
+                    lastEndMinutes = startMinutes + duration
+
+                    const hasDescription = event.description && event.description.trim() !== ''
+                    const timeStr = `${event.startHour % 12 || 12}:${String(event.startMinute).padStart(2, '0')}${event.startHour >= 12 ? 'PM' : 'AM'}`
+                    const durationStr = !event.duration_minutes ? 'No duration' : `${event.duration_minutes} min`
+
+                    return (
+                      <div key={event.id} className='flex flex-col'>
+                        <div style={{ height: `${Math.max(0, spacerHeight)}px` }} className='flex-none' />
+                        {(() => {
+                          const isPointEvent = !event.duration_minutes;
+                          return (
+                            <div
+                              className={cn(
+                                'flex-none mx-1 rounded-md text-xs border px-2 py-1 w-fit min-w-[calc(100%-8px)] max-w-[600px] overflow-hidden',
+                                isPointEvent
+                                  ? 'bg-transparent border-dashed border-(--info-main) text-(--info-main)'
+                                  : 'bg-(--info-light) border-(--info-main) text-(--info-main) shadow-sm'
+                              )}
+                              style={{
+                                height: isPointEvent ? '24px' : `${Math.max(24, height - 2)}px`
+                              }}
+                            >
+                              <div className='flex items-center gap-2 h-full whitespace-nowrap'>
+                                <span className='font-bold text-[11px]'>{event.title}</span>
+                                <span className='text-[10px] opacity-80'>({timeStr} · {durationStr})</span>
+                                {hasDescription && (
+                                  <>
+                                    <span className='text-[10px] opacity-60'>·</span>
+                                    <span className='text-[10px] opacity-90 italic'>{event.description}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
-                    ) : (
-                      <>
-                        <div className='font-medium break-words'>{event.title}</div>
-                        <div className='text-[10px] opacity-75 mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5'>
-                          <span>{dateStr}</span>
-                          <span>{timeStr}</span>
-                          <span>·</span>
-                          <span>{durationStr}</span>
-                        </div>
-                        {hasDescription && (
-                          <div className='text-[10px] opacity-75 mt-1 break-words'>{event.description}</div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )
-              })}
-              
+                    )
+                  })}
+                </div>
+              )
+            })}
+            
+            <div className='absolute inset-0 pointer-events-none'>
               <CurrentTimeIndicator selectedDate={selectedDate} hourHeight={HOUR_HEIGHT} />
             </div>
           </div>
