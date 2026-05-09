@@ -389,19 +389,27 @@ export default function ExpensesSection({
             'w-full'
           )}
         >
-          <div className='flex items-center gap-2 w-full sm:w-auto flex-1 max-w-md'>
-            <TableFilter
-              attributes={currentAttributes}
+          <div className='flex flex-col gap-2 w-full sm:w-auto flex-1 max-w-md'>
+            <div className='flex items-center gap-2'>
+              <TableFilter
+                attributes={currentAttributes}
+                filters={advancedFilters}
+                onFiltersChange={handleFiltersChange}
+                open={isFilterOpen}
+                onOpenChange={setIsFilterOpen}
+              />
+              <SearchInput
+                placeholder={`Search ${currentCategory.split('_')[0].toLowerCase()} expenses`}
+                value={searchTerm}
+                onChange={e => handleSearchChange(e.target.value)}
+                className='flex-1'
+              />
+            </div>
+            <ActiveFilterChips
               filters={advancedFilters}
-              onFiltersChange={handleFiltersChange}
-              open={isFilterOpen}
-              onOpenChange={setIsFilterOpen}
-            />
-            <SearchInput
-              placeholder={`Search ${currentCategory.split('_')[0].toLowerCase()} expenses`}
-              value={searchTerm}
-              onChange={e => handleSearchChange(e.target.value)}
-              className='flex-1'
+              attributes={currentAttributes}
+              onRemove={handleRemoveFilter}
+              onClearAll={handleClearAllFilters}
             />
           </div>
           <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>

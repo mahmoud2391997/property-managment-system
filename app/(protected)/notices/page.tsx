@@ -9,6 +9,7 @@ import Dialog from '@/components/costume-ui/dialog'
 import AddNotice from '@/components/add-notice'
 import { UnderDevelopment } from '@/components/costume-ui/under-development'
 import { requirePermission } from '@/lib/server-permissions'
+import { createClient } from '@/utils/supabase/server'
 
 const Notices = async () => {
   const supabase = await createClient()
@@ -18,11 +19,7 @@ const Notices = async () => {
   if (userType !== 'tenant') {
     await requirePermission('notices.access')
   }
-  if (true) {
-      return (
-        <UnderDevelopment />
-      )
-    }
+
   return (
     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
       {/* Heading */}

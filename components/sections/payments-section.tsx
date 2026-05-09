@@ -257,18 +257,26 @@ export default function PaymentsSection ({
           'w-full'
         )}
       >
-        <div className='flex items-center gap-2 w-full sm:w-auto flex-1 max-w-md'>
-          <TableFilter
-            attributes={getPaymentFilterAttributes(can)}
+        <div className='flex flex-col gap-2 w-full sm:w-auto flex-1 max-w-md'>
+          <div className='flex items-center gap-2'>
+            <TableFilter
+              attributes={getPaymentFilterAttributes(can)}
+              filters={advancedFilters}
+              onFiltersChange={handleFiltersChange}
+              open={isFilterOpen}
+              onOpenChange={setIsFilterOpen}
+            />
+            <SearchInput
+              placeholder='Search payments'
+              value={searchTerm}
+              onChange={e => handleSearchChange(e.target.value)}
+            />
+          </div>
+          <ActiveFilterChips
             filters={advancedFilters}
-            onFiltersChange={handleFiltersChange}
-            open={isFilterOpen}
-            onOpenChange={setIsFilterOpen}
-          />
-          <SearchInput
-            placeholder='Search payments'
-            value={searchTerm}
-            onChange={e => handleSearchChange(e.target.value)}
+            attributes={getPaymentFilterAttributes(can)}
+            onRemove={handleRemoveFilter}
+            onClearAll={handleClearAllFilters}
           />
         </div>
         {/* Buttons */}

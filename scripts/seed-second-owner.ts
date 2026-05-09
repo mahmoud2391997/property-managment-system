@@ -46,8 +46,9 @@ async function main() {
   if (authError || !newAuthUser?.user) {
     if (authError?.code === '23505' || authError?.status === 422) {
       console.log(`Auth user with email ${email} already exists, fetching...`)
-      const { data: users } = await supabaseAdmin.auth.admin.listUsers()
-      const existing = users.find(u => u.email === email)
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers()
+      const usersList = usersData?.users || []
+      const existing = (usersList as any[]).find(u => u.email === email)
       if (existing) {
         console.log('Using existing auth user:', existing.id)
         const existingStaff = await prisma.staff.findUnique({ where: { id: existing.id } })

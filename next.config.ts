@@ -11,11 +11,6 @@ const commitSha = (() => {
 })();
 
 const nextConfig: NextConfig = {
-  experimental: {
-    proxy: {
-      entry: './proxy.ts',
-    },
-  },
   env: {
     NEXT_PUBLIC_APP_VERSION: pkg.version,
     NEXT_PUBLIC_COMMIT_SHA: commitSha,

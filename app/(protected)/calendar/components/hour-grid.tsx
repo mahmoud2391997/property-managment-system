@@ -199,7 +199,8 @@ export default function HourGrid({ selectedDate, onEventClick, initialEvents, da
                 const top = (event.startHour * 60 + event.startMinute) / 60 * HOUR_HEIGHT
                 const isPointEvent = !event.duration_minutes
                 const height = isPointEvent ? 20 : (event.duration_minutes! / 60) * HOUR_HEIGHT
-                const columnOffset = event.column * 8
+                const left = (event.column * 100) / event.totalColumns
+                const width = 100 / event.totalColumns
                 const hasDescription = event.description && event.description.trim() !== ''
                 const dateStr = new Date(event.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                 const timeStr = `${event.startHour % 12 || 12}:${String(event.startMinute).padStart(2, '0')}${event.startHour >= 12 ? 'PM' : 'AM'}`
@@ -211,20 +212,21 @@ export default function HourGrid({ selectedDate, onEventClick, initialEvents, da
                     key={event.id}
                     onClick={() => onEventClick?.(event)}
                     className={cn(
-                      'absolute rounded-md text-xs border overflow-hidden transition-shadow hover:shadow-md cursor-pointer group w-fit',
+                      'absolute rounded-md text-xs border overflow-hidden transition-shadow hover:shadow-md cursor-pointer group',
                       isPointEvent || isSmall
                         ? 'px-2 py-0.5 bg-(--info-light) border-(--info-main) text-(--info-main)'
                         : 'p-2 bg-(--info-light) border-(--info-main) text-(--info-main)'
                     )}
                     style={{
                       top: isPointEvent ? `${top - 10}px` : `${top + 1}px`,
-                      left: `${columnOffset}px`,
+                      left: `calc(${left}% + 1px)`,
+                      width: `calc(${width}% - 2px)`,
                       height: isPointEvent || isSmall ? undefined : `${height - 2}px`
                     }}
                     title={hasDescription ? `${event.title}\n${event.description}` : event.title}
                   >
                     {isSmall || isPointEvent ? (
-                      <div className='flex items-center gap-2 whitespace-nowrap'>
+                      <div className='flex flex-wrap items-center gap-x-2 gap-y-0.5'>
                         <span className='font-medium'>{event.title}</span>
                         <span className='text-[10px] opacity-75'>{dateStr}</span>
                         <span className='text-[10px] opacity-75'>{timeStr}</span>
@@ -232,15 +234,15 @@ export default function HourGrid({ selectedDate, onEventClick, initialEvents, da
                       </div>
                     ) : (
                       <>
-                        <div className='font-medium'>{event.title}</div>
-                        <div className='text-[10px] opacity-75 mt-1 flex items-center gap-2 whitespace-nowrap'>
+                        <div className='font-medium break-words'>{event.title}</div>
+                        <div className='text-[10px] opacity-75 mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5'>
                           <span>{dateStr}</span>
                           <span>{timeStr}</span>
                           <span>·</span>
                           <span>{durationStr}</span>
                         </div>
                         {hasDescription && (
-                          <div className='text-[10px] opacity-75 line-clamp-2 mt-1'>{event.description}</div>
+                          <div className='text-[10px] opacity-75 mt-1 break-words'>{event.description}</div>
                         )}
                       </>
                     )}

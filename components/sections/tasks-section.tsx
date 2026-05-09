@@ -8,7 +8,7 @@ import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import { Tab, TabGroup } from '../costume-ui/tab'
 import AddTaskDialog from '../dialogs/add-task-dialog'
 import { useCallback, useMemo } from 'react'
-import TableFilter, { type FilterAttribute, type FilterValue } from '../costume-ui/table-filter'
+import TableFilter, { type FilterAttribute, type FilterValue, ActiveFilterChips } from '../costume-ui/table-filter'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PermissionGate } from '@/components/permission-gate'
 
@@ -235,18 +235,24 @@ export default function TasksSection({
           'w-full'
         )}
       >
-        <div className='flex items-center gap-2'>
-          <TableFilter
-            attributes={TASK_FILTER_ATTRIBUTES}
+        <div className='flex flex-col gap-2'>
+          <div className='flex items-center gap-2'>
+            <TableFilter
+              attributes={TASK_FILTER_ATTRIBUTES}
+              filters={advancedFilters}
+              onFiltersChange={handleFiltersChange}
+            />
+            <SearchInput
+              placeholder='Search tasks'
+              value={searchTerm}
+              onChange={e => handleSearchChange(e.target.value)}
+            />
+          </div>
+          <ActiveFilterChips
             filters={advancedFilters}
-            onFiltersChange={handleFiltersChange}
-            onRemoveFilter={handleRemoveFilter}
+            attributes={TASK_FILTER_ATTRIBUTES}
+            onRemove={handleRemoveFilter}
             onClearAll={handleClearAllFilters}
-          />
-          <SearchInput
-            placeholder='Search tasks'
-            value={searchTerm}
-            onChange={e => handleSearchChange(e.target.value)}
           />
         </div>
         <PermissionGate permission="tasks.create" fallback={null}>

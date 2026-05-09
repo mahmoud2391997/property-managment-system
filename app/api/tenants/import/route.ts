@@ -254,7 +254,8 @@ export async function POST(req: NextRequest) {
     // Check for existing emails in Supabase Auth
     for (const [email, rowNum] of emailsInFile) {
       const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
-      const existingUser = existingUsers?.users?.find(u => u.email?.toLowerCase() === email)
+      const usersList = existingUsers?.users || []
+      const existingUser = (usersList as any[]).find((u: any) => u.email?.toLowerCase() === email)
       if (existingUser) {
         errors.push({
           row: rowNum,
