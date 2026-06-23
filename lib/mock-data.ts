@@ -1,0 +1,270 @@
+// Mock data for all application entities
+
+export const mockUsers = [
+  {
+    id: '1',
+    email: 'admin@example.com',
+    full_name: 'Admin User',
+    user_type: 'admin',
+    created_at: new Date('2024-01-01').toISOString(),
+  },
+  {
+    id: '2',
+    email: 'manager@example.com',
+    full_name: 'John Manager',
+    user_type: 'staff',
+    created_at: new Date('2024-01-15').toISOString(),
+  },
+  {
+    id: '3',
+    email: 'tenant@example.com',
+    full_name: 'Jane Tenant',
+    user_type: 'tenant',
+    created_at: new Date('2024-02-01').toISOString(),
+  },
+]
+
+export const mockProperties = [
+  {
+    id: '1',
+    name: 'Sunset Apartments',
+    address: '123 Main St',
+    city: 'San Francisco',
+    state: 'CA',
+    zip_code: '94105',
+    total_units: 12,
+    owner_id: '1',
+    created_at: new Date('2024-01-01').toISOString(),
+  },
+  {
+    id: '2',
+    name: 'Downtown Lofts',
+    address: '456 Market St',
+    city: 'San Francisco',
+    state: 'CA',
+    zip_code: '94103',
+    total_units: 8,
+    owner_id: '1',
+    created_at: new Date('2024-01-10').toISOString(),
+  },
+]
+
+export const mockTenants = [
+  {
+    id: '1',
+    first_name: 'Michael',
+    last_name: 'Johnson',
+    email: 'michael@example.com',
+    phone: '415-555-0101',
+    property_id: '1',
+    unit_number: '101',
+    move_in_date: new Date('2023-06-01').toISOString(),
+    lease_id: '1',
+  },
+  {
+    id: '2',
+    first_name: 'Sarah',
+    last_name: 'Williams',
+    email: 'sarah@example.com',
+    phone: '415-555-0102',
+    property_id: '1',
+    unit_number: '102',
+    move_in_date: new Date('2023-07-15').toISOString(),
+    lease_id: '2',
+  },
+  {
+    id: '3',
+    first_name: 'Robert',
+    last_name: 'Brown',
+    email: 'robert@example.com',
+    phone: '415-555-0103',
+    property_id: '2',
+    unit_number: '201',
+    move_in_date: new Date('2023-05-01').toISOString(),
+    lease_id: '3',
+  },
+]
+
+export const mockLeases = [
+  {
+    id: '1',
+    tenant_id: '1',
+    property_id: '1',
+    unit_number: '101',
+    start_date: new Date('2023-06-01').toISOString(),
+    end_date: new Date('2025-05-31').toISOString(),
+    monthly_rent: 2500,
+    status: 'active',
+  },
+  {
+    id: '2',
+    tenant_id: '2',
+    property_id: '1',
+    unit_number: '102',
+    start_date: new Date('2023-07-15').toISOString(),
+    end_date: new Date('2025-07-14').toISOString(),
+    monthly_rent: 2300,
+    status: 'active',
+  },
+  {
+    id: '3',
+    tenant_id: '3',
+    property_id: '2',
+    unit_number: '201',
+    start_date: new Date('2023-05-01').toISOString(),
+    end_date: new Date('2025-04-30').toISOString(),
+    monthly_rent: 3000,
+    status: 'active',
+  },
+]
+
+export const mockTickets = [
+  {
+    id: '1',
+    title: 'Leaky faucet in bathroom',
+    description: 'The bathroom faucet is dripping constantly',
+    property_id: '1',
+    unit_number: '101',
+    tenant_id: '1',
+    status: 'open',
+    priority: 'medium',
+    created_at: new Date('2024-02-15').toISOString(),
+    updated_at: new Date('2024-02-15').toISOString(),
+  },
+  {
+    id: '2',
+    title: 'Broken door lock',
+    description: 'Front door lock is not working properly',
+    property_id: '1',
+    unit_number: '102',
+    tenant_id: '2',
+    status: 'in_progress',
+    priority: 'high',
+    created_at: new Date('2024-02-10').toISOString(),
+    updated_at: new Date('2024-02-14').toISOString(),
+  },
+  {
+    id: '3',
+    title: 'Noise complaint',
+    description: 'Loud music late at night',
+    property_id: '2',
+    unit_number: '201',
+    tenant_id: '3',
+    status: 'resolved',
+    priority: 'low',
+    created_at: new Date('2024-02-01').toISOString(),
+    updated_at: new Date('2024-02-08').toISOString(),
+  },
+]
+
+export const mockPayments = [
+  {
+    id: '1',
+    lease_id: '1',
+    tenant_id: '1',
+    amount: 2500,
+    status: 'paid',
+    due_date: new Date('2024-03-01').toISOString(),
+    paid_date: new Date('2024-02-28').toISOString(),
+    month: 'March 2024',
+  },
+  {
+    id: '2',
+    lease_id: '1',
+    tenant_id: '1',
+    amount: 2500,
+    status: 'pending',
+    due_date: new Date('2024-04-01').toISOString(),
+    paid_date: null,
+    month: 'April 2024',
+  },
+  {
+    id: '3',
+    lease_id: '2',
+    tenant_id: '2',
+    amount: 2300,
+    status: 'paid',
+    due_date: new Date('2024-03-15').toISOString(),
+    paid_date: new Date('2024-03-14').toISOString(),
+    month: 'March 2024',
+  },
+]
+
+export const mockExpenses = [
+  {
+    id: '1',
+    property_id: '1',
+    description: 'Roof repair',
+    category: 'maintenance',
+    amount: 5000,
+    date: new Date('2024-02-10').toISOString(),
+    vendor: 'ABC Roofing',
+  },
+  {
+    id: '2',
+    property_id: '1',
+    description: 'Property insurance',
+    category: 'insurance',
+    amount: 1200,
+    date: new Date('2024-02-01').toISOString(),
+    vendor: 'InsureCorp',
+  },
+  {
+    id: '3',
+    property_id: '2',
+    description: 'Utilities',
+    category: 'utilities',
+    amount: 450,
+    date: new Date('2024-02-15').toISOString(),
+    vendor: 'City Utilities',
+  },
+]
+
+export const mockNotifications = [
+  {
+    id: '1',
+    user_id: '1',
+    title: 'New maintenance ticket',
+    message: 'Unit 101 has a new maintenance ticket',
+    type: 'ticket',
+    read: false,
+    created_at: new Date('2024-02-15').toISOString(),
+  },
+  {
+    id: '2',
+    user_id: '1',
+    title: 'Payment received',
+    message: 'Rent payment received from tenant in unit 102',
+    type: 'payment',
+    read: true,
+    created_at: new Date('2024-02-14').toISOString(),
+  },
+  {
+    id: '3',
+    user_id: '1',
+    title: 'Lease expiring soon',
+    message: 'Lease for unit 201 expires in 60 days',
+    type: 'lease',
+    read: false,
+    created_at: new Date('2024-02-13').toISOString(),
+  },
+]
+
+export const mockDocuments = [
+  {
+    id: '1',
+    tenant_id: '1',
+    type: 'lease_agreement',
+    filename: 'lease_101.pdf',
+    uploaded_at: new Date('2023-06-01').toISOString(),
+    url: '/documents/lease_101.pdf',
+  },
+  {
+    id: '2',
+    tenant_id: '1',
+    type: 'insurance',
+    filename: 'insurance_101.pdf',
+    uploaded_at: new Date('2023-06-05').toISOString(),
+    url: '/documents/insurance_101.pdf',
+  },
+]
