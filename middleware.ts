@@ -5,13 +5,6 @@ import { hasPermission } from '@/lib/has-permission'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Redirect root path to dashboard
-  if (pathname === '/') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
-  }
-
   // If Supabase keys are missing, redirect non-public routes to dashboard and let public routes pass through
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
     const publicPaths = ['/login', '/signup', '/confirm', '/error', '/forgot-password', '/reset-password', '/setup-password', '/migrate']
