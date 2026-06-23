@@ -1,7 +1,14 @@
-import { redirect } from 'next/navigation'
+'use client'
 
-const StaffLogin = async () => {
-  redirect('/login')
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+export default function Page() {
+  const router = useRouter()
+
+  useEffect(() => {
+    router.replace('/dashboard')
+  }, [router])
+
+  return null
 }
-
-export default StaffLogin

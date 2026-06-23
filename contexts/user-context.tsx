@@ -1,7 +1,7 @@
 'use client'
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { mockGetCurrentUser, mockLogout, type MockUser } from '@/lib/mock-auth'
+import { createContext, useContext, useMemo, useState } from 'react'
+import { MOCK_ADMIN_USER, mockLogout, type MockUser } from '@/lib/mock-auth'
 
 type UserData = {
   user: MockUser | null
@@ -22,31 +22,15 @@ type UserContextValue = {
 const UserContext = createContext<UserContextValue | null>(null)
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<UserData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    // Get current user from mock auth storage
-    const mockUser = mockGetCurrentUser()
-    
-    if (mockUser) {
-      const permissions = mockUser.user_type === 'admin' 
-        ? ['read', 'write', 'delete', 'manage_users']
-        : mockUser.user_type === 'staff'
-        ? ['read', 'write']
-        : ['read']
-
-      setData({
-        user: mockUser,
-        role: mockUser.user_type,
-        permissions,
-      })
-    } else {
-      setData(null)
+  // Auto-load demo admin user for demo purposes
+  const [data] = useState<UserData>(() => {
+    const permissions = ['read', 'write', 'delete', 'manage_users']
+    return {
+      user: MOCK_ADMIN_USER,
+      role: 'admin',
+      permissions,
     }
-    
-    setIsLoading(false)
-  }, [])
+  })
 
   const permissions = useMemo(
     () => new Set<string>(data?.permissions ?? []),
@@ -55,7 +39,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const handleLogout = () => {
     mockLogout()
-    setData(null)
   }
 
   const value: UserContextValue = useMemo(() => ({
@@ -64,9 +47,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     permissions,
     can: (perm: string) => permissions.has(perm),
     canAny: (...perms: string[]) => perms.some(p => permissions.has(p)),
-    isLoading,
+    isLoading: false,
     logout: handleLogout
-  }), [data, permissions, isLoading])
+  }), [data, permissions])
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>
 }

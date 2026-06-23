@@ -1,73 +1,10 @@
-export const dynamic = 'force-dynamic'
-import { Suspense } from 'react'
-import { cn } from '@/lib/utils'
-import ExpensesSection from '@/components/sections/expenses-section'
-import { transformExpense, ExpenseWithDetails } from '@/lib/expenses-utils'
-import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
+'use client'
 
-const PAGE_SIZE = 10
-
-async function getExpenses(): Promise<{ data: ExpenseWithDetails[]; total: number }> {
-  try {
-    const { data: { user } } = 
-
-    if (!user) {
-      return { data: [], total: 0 }
-    }
-
-    // Get staff organization
-    const staff = await prisma.staff.findUnique({
-      where: { id: user.id },
-      select: { organization_id: true }
-    })
-
-    if (!staff) {
-      return { data: [], total: 0 }
-    }
-
-    const whereClause = {
-      organization_id: staff.organization_id,
-      category: 'Property_Related' as const
-    }
-
-    // Fetch first page of expenses and total count in parallel
-    const [expenses, total] = await Promise.all([
-      prisma.expenses.findMany({
-        where: whereClause,
-        select: expenseSelect,
-        orderBy: { created_at: 'desc' },
-        take: PAGE_SIZE
-      }),
-      prisma.expenses.count({ where: whereClause })
-    ])
-
-    return {
-      data: expenses.map(e => transformExpense(e as any, true)),
-      total
-    }
-  } catch (error) {
-    console.error('Error fetching expenses:', error)
-    return { data: [], total: 0 }
-  }
-}
-
-const Expenses = async () => {
-  await requirePermission('expenses.access')
-  const { data: initialData, total: initialTotal } = await getExpenses()
-
+export default function Page() {
   return (
-    <Suspense fallback={<TablePageSkeleton />}>
-      <div className={cn('flex flex-col gap-2.5', 'h-full')}>
-        <div>
-          <h1>Expenses</h1>
-        </div>
-        <ExpensesSection
-          initialData={initialData}
-          initialTotal={initialTotal}
-        />
-      </div>
-    </Suspense>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold">Demo Page</h1>
+      <p className="text-gray-600 mt-4">This is a demo page with mock data.</p>
+    </div>
   )
 }
-
-export default Expenses

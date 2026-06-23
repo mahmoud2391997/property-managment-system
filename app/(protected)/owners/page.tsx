@@ -1,84 +1,10 @@
-import { cn } from '@/lib/utils'
-import OwnersSection from '@/components/sections/owners-section'
+'use client'
 
-async function getOwners() {
-  const { data: { user } } = 
-
-  if (!user) {
-    return []
-  }
-
-  const staff = await prisma.staff.findUnique({
-    where: { id: user.id },
-    select: { organization_id: true }
-  })
-
-  if (!staff) {
-    return []
-  }
-
-  const owners = await prisma.owners.findMany({
-    where: {
-      organization_id: staff.organization_id
-    },
-    select: {
-      id: true,
-      first_name: true,
-      last_name: true,
-      phone_number: true,
-      email: true,
-      profile_pic: true,
-      profile_thumb: true,
-      _count: {
-        select: {
-          properties: true
-        }
-      }
-    },
-    orderBy: {
-      created_at: 'desc'
-    }
-  })
-
-  // Get current contract counts for all owners
-  const ownerIds = owners.map(o => o.id)
-  let contractCountMap = new Map<string, number>()
-
-  if (ownerIds.length > 0) {
-    const currentContracts = await prisma.contracts.findMany({
-      where: {
-        owner_id: { in: ownerIds },
-        organization_id: staff.organization_id,
-        status: 'Current'
-      },
-      select: { owner_id: true }
-    })
-
-    for (const contract of currentContracts) {
-      const count = contractCountMap.get(contract.owner_id) || 0
-      contractCountMap.set(contract.owner_id, count + 1)
-    }
-  }
-
-  return owners.map(owner => ({
-    ...owner,
-    currentContractCount: contractCountMap.get(owner.id) || 0
-  }))
-}
-
-const Owners = async () => {
-  await requirePermission('owners.access')
-  const owners = await getOwners()
-
+export default function Page() {
   return (
-    <div className={cn('flex flex-col gap-2.5', 'h-full')}>
-      {/* Heading */}
-      <div>
-        <h1>Owners</h1>
-      </div>
-      <OwnersSection owners={owners} />
+    <div className="p-6">
+      <h1 className="text-2xl font-bold">Demo Page</h1>
+      <p className="text-gray-600 mt-4">This is a demo page with mock data.</p>
     </div>
   )
 }
-
-export default Owners

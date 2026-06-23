@@ -1,14 +1,14 @@
-import { Suspense } from 'react'
-import ConfirmPageContent from '@/components/confirm-page-content'
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function ConfirmPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex min-h-svh items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    }>
-      <ConfirmPageContent />
-    </Suspense>
-  )
+  const router = useRouter()
+
+  useEffect(() => {
+    router.replace('/dashboard')
+  }, [router])
+
+  return null
 }

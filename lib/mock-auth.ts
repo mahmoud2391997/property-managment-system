@@ -9,17 +9,19 @@ export interface MockUser {
   created_at: string
 }
 
+export const MOCK_ADMIN_USER: MockUser = {
+  id: '1',
+  email: 'admin@example.com',
+  full_name: 'Admin User',
+  user_type: 'admin',
+  password_set: true,
+  created_at: new Date('2024-01-01').toISOString(),
+}
+
 export const MOCK_USERS: Record<string, { password: string; user: MockUser }> = {
   'admin@example.com': {
     password: 'admin123',
-    user: {
-      id: '1',
-      email: 'admin@example.com',
-      full_name: 'Admin User',
-      user_type: 'admin',
-      password_set: true,
-      created_at: new Date('2024-01-01').toISOString(),
-    },
+    user: MOCK_ADMIN_USER,
   },
   'manager@example.com': {
     password: 'manager123',

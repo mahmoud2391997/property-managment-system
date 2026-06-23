@@ -1,56 +1,10 @@
-import { cn } from '@/lib/utils'
-import AgentsSection from '@/components/sections/agents-section'
+'use client'
 
-async function getAgents() {
-  const { data: { user } } = 
-
-  if (!user) {
-    return []
-  }
-
-  const staff = await prisma.staff.findUnique({
-    where: { id: user.id },
-    select: { organization_id: true }
-  })
-
-  if (!staff) {
-    return []
-  }
-
-  const agents = await prisma.agents.findMany({
-    where: {
-      organization_id: staff.organization_id
-    },
-    select: {
-      id: true,
-      first_name: true,
-      last_name: true,
-      phone_number: true,
-      email: true,
-      _count: {
-        select: {
-          leases: true
-        }
-      }
-    }
-  })
-
-  return agents
-}
-
-const Agents = async () => {
-  await requirePermission('agents.access')
-  const agents = await getAgents()
-
+export default function Page() {
   return (
-    <div className={cn('flex flex-col gap-2.5', 'h-full')}>
-      {/* Heading */}
-      <div>
-        <h1>Agents</h1>
-      </div>
-      <AgentsSection agents={agents} />
+    <div className="p-6">
+      <h1 className="text-2xl font-bold">Demo Page</h1>
+      <p className="text-gray-600 mt-4">This is a demo page with mock data.</p>
     </div>
   )
 }
-
-export default Agents
