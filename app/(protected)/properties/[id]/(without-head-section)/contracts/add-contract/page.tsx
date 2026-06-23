@@ -19,6 +19,7 @@ import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { Check, Info, X } from 'lucide-react'
 import { formatDate, formatDateForAPI } from '@/utils/formatTime'
 import { cn } from '@/lib/utils'
+import { PermissionGuard } from '@/components/permission-guard'
 
 const FREQUENCY_PRESETS = [
   { value: 1, label: 'Monthly', subtitle: 'Every month' },
@@ -309,20 +310,21 @@ const AddContract = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
-      {/* Head section */}
-      <AddPageHead
-        crumb_items={[
-          { label: 'Properties', href: '/properties' },
-          { label: propertyCode, href: `/properties/${propertyId}/contracts` },
-          { label: 'Add Contract' }
-        ]}
-        isCrumbLoading={isPropertyCodeLoading}
-        title='Add a contract'
-        subtitle='Provide contract details and terms'
-        className='mb-7.5'
-        isSubmitting={isSubmitting}
-      />
+    <PermissionGuard permission='contracts.create'>
+      <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
+        {/* Head section */}
+        <AddPageHead
+          crumb_items={[
+            { label: 'Properties', href: '/properties' },
+            { label: propertyCode, href: `/properties/${propertyId}/contracts` },
+            { label: 'Add Contract' }
+          ]}
+          isCrumbLoading={isPropertyCodeLoading}
+          title='Add a contract'
+          subtitle='Provide contract details and terms'
+          className='mb-7.5'
+          isSubmitting={isSubmitting}
+        />
 
       <CollapsibleSection number={1} title={'Contract & Expense Details'}>
         {/* Contract Details */}
@@ -596,7 +598,8 @@ const AddContract = () => {
         message={alertMessage}
         type={alertType}
       />
-    </form>
+      </form>
+    </PermissionGuard>
   )
 }
 

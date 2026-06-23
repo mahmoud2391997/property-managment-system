@@ -27,6 +27,8 @@ import { formatDate } from '@/utils/formatTime'
 import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
 
 type PropertyData = {
   id: string
@@ -494,38 +496,48 @@ export default function OverviewContent({ ownerId }: Props) {
       <OwnerInfoCard owner={data.owner} />
 
       {/* Assigned Properties Section */}
-      <div className='flex items-center justify-between'>
-        <h2 className='texts-body-large-medium'>
-          Assigned Properties ({data.properties.length})
-        </h2>
-      </div>
-
-      {data.properties.length > 0 ? (
-        <div className='flex flex-col gap-4'>
-          {data.properties.map(property => (
-            <PropertyCard key={property.id} property={property} />
-          ))}
+      <PermissionGate
+        permission="properties.access"
+        fallback={<NoAccessCard label="Assigned Properties" />}
+      >
+        <div className='flex items-center justify-between'>
+          <h2 className='texts-body-large-medium'>
+            Assigned Properties ({data.properties.length})
+          </h2>
         </div>
-      ) : (
-        <EmptyPropertiesCard />
-      )}
+
+        {data.properties.length > 0 ? (
+          <div className='flex flex-col gap-4'>
+            {data.properties.map(property => (
+              <PropertyCard key={property.id} property={property} />
+            ))}
+          </div>
+        ) : (
+          <EmptyPropertiesCard />
+        )}
+      </PermissionGate>
 
       {/* Current Contracts Section */}
-      <div className='flex items-center justify-between'>
-        <h2 className='texts-body-large-medium'>
-          Current Contracts ({currentContracts.length})
-        </h2>
-      </div>
-
-      {currentContracts.length > 0 ? (
-        <div className='flex flex-col gap-4'>
-          {currentContracts.map(contract => (
-            <ContractCard key={contract.id} contract={contract} />
-          ))}
+      <PermissionGate
+        permission="contracts.access"
+        fallback={<NoAccessCard label="Current Contracts" />}
+      >
+        <div className='flex items-center justify-between'>
+          <h2 className='texts-body-large-medium'>
+            Current Contracts ({currentContracts.length})
+          </h2>
         </div>
-      ) : (
-        <EmptyContractsCard />
-      )}
+
+        {currentContracts.length > 0 ? (
+          <div className='flex flex-col gap-4'>
+            {currentContracts.map(contract => (
+              <ContractCard key={contract.id} contract={contract} />
+            ))}
+          </div>
+        ) : (
+          <EmptyContractsCard />
+        )}
+      </PermissionGate>
     </div>
   )
 }

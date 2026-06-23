@@ -3,16 +3,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ propertyId: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'leases.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     // Note: propertyId is actually leaseId (following existing pattern in this folder)
     const { propertyId: leaseId } = await params
 

@@ -10,6 +10,7 @@ import { ResolveTaskDialog } from './task-actions'
 import type { Task, StaffMember, TaskType, PriorityLevel, TimelineEvent } from '../types'
 import { TASK_TYPES, PRIORITY_LEVELS, getStatusColor, formatDateTime } from '../types'
 import { cn } from '@/lib/utils'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type Props = {
   task: Task
@@ -46,6 +47,8 @@ export default function TaskSidebar({
   const [selectedPriority, setSelectedPriority] = useState<PriorityLevel>(task.priority)
   const [statusLoading, setStatusLoading] = useState(false)
 
+  const { can } = usePermissions()
+
   // Due date state
   const [showDueDateEdit, setShowDueDateEdit] = useState(false)
   const [showDueDateRemove, setShowDueDateRemove] = useState(false)
@@ -57,8 +60,8 @@ export default function TaskSidebar({
   const isAssignee = task.assignment?.staffId === currentStaff.id
   const isInProgress = task.status === 'In Progress'
 
-  // Can resolve: only assignee when In Progress
-  const canResolve = isAssignee && isInProgress
+  // Can resolve: only with permission, assignee when In Progress
+  const canResolve = can('tasks.complete') && isAssignee && isInProgress
 
   // Type change handlers
   const handleTypeSelect = (newType: string) => {

@@ -3,7 +3,7 @@
 import {
   ColumnDef
 } from '@tanstack/react-table'
-import { MoreHorizontal, ChevronRight, ChevronDown, Calendar, Building2, FileText, User, Repeat, CreditCard, Pencil, Eye, Copy, Trash2, Banknote } from 'lucide-react'
+import { MoreHorizontal, ChevronRight, ChevronDown, Calendar, Building2, FileText, User, Repeat, CreditCard, Pencil, Eye, Copy, Trash2, Banknote, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -27,12 +27,15 @@ import Link from 'next/link'
 import ConfirmationDialog from '../costume-ui/confirmation-dialog'
 import { FeedbackToasts } from '../costume-ui/feedback-toast'
 import LogExpensePaymentDialog from '../dialogs/log-expense-payment-dialog'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type Props = {
   data: ExpenseWithDetails[]
   category?: string
   className?: string
   isLoading?: boolean
+  isLoadingRows?: boolean
+  loadingRowsCount?: number
   currentPage?: number
   totalItems?: number
   pageSize?: number
@@ -40,6 +43,9 @@ type Props = {
   canGoPrevious?: boolean
   onNextPage?: () => void
   onPreviousPage?: () => void
+  canDelete?: boolean
+  canUpdate?: boolean
+  canApprove?: boolean
 }
 
 const CONTEXT_COLUMN_HEADER: Record<string, string> = {
@@ -55,18 +61,48 @@ export default function ExpensesTable({
   category = 'Property_Related',
   className = '',
   isLoading = false,
+  isLoadingRows = false,
+  loadingRowsCount = 10,
   currentPage = 1,
   totalItems = 0,
   pageSize = 10,
   canGoNext = false,
   canGoPrevious = false,
   onNextPage,
-  onPreviousPage
+  onPreviousPage,
+  canDelete: canDeleteProp,
+  canUpdate: canUpdateProp,
+  canApprove: canApproveProp
 }: Props) {
   const hasServerPagination = onNextPage !== undefined || onPreviousPage !== undefined
+  const { can } = usePermissions()
   const [refreshingExpenseId, setRefreshingExpenseId] = useState<string | null>(null)
   const [isDeletingExpense, setIsDeletingExpense] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+
+  const canDelete = canDeleteProp ?? false
+  const canUpdate = canUpdateProp ?? false
+  const canApprove = canApproveProp ?? false
+
+  const handleApproveExpense = async (expenseReferenceId: string) => {
+    try {
+      const response = await fetch(`/api/expenses/${expenseReferenceId}/approve`, {
+        method: 'POST'
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to approve expense')
+      }
+
+      FeedbackToasts.created('Expense')
+      window.location.reload()
+    } catch (error: any) {
+      console.error('Error approving expense:', error)
+      alert(error.message || 'Failed to approve expense')
+    }
+  }
 
   const handleDeleteExpense = async (expenseReferenceId: string) => {
     setDeleteLoading(true)
@@ -188,11 +224,23 @@ export default function ExpensesTable({
         cell: ({ row }) => {
           const { context_label, context_label_href, context_id, context_subtitle, context_subtitle_href } = row.original
 
+          // Check permission based on href path
+          const checkPermission = (href: string | null) => {
+            if (!href) return true
+            if (href.includes('/leases/')) return can('leases.access')
+            if (href.includes('/properties/')) return can('properties.access')
+            if (href.includes('/contracts/')) return can('contracts.access')
+            return true
+          }
+
+          const hasLabelAccess = checkPermission(context_label_href)
+          const hasSubtitleAccess = checkPermission(context_subtitle_href)
+
           // If there are individual hrefs for label/subtitle, render them separately
-          if (context_label_href || context_subtitle_href) {
+          if ((context_label_href || context_subtitle_href) && (hasLabelAccess || hasSubtitleAccess)) {
             return (
               <div>
-                {context_label_href ? (
+                {context_label_href && hasLabelAccess ? (
                   <Link href={context_label_href} className='text-left texts-table-cell-primary hover:underline'>
                     {context_label}
                   </Link>
@@ -200,7 +248,7 @@ export default function ExpensesTable({
                   <div className='text-left texts-table-cell-primary'>{context_label}</div>
                 )}
                 {context_subtitle && (
-                  context_subtitle_href ? (
+                  context_subtitle_href && hasSubtitleAccess ? (
                     <Link href={context_subtitle_href} className='text-left texts-table-cell-secondary hover:underline block'>
                       {context_subtitle}
                     </Link>
@@ -212,10 +260,13 @@ export default function ExpensesTable({
             )
           }
 
-          // Legacy: single link wrapping both label and subtitle
+          // Legacy: single link wrapping both label and subtitle (fallback when no individual hrefs)
           const href = context_id ? `/properties/${context_id}/overview` : null
 
-          if (href) {
+          // Check permission for properties access
+          const hasPropertiesAccess = !href || can('properties.access')
+
+          if (href && hasPropertiesAccess) {
             return (
               <Link href={href} className='block group hover:underline'>
                 <div className='text-left texts-table-cell-primary group-hover:underline'>
@@ -307,19 +358,8 @@ export default function ExpensesTable({
           )
         }
 
-        // Calculate display status based on due date and payment
-        const now = new Date()
-        const dueDate = due_date ? new Date(due_date) : null
-        const isFullyPaid = payment_percentage >= 100
-        const isOverdue = dueDate ? now > dueDate : false
-        const latestPaymentDate = latest_payment_timestamp ? new Date(latest_payment_timestamp) : null
-
-        let displayStatus: ExpenseWithDetails['status']
-        if (isFullyPaid) {
-          displayStatus = (dueDate && latestPaymentDate && latestPaymentDate > dueDate) ? 'Paid Late' : 'Paid'
-        } else {
-          displayStatus = isOverdue ? 'Overdue' : 'Pending'
-        }
+        // Use the transformed status from the API instead of recalculating
+        const displayStatus = status
 
         const statusKey = displayStatus.toLowerCase().replace(/\s/g, '-')
 
@@ -336,7 +376,8 @@ export default function ExpensesTable({
                   'data-[status=paid]:bg-green-100 data-[status=paid]:text-green-800',
                   'data-[status=paid-late]:bg-yellow-100 data-[status=paid-late]:text-yellow-800',
                   'data-[status=pending]:bg-gray-100 data-[status=pending]:text-gray-800',
-                  'data-[status=overdue]:bg-red-100 data-[status=overdue]:text-red-800'
+                  'data-[status=overdue]:bg-red-100 data-[status=overdue]:text-red-800',
+                  'data-[status=partially-paid]:bg-blue-100 data-[status=partially-paid]:text-blue-800'
                 )}
               >
                 {displayStatus}
@@ -397,7 +438,13 @@ export default function ExpensesTable({
                   View details
                 </Link>
               </DropdownMenuItem>
-              {expense.payment_percentage === 0 && !isCancelled && (
+              {canUpdate && expense.payment_percentage === 0 && !isCancelled && (() => {
+                // Check if expense is lease-related and requires lease access
+                const isLeaseRelated = expense.context_label_href?.includes('/leases/') || 
+                                     expense.context_subtitle_href?.includes('/leases/')
+                const hasLeaseAccess = !isLeaseRelated || can('leases.access')
+                return hasLeaseAccess
+              })() && (
                 <DropdownMenuItem asChild>
                   <Link href={`/expenses/${expense.id}/edit`}>
                     <Pencil size={14} className='mr-2' />
@@ -411,44 +458,50 @@ export default function ExpensesTable({
                 <Copy size={14} className='mr-2' />
                 Copy expense ID
               </DropdownMenuItem>
-              {!isCancelled && (
+              {(canUpdate || canDelete || canApprove) && !isCancelled && (
                 <>
                   <DropdownMenuSeparator />
-                  <LogExpensePaymentDialog
-                    expenseId={expense.id}
-                    expenseReferenceId={expense.id}
-                    maxAmount={expense.amount * (1 - expense.payment_percentage / 100)}
-                    trigger={
-                      <DropdownMenuItem
-                        disabled={!hasRemainingAmount}
-                        onSelect={(e) => e.preventDefault()}
-                      >
-                        <Banknote size={14} className='mr-2' />
-                        Log payment
-                      </DropdownMenuItem>
-                    }
-                    onSuccess={() => {
-                      setRefreshingExpenseId(expense.id)
-                      window.location.reload()
-                    }}
-                  />
-                  <DropdownMenuSeparator />
-                  <ConfirmationDialog
-                    openDialogButton={
-                      <DropdownMenuItem
-                        className='text-red-600 focus:text-red-600'
-                        disabled={expense.payment_percentage > 0 || isDeletingExpense === expense.id}
-                        onSelect={(e) => e.preventDefault()}
-                      >
-                        <Trash2 size={14} className='mr-2' />
-                        Delete expense
-                      </DropdownMenuItem>
-                    }
-                    title='Delete Expense'
-                    description={`Are you sure you want to delete expense ${expense.id}? This action cannot be undone.`}
-                    onConfirm={() => handleDeleteExpense(expense.id)}
-                    loading={deleteLoading}
-                  />
+                  {canUpdate && (
+                    <LogExpensePaymentDialog
+                      expenseId={expense.id}
+                      expenseReferenceId={expense.id}
+                      maxAmount={expense.amount * (1 - expense.payment_percentage / 100)}
+                      trigger={
+                        <DropdownMenuItem
+                          disabled={!hasRemainingAmount}
+                          onSelect={(e) => e.preventDefault()}
+                        >
+                          <Banknote size={14} className='mr-2' />
+                          Log payment
+                        </DropdownMenuItem>
+                      }
+                      onSuccess={() => {
+                        setRefreshingExpenseId(expense.id)
+                        window.location.reload()
+                      }}
+                    />
+                  )}
+                  {canDelete && expense.payment_percentage === 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <ConfirmationDialog
+                        openDialogButton={
+                          <DropdownMenuItem
+                            className='text-red-600 focus:text-red-600'
+                            disabled={isDeletingExpense === expense.id}
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            <Trash2 size={14} className='mr-2' />
+                            Delete expense
+                          </DropdownMenuItem>
+                        }
+                        title='Delete Expense'
+                        description={`Are you sure you want to delete expense ${expense.id}? This action cannot be undone.`}
+                        onConfirm={() => handleDeleteExpense(expense.id)}
+                        loading={deleteLoading}
+                      />
+                    </>
+                  )}
                 </>
               )}
             </DropdownMenuContent>
@@ -458,22 +511,12 @@ export default function ExpensesTable({
     })
 
     return base
-  }, [category, showContextColumn, contextHeader])
+  }, [category, showContextColumn, contextHeader, canDelete, canUpdate])
 
   // Helper function to get display status
   const getDisplayStatus = (expense: ExpenseWithDetails) => {
-    if (expense.status === 'Cancelled') return 'Cancelled'
-
-    const now = new Date()
-    const dueDate = expense.due_date ? new Date(expense.due_date) : null
-    const isFullyPaid = expense.payment_percentage >= 100
-    const isOverdue = dueDate ? now > dueDate : false
-    const latestPaymentDate = expense.latest_payment_timestamp ? new Date(expense.latest_payment_timestamp) : null
-
-    if (isFullyPaid) {
-      return (dueDate && latestPaymentDate && latestPaymentDate > dueDate) ? 'Paid Late' : 'Paid'
-    }
-    return isOverdue ? 'Overdue' : 'Pending'
+    // Use the transformed status from the API instead of recalculating
+    return expense.status
   }
 
   // Mobile Card Component
@@ -505,7 +548,8 @@ export default function ExpensesTable({
                   'data-[status=paid-late]:bg-yellow-100 data-[status=paid-late]:text-yellow-800',
                   'data-[status=pending]:bg-gray-100 data-[status=pending]:text-gray-800',
                   'data-[status=overdue]:bg-red-100 data-[status=overdue]:text-red-800',
-                  'data-[status=cancelled]:bg-neutral-200 data-[status=cancelled]:text-neutral-600'
+                  'data-[status=cancelled]:bg-neutral-200 data-[status=cancelled]:text-neutral-600',
+                  'data-[status=partially-paid]:bg-blue-100 data-[status=partially-paid]:text-blue-800'
                 )}
               >
                 {displayStatus}
@@ -538,7 +582,13 @@ export default function ExpensesTable({
                   View details
                 </Link>
               </DropdownMenuItem>
-              {expense.payment_percentage === 0 && expense.status !== 'Cancelled' && (
+              {canUpdate && expense.payment_percentage === 0 && expense.status !== 'Cancelled' && (() => {
+                // Check if expense is lease-related and requires lease access
+                const isLeaseRelated = expense.context_label_href?.includes('/leases/') || 
+                                     expense.context_subtitle_href?.includes('/leases/')
+                const hasLeaseAccess = !isLeaseRelated || can('leases.access')
+                return hasLeaseAccess
+              })() && (
                 <DropdownMenuItem asChild>
                   <Link href={`/expenses/${expense.id}/edit`}>
                     <Pencil size={14} className='mr-2' />
@@ -550,44 +600,50 @@ export default function ExpensesTable({
                 <Copy size={14} className='mr-2' />
                 Copy expense ID
               </DropdownMenuItem>
-              {expense.status !== 'Cancelled' && (
+              {(canUpdate || canDelete) && expense.status !== 'Cancelled' && (
                 <>
                   <DropdownMenuSeparator />
-                  <LogExpensePaymentDialog
-                    expenseId={expense.id}
-                    expenseReferenceId={expense.id}
-                    maxAmount={expense.amount * (1 - expense.payment_percentage / 100)}
-                    trigger={
-                      <DropdownMenuItem
-                        disabled={!hasRemainingAmount}
-                        onSelect={(e) => e.preventDefault()}
-                      >
-                        <Banknote size={14} className='mr-2' />
-                        Log payment
-                      </DropdownMenuItem>
-                    }
-                    onSuccess={() => {
-                      setRefreshingExpenseId(expense.id)
-                      window.location.reload()
-                    }}
-                  />
-                  <DropdownMenuSeparator />
-                  <ConfirmationDialog
-                    openDialogButton={
-                      <DropdownMenuItem
-                        className='text-red-600 focus:text-red-600'
-                        disabled={expense.payment_percentage > 0 || isDeletingExpense === expense.id}
-                        onSelect={(e) => e.preventDefault()}
-                      >
-                        <Trash2 size={14} className='mr-2' />
-                        Delete expense
-                      </DropdownMenuItem>
-                    }
-                    title='Delete Expense'
-                    description={`Are you sure you want to delete expense ${expense.id}? This action cannot be undone.`}
-                    onConfirm={() => handleDeleteExpense(expense.id)}
-                    loading={deleteLoading}
-                  />
+                  {canUpdate && (
+                    <LogExpensePaymentDialog
+                      expenseId={expense.id}
+                      expenseReferenceId={expense.id}
+                      maxAmount={expense.amount * (1 - expense.payment_percentage / 100)}
+                      trigger={
+                        <DropdownMenuItem
+                          disabled={!hasRemainingAmount}
+                          onSelect={(e) => e.preventDefault()}
+                        >
+                          <Banknote size={14} className='mr-2' />
+                          Log payment
+                        </DropdownMenuItem>
+                      }
+                      onSuccess={() => {
+                        setRefreshingExpenseId(expense.id)
+                        window.location.reload()
+                      }}
+                    />
+                  )}
+                  {canDelete && expense.payment_percentage === 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <ConfirmationDialog
+                        openDialogButton={
+                          <DropdownMenuItem
+                            className='text-red-600 focus:text-red-600'
+                            disabled={isDeletingExpense === expense.id}
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            <Trash2 size={14} className='mr-2' />
+                            Delete expense
+                          </DropdownMenuItem>
+                        }
+                        title='Delete Expense'
+                        description={`Are you sure you want to delete expense ${expense.id}? This action cannot be undone.`}
+                        onConfirm={() => handleDeleteExpense(expense.id)}
+                        loading={deleteLoading}
+                      />
+                    </>
+                  )}
                 </>
               )}
             </DropdownMenuContent>
@@ -623,14 +679,26 @@ export default function ExpensesTable({
             }
             const icon = iconMap[category] || <Building2 className='w-4 h-4 text-(--text-secondary) mt-0.5 shrink-0' />
 
+            // Check permission based on href path
+            const checkPermission = (href: string | null) => {
+              if (!href) return true
+              if (href.includes('/leases/')) return can('leases.access')
+              if (href.includes('/properties/')) return can('properties.access')
+              if (href.includes('/contracts/')) return can('contracts.access')
+              return true
+            }
+
+            const hasLabelAccess = checkPermission(expense.context_label_href)
+            const hasSubtitleAccess = checkPermission(expense.context_subtitle_href)
+
             // If there are individual hrefs for label/subtitle, render them separately
-            if (expense.context_label_href || expense.context_subtitle_href) {
+            if ((expense.context_label_href || expense.context_subtitle_href) && (hasLabelAccess || hasSubtitleAccess)) {
               return (
                 <div className='flex items-start gap-2'>
                   {icon}
                   <div className='min-w-0'>
                     <div className='texts-caption-small text-(--text-secondary)'>{contextHeader}</div>
-                    {expense.context_label_href ? (
+                    {expense.context_label_href && hasLabelAccess ? (
                       <Link href={expense.context_label_href} className='texts-body-small-medium text-(--text-primary) truncate hover:underline block'>
                         {expense.context_label}
                       </Link>
@@ -638,7 +706,7 @@ export default function ExpensesTable({
                       <div className='texts-body-small-medium text-(--text-primary) truncate'>{expense.context_label}</div>
                     )}
                     {expense.context_subtitle && (
-                      expense.context_subtitle_href ? (
+                      expense.context_subtitle_href && hasSubtitleAccess ? (
                         <Link href={expense.context_subtitle_href} className='texts-caption-small text-(--text-secondary) truncate hover:underline block'>
                           {expense.context_subtitle}
                         </Link>

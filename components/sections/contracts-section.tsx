@@ -8,12 +8,16 @@ import ContractsTable, {
 } from '../tables/contracts-table'
 import TableSectionSkeleton from '../loading-ui/table-section-skeleton'
 import { useRouter } from 'next/navigation'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
 
 type Props = {
   propertyId: string
 }
 
 export default function ContractsSection({ propertyId }: Props) {
+  const { can } = usePermissions()
   const [contracts, setContracts] = useState<ContractWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -47,26 +51,35 @@ export default function ContractsSection({ propertyId }: Props) {
   }
 
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-5',
-        'p-5 py-2.5 rounded-[12px]',
-        'bg-(--background-primary) '
-      )}
+    <PermissionGate 
+      permission="contracts.access" 
+      fallback={
+        <NoAccessCard label="Contracts" />
+      }
     >
-      {/* Actions */}
-      <div className={cn('flex justify-between items-center', 'w-full')}>
-        <h2>Contracts</h2>
-        <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <Button label='Add Contract' onClick={handleAddContract} />
+      <div
+        className={cn(
+          'flex flex-col gap-5',
+          'p-5 py-2.5 rounded-[12px]',
+          'bg-(--background-primary) '
+        )}
+      >
+        {/* Actions */}
+        <div className={cn('flex justify-between items-center', 'w-full')}>
+          <h2>Contracts</h2>
+          <div className={cn('flex items-center gap-2.5', 'py-5')}>
+            <PermissionGate permission="contracts.create" fallback={null}>
+              <Button label='Add Contract' onClick={handleAddContract} />
+            </PermissionGate>
+          </div>
         </div>
-      </div>
 
-      <ContractsTable
-        data={contracts}
-        className='-mx-5! rounded-none! border-x-0 mb-5'
-        noPagnitation={true}
-      />
-    </div>
+        <ContractsTable
+          data={contracts}
+          className='w-full rounded-none! border-x-0 mb-5'
+          noPagnitation={true}
+        />
+      </div>
+    </PermissionGate>
   )
 }

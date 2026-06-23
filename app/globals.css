@@ -110,6 +110,10 @@ code {
   --error-light: #fee2e2;
   --error-dark: #dc2626;
 
+  --danger-main: #ef4444;
+  --danger-light: #fee2e2;
+  --danger-dark: #dc2626;
+
   --warning-main: #f59e0b;
   --warning-light: #fef3c7;
   --warning-dark: #d97706;
@@ -164,6 +168,9 @@ code {
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  --danger-main: oklch(0.704 0.191 22.216);
+  --danger-light: oklch(0.35 0.08 22);
+  --danger-dark: oklch(0.75 0.22 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);

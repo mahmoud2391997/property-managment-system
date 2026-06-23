@@ -4,157 +4,186 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { transformPayment } from '@/lib/payments-utils'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 // Shared select for payment queries
-const paymentSelect = {
-  reference_id: true,
-  type: true,
-  status: true,
-  due_payment_timestamp: true,
-  created_at: true,
-  payment_evidence: true,
-  leases: {
-    select: {
-      id: true,
-      reference_id: true,
-      property_id: true,
-      room_id: true,
-      properties: {
-        select: {
-          code: true,
-          projects: {
-            select: {
-              title: true
+// Build dynamic payment select object based on permissions
+const buildPaymentSelect = (hasTenantAccess: boolean, hasLeaseAccess: boolean) => {
+  // Base select fields (always included)
+  const baseSelect = {
+    reference_id: true,
+    type: true,
+    status: true,
+    due_payment_timestamp: true,
+    created_at: true,
+    payment_evidence: true,
+    charges: {
+      select: {
+        amount: true,
+        is_taxed: true
+      }
+    },
+    payment_history: {
+      orderBy: {
+        paid_at: 'desc' as const
+      },
+      select: {
+        paid_at: true,
+        amount: true,
+        status: true,
+        payment_method: true,
+        created_at: true
+      }
+    },
+    recurring_configs: {
+      select: {
+        every: true,
+        time_unit: true,
+        event_on: true
+      }
+    },
+  }
+
+  // Lease select (only when hasLeaseAccess is true)
+  const leaseSelect = hasLeaseAccess ? {
+    leases: {
+      select: {
+        id: true,
+        reference_id: true,
+        property_id: true,
+        room_id: true,
+        properties: {
+          select: {
+            code: true,
+            projects: {
+              select: {
+                title: true
+              }
             }
           }
-        }
-      },
-      rooms: {
-        select: {
-          title: true
-        }
-      },
-      tenants: {
-        select: {
-          id: true,
-          type: true,
-          profile_pic: true,
-          individual_tenants: {
-            select: {
-              first_name: true,
-              last_name: true
-            }
-          },
-          company_tenants: {
-            select: {
-              company_name: true
-            }
-          }
-        }
-      },
-      late_payment_charges: {
-        select: {
-          days_after_due: true,
-          amount: true
         },
-        orderBy: {
-          days_after_due: 'asc' as const
+        rooms: {
+          select: {
+            title: true
+          }
+        },
+        tenants: {
+          select: {
+            id: true,
+            type: true,
+            profile_pic: true,
+            // Only include detailed tenant info if user has tenant access permission
+            ...(hasTenantAccess && {
+              individual_tenants: {
+                select: {
+                  first_name: true,
+                  last_name: true
+                }
+              },
+              company_tenants: {
+                select: {
+                  company_name: true
+                }
+              }
+            })
+          }
+        },
+        late_payment_charges: {
+          select: {
+            days_after_due: true,
+            amount: true
+          },
+          orderBy: {
+            days_after_due: 'asc' as const
+          }
         }
       }
     }
-  },
-  charges: {
-    select: {
-      amount: true,
-      is_taxed: true
-    }
-  },
-  payment_history: {
-    orderBy: {
-      paid_at: 'desc' as const
-    },
-    select: {
-      paid_at: true,
-      amount: true,
-      status: true,
-      payment_method: true,
-      created_at: true
-    }
-  },
-  recurring_configs: {
-    select: {
-      every: true,
-      time_unit: true,
-      event_on: true
-    }
-  },
-  bookings: {
-    select: {
-      property_id: true,
-      room_id: true,
-      properties: {
-        select: {
-          code: true,
-          projects: {
-            select: {
-              title: true
+  } : {}
+
+  // Booking select (always included for non-lease payments)
+  const bookingSelect = {
+    bookings: {
+      select: {
+        property_id: true,
+        room_id: true,
+        properties: {
+          select: {
+            code: true,
+            projects: {
+              select: {
+                title: true
+              }
             }
           }
-        }
-      },
-      rooms: {
-        select: {
-          title: true
-        }
-      },
-      tenants: {
-        select: {
-          id: true,
-          type: true,
-          profile_pic: true,
-          individual_tenants: {
-            select: {
-              first_name: true,
-              last_name: true
-            }
-          },
-          company_tenants: {
-            select: {
-              company_name: true
-            }
+        },
+        rooms: {
+          select: {
+            title: true
+          }
+        },
+        tenants: {
+          select: {
+            id: true,
+            type: true,
+            profile_pic: true,
+            // Only include detailed tenant info if user has tenant access permission
+            ...(hasTenantAccess && {
+              individual_tenants: {
+                select: {
+                  first_name: true,
+                  last_name: true
+                }
+              },
+              company_tenants: {
+                select: {
+                  company_name: true
+                }
+              }
+            })
           }
         }
       }
     }
   }
+
+  return { ...baseSelect, ...leaseSelect, ...bookingSelect }
 }
 
 export async function GET (request: NextRequest) {
+  if (process.env.NODE_ENV === 'development') {
+    const { devPayments } = await import('@/lib/dev-data')
+    const { searchParams } = new URL(request.url)
+    const paginate = searchParams.get('paginate') === 'true'
+    if (paginate) {
+      const page = parseInt(searchParams.get('page') || '1')
+      const limit = parseInt(searchParams.get('limit') || '10')
+      const startIndex = (page - 1) * limit
+      const endIndex = startIndex + limit
+      const data = devPayments.slice(startIndex, endIndex)
+      return NextResponse.json({ success: true, data, total: devPayments.length, page, pageSize: limit })
+    }
+    return NextResponse.json(devPayments)
+  }
   try {
-    const supabase = await createClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
+    const { user, staff, permissions, error } = await getUserAndStaff()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (error) return error
+
+    if (!hasPermission(permissions, 'payments.access')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Check if user is staff
-    const staff = await prisma.staff.findUnique({
-      where: { id: user.id },
-      select: { organization_id: true }
-    })
+    // Check if user has tenant access permission
+    const hasTenantAccess = hasPermission(permissions, 'tenants.access')
+    const hasLeaseAccess = hasPermission(permissions, 'leases.access')
 
-    // Check if user is tenant
+    // Check if user is tenant (for tenant-specific access)
     const tenant = await prisma.tenants.findUnique({
       where: { id: user.id },
       select: { id: true }
     })
-
-    if (!staff && !tenant) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
 
     const { searchParams } = new URL(request.url)
 
@@ -173,6 +202,15 @@ export async function GET (request: NextRequest) {
     const recurringPatternFilter = searchParams.get('recurring_pattern')?.trim() || ''
     const propertyFilter = searchParams.get('property')?.trim() || ''
     const tenantNameFilter = searchParams.get('tenant_name')?.trim() || ''
+    const dueMonth = searchParams.get('due_month')?.trim() || ''
+    const dueMonthTimezoneOffset = parseInt(searchParams.get('due_month_timezone_offset') || '0', 10)
+    const dueDate = searchParams.get('due_date')?.trim() || ''
+    const dueDateFrom = searchParams.get('dueDateFrom')?.trim() || ''
+    const dueDateTo = searchParams.get('dueDateTo')?.trim() || ''
+
+    // Determine if we need frontend-level filtering
+    const needsFrontendStatusFilter = Boolean(statusFilter && statusFilter !== 'all')
+    const needsFrontendFiltering = needsFrontendStatusFilter || Boolean(recurringPatternFilter)
 
     // Property/Room context filters (for property/room overview pages)
     const propertyId = searchParams.get('propertyId')?.trim() || ''
@@ -223,7 +261,7 @@ export async function GET (request: NextRequest) {
           })
         }
 
-        // Tenant name filter
+        // Tenant name filter with pagination support
         if (tenantNameFilter) {
           filters.push({
             leases: {
@@ -238,6 +276,40 @@ export async function GET (request: NextRequest) {
               }
             }
           })
+        }
+
+        // Due month filter
+        if (dueMonth) {
+          const [year, month] = dueMonth.split('-').map(Number)
+          const startUtc = Date.UTC(year, month - 1, 1) + dueMonthTimezoneOffset * 60 * 1000
+          const endUtc = Date.UTC(year, month, 1) + dueMonthTimezoneOffset * 60 * 1000
+          const start = new Date(startUtc)
+          const end = new Date(endUtc)
+          filters.push({ due_payment_timestamp: { gte: start, lt: end } })
+        }
+
+        // Exact due date filter
+        if (dueDate) {
+          const [year, month, day] = dueDate.split('-').map(Number)
+          const startUtc = Date.UTC(year, month - 1, day) + dueMonthTimezoneOffset * 60 * 1000
+          const endUtc = Date.UTC(year, month - 1, day + 1) + dueMonthTimezoneOffset * 60 * 1000
+          const start = new Date(startUtc)
+          const end = new Date(endUtc)
+          filters.push({ due_payment_timestamp: { gte: start, lt: end } })
+        }
+
+        // Due date range filter
+        if (dueDateFrom || dueDateTo) {
+          const rangeFilter: any = {}
+          if (dueDateFrom) {
+            const [year, month, day] = dueDateFrom.split('-').map(Number)
+            rangeFilter.gte = new Date(Date.UTC(year, month - 1, day) + dueMonthTimezoneOffset * 60 * 1000)
+          }
+          if (dueDateTo) {
+            const [year, month, day] = dueDateTo.split('-').map(Number)
+            rangeFilter.lt = new Date(Date.UTC(year, month - 1, day + 1) + dueMonthTimezoneOffset * 60 * 1000)
+          }
+          filters.push({ due_payment_timestamp: rangeFilter })
         }
 
         // Property ID filter (for property overview page - only property-level leases and bookings)
@@ -344,19 +416,18 @@ export async function GET (request: NextRequest) {
                 }
               ]
             }),
-            // Filter by DB status (Paid, Pending, Cancelled) if provided and not 'all'
             AND: [
               { status: { not: 'Unset' } },
-              ...(statusFilter &&
-              statusFilter !== 'all' &&
-              ['Paid', 'Pending', 'Cancelled'].includes(statusFilter)
+              // Skip DB status filter when frontend status grouping is active
+              // (frontend groups "Paid"+"Paid Late", "Pending"+"Overdue")
+              ...(!needsFrontendStatusFilter && statusFilter && statusFilter !== 'all' && ['Paid', 'Pending', 'Cancelled'].includes(statusFilter)
                 ? [{ status: statusFilter }]
                 : []),
               ...advancedFilters
             ]
           }
         : {
-            leases: { tenant_id: tenant!.id },
+            leases: { tenant_id: tenant?.id },
             ...(search && {
               OR: [
                 { reference_id: { contains: search, mode: 'insensitive' } },
@@ -374,12 +445,10 @@ export async function GET (request: NextRequest) {
                 }
               ]
             }),
-            // Filter by DB status (Paid, Pending, Cancelled) if provided and not 'all'
             AND: [
               { status: { not: 'Unset' } },
-              ...(statusFilter &&
-              statusFilter !== 'all' &&
-              ['Paid', 'Pending', 'Cancelled'].includes(statusFilter)
+              // Skip DB status filter when frontend status grouping is active
+              ...(!needsFrontendStatusFilter && statusFilter && statusFilter !== 'all' && ['Paid', 'Pending', 'Cancelled'].includes(statusFilter)
                 ? [{ status: statusFilter }]
                 : []),
               ...advancedFilters
@@ -388,18 +457,19 @@ export async function GET (request: NextRequest) {
 
       // Fetch payments - for calculated fields (Paid Late, Partially Paid, Overdue, recurring_pattern),
       // we need to fetch more data and filter after transformation
-      const needsCalculatedStatusFilter =
-        statusFilter &&
-        !['Paid', 'Pending', 'Cancelled', 'all'].includes(statusFilter)
 
-      const needsFrontendFiltering = needsCalculatedStatusFilter || recurringPatternFilter
+      // Build payment select object based on permissions
+      const paymentSelect = buildPaymentSelect(hasTenantAccess, hasLeaseAccess)
 
       // If we need frontend filtering, fetch all matching records (without pagination)
       // Then apply pagination after filtering
       const [payments, total] = await Promise.all([
         prisma.payments.findMany({
           where: whereClause,
-          select: paymentSelect,
+          select: {
+            ...paymentSelect,
+            due_payment_timestamp: true // Ensure we get the due date for debugging
+          },
           orderBy: { created_at: 'desc' },
           ...(needsFrontendFiltering
             ? {}
@@ -413,16 +483,29 @@ export async function GET (request: NextRequest) {
           : prisma.payments.count({ where: whereClause })
       ])
 
+      // Transform payments
+
       // Transform payments for display
-      let transformedPayments = payments.map(transformPayment)
+let transformedPayments = payments.map(p => transformPayment(p as any))
+
+      let filteredTotal = -1
 
       // Apply frontend filtering for calculated fields
       if (needsFrontendFiltering) {
-        // Filter by calculated status
-        if (needsCalculatedStatusFilter) {
-          transformedPayments = transformedPayments.filter(
-            payment => payment.status === statusFilter
-          )
+        // Filter by calculated status with grouping
+        if (needsFrontendStatusFilter) {
+          transformedPayments = transformedPayments.filter(payment => {
+            // Group "Paid" with "Paid Late"
+            if (statusFilter === 'Paid') {
+              return payment.status === 'Paid' || payment.status === 'Paid Late'
+            }
+            // Group "Pending" with "Overdue"
+            if (statusFilter === 'Pending') {
+              return payment.status === 'Pending' || payment.status === 'Overdue'
+            }
+            // Other statuses remain as-is
+            return payment.status === statusFilter
+          })
         }
 
         // Filter by recurring pattern
@@ -432,26 +515,19 @@ export async function GET (request: NextRequest) {
           )
         }
 
+        // Capture total before pagination slicing
+        filteredTotal = transformedPayments.length
+
         // Apply pagination after filtering
         const startIndex = (page - 1) * limit
-        const paginatedPayments = transformedPayments.slice(
-          startIndex,
-          startIndex + limit
-        )
-
-        return NextResponse.json({
-          success: true,
-          data: paginatedPayments,
-          total: transformedPayments.length,
-          page,
-          pageSize: limit
-        })
+        const endIndex = startIndex + limit
+        transformedPayments = transformedPayments.slice(startIndex, endIndex)
       }
 
       return NextResponse.json({
         success: true,
         data: transformedPayments,
-        total,
+        total: needsFrontendFiltering ? filteredTotal : total,
         page,
         pageSize: limit
       })
@@ -462,7 +538,7 @@ export async function GET (request: NextRequest) {
     // Build where clause - filter by property/room through leases relation
     const whereClause: any = staff
       ? { organization_id: staff.organization_id, status: { not: 'Unset' } }
-      : { leases: { tenant_id: tenant!.id }, status: { not: 'Unset' } }
+      : { leases: { tenant_id: tenant?.id }, status: { not: 'Unset' } }
 
     // If propertyId provided, filter payments through leases or bookings -> property_id
     // Also filter room_id: null to only get property-level payments (not room payments)
@@ -499,6 +575,9 @@ export async function GET (request: NextRequest) {
       ]
     }
 
+    // Build payment select object based on permissions
+    const paymentSelect = buildPaymentSelect(hasTenantAccess, hasLeaseAccess)
+
     // Fetch payments with related data
     const payments = await prisma.payments.findMany({
       where: whereClause,
@@ -509,7 +588,7 @@ export async function GET (request: NextRequest) {
     })
 
     // Transform payments for display
-    const transformedPayments = payments.map(transformPayment)
+    const transformedPayments = payments.map(p => transformPayment(p as any))
 
     return NextResponse.json(transformedPayments)
   } catch (error: any) {

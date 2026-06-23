@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 // Transform Prisma enum format (with underscores) to frontend format (with spaces)
 // e.g., "First_Month_Rental" -> "First Month Rental"
@@ -13,10 +14,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'rooms.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id: roomId } = await params
 
     // Verify room belongs to the organization through its property

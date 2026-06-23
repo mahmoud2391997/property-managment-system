@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { parseLocalDateTime } from '@/utils/formatTime'
 
 export async function GET(request: Request) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'views.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { searchParams } = new URL(request.url)
     const propertyId = searchParams.get('propertyId')
     const roomId = searchParams.get('roomId')
@@ -114,10 +119,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { staff, user, error } = await getUserAndStaff()
+    const { staff, user, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'views.create'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const body = await request.json()
     const { propertyId, roomId, date, time, firstName, lastName, phoneNumber, email, timezone_offset } =
       body

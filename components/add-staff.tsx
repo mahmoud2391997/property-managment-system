@@ -6,6 +6,7 @@ import Select from './costume-ui/select'
 import PhotoUploader from './costume-ui/photo-uploader'
 import { FeedbackToasts } from './costume-ui/feedback-toast'
 import { useRouter } from 'next/navigation'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type Props = {
   onSuccess?: () => void
@@ -19,6 +20,7 @@ interface Role {
 
 const AddStaff = ({ onSuccess, onLoadingChange }: Props) => {
   const router = useRouter()
+  const { can } = usePermissions()
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
   const [firstName, setFirstName] = useState<string>('')
@@ -31,6 +33,15 @@ const AddStaff = ({ onSuccess, onLoadingChange }: Props) => {
   const [photoUploaderKey, setPhotoUploaderKey] = useState<number>(0)
   const [roles, setRoles] = useState<Role[]>([])
   const [loadingRoles, setLoadingRoles] = useState<boolean>(true)
+
+  // Early return if user doesn't have permission to create staff
+  if (!can('staff.create')) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        You don't have permission to create staff members.
+      </div>
+    )
+  }
 
   const styles = {
     inputsContainer: 'grid grid-cols-2 items-start gap-5'

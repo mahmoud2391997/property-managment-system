@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 // Shared include for ticket queries
 const ticketInclude = {
@@ -104,25 +106,36 @@ function transformTicket(ticket: any) {
 }
 
 export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV === 'development') {
+    const { devTickets } = await import('@/lib/dev-data')
+    const { searchParams } = new URL(request.url)
+    const paginate = searchParams.get('paginate') === 'true'
+    if (paginate) {
+      const page = parseInt(searchParams.get('page') || '1')
+      const limit = parseInt(searchParams.get('limit') || '10')
+      const startIndex = (page - 1) * limit
+      const endIndex = startIndex + limit
+      const data = devTickets.slice(startIndex, endIndex)
+      return NextResponse.json({ success: true, data, total: devTickets.length, page, pageSize: limit })
+    }
+    return NextResponse.json(devTickets)
+  }
   try {
     const supabase = await createClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
+    const { data: { user: authUser } } = await supabase.auth.getUser()
 
-    if (!user) {
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const userType = user.user_metadata?.user_type
-
+    const userType = authUser.user_metadata?.user_type || null
     let organizationId: string | null = null
     let tenantId: string | null = null
 
-    // Get organization based on user type
+    // Handle tenant users
     if (userType === 'tenant') {
       const tenant = await prisma.tenants.findUnique({
-        where: { id: user.id },
+        where: { id: authUser.id },
         select: {
           id: true,
           organizations_tenants: {
@@ -138,17 +151,30 @@ export async function GET(request: NextRequest) {
 
       organizationId = tenant.organizations_tenants[0]?.organization_id || null
       tenantId = tenant.id
-    } else {
-      const staff = await prisma.staff.findUnique({
-        where: { id: user.id },
-        select: { organization_id: true }
-      })
 
-      if (!staff) {
-        return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
+      // Fallback: if no organizations_tenants entry, get org from tenant's leases
+      if (!organizationId) {
+        const tenantLease = await prisma.leases.findFirst({
+          where: { tenant_id: tenant.id },
+          select: { organization_id: true },
+          orderBy: { created_at: 'desc' }
+        })
+        if (tenantLease) {
+          organizationId = tenantLease.organization_id
+        }
       }
+    } else {
+      // For staff users, use getUserAndStaff for permission checks
+      const { user, staff, permissions, error } = await getUserAndStaff()
 
-      organizationId = staff.organization_id
+      if (error) return error
+
+      if (!hasPermission(permissions, 'tickets.access'))
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+      if (staff) {
+        organizationId = staff.organization_id
+      }
     }
 
     if (!organizationId) {
@@ -183,7 +209,9 @@ export async function GET(request: NextRequest) {
     // If tenant, only show tickets from their leases
     if (userType === 'tenant' && tenantId) {
       whereClause.leases = {
-        tenant_id: tenantId
+        is: {
+          tenant_id: tenantId
+        }
       }
     }
 
@@ -203,8 +231,9 @@ export async function GET(request: NextRequest) {
 
     // Add DB-level property filter (via lease)
     if (propertyFilter) {
-      whereClause.leases = {
-        ...whereClause.leases,
+      if (!whereClause.leases) whereClause.leases = {}
+      whereClause.leases.is = {
+        ...(whereClause.leases.is || {}),
         properties: {
           code: { contains: propertyFilter, mode: 'insensitive' }
         }
@@ -213,8 +242,9 @@ export async function GET(request: NextRequest) {
 
     // Add DB-level tenant name filter (via lease)
     if (tenantNameFilter) {
-      whereClause.leases = {
-        ...whereClause.leases,
+      if (!whereClause.leases) whereClause.leases = {}
+      whereClause.leases.is = {
+        ...(whereClause.leases.is || {}),
         tenants: {
           OR: [
             { individual_tenants: { first_name: { contains: tenantNameFilter, mode: 'insensitive' } } },

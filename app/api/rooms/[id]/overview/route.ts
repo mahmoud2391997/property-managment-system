@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { isLeaseActive } from '@/utils/lease-status'
 
 export async function GET(
@@ -8,10 +9,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'rooms.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id: roomId } = await params
 
     // Verify room belongs to the organization through its property
@@ -222,7 +227,7 @@ export async function GET(
       }
     }
 
-    // Transform lease data
+     // Transform lease data
     let leaseData = null
     if (lease) {
       const tenantName = lease.tenants.individual_tenants
@@ -241,6 +246,18 @@ export async function GET(
           const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
           return sum + chargeAmount + tax
         }, 0)
+      }
+
+      // If no pending payment, calculate next due date from payment_day
+      if (!dueDate && lease.payment_day) {
+        const today = new Date()
+        const currentYear = today.getFullYear()
+        const currentMonth = today.getMonth()
+        let calculatedDueDate = new Date(currentYear, currentMonth, lease.payment_day)
+        if (calculatedDueDate < today) {
+          calculatedDueDate = new Date(currentYear, currentMonth + 1, lease.payment_day)
+        }
+        dueDate = calculatedDueDate.toISOString()
       }
 
       leaseData = {

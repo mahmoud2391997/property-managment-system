@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { createAdminClient } from '@/utils/supabase/admin'
 import * as XLSX from 'xlsx'
 import { getBaseUrl } from '@/utils/get-base-url'
@@ -29,10 +30,14 @@ export async function POST(req: NextRequest) {
   const createdAuthUsers: string[] = [] // Track created auth users for rollback
 
   try {
-    const { user, staff: currentStaff, error } = await getUserAndStaff()
+    const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'tenants.import'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     // Parse form data
     const formData = await req.formData()
     const file = formData.get('file') as File
@@ -249,7 +254,8 @@ export async function POST(req: NextRequest) {
     // Check for existing emails in Supabase Auth
     for (const [email, rowNum] of emailsInFile) {
       const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
-      const existingUser = existingUsers?.users?.find(u => u.email?.toLowerCase() === email)
+      const usersList = existingUsers?.users || []
+      const existingUser = (usersList as any[]).find((u: any) => u.email?.toLowerCase() === email)
       if (existingUser) {
         errors.push({
           row: rowNum,

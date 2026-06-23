@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { parseLocalDateTime } from '@/utils/formatTime'
 
 export async function POST(request: Request) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'contracts.create'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const body = await request.json()
     const {
       property_id,
@@ -159,8 +164,8 @@ export async function POST(request: Request) {
         .padStart(4, '0')}`
 
       let expenseNextSequence = 1
-      if (latestExpense) {
-        const lastSequence = parseInt(latestExpense.reference_id.slice(-8))
+      if (latestExpense && latestExpense.reference_id) {
+        const lastSequence = parseInt((latestExpense.reference_id || '').slice(-8))
         expenseNextSequence = lastSequence + 1
       }
 

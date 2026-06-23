@@ -18,7 +18,6 @@ export default function AddTicketDialog({ onSuccess }: Props) {
 
   const handleSuccess = (ticketId: string) => {
     setOpen(false)
-    onSuccess?.()
     router.push(`/tickets/${ticketId}`)
   }
  

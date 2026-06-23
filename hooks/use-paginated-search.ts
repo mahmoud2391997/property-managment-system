@@ -14,6 +14,10 @@ interface UsePaginatedSearchOptions<T> {
   filterKeyMapping?: Record<string, string>
   /** Filter keys that should use partial/case-insensitive matching instead of exact match */
   textFilterKeys?: string[]
+  /** Filter keys that represent a month (YYYY-MM) to match against a date property */
+  monthFilterKeys?: string[]
+  /** Filter keys that represent a date (YYYY-MM-DD) to match against a date property */
+  dateFilterKeys?: string[]
 }
 
 interface UsePaginatedSearchReturn<T> {
@@ -31,6 +35,7 @@ interface UsePaginatedSearchReturn<T> {
   updateItem: (id: string, updates: Partial<T>) => void
   updateFilters: (newFilters: Record<string, string>) => void
   activeFilters: Record<string, string>
+  resetSearch: () => void
 }
 
 export function usePaginatedSearch<T> ({
@@ -41,7 +46,9 @@ export function usePaginatedSearch<T> ({
   debounceMs = 1000,
   defaultFilters = {},
   filterKeyMapping = {},
-  textFilterKeys = []
+  textFilterKeys = [],
+  monthFilterKeys = [],
+  dateFilterKeys = []
 }: UsePaginatedSearchOptions<T>): UsePaginatedSearchReturn<T> {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -94,6 +101,16 @@ export function usePaginatedSearch<T> ({
   const isInternalChange = useRef(false)
 
   const useServerSearch = initialTotal > pageSize
+
+  const hasActiveFilters = Object.entries(urlFilters).some(
+    ([key, value]) => value && value !== 'all' && value !== defaultFilters[key]
+  )
+
+  const shouldUseServer = useServerSearch || hasActiveFilters || !!urlSearch
+
+  useEffect(() => {
+    console.log('[PaginatedSearch] shouldUseServer:', shouldUseServer, 'hasActiveFilters:', hasActiveFilters, 'urlFilters:', JSON.stringify(urlFilters), 'page:', urlPage)
+  }, [shouldUseServer, hasActiveFilters, urlFilters, urlPage])
 
   // ============================================
   // URL UPDATE FUNCTION
@@ -184,10 +201,13 @@ export function usePaginatedSearch<T> ({
 
         if (search) params.set('search', search)
 
-        Object.entries(filters).forEach(([key, value]) => {
+Object.entries(filters).forEach(([key, value]) => {
           if (value && value !== 'all') params.set(key, value)
         })
-
+        
+        // Pass timezone offset for correct due date filtering
+        params.set('due_month_timezone_offset', new Date().getTimezoneOffset().toString())
+        
         // Handle apiRoute that may already have query params
         const separator = apiRoute.includes('?') ? '&' : '?'
         const response = await fetch(`${apiRoute}${separator}${params.toString()}`)
@@ -242,7 +262,7 @@ export function usePaginatedSearch<T> ({
     const hasNonDefaultFilters = Object.entries(urlFilters).some(
       ([key, value]) => value && value !== defaultFilters[key]
     )
-    if (!useServerSearch && !hasNonDefaultFilters) {
+    if (!shouldUseServer && !hasNonDefaultFilters) {
       // Restore cached data if state was replaced by a non-default fetch
       const cacheKey = buildCacheKey(urlPage, urlSearch, urlFilters)
       const cached = pageCacheRef.current.get(cacheKey)
@@ -271,7 +291,7 @@ export function usePaginatedSearch<T> ({
     urlPage,
     urlSearch,
     JSON.stringify(urlFilters),
-    useServerSearch,
+    shouldUseServer,
     debounceMs,
     fetchData
   ])
@@ -290,8 +310,11 @@ useEffect(() => {
   // ============================================
 
   const handleSearchChange = useCallback((value: string) => {
-    
     setSearchInputValue(value)
+  }, [])
+
+  const resetSearch = useCallback(() => {
+    setSearchInputValue('')
   }, [])
 
   useEffect(() => {
@@ -319,7 +342,7 @@ useEffect(() => {
   }, [urlPage, updateUrl])
 
   const displayData = useMemo(() => {
-    if (useServerSearch) {
+    if (shouldUseServer) {
       return data
     }
 
@@ -341,6 +364,35 @@ useEffect(() => {
           // Get the actual data property name (use mapping if provided, otherwise use filter key)
           const dataKey = filterKeyMapping[filterKey] || filterKey
           const itemValue = (item as any)[dataKey]
+
+          // Check if this is a month filter
+          if (monthFilterKeys.includes(filterKey)) {
+            if (!itemValue) return false
+            const dateObj = new Date(itemValue as string | number | Date)
+            if (isNaN(dateObj.getTime())) return false
+            const y = dateObj.getFullYear()
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0')
+            return `${y}-${m}` === filterValue
+          }
+
+          // Check if this is a date filter
+          if (dateFilterKeys.includes(filterKey)) {
+            if (!itemValue) return false
+            const dateObj = new Date(itemValue as string | number | Date)
+            if (isNaN(dateObj.getTime())) return false
+            const y = dateObj.getFullYear()
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0')
+            const d = String(dateObj.getDate()).padStart(2, '0')
+            const dateStr = `${y}-${m}-${d}`
+
+            if (filterKey.endsWith('From')) {
+              return dateStr >= filterValue
+            }
+            if (filterKey.endsWith('To')) {
+              return dateStr <= filterValue
+            }
+            return dateStr === filterValue
+          }
 
           // Check if this is a text filter (partial/case-insensitive match)
           if (textFilterKeys.includes(filterKey)) {
@@ -370,7 +422,7 @@ useEffect(() => {
     }
 
     return filteredData
-  }, [data, urlSearch, urlFilters, useServerSearch, defaultFilters, filterKeyMapping, textFilterKeys])
+  }, [data, urlSearch, urlFilters, shouldUseServer, defaultFilters, filterKeyMapping, textFilterKeys])
 
   const updateItem = useCallback((id: string, updates: Partial<T>) => {
     const updateInArray = (arr: T[]) =>
@@ -412,6 +464,7 @@ useEffect(() => {
     pageSize,
     updateItem,
     updateFilters,
-    activeFilters: urlFilters
+    activeFilters: urlFilters,
+    resetSearch
   }
 }

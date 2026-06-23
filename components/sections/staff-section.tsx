@@ -8,6 +8,10 @@ import { RoleButtonIcon } from '@/components/costume-ui/icon'
 import StaffTable from '@/components/tables/staff-table'
 import AddStaffDialog from '@/components/dialogs/add-staff-dialog'
 import { Prisma } from '@prisma/client'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
+import Link from 'next/link'
 
 type StaffWithRole = Prisma.staffGetPayload<{
   select: {
@@ -16,6 +20,7 @@ type StaffWithRole = Prisma.staffGetPayload<{
     first_name: true
     last_name: true
     phone_number: true
+    role_id: true
     profile_thumb: true
     roles: {
       select: {
@@ -34,6 +39,7 @@ interface StaffSectionProps {
 }
 
 export default function StaffSection({ staff, currentUserId }: StaffSectionProps) {
+  const { can } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
 
   const filteredStaff = useMemo(() => {
@@ -72,27 +78,40 @@ export default function StaffSection({ staff, currentUserId }: StaffSectionProps
   }, [staff, searchTerm])
 
   return (
-    <>
-      {/* Actions */}
-      <div className={cn('flex justify-between items-center', 'w-full')}>
-        <SearchInput
-          placeholder='Search staff'
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        {/* Buttons */}
-        <div className={cn('flex items-center gap-2.5', 'py-5')}>
-          <Button
-            icon={<RoleButtonIcon className='text-neutral-300' />}
-            label='Roles'
-            className='bg-(--secondary-color)'
+    <PermissionGate 
+      permission="staff.access" 
+      fallback={
+        <NoAccessCard label="Staff" />
+      }
+    >
+      <>
+        {/* Actions */}
+        <div className={cn('flex justify-between items-center', 'w-full')}>
+          <SearchInput
+            placeholder='Search staff'
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
+          {/* Buttons */}
+          <div className={cn('flex items-center gap-2.5', 'py-5')}>
+            <PermissionGate permission="roles.access" fallback={null}>
+              <Link href="/staff/roles">
+                <Button
+                  icon={<RoleButtonIcon className='text-neutral-300' />}
+                  label='Manage Roles'
+                  className='bg-(--secondary-color)'
+                />
+              </Link>
+            </PermissionGate>
 
-          <AddStaffDialog />
+            <PermissionGate permission="staff.create" fallback={null}>
+              <AddStaffDialog />
+            </PermissionGate>
+          </div>
         </div>
-      </div>
-      {/* Table */}
-      <StaffTable data={filteredStaff} currentUserId={currentUserId} />
-    </>
+        {/* Table */}
+        <StaffTable data={filteredStaff} currentUserId={currentUserId} />
+      </>
+    </PermissionGate>
   )
 }

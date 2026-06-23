@@ -8,13 +8,18 @@ import React from 'react'
 import Dialog from '@/components/costume-ui/dialog'
 import AddNotice from '@/components/add-notice'
 import { UnderDevelopment } from '@/components/costume-ui/under-development'
+import { requirePermission } from '@/lib/server-permissions'
+import { createClient } from '@/utils/supabase/server'
 
-const Notices = () => {
-  if (true) {
-      return (
-        <UnderDevelopment />
-      )
-    }
+const Notices = async () => {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const userType = user?.user_metadata?.user_type
+
+  if (userType !== 'tenant') {
+    await requirePermission('notices.access')
+  }
+
   return (
     <div className={cn('flex flex-col gap-2.5', 'h-full')}>
       {/* Heading */}

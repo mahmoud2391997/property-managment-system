@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { useCommandPalette } from '@/contexts/command-palette-context'
 import { useSidebar } from '@/components/ui/sidebar'
+import { usePermissions } from '@/hooks/use-permissions'
 import {
   CommandDialog,
   CommandInput,
@@ -70,63 +71,63 @@ interface QuickAction {
   buildRoomUrl?: (id: string) => string
   buildLeaseUrl?: (itemId: string, leaseId: string) => string
   buildLeaseRoomUrl?: (roomId: string, leaseId: string) => string
+  /** Permission required to show this action */
+  permission?: string
 }
 
 // ── Action definitions ─────────────────────────────────────────────────
 
 const QUICK_ACTIONS: QuickAction[] = [
   // Properties
-  { id: 'add-property', label: 'Add Property', icon: Home, category: 'Properties', type: 'page', buildUrl: () => '/properties/add-property' },
-  { id: 'add-room', label: 'Add Room', icon: DoorOpen, category: 'Properties', type: 'page', buildUrl: () => '/rooms/add-room' },
-  { id: 'edit-property', label: 'Edit Property', icon: PenLine, category: 'Properties', type: 'page', needsProperty: true, buildUrl: (pid) => `/properties/${pid}/edit` },
-  { id: 'edit-room', label: 'Edit Room', icon: PenLine, category: 'Properties', type: 'page', needsProperty: true, roomOnly: true, buildRoomUrl: (rid) => `/rooms/${rid}/edit` },
-  { id: 'import-properties', label: 'Import Properties', icon: Upload, category: 'Properties', type: 'page', buildUrl: () => '/properties/import-properties' },
-  { id: 'import-rooms', label: 'Import Rooms', icon: Upload, category: 'Properties', type: 'page', buildUrl: () => '/rooms/import-rooms' },
-  { id: 'assign-owner', label: 'Assign Owner', icon: Crown, category: 'Properties', type: 'dialog', needsProperty: true },
-  { id: 'add-view', label: 'Record View', icon: Eye, category: 'Properties', type: 'dialog', needsProperty: true, supportsRoom: true },
+  { id: 'add-property', label: 'Add Property', icon: Home, category: 'Properties', type: 'page', permission: 'properties.create', buildUrl: () => '/properties/add-property' },
+  { id: 'add-room', label: 'Add Room', icon: DoorOpen, category: 'Properties', type: 'page', permission: 'rooms.create', buildUrl: () => '/rooms/add-room' },
+  { id: 'edit-property', label: 'Edit Property', icon: PenLine, category: 'Properties', type: 'page', needsProperty: true, permission: 'properties.update', buildUrl: (pid) => `/properties/${pid}/edit` },
+  { id: 'edit-room', label: 'Edit Room', icon: PenLine, category: 'Properties', type: 'page', needsProperty: true, roomOnly: true, permission: 'rooms.update', buildRoomUrl: (rid) => `/rooms/${rid}/edit` },
+  { id: 'import-properties', label: 'Import Properties', icon: Upload, category: 'Properties', type: 'page', permission: 'properties.create', buildUrl: () => '/properties/import-properties' },
+  { id: 'import-rooms', label: 'Import Rooms', icon: Upload, category: 'Properties', type: 'page', permission: 'rooms.create', buildUrl: () => '/rooms/import-rooms' },
+  { id: 'assign-owner', label: 'Assign Owner', icon: Crown, category: 'Properties', type: 'dialog', needsProperty: true, permission: 'properties.assign_owner' },
+  { id: 'add-view', label: 'Record View', icon: Eye, category: 'Properties', type: 'dialog', needsProperty: true, supportsRoom: true, permission: 'views.create' },
 
   // Leases
-  { id: 'add-lease', label: 'Add Lease', icon: FileText, category: 'Leases', type: 'page', needsProperty: true, supportsRoom: true, vacantOnly: true, buildUrl: (pid) => `/properties/${pid}/leases/add-lease`, buildRoomUrl: (rid) => `/rooms/${rid}/leases/add-lease` },
-  { id: 'transfer-lease', label: 'Transfer Lease', icon: ArrowLeftRight, category: 'Leases', type: 'page', needsProperty: true, supportsRoom: true, needsLease: true, buildLeaseUrl: (pid, lid) => `/properties/${pid}/leases/${lid}/transfer`, buildLeaseRoomUrl: (rid, lid) => `/rooms/${rid}/leases/${lid}/transfer` },
-  { id: 'schedule-lease-end', label: 'Schedule Lease End', icon: CalendarX2, category: 'Leases', type: 'dialog', needsProperty: true, supportsRoom: true, needsLease: true },
-  { id: 'schedule-rental-change', label: 'Schedule Rental Change', icon: TrendingUp, category: 'Leases', type: 'dialog', needsProperty: true, supportsRoom: true, needsLease: true },
+  { id: 'add-lease', label: 'Add Lease', icon: FileText, category: 'Leases', type: 'page', needsProperty: true, supportsRoom: true, vacantOnly: true, permission: 'leases.create', buildUrl: (pid) => `/properties/${pid}/leases/add-lease`, buildRoomUrl: (rid) => `/rooms/${rid}/leases/add-lease` },
+  { id: 'transfer-lease', label: 'Transfer Lease', icon: ArrowLeftRight, category: 'Leases', type: 'page', needsProperty: true, supportsRoom: true, needsLease: true, permission: 'leases.transfer', buildLeaseUrl: (pid, lid) => `/properties/${pid}/leases/${lid}/transfer`, buildLeaseRoomUrl: (rid, lid) => `/rooms/${rid}/leases/${lid}/transfer` },
+  { id: 'schedule-lease-end', label: 'Schedule Lease End', icon: CalendarX2, category: 'Leases', type: 'dialog', needsProperty: true, supportsRoom: true, needsLease: true, permission: 'leases.end' },
+  { id: 'schedule-rental-change', label: 'Schedule Rental Change', icon: TrendingUp, category: 'Leases', type: 'dialog', needsProperty: true, supportsRoom: true, needsLease: true, permission: 'leases.update' },
 
   // Bookings
-  { id: 'add-booking', label: 'Add Booking', icon: CalendarPlus, category: 'Bookings', type: 'dialog', needsProperty: true, supportsRoom: true, vacantOnly: true },
+  { id: 'add-booking', label: 'Add Booking', icon: CalendarPlus, category: 'Bookings', type: 'dialog', needsProperty: true, supportsRoom: true, vacantOnly: true, permission: 'bookings.create' },
 
   // Contracts
-  { id: 'add-contract', label: 'Add Contract', icon: FileSignature, category: 'Contracts', type: 'page', needsProperty: true, buildUrl: (pid) => `/properties/${pid}/contracts/add-contract` },
+  { id: 'add-contract', label: 'Add Contract', icon: FileSignature, category: 'Contracts', type: 'page', needsProperty: true, permission: 'contracts.create', buildUrl: (pid) => `/properties/${pid}/contracts/add-contract` },
 
   // Payments
-  { id: 'add-payment', label: 'Add Payment', icon: Receipt, category: 'Payments', type: 'page', buildUrl: () => '/payments/add-payment' },
+  { id: 'add-payment', label: 'Add Payment', icon: Receipt, category: 'Payments', type: 'page', permission: 'payments.create', buildUrl: () => '/payments/add-payment' },
 
   // Expenses
-  { id: 'add-expense', label: 'Add Expense', icon: Wallet, category: 'Expenses', type: 'page', buildUrl: () => '/expenses/add-expense' },
+  { id: 'add-expense', label: 'Add Expense', icon: Wallet, category: 'Expenses', type: 'page', permission: 'expenses.create', buildUrl: () => '/expenses/add-expense' },
 
   // Tenants
-  { id: 'add-tenant', label: 'Add Tenant', icon: Users, category: 'Tenants', type: 'dialog' },
-  { id: 'import-tenants', label: 'Import Tenants', icon: Upload, category: 'Tenants', type: 'page', buildUrl: () => '/tenants/import-tenants' },
+  { id: 'add-tenant', label: 'Add Tenant', icon: Users, category: 'Tenants', type: 'dialog', permission: 'tenants.create' },
+  { id: 'import-tenants', label: 'Import Tenants', icon: Upload, category: 'Tenants', type: 'page', permission: 'tenants.create', buildUrl: () => '/tenants/import-tenants' },
 
   // Owners
-  { id: 'add-owner', label: 'Add Owner', icon: UserPlus, category: 'Owners', type: 'dialog' },
+  { id: 'add-owner', label: 'Add Owner', icon: UserPlus, category: 'Owners', type: 'dialog', permission: 'owners.create' },
 
   // Agents
-  { id: 'add-agent', label: 'Add Agent', icon: UserCheck, category: 'Agents', type: 'dialog' },
+  { id: 'add-agent', label: 'Add Agent', icon: UserCheck, category: 'Agents', type: 'dialog', permission: 'agents.create' },
 
   // Vendors
-  { id: 'add-vendor', label: 'Add Vendor', icon: Store, category: 'Vendors', type: 'dialog' },
+  { id: 'add-vendor', label: 'Add Vendor', icon: Store, category: 'Vendors', type: 'dialog', permission: 'vendors.create' },
 
   // Staff
-  { id: 'add-staff', label: 'Add Staff', icon: UserCog, category: 'Staff', type: 'dialog' },
+  { id: 'add-staff', label: 'Add Staff', icon: UserCog, category: 'Staff', type: 'dialog', permission: 'staff.create' },
 
   // Tasks
-  { id: 'add-task', label: 'Add Task', icon: ClipboardList, category: 'Tasks', type: 'dialog' },
+  { id: 'add-task', label: 'Add Task', icon: ClipboardList, category: 'Tasks', type: 'dialog', permission: 'tasks.create' },
 
   // Projects
-  { id: 'add-project', label: 'Add Project', icon: FolderPlus, category: 'Projects', type: 'dialog' },
+  { id: 'add-project', label: 'Add Project', icon: FolderPlus, category: 'Projects', type: 'dialog', permission: 'projects.create' },
 ]
-
-const CATEGORIES = [...new Set(QUICK_ACTIONS.map((a) => a.category))]
 
 type Step = 'actions' | 'pick-type' | 'pick-item' | 'pick-lease'
 
@@ -141,6 +142,7 @@ const itemClass = cn(
 export function CommandPalette() {
   const { commandOpen, setCommandOpen, openDialog } = useCommandPalette()
   const { isMobile, setOpenMobile } = useSidebar()
+  const { can, isLoading } = usePermissions()
 
   const [step, setStep] = useState<Step>('actions')
   const [pendingAction, setPendingAction] = useState<QuickAction | null>(null)
@@ -155,6 +157,9 @@ export function CommandPalette() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [leaseItems, setLeaseItems] = useState<PickerItem[]>([])
   const [loadingLeases, setLoadingLeases] = useState(false)
+
+  const filteredActions = QUICK_ACTIONS.filter(a => !a.permission || can(a.permission))
+  const categories = [...new Set(filteredActions.map((a) => a.category))]
 
   // Fetch properties or rooms based on action context
   const fetchItems = useCallback(async (target: PickerTarget, action: QuickAction | null) => {
@@ -400,6 +405,8 @@ export function CommandPalette() {
     ? `No vacant ${pickerTarget === 'room' ? 'rooms' : 'properties'} available`
     : `No ${pickerTarget === 'room' ? 'rooms' : 'properties'} found`
 
+  if (isLoading) return null
+
   return (
     <CommandDialog
       open={commandOpen}
@@ -418,10 +425,12 @@ export function CommandPalette() {
           />
           <CommandList className="max-h-[360px]">
             <CommandEmpty className="py-8 text-center">
-              <span className="texts-body-medium text-(--text-muted)">No actions found.</span>
+              <span className="texts-body-medium text-(--text-muted)">
+                {filteredActions.length === 0 ? 'No actions available.' : 'No actions found.'}
+              </span>
             </CommandEmpty>
-            {CATEGORIES.map((category, catIdx) => {
-              const actions = QUICK_ACTIONS.filter((a) => a.category === category)
+            {categories.map((category, catIdx) => {
+              const actions = filteredActions.filter((a) => a.category === category)
               return (
                 <div key={category}>
                   {catIdx > 0 && <CommandSeparator />}

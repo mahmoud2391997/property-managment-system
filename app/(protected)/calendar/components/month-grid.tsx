@@ -1,0 +1,304 @@
+import { useMemo, useEffect, useState } from 'react'
+import { cn } from '@/lib/utils'
+import { Chip, ChipDialog } from './chip'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+import Dialog from '@/components/costume-ui/dialog'
+
+interface EventItem {
+  id: string
+  title: string
+  timestamp: string
+  description: string | null
+}
+
+interface MonthGridProps {
+  currentDate: Date
+  selectedDate: Date
+  onDayClick: (date: Date) => void
+  onEventClick?: (event: { id: string }) => void
+  initialChips?: ChipsByDate | null
+  dataVersion?: number
+}
+
+interface ChipData {
+  type: 'payment' | 'expense' | 'task' | 'manual_event' | 'info' | 'lease_start' | 'lease_end' | 'expiry_reminder' | 'rent_change' | 'assignment_request' | 'booking'
+  count: number
+  total?: number
+  urgentCount?: number
+  label: string
+  status?: 'due' | 'overdue'
+  hasViewAll?: boolean
+  viewAllUrl?: string
+}
+
+interface ChipsByDate {
+  [dateStr: string]: ChipData[]
+}
+
+export default function MonthGrid({ currentDate, selectedDate, onDayClick, onEventClick, initialChips, dataVersion }: MonthGridProps) {
+  const [chips, setChips] = useState<ChipsByDate>(initialChips || {})
+  const [selectedChip, setSelectedChip] = useState<ChipData | null>(null)
+  const [selectedChipDate, setSelectedChipDate] = useState<Date | null>(null)
+  const [eventList, setEventList] = useState<EventItem[]>([])
+  const [showEventList, setShowEventList] = useState(false)
+  const [eventListDate, setEventListDate] = useState<string>('')
+
+  useEffect(() => {
+    if (initialChips) {
+      setChips(initialChips)
+      return
+    }
+
+    const fetchChips = async () => {
+      try {
+        const year = currentDate.getFullYear()
+        const month = currentDate.getMonth()
+        const firstDay = new Date(year, month, 1)
+        const lastDay = new Date(year, month + 1, 0)
+        
+        const fromStr = firstDay.toISOString()
+        const toStr = lastDay.toISOString()
+        
+        const response = await fetch(`/api/calendar/month?from=${fromStr}&to=${toStr}`)
+        if (response.ok) {
+          const data = await response.json()
+          setChips(data.chips || {})
+        }
+      } catch (error) {
+        console.error('Failed to fetch chips', error)
+      }
+    }
+    fetchChips()
+  }, [currentDate, initialChips, dataVersion])
+
+  const days = useMemo(() => {
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const startDayOfWeek = firstDay.getDay()
+    
+    const days: (Date | null)[] = []
+    
+    for (let i = 0; i < startDayOfWeek; i++) {
+      days.push(null)
+    }
+    
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+      days.push(new Date(year, month, day))
+    }
+    
+    while (days.length < 42) {
+      days.push(null)
+    }
+    
+    return days
+  }, [currentDate])
+
+  const weeks = useMemo(() => {
+    const result: (Date | null)[][] = []
+    for (let i = 0; i < days.length; i += 7) {
+      result.push(days.slice(i, i + 7))
+    }
+    return result
+  }, [days])
+
+  const today = new Date()
+  const isToday = (date: Date | null) => {
+    if (!date) return false
+    return date.getDate() === today.getDate() &&
+           date.getMonth() === today.getMonth() &&
+           date.getFullYear() === today.getFullYear()
+  }
+
+  const isSelected = (date: Date | null) => {
+    if (!date) return false
+    return date.getDate() === selectedDate.getDate() &&
+           date.getMonth() === selectedDate.getMonth() &&
+           date.getFullYear() === selectedDate.getFullYear()
+  }
+
+  const getDateStr = (date: Date | null) => {
+    if (!date) return null
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  }
+
+  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+  const handleChipClick = (e: React.MouseEvent, chip: ChipData, date: Date | null) => {
+    e.stopPropagation()
+    if (chip.type === 'manual_event') {
+      if (date && onEventClick) {
+        const dateStr = getDateStr(date) || ''
+        fetch(`/api/calendar/events?date=${dateStr}`)
+          .then(r => r.json())
+          .then(data => {
+            const events = data.events || []
+            if (events.length === 1) {
+              onEventClick(events[0])
+            } else if (events.length > 1) {
+              setEventList(events)
+              setEventListDate(dateStr)
+              setShowEventList(true)
+            }
+          })
+          .catch(() => {})
+      }
+      return
+    }
+    setSelectedChip(chip)
+    setSelectedChipDate(date)
+  }
+
+  return (
+    <div className='flex flex-col h-full relative'>
+      <div className='grid grid-cols-7 border-b border-(--border-default)'>
+        {weekdays.map(day => (
+          <div
+            key={day}
+            className='py-2 text-center text-xs font-medium text-(--text-secondary)'
+          >
+            {day}
+          </div>
+        ))}
+      </div>
+
+      <div className='flex-1 grid grid-rows-6'>
+        {weeks.map((week, weekIndex) => (
+          <div key={weekIndex} className='grid grid-cols-7'>
+            {week.map((date, dayIndex) => {
+              const dateStr = getDateStr(date)
+              const dayChips = dateStr ? chips[dateStr] || [] : []
+              
+              return (
+                <DayCellWithChips
+                  key={`${weekIndex}-${dayIndex}`}
+                  date={date}
+                  isToday={isToday(date)}
+                  isSelected={isSelected(date)}
+                  chips={dayChips}
+                  onClick={() => date && onDayClick(date)}
+                  onChipClick={handleChipClick}
+                />
+              )
+            })}
+          </div>
+        ))}
+      </div>
+
+      <ChipDialog
+        chip={selectedChip}
+        date={selectedChipDate}
+        onClose={() => setSelectedChip(null)}
+      />
+
+      <Dialog
+        open={showEventList}
+        onOpenChange={(isOpen) => { if (!isOpen) setShowEventList(false) }}
+        title={`${eventList.length} Events on ${eventListDate ? new Date(eventListDate + 'T00:00:00').toLocaleDateString() : ''}`}
+        cancelButtonLabel='Close'
+        className='max-w-md!'
+      >
+        <div className='space-y-2 max-h-[60vh] overflow-y-auto'>
+          {eventList.map((event) => (
+            <div
+              key={event.id}
+              className='text-xs py-2 px-3 bg-(--background-secondary) rounded cursor-pointer hover:bg-(--border-default) transition-colors'
+              onClick={() => {
+                if (onEventClick) {
+                  onEventClick({ id: event.id })
+                  setShowEventList(false)
+                }
+              }}
+            >
+              <div className='font-medium'>{event.title}</div>
+              {event.description && (
+                <div className='text-[10px] text-(--text-secondary) mt-0.5 truncate'>
+                  {event.description}
+                </div>
+              )}
+              <div className='text-[10px] text-(--text-secondary) mt-0.5'>
+                {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Dialog>
+    </div>
+  )
+}
+
+function DayCellWithChips({ date, isToday, isSelected, chips, onClick, onChipClick }: {
+  date: Date | null
+  isToday: boolean
+  isSelected: boolean
+  chips: ChipData[]
+  onClick: () => void
+  onChipClick: (e: React.MouseEvent, chip: ChipData, date: Date | null) => void
+}) {
+  const MAX_VISIBLE = 3
+  const visibleChips = chips.slice(0, MAX_VISIBLE)
+  const remainingCount = chips.length - MAX_VISIBLE
+
+  if (!date) {
+    return (
+      <div className='border border-(--border-default) bg-(--background-secondary)/30 min-h-[80px]' />
+    )
+  }
+
+  return (
+    <div
+      onClick={onClick}
+      className={cn(
+        'border border-(--border-default) p-1 text-left transition-colors hover:bg-(--background-secondary) cursor-pointer flex flex-col',
+        isSelected && 'bg-(--background-secondary) ring-2 ring-inset ring-(--primary-main)',
+        'min-h-[80px] overflow-hidden'
+      )}
+    >
+      <div className='flex flex-col gap-0.5'>
+        <span
+          className={cn(
+            'inline-flex items-center justify-center w-6 h-6 text-sm rounded-full mb-0.5',
+            isToday && 'bg-(--primary-main) text-white font-semibold'
+          )}
+        >
+          {date.getDate()}
+        </span>
+        
+        <div className='flex flex-wrap gap-0.5 w-full'>
+          {visibleChips.map((chip, index) => (
+            <Chip 
+              key={index} 
+              chip={chip} 
+              onClick={(e, clickedChip) => onChipClick(e, clickedChip, date)} 
+            />
+          ))}
+          {remainingCount > 0 && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className='px-1.5 py-0.5 rounded text-[10px] font-medium bg-(--border-default) text-(--text-secondary) hover:bg-(--border-strong) transition-colors'
+                >
+                  +{remainingCount} more
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className='w-64 p-2' side='right' sideOffset={4}>
+                <div className='flex flex-col gap-1'>
+                  {chips.map((chip, index) => (
+                    <Chip 
+                      key={index} 
+                      chip={chip} 
+                      onClick={(e, clickedChip) => onChipClick(e, clickedChip, date)} 
+                    />
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

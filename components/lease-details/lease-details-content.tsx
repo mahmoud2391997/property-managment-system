@@ -48,7 +48,8 @@ import {
   Banknote,
   History,
   Timer,
-  CalendarX2
+  CalendarX2,
+  Pencil
 } from 'lucide-react'
 
 type Props = {
@@ -153,6 +154,7 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId, userTy
   const canTransfer = lease.db_status === 'Current'
   const canScheduleChange = lease.db_status === 'Current' && !lease.upcoming_change
   const canScheduleLeaseEnd = lease.db_status === 'Current' && !lease.upcoming_lease_end
+  const canEdit = ['Current', 'Scheduled'].includes(lease.db_status)
 
   return (
     <div className='flex flex-col gap-5'>
@@ -187,6 +189,19 @@ export default function LeaseDetailsContent({ data, sourceType, sourceId, userTy
         {/* Action Buttons - Staff only */}
         {userType === 'staff' && (
           <div className='flex items-center gap-2.5'>
+            {canEdit && (
+              <Link href={sourceType === 'property'
+                ? `/properties/${sourceId}/leases/${lease.id}/edit`
+                : `/rooms/${sourceId}/leases/${lease.id}/edit`
+              }>
+                <Button
+                  variant='secondary'
+                  label='Edit'
+                  icon={<Pencil size={16} />}
+                />
+              </Link>
+            )}
+
             {canScheduleChange && (
               <ScheduleRentalChangeDialog
                 leaseId={lease.id}

@@ -1,5 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react'
+import { usePermissions } from '@/hooks/use-permissions'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { MoreHorizontal } from 'lucide-react'
@@ -21,6 +22,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import ConfirmationDialog from '@/components/costume-ui/confirmation-dialog'
 import { toast } from 'sonner'
 import InitiatePreparationFlowDrawer from '@/components/dialogs/initiate-preparation-flow-drawer'
+import { PermissionGate } from '@/components/permission-gate'
 
 type Props = {
   children: React.ReactNode
@@ -51,28 +53,27 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const lastSegment = segments[segments.length - 1]
   const routes = ['overview', 'views', 'bookings', 'leases']
 
+  const { can } = usePermissions()
+
+  const allTabs = [
+    { label: 'Overview', route: routes[0], permission: 'rooms.access' },
+    { label: 'Views', route: routes[1], permission: 'views.access' },
+    { label: 'Bookings', route: routes[2], permission: 'bookings.access' },
+    { label: 'Leases', route: routes[3], permission: 'leases.access' }
+  ]
+
+  const visibleTabs = allTabs.filter(t => can(t.permission))
+
   const {
     options: tabs,
     selectByIndex,
     selectedIndex
-  } = useSingleSelectOption([
-    {
-      label: 'Overview',
-      isSelected: lastSegment === routes[0]
-    },
-    {
-      label: 'Views',
-      isSelected: lastSegment === routes[1]
-    },
-    {
-      label: 'Bookings',
-      isSelected: lastSegment === routes[2]
-    },
-    {
-      label: 'Leases',
-      isSelected: lastSegment === routes[3]
-    }
-  ])
+  } = useSingleSelectOption(
+    visibleTabs.map(t => ({
+      label: t.label,
+      isSelected: lastSegment === t.route || (lastSegment === roomId && t.route === 'overview')
+    }))
+  )
 
   // Fetch room config
   const fetchRoomConfig = async () => {
@@ -95,7 +96,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   }, [roomId])
 
   const handleTabClick = (index: number) => {
-    const route = routes[index]
+    const route = visibleTabs[index]?.route
     if (route) {
       router.replace(`/rooms/${roomId}/${route}`)
     }
@@ -131,7 +132,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             { label: 'Rooms', href: '/rooms' },
             {
               label:
-                roomConfig?.propertyCode + '(' + roomConfig?.roomTitle + ')'
+                `${roomConfig?.propertyCode || 'N/A'}(${roomConfig?.roomTitle || 'Unknown Room'})`
             }
           ]}
           isLoading={isLoading}
@@ -149,7 +150,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
               <Skeleton className='h-7 w-40 bg-neutral-300' />
             ) : (
               <h1>
-                {roomConfig?.propertyCode + '(' + roomConfig?.roomTitle + ')'}
+                {`${roomConfig?.propertyCode || 'N/A'}(${roomConfig?.roomTitle || 'Unknown Room'})`}
               </h1>
             )}
           </div>
@@ -162,11 +163,13 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => router.push(`/rooms/${roomId}/edit`)}
-              >
-                Edit room
-              </DropdownMenuItem>
+              <PermissionGate permission='rooms.update'>
+                <DropdownMenuItem
+                  onClick={() => router.push(`/rooms/${roomId}/edit`)}
+                >
+                  Edit room
+                </DropdownMenuItem>
+              </PermissionGate>
               {roomConfig?.status === 'Vacant' && (
                 <InitiatePreparationFlowDrawer
                   roomId={roomId}
@@ -180,25 +183,27 @@ const WithHeadSectionLayout = ({ children }: Props) => {
                 />
               )}
               <DropdownMenuSeparator />
-              <ConfirmationDialog
-                openDialogButton={
-                  <button type='button' className='delete-dropdown-button'>
-                    Delete Room
-                  </button>
-                }
-                title='Delete Room'
-                description={
-                  <>
-                    Are you sure you want to delete{' '}
-                    <strong>{roomConfig?.roomTitle}</strong>? This action cannot
-                    be undone. All associated data (views, configurations) will
-                    be permanently removed.
-                  </>
-                }
-                onConfirm={handleDeleteRoom}
-                confirmButtonLabel='Delete'
-                confirmButtonLoadingLabel='Deleting...'
-              />
+              <PermissionGate permission='rooms.delete'>
+                <ConfirmationDialog
+                  openDialogButton={
+                    <button type='button' className='delete-dropdown-button'>
+                      Delete Room
+                    </button>
+                  }
+                  title='Delete Room'
+                  description={
+                    <>
+                      Are you sure you want to delete{' '}
+                      <strong>{roomConfig?.roomTitle}</strong>? This action cannot
+                      be undone. All associated data (views, configurations) will
+                      be permanently removed.
+                    </>
+                  }
+                  onConfirm={handleDeleteRoom}
+                  confirmButtonLabel='Delete'
+                  confirmButtonLoadingLabel='Deleting...'
+                />
+              </PermissionGate>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

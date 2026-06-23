@@ -1,8 +1,11 @@
+import { requirePermission } from '@/lib/server-permissions'
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import ExpenseDetailsContent from './expense-details-content'
 
 type Props = {
@@ -116,22 +119,16 @@ export type ExpenseDetailsData = {
 
 async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsData | null> {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    // Get staff and permissions
+    const { staff: authStaff, permissions, error: authError } = await getUserAndStaff()
+    if (authError || !authStaff) return null
 
-    if (!user) return null
-
-    const staff = await prisma.staff.findUnique({
-      where: { id: user.id },
-      select: { organization_id: true }
-    })
-
-    if (!staff) return null
+    const hasLeaseAccess = hasPermission(permissions, 'leases.access')
 
     const expense = await prisma.expenses.findFirst({
       where: {
         reference_id: referenceId,
-        organization_id: staff.organization_id
+        organization_id: authStaff.organization_id
       },
       select: {
         id: true,
@@ -332,7 +329,7 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
         city: expense.property_expenses.properties.city,
         project_title: expense.property_expenses.properties.projects?.title || null
       } : null,
-      lease: expense.property_expenses.leases ? {
+      lease: hasLeaseAccess && expense.property_expenses.leases ? {
         id: expense.property_expenses.leases.id,
         reference_id: expense.property_expenses.leases.reference_id
       } : null
@@ -386,12 +383,12 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
     // Can edit only if no successful payments
     const canEdit = expense.payment_history.length === 0
 
-    return {
+    const expenseDetailsData = {
       id: expense.id,
-      reference_id: expense.reference_id,
+      reference_id: expense.reference_id || '',
       category: expense.category,
-      description: expense.description,
-      expense_evidence: expense.expense_evidence,
+      description: expense.description || '',
+      expense_evidence: expense.expense_evidence || '',
       status: expense.status,
       due_payment_date: expense.due_payment_date?.toISOString() || null,
       created_at: expense.created_at.toISOString(),
@@ -410,6 +407,8 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
       payment_percentage: paymentPercentage,
       can_edit: canEdit
     }
+
+    return expenseDetailsData
   } catch (error) {
     console.error('Error fetching expense details:', error)
     return null
@@ -417,6 +416,7 @@ async function getExpenseDetails(referenceId: string): Promise<ExpenseDetailsDat
 }
 
 export default async function ExpenseDetailsPage({ params }: Props) {
+  await requirePermission('expenses.access')
   const { id } = await params
   const expense = await getExpenseDetails(id)
 

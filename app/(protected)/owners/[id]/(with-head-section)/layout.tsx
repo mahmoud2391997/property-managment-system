@@ -1,5 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react'
+import { usePermissions } from '@/hooks/use-permissions'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { MoreHorizontal } from 'lucide-react'
@@ -20,6 +21,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
 import EditOwnerDialog from '@/components/dialogs/edit-owner-dialog'
+import { PermissionGate } from '@/components/permission-gate'
 
 type OwnerBasicInfo = {
   id: string
@@ -46,20 +48,25 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const lastSegment = segments[segments.length - 1]
   const routes = ['overview', 'contracts']
 
+  const { can } = usePermissions()
+
+  const allTabs = [
+    { label: 'Overview', route: routes[0], permission: 'owners.access' },
+    { label: 'Contracts', route: routes[1], permission: 'contracts.access' }
+  ]
+
+  const visibleTabs = allTabs.filter(t => can(t.permission))
+
   const {
     options: tabs,
     selectByIndex,
     selectedIndex
-  } = useSingleSelectOption([
-    {
-      label: 'Overview',
-      isSelected: lastSegment === routes[0] || lastSegment === ownerId
-    },
-    {
-      label: 'Contracts',
-      isSelected: lastSegment === routes[1]
-    }
-  ])
+  } = useSingleSelectOption(
+    visibleTabs.map(t => ({
+      label: t.label,
+      isSelected: lastSegment === t.route || (lastSegment === ownerId && t.route === 'overview')
+    }))
+  )
 
   const fetchOwnerInfo = async () => {
     setIsLoading(true)
@@ -86,7 +93,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   }
 
   const handleTabClick = (index: number) => {
-    const route = routes[index]
+    const route = visibleTabs[index]?.route
     if (route) {
       router.push(`/owners/${ownerId}/${route}`)
     }
@@ -138,18 +145,20 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              {ownerInfo && (
-                <EditOwnerDialog
-                  ownerId={ownerId}
-                  initialData={ownerInfo}
-                  trigger={
-                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                      Edit Owner
-                    </DropdownMenuItem>
-                  }
-                  onSuccess={handleEditSuccess}
-                />
-              )}
+              <PermissionGate permission='owners.update'>
+                {ownerInfo && (
+                  <EditOwnerDialog
+                    ownerId={ownerId}
+                    initialData={ownerInfo}
+                    trigger={
+                      <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                        Edit Owner
+                      </DropdownMenuItem>
+                    }
+                    onSuccess={handleEditSuccess}
+                  />
+                )}
+              </PermissionGate>
               <DropdownMenuSeparator />
               {ownerInfo?.phone_number && (
                 <DropdownMenuItem

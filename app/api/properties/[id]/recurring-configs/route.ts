@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 export type RecurringPaymentDetails = {
   id: string
@@ -48,10 +49,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'properties.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id: propertyId } = await params
 
     // Verify property belongs to the organization
@@ -376,7 +381,7 @@ export async function GET(
 
         return {
           id: expense.id,
-          reference_id: expense.reference_id,
+          reference_id: expense.reference_id || '',
           type: expense.property_expenses?.type || expense.company_expenses?.type || null,
           status: expense.status,
           due_date: expense.due_payment_date?.toISOString() || null,

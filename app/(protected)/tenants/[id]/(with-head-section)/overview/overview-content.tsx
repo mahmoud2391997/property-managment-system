@@ -34,6 +34,8 @@ import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
 import FileAttachment from '@/components/costume-ui/file-attachment'
 import { compressImage } from '@/lib/image-compression'
 import { showFeedbackToast } from '@/components/costume-ui/feedback-toast'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
 
 // Types for tenant data
 type LeaseData = {
@@ -669,21 +671,26 @@ export default function OverviewContent({ tenantId }: Props) {
       />
 
       {/* Current Rentals Section */}
-      <div className='flex items-center justify-between'>
-        <h2 className='texts-body-large-medium'>
-          Current Rentals ({activeLeases.length})
-        </h2>
-      </div>
-
-      {activeLeases.length > 0 ? (
-        <div className='flex flex-col gap-4'>
-          {activeLeases.map(lease => (
-            <RentalCard key={lease.id} lease={lease} />
-          ))}
+      <PermissionGate
+        permission="leases.access"
+        fallback={<NoAccessCard label="Current Rentals" />}
+      >
+        <div className='flex items-center justify-between'>
+          <h2 className='texts-body-large-medium'>
+            Current Rentals ({activeLeases.length})
+          </h2>
         </div>
-      ) : (
-        <EmptyRentalsCard />
-      )}
+
+        {activeLeases.length > 0 ? (
+          <div className='flex flex-col gap-4'>
+            {activeLeases.map(lease => (
+              <RentalCard key={lease.id} lease={lease} />
+            ))}
+          </div>
+        ) : (
+          <EmptyRentalsCard />
+        )}
+      </PermissionGate>
     </div>
   )
 }

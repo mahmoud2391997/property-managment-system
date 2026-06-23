@@ -7,6 +7,9 @@ import LeasesTable from '../tables/leases-table'
 import { LeaseWithDetails } from '@/types'
 import TableSectionSkeleton from '../loading-ui/table-section-skeleton'
 import { useRouter } from 'next/navigation'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
 
 type Props = {
   propertyId?: string
@@ -14,6 +17,7 @@ type Props = {
 }
 
 export default function LeasesSection({ propertyId, roomId }: Props) {
+  const { can } = usePermissions()
   const [leases, setLeases] = useState<LeaseWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -41,7 +45,11 @@ export default function LeasesSection({ propertyId, roomId }: Props) {
   }, [fetchLeases])
 
   const handleAddLease = () => {
-    router.push(`/properties/${propertyId}/leases/add-lease`)
+    if (roomId) {
+      router.push(`/rooms/${roomId}/leases/add-lease`)
+    } else if (propertyId) {
+      router.push(`/properties/${propertyId}/leases/add-lease`)
+    }
   }
 
   if (loading) {
@@ -67,13 +75,15 @@ export default function LeasesSection({ propertyId, roomId }: Props) {
             className='bg-(--error-main)!'
           /> */}
 
-          <Button label='Add Lease' onClick={handleAddLease} />
+          <PermissionGate permission="leases.create" fallback={null}>
+            <Button label='Add Lease' onClick={handleAddLease} />
+          </PermissionGate>
         </div>
       </div>
 
       <LeasesTable
         data={leases}
-        className='-mx-5! rounded-none! border-x-0 mb-5'
+        className='w-full rounded-none! border-x-0 mb-5'
         noPagnitation={true}
         onDataRefresh={fetchLeases}
       />

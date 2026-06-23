@@ -2,27 +2,15 @@
 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
+import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 export async function GET() {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Only staff can access this
-    const currentStaff = await prisma.staff.findUnique({
-      where: { id: user.id },
-      select: { id: true, organization_id: true }
-    })
-
-    if (!currentStaff) {
-      return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
+    const { staff: currentStaff, permissions, error } = await getUserAndStaff()
+    if (error) return error as NextResponse
+    if (!hasPermission(permissions, 'tasks.access')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // Fetch all staff in the organization

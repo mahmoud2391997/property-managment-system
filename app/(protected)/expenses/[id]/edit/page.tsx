@@ -1,3 +1,4 @@
+import { requirePermission } from '@/lib/server-permissions'
 export const dynamic = 'force-dynamic'
 
 import { notFound, redirect } from 'next/navigation'
@@ -184,10 +185,10 @@ async function getExpenseForEdit(referenceId: string): Promise<EditExpenseData |
 
     return {
       id: expense.id,
-      reference_id: expense.reference_id,
+      reference_id: expense.reference_id || '',
       category: expense.category,
-      description: expense.description,
-      due_payment_date: expense.due_payment_date?.toISOString() ?? null,
+      description: expense.description || '',
+      due_payment_date: expense.due_payment_date?.toISOString() || null,
       property_expense: expense.property_expenses ? {
         type: expense.property_expenses.type,
         property_id: expense.property_expenses.property_id,
@@ -250,6 +251,7 @@ async function getExpenseForEdit(referenceId: string): Promise<EditExpenseData |
 }
 
 export default async function EditExpensePage({ params }: Props) {
+  await requirePermission('expenses.update')
   const { id } = await params
   const expense = await getExpenseForEdit(id)
 

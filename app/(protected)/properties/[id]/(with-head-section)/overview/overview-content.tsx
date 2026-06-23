@@ -41,6 +41,9 @@ import RentalHistoryDialog from '@/components/dialogs/rental-history-dialog'
 import ScheduledRentChangeBanner from '@/components/costume-ui/scheduled-rent-change-banner'
 import ScheduledLeaseEndBanner from '@/components/costume-ui/scheduled-lease-end-banner'
 import ScheduleLeaseEndDialog from '@/components/dialogs/schedule-lease-end-dialog'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
+import { usePermissions } from '@/hooks/use-permissions'
 
 // Types for overview data
 type ScheduledChange = {
@@ -61,7 +64,7 @@ type LeaseOverview = {
   id: string
   reference_id: string
   monthly_rent: number
-  due_date: string
+  due_date: string | null
   start_date: string
   number_of_months: number | null
   tenant: {
@@ -113,6 +116,14 @@ type OverviewData = {
   leaseBlockedReason: string | null
   canAddBooking: boolean
   bookingBlockedReason: string | null
+  permissions?: {
+    canViewLeases: boolean
+    canViewContracts: boolean
+    canViewBookings: boolean
+    canCreateLease: boolean
+    canCreateContract: boolean
+    canCreateBooking: boolean
+  }
 }
 
 // Card component for displaying data
@@ -575,6 +586,7 @@ type Props = {
 }
 
 export default function OverviewContent ({ propertyId }: Props) {
+  const { can } = usePermissions()
   const router = useRouter()
   const [overviewData, setOverviewData] = useState<OverviewData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -588,6 +600,7 @@ export default function OverviewContent ({ propertyId }: Props) {
       const response = await fetch(`/api/properties/${propertyId}/overview`)
       if (response.ok) {
         const data = await response.json()
+        console.log(data)
         setOverviewData(data)
       }
     } catch (error) {
@@ -606,24 +619,7 @@ export default function OverviewContent ({ propertyId }: Props) {
     router.push(`/properties/${propertyId}/leases/add-lease`)
   }
 
-  const handleUnassignOwner = async () => {
-    try {
-      const response = await fetch(`/api/properties/${propertyId}/assign-owner`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner_id: null })
-      })
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to unassign owner')
-      }
-      FeedbackToasts.updated('Owner', 'Owner unassigned successfully')
-      fetchOverviewData()
-    } catch (err: any) {
-      FeedbackToasts.operationFailed('Unassign owner', err.message)
-    }
-  }
-
+  
   const handleCancelBooking = async () => {
     if (!overviewData?.booking) return
     try {
@@ -646,250 +642,231 @@ export default function OverviewContent ({ propertyId }: Props) {
       {/* Cards */}
       <div className='flex items-start gap-5 w-full'>
         {/* Lease Card */}
-        {loading ? (
-          <CardSkeleton />
-        ) : overviewData?.propertyStatus === 'Pending_Inspection' ||
-          overviewData?.propertyStatus === 'Under_Preparation' ? (
-          <StatusCard
-            iconStyles='bg-[#DEFFE2] text-(--success-dark)'
-            Icon={ArrowDownLeft}
-            title='Lease Overview'
-            subtitle='Income from tenant'
-            status={overviewData.propertyStatus}
-            propertyId={propertyId}
-          />
-        ) : overviewData?.lease ? (
-          <Card
-            iconStyles='bg-[#DEFFE2] text-(--success-dark)'
-            Icon={ArrowDownLeft}
-            title='Lease Overview'
-            subtitle='Income from tenant'
-            amount={formatCurrency(overviewData.lease.monthly_rent)}
-            date_label='Due'
-            date={formatDate(overviewData.lease.due_date)}
-            user_name={overviewData.lease.tenant.name}
-            user_link={`/tenants/${overviewData.lease.tenant.id}/overview`}
-            user_type='Tenant'
-            user_avatar={overviewData.lease.tenant.profile_thumb}
-            detailsLink={`/properties/${propertyId}/leases/${overviewData.lease.id}/details`}
-            menuItems={
-              <>
-                {overviewData.lease?.tenant.phone_number && (
+        <PermissionGate 
+          permission="leases.access" 
+          fallback={
+            <NoAccessCard 
+              label="Lease Overview" 
+            />
+          }
+        >
+          {loading ? (
+            <CardSkeleton />
+          ) : overviewData?.propertyStatus === 'Pending_Inspection' ||
+            overviewData?.propertyStatus === 'Under_Preparation' ? (
+            <StatusCard
+              iconStyles='bg-[#DEFFE2] text-(--success-dark)'
+              Icon={ArrowDownLeft}
+              title='Lease Overview'
+              subtitle='Income from tenant'
+              status={overviewData.propertyStatus}
+              propertyId={propertyId}
+            />
+          ) : overviewData?.lease ? (
+            <Card
+              iconStyles='bg-[#DEFFE2] text-(--success-dark)'
+              Icon={ArrowDownLeft}
+              title='Lease Overview'
+              subtitle='Income from tenant'
+              amount={formatCurrency(overviewData.lease.monthly_rent)}
+              date_label='Due'
+              date={formatDate(overviewData.lease.due_date)}
+              user_name={overviewData.lease.tenant.name}
+              user_link={can('tenants.access') ? `/tenants/${overviewData.lease.tenant.id}/overview` : undefined}
+              user_type='Tenant'
+              user_avatar={overviewData.lease.tenant.profile_thumb}
+              detailsLink={`/properties/${propertyId}/leases/${overviewData.lease.id}/details`}
+              menuItems={
+                <>
+                  {overviewData.lease?.tenant.phone_number && (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        const whatsappUrl = buildWhatsAppLink(
+                          overviewData.lease!.tenant.phone_number!
+                        )
+                        window.open(whatsappUrl, '_blank')
+                      }}
+                    >
+                      WhatsApp {overviewData.lease.tenant.name.split(' ')[0]}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
-                    onClick={() => {
-                      const whatsappUrl = buildWhatsAppLink(
-                        overviewData.lease!.tenant.phone_number!
+                    onClick={() =>
+                      navigator.clipboard.writeText(
+                        overviewData.lease!.reference_id
                       )
-                      window.open(whatsappUrl, '_blank')
-                    }}
+                    }
                   >
-                    WhatsApp {overviewData.lease.tenant.name.split(' ')[0]}
+                    Copy lease ID
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuItem
-                  onClick={() =>
-                    navigator.clipboard.writeText(
-                      overviewData.lease!.reference_id
-                    )
-                  }
-                >
-                  Copy lease ID
-                </DropdownMenuItem>
-                <DropdownMenuItem>Edit lease</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Rental</DropdownMenuLabel>
-                <ScheduleRentalChangeDialog
-                  leaseId={overviewData.lease!.id}
-                  onSuccess={fetchOverviewData}
-                  trigger={
-                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                      Schedule rental change
-                    </DropdownMenuItem>
-                  }
-                />
-                <RentalHistoryDialog
-                  leaseId={overviewData.lease!.id}
-                  trigger={
-                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                      View rental history
-                    </DropdownMenuItem>
-                  }
-                />
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link
-                    href={`/properties/${propertyId}/leases/${overviewData.lease!.id}/transfer`}
-                  >
-                    Transfer Lease
-                  </Link>
-                </DropdownMenuItem>
-                <ScheduleLeaseEndDialog
-                  leaseId={overviewData.lease!.id}
-                  onSuccess={fetchOverviewData}
-                  trigger={
-                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                      Schedule Lease End
-                    </DropdownMenuItem>
-                  }
-                />
-                <InitiateLeaseEndingDrawer
-                  leaseId={overviewData.lease!.id}
-                  propertyName={overviewData.propertyCode}
-                  tenantName={overviewData.lease!.tenant.name}
-                  onSuccess={fetchOverviewData}
-                  trigger={
-                    <button type='button' className='delete-dropdown-button'>
-                      End Lease
-                    </button>
-                  }
-                />
-              </>
-            }
-          />
-        ) : overviewData?.canAddLease ? (
-          <EmptyCard
-            iconStyles='bg-[#DEFFE2] text-(--success-dark)'
-            Icon={ArrowDownLeft}
-            title='Lease Overview'
-            subtitle='Income from tenant'
-            buttonLabel='Add Lease'
-            onClick={handleAddLease}
-          />
-        ) : (
-          <BlockedCard
-            iconStyles='bg-[#DEFFE2] text-(--success-dark)'
-            Icon={ArrowDownLeft}
-            title='Lease Overview'
-            subtitle='Income from tenant'
-            blockedReason={overviewData?.leaseBlockedReason || 'Cannot add lease'}
-          />
-        )}
-
-        {/* Contract Card */}
-        {loading ? (
-          <CardSkeleton />
-        ) : overviewData?.contract ? (
-          <Card
-            iconStyles='bg-(--warning-light) text-(--warning-dark)'
-            Icon={ArrowUpRight}
-            title='Contract Overview'
-            subtitle='Payment to owner'
-            amount={formatCurrency(overviewData.contract.amount)}
-            date_label='Due'
-            date={
-              overviewData.contract.due_date
-                ? formatDate(overviewData.contract.due_date)
-                : '—'
-            }
-            user_name={overviewData.contract.owner.name}
-            user_type='Owner'
-            user_avatar={overviewData.contract.owner.profile_thumb}
-          />
-        ) : (
-          <EmptyCard
-            iconStyles='bg-(--warning-light) text-(--warning-dark)'
-            Icon={ArrowUpRight}
-            title='Contract Overview'
-            subtitle='Payment to owner'
-            buttonLabel={overviewData?.propertyOwner ? undefined : 'Add Contract'}
-            href={`/properties/${propertyId}/contracts/add-contract`}
-            footer={
-              overviewData?.propertyOwner && (
-                <div className='flex items-center gap-2.5 select-none'>
-                  <UserAvatar
-                    imgSrc={overviewData.propertyOwner.profile_thumb}
-                    name={overviewData.propertyOwner.name}
-                    size={40}
-                    className='texts-body-large-medium'
+                  <DropdownMenuItem>Edit lease</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href={`/properties/${propertyId}/leases/${overviewData.lease!.id}/transfer`}
+                    >
+                      Transfer Lease
+                    </Link>
+                  </DropdownMenuItem>
+                  <ScheduleLeaseEndDialog
+                    leaseId={overviewData.lease!.id}
+                    onSuccess={fetchOverviewData}
+                    trigger={
+                      <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                        Schedule Lease End
+                      </DropdownMenuItem>
+                    }
                   />
-                  <div className='flex-1 flex flex-col'>
-                    <span className='texts-body-large-medium'>
-                      {overviewData.propertyOwner.name}
-                    </span>
-                    <span className='texts-caption-large text-(--text-secondary)'>
-                      Owner
-                    </span>
-                  </div>
-                  <ConfirmationDialog
-                    openDialogButton={
-                      <button
-                        type='button'
-                        className='p-1 rounded-full hover:bg-neutral-100 transition-colors'
-                        title='Unassign owner'
-                      >
-                        <X size={16} className='text-neutral-400 hover:text-neutral-600' />
+                  <InitiateLeaseEndingDrawer
+                    leaseId={overviewData.lease!.id}
+                    propertyName={overviewData.propertyCode}
+                    tenantName={overviewData.lease!.tenant.name}
+                    onSuccess={fetchOverviewData}
+                    trigger={
+                      <button type='button' className='delete-dropdown-button'>
+                        End Lease
                       </button>
                     }
-                    title='Unassign Owner'
-                    description={<>Are you sure you want to unassign <strong>{overviewData.propertyOwner.name}</strong> from this property?</>}
-                    onConfirm={handleUnassignOwner}
-                    confirmButtonLabel='Unassign'
-                    confirmButtonLoadingLabel='Unassigning...'
+                  />
+                </>
+              }
+            />
+          ) : overviewData?.canAddLease && can('leases.create') ? (
+            <EmptyCard
+              iconStyles='bg-[#DEFFE2] text-(--success-dark)'
+              Icon={ArrowDownLeft}
+              title='Lease Overview'
+              subtitle='Income from tenant'
+              buttonLabel='Add Lease'
+              onClick={handleAddLease}
+            />
+          ) : (
+            <BlockedCard
+              iconStyles='bg-[#DEFFE2] text-(--success-dark)'
+              Icon={ArrowDownLeft}
+              title='Lease Overview'
+              subtitle='Income from tenant'
+              blockedReason={overviewData?.leaseBlockedReason || 'Cannot add lease'}
+            />
+          )}
+        </PermissionGate>
+
+        {/* Contract Card */}
+        <PermissionGate 
+          permission="contracts.access" 
+          fallback={
+            <NoAccessCard 
+              label="Contract Overview" 
+            />
+          }
+        >
+          {loading ? (
+            <CardSkeleton />
+          ) : overviewData?.contract ? (
+            <Card
+              iconStyles='bg-(--warning-light) text-(--warning-dark)'
+              Icon={ArrowUpRight}
+              title='Contract Overview'
+              subtitle='Payment to owner'
+              amount={formatCurrency(overviewData.contract.amount)}
+              date_label='Due'
+              date={
+                overviewData.contract.due_date
+                  ? formatDate(overviewData.contract.due_date)
+                  : '—'
+              }
+              user_name={overviewData.contract.owner?.name || 'No Owner'}
+              user_type='Owner'
+              user_avatar={overviewData.contract.owner?.profile_thumb}
+              detailsLink={`/properties/${propertyId}/contracts`}
+            />
+          ) : can('contracts.create') ? (
+            <EmptyCard
+              iconStyles='bg-(--warning-light) text-(--warning-dark)'
+              Icon={ArrowUpRight}
+              title='Contract Overview'
+              subtitle='Payment to owner'
+              buttonLabel='Add Contract'
+              href={`/properties/${propertyId}/contracts/add-contract`}
+            />
+          ) : (
+            <BlockedCard
+              iconStyles='bg-(--warning-light) text-(--warning-dark)'
+              Icon={ArrowUpRight}
+              title='Contract Overview'
+              subtitle='Payment to owner'
+              blockedReason='You do not have permission to create contracts'
+            />
+          )}
+        </PermissionGate>
+
+        
+        {/* Booking Card */}
+        <PermissionGate 
+          permission="bookings.access" 
+          fallback={
+            <NoAccessCard 
+              label="Booking Overview" 
+            />
+          }
+        >
+          {loading ? (
+            <CardSkeleton />
+          ) : overviewData?.booking ? (
+            <Card
+              iconStyles='bg-(--info-light) text-(--info-main)'
+              Icon={CalendarCheck2}
+              title='Booking Overview'
+              subtitle='Property reservation'
+              amount={formatCurrency(overviewData.booking.amount)}
+              date_label='Move in'
+              date={formatDate(overviewData.booking.move_in_date)}
+              user_name={overviewData.booking.tenant.name}
+              user_type='Tenant'
+              user_avatar={overviewData.booking.tenant.profile_thumb}
+              menuItems={
+                <>
+                  <DropdownMenuItem
+                    onClick={() => router.push(`/properties/${propertyId}/leases/add-lease?bookingId=${overviewData!.booking!.id}`)}
+                  >
+                    Convert to Lease
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <ConfirmationDialog
+                    openDialogButton={
+                      <button type='button' className='delete-dropdown-button'>
+                        Cancel Booking
+                      </button>
+                    }
+                    title='Cancel Booking'
+                    description='Are you sure you want to cancel this booking? This action cannot be undone.'
+                    onConfirm={handleCancelBooking}
+                    confirmButtonLabel='Cancel Booking'
+                    confirmButtonLoadingLabel='Cancelling...'
                     variant='confirm'
                   />
-                </div>
-              )
-            }
-          />
-        )}
-
-        {/* Booking Card */}
-        {loading ? (
-          <CardSkeleton />
-        ) : overviewData?.booking ? (
-          <Card
-            iconStyles='bg-(--info-light) text-(--info-main)'
-            Icon={CalendarCheck2}
-            title='Booking Overview'
-            subtitle='Property reservation'
-            amount={formatCurrency(overviewData.booking.amount)}
-            date_label='Move in'
-            date={formatDate(overviewData.booking.move_in_date)}
-            user_name={overviewData.booking.tenant.name}
-            user_type='Tenant'
-            user_avatar={overviewData.booking.tenant.profile_thumb}
-            menuItems={
-              <>
-                <DropdownMenuItem
-                  onClick={() => router.push(`/properties/${propertyId}/leases/add-lease?bookingId=${overviewData!.booking!.id}`)}
-                >
-                  Convert to Lease
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <ConfirmationDialog
-                  openDialogButton={
-                    <button type='button' className='delete-dropdown-button'>
-                      Cancel Booking
-                    </button>
-                  }
-                  title='Cancel Booking'
-                  description='Are you sure you want to cancel this booking? This action cannot be undone.'
-                  onConfirm={handleCancelBooking}
-                  confirmButtonLabel='Cancel Booking'
-                  confirmButtonLoadingLabel='Cancelling...'
-                  variant='confirm'
-                />
-              </>
-            }
-          />
-        ) : overviewData?.canAddBooking ? (
-          <EmptyCard
-            iconStyles='bg-(--info-light) text-(--info-main)'
-            Icon={CalendarCheck2}
-            title='Booking Overview'
-            subtitle='Property reservation'
-            buttonLabel='Add Booking'
-            onClick={() => setBookingDialogOpen(true)}
-          />
-        ) : (
-          <BlockedCard
-            iconStyles='bg-(--info-light) text-(--info-main)'
-            Icon={CalendarCheck2}
-            title='Booking Overview'
-            subtitle='Property reservation'
-            blockedReason={overviewData?.bookingBlockedReason || 'Cannot add booking'}
-          />
-        )}
+                </>
+              }
+            />
+          ) : overviewData?.canAddBooking && can('bookings.create') ? (
+            <EmptyCard
+              iconStyles='bg-(--info-light) text-(--info-main)'
+              Icon={CalendarCheck2}
+              title='Booking Overview'
+              subtitle='Property reservation'
+              buttonLabel='Add Booking'
+              onClick={() => setBookingDialogOpen(true)}
+            />
+          ) : (
+            <BlockedCard
+              iconStyles='bg-(--info-light) text-(--info-main)'
+              Icon={CalendarCheck2}
+              title='Booking Overview'
+              subtitle='Property reservation'
+              blockedReason={overviewData?.bookingBlockedReason || 'Cannot add booking'}
+            />
+          )}
+        </PermissionGate>
       </div>
 
       {/* Scheduled Rental Change Banner */}
@@ -930,13 +907,23 @@ export default function OverviewContent ({ propertyId }: Props) {
       )}
 
       {/* Payments */}
-      <PaymentsSection
-        propertyId={propertyId}
-        hasActiveLease={!!overviewData?.lease}
-        activeLeaseId={overviewData?.lease?.id}
-      />
+      <PermissionGate
+        permission="payments.access"
+        fallback={<NoAccessCard label="Recent Payments" />}
+      >
+        <PaymentsSection
+          propertyId={propertyId}
+          hasActiveLease={!!overviewData?.lease}
+          activeLeaseId={overviewData?.lease?.id}
+        />
+      </PermissionGate>
       {/* Recurring Payments & Expenses */}
-      <RecurringSection propertyId={propertyId} />
+      <PermissionGate
+        permission="recurring.access"
+        fallback={<NoAccessCard label="Recurring Payments & Expenses" />}
+      >
+        <RecurringSection propertyId={propertyId} />
+      </PermissionGate>
 
       {/* Add Booking Wizard */}
       <AddBookingWizard

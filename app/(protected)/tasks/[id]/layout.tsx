@@ -9,6 +9,7 @@ import {
 } from '@/components/costume-ui/feedback-toast'
 import FlowTaskNavigation from '@/components/task-ui/flow-task-navigation'
 import TaskDetailsSkeleton from '@/components/loading-ui/task-details-skeleton'
+import { PermissionGuard } from '@/components/permission-guard'
 import {
   TaskProvider,
   type TaskContextType,
@@ -946,25 +947,27 @@ export default function TaskDetailsLayout ({
   }
 
   return (
-    <TaskProvider value={contextValue}>
-      <div>
-        {/* Breadcrumb */}
-        <Breadcrumb
-          items={[
-            { label: 'Tasks', href: '/tasks' },
-            { label: `#${task.referenceId}` }
-          ]}
-        />
+    <PermissionGuard permission='tasks.access'>
+      <TaskProvider value={contextValue}>
+        <div>
+          {/* Breadcrumb */}
+          <Breadcrumb
+            items={[
+              { label: 'Tasks', href: '/tasks' },
+              { label: `#${task.referenceId}` }
+            ]}
+          />
 
-        {/* Task Navigation - Use flow navigation for flow tasks */}
-        <div className='mt-4'>
-          {isFlowTask && flowInfo && (
-            <FlowTaskNavigation flowInfo={flowInfo} currentTaskId={task.id} />
-          )}
+          {/* Task Navigation - Use flow navigation for flow tasks */}
+          <div className='mt-4'>
+            {isFlowTask && flowInfo && (
+              <FlowTaskNavigation flowInfo={flowInfo} currentTaskId={task.id} />
+            )}
+          </div>
+
+          {children}
         </div>
-
-        {children}
-      </div>
-    </TaskProvider>
+      </TaskProvider>
+    </PermissionGuard>
   )
 }

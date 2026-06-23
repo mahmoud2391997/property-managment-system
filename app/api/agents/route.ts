@@ -1,13 +1,18 @@
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { NextResponse } from 'next/server'
 
 export async function GET () {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'agents.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const agents = await prisma.agents.findMany({
       where: {
         organization_id: staff.organization_id
@@ -44,10 +49,14 @@ export async function GET () {
 
 export async function POST (request: Request) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'agents.create'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const body = await request.json()
     const { firstName, lastName, phoneNo, email } = body
 

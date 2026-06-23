@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
@@ -9,10 +10,14 @@ export async function GET(
   { params }: { params: Promise<{ tenantId: string }> }
 ) {
   try {
-    const { staff: currentStaff, error } = await getUserAndStaff()
+    const { staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'tenants.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { tenantId } = await params
 
     // Verify the tenant exists and belongs to the same organization
@@ -215,10 +220,14 @@ export async function PATCH(
   { params }: { params: Promise<{ tenantId: string }> }
 ) {
   try {
-    const { staff: currentStaff, error } = await getUserAndStaff()
+    const { staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'tenants.update'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { tenantId } = await params
 
     // Verify the tenant exists and belongs to the same organization
@@ -310,6 +319,10 @@ export async function PATCH(
       }
     }
 
+    // Initialize email update tracking variables
+    let emailUpdateSuccess = true
+    let emailUpdateError = null
+
     // Email validation and update (only allowed if account is not activated)
     if (email && email.trim() !== currentEmail) {
       // if (isActivated) {
@@ -328,18 +341,26 @@ export async function PATCH(
         )
       }
 
-      // Update email in Supabase Auth
-      const { error: updateEmailError } = await supabaseAdmin.auth.admin.updateUserById(
-        tenantId,
-        { email: email.trim() }
-      )
-
-      if (updateEmailError) {
-        console.error('Error updating email:', updateEmailError)
-        return NextResponse.json(
-          { error: updateEmailError.message || 'Failed to update email' },
-          { status: 500 }
+      // Update email in Supabase Auth (with graceful fallback)
+      
+      try {
+        const { error: updateEmailError } = await supabaseAdmin.auth.admin.updateUserById(
+          tenantId,
+          { email: email.trim() }
         )
+
+        if (updateEmailError) {
+          console.error('Error updating email:', updateEmailError)
+          emailUpdateError = updateEmailError.message || 'Failed to update email'
+          emailUpdateSuccess = false
+          
+          // Don't fail the entire request - just log the error and continue
+          console.log('Email update failed, but continuing with profile update')
+        }
+      } catch (error: any) {
+        console.error('Unexpected error during email update:', error)
+        emailUpdateError = error.message || 'Authentication system error'
+        emailUpdateSuccess = false
       }
     }
 
@@ -443,7 +464,7 @@ export async function PATCH(
         where: { tenant_id: tenantId }
       })
 
-      return NextResponse.json({
+      const response: any = {
         success: true,
         tenant: {
           id: tenantId,
@@ -455,7 +476,18 @@ export async function PATCH(
           profilePic: profilePicUrl,
           profileThumb: profileThumbUrl
         }
-      })
+      }
+
+      // Add email update status if email was being updated
+      if (email && emailUpdateSuccess !== undefined) {
+        if (!emailUpdateSuccess && emailUpdateError) {
+          response.warnings = [`Email update failed: ${emailUpdateError}`]
+        } else if (emailUpdateSuccess) {
+          response.emailUpdated = true
+        }
+      }
+
+      return NextResponse.json(response)
     } catch (dbError: any) {
       console.error('Error updating tenant record:', dbError)
       return NextResponse.json(

@@ -9,6 +9,8 @@ import { Tab, TabGroup } from '../costume-ui/tab'
 import AddTaskDialog from '../dialogs/add-task-dialog'
 import { useCallback, useMemo } from 'react'
 import TableFilter, { type FilterAttribute, type FilterValue } from '../costume-ui/table-filter'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
 
 // Define filterable attributes for tasks
 const TASK_FILTER_ATTRIBUTES: FilterAttribute[] = [
@@ -52,7 +54,11 @@ const TASK_FILTER_ATTRIBUTES: FilterAttribute[] = [
   { key: 'created_by', label: 'Created By', type: 'text' },
   { key: 'assigned_to', label: 'Assigned To', type: 'text' },
   { key: 'assigned_by', label: 'Assigned By', type: 'text' },
-  { key: 'due_date', label: 'Due Date', type: 'date' }
+  { key: 'due_month', label: 'Due Month', type: 'month' },
+  { key: 'due_date_range', label: 'Due Date Range', type: 'dateRange' },
+  { key: 'due_date', label: 'Due Date', type: 'date' },
+  { key: 'dueDateFrom', label: 'Due From', type: 'date' },
+  { key: 'dueDateTo', label: 'Due To', type: 'date' }
 ]
 
 interface TasksSectionProps {
@@ -64,6 +70,7 @@ export default function TasksSection({
   initialData,
   initialTotal
 }: TasksSectionProps) {
+  const { can } = usePermissions()
   const {
     data,
     isLoading,
@@ -92,14 +99,21 @@ export default function TasksSection({
       property: '',
       room: '',
       created_by: '',
-      assigned_to: '',
       assigned_by: '',
-      due_date: ''
+      due_month: '',
+      due_date: '',
+      dueDateFrom: '',
+      dueDateTo: ''
     },
     filterKeyMapping: {
-      task_id: 'id'
+      task_id: 'id',
+      due_month: 'due_date',
+      dueDateFrom: 'due_date',
+      dueDateTo: 'due_date'
     },
-    textFilterKeys: ['task_id', 'property', 'room', 'created_by', 'assigned_to', 'assigned_by']
+    textFilterKeys: ['task_id', 'property', 'room', 'created_by', 'assigned_to', 'assigned_by'],
+    monthFilterKeys: ['due_month'],
+    dateFilterKeys: ['due_date', 'dueDateFrom', 'dueDateTo']
   })
 
   const statusOptions = [
@@ -120,9 +134,25 @@ export default function TasksSection({
 
   // Convert activeFilters (Record) to FilterValue[] for TableFilter component
   const advancedFilters = useMemo((): FilterValue[] => {
-    return Object.entries(activeFilters)
-      .filter(([key, value]) => value && key !== 'status') // Exclude status (handled by tabs)
-      .map(([key, value]) => ({ id: key, attribute: key, value }))
+    const filters: FilterValue[] = []
+    const from = activeFilters.dueDateFrom
+    const to = activeFilters.dueDateTo
+    
+    // Combine dueDateFrom/dueDateTo into single due_date_range filter for display
+    if (from || to) {
+      filters.push({ id: 'due_date_range', attribute: 'due_date_range', value: `${from || ''},${to || ''}` })
+    }
+
+    Object.entries(activeFilters)
+      .filter(([key, value]) => {
+        if (!value || key === 'status' || key === 'dueDateFrom' || key === 'dueDateTo') return false
+        return TASK_FILTER_ATTRIBUTES.some(a => a.key === key)
+      })
+      .forEach(([key, value]) => {
+        filters.push({ id: key, attribute: key, value })
+      })
+
+    return filters
   }, [activeFilters])
 
   // Handle advanced filters change - convert FilterValue[] to Record and update
@@ -132,7 +162,28 @@ export default function TasksSection({
     // Set values for active filters
     newFilters.forEach(f => {
       if (f.attribute && f.value) {
-        filterObj[f.attribute] = f.value
+        if (f.attribute === 'due_date_range') {
+          const parts = f.value.split(',')
+          if (parts[0]) filterObj.dueDateFrom = parts[0].trim()
+          if (parts[1]) filterObj.dueDateTo = parts[1].trim()
+          // Clear other date filters
+          filterObj.due_date = ''
+          filterObj.due_month = ''
+        } else if (f.attribute === 'due_date') {
+          filterObj.due_date = f.value
+          // Clear other date filters
+          filterObj.dueDateFrom = ''
+          filterObj.dueDateTo = ''
+          filterObj.due_month = ''
+        } else if (f.attribute === 'due_month') {
+          filterObj.due_month = f.value
+          // Clear other date filters
+          filterObj.due_date = ''
+          filterObj.dueDateFrom = ''
+          filterObj.dueDateTo = ''
+        } else {
+          filterObj[f.attribute] = f.value
+        }
       }
     })
 
@@ -142,7 +193,31 @@ export default function TasksSection({
         filterObj[attr.key] = ''
       }
     })
+    // Also clear expanded date range filters
+    if (!filterObj.dueDateFrom) filterObj.dueDateFrom = ''
+    if (!filterObj.dueDateTo) filterObj.dueDateTo = ''
 
+    updateFilters(filterObj)
+  }, [updateFilters])
+
+  const handleRemoveFilter = useCallback((id: string) => {
+    const filterToRemove = advancedFilters.find(f => f.id === id)
+    if (filterToRemove) {
+      if (filterToRemove.attribute === 'due_date_range') {
+        updateFilters({ dueDateFrom: '', dueDateTo: '' })
+      } else {
+        updateFilters({ [filterToRemove.attribute]: '' })
+      }
+    }
+  }, [advancedFilters, updateFilters])
+
+  const handleClearAllFilters = useCallback(() => {
+    const filterObj: Record<string, string> = {}
+    TASK_FILTER_ATTRIBUTES.forEach(attr => {
+      filterObj[attr.key] = ''
+    })
+    filterObj.dueDateFrom = ''
+    filterObj.dueDateTo = ''
     updateFilters(filterObj)
   }, [updateFilters])
 
@@ -160,19 +235,23 @@ export default function TasksSection({
           'w-full'
         )}
       >
-        <div className='flex items-center gap-2'>
-          <TableFilter
-            attributes={TASK_FILTER_ATTRIBUTES}
-            filters={advancedFilters}
-            onFiltersChange={handleFiltersChange}
-          />
-          <SearchInput
-            placeholder='Search tasks'
-            value={searchTerm}
-            onChange={e => handleSearchChange(e.target.value)}
-          />
+        <div className='flex flex-col gap-2'>
+          <div className='flex items-center gap-2'>
+            <TableFilter
+              attributes={TASK_FILTER_ATTRIBUTES}
+              filters={advancedFilters}
+              onFiltersChange={handleFiltersChange}
+            />
+            <SearchInput
+              placeholder='Search tasks'
+              value={searchTerm}
+              onChange={e => handleSearchChange(e.target.value)}
+            />
+          </div>
         </div>
-        <AddTaskDialog onSuccess={handleRefresh} />
+        <PermissionGate permission="tasks.create" fallback={null}>
+          <AddTaskDialog onSuccess={handleRefresh} />
+        </PermissionGate>
       </div>
 
       {/* Filters */}

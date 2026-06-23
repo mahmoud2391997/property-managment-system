@@ -15,7 +15,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const userType = user.user_metadata?.user_type
+    // Determine if user is tenant by checking database
+    const tenantCheck = await prisma.tenants.findUnique({
+      where: { id: user.id },
+      select: { id: true }
+    })
+    const isTenant = !!tenantCheck
+
     const body = await request.json()
     const { ticketId, message, attachment } = body as {
       ticketId: string
@@ -62,9 +68,15 @@ export async function POST(request: NextRequest) {
     let senderName: string = ''
     let senderAvatar: string | undefined
 
-    if (userType === 'tenant') {
+    if (isTenant) {
       // Tenant must own the lease
-      if (ticket.leases?.tenants?.id !== user.id) {
+      console.log('🗣️ Comment tenant check:', {
+        ticketLeaseTenantId: ticket.leases?.tenant_id,
+        currentUserId: user.id,
+        ticketId,
+        leaseId: ticket.leases?.id
+      })
+      if (ticket.leases?.tenant_id !== user.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
       senderType = 'tenant'

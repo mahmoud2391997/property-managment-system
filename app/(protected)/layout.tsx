@@ -4,26 +4,33 @@ import Sidebar, { MobileHeader } from '@/components/app-sidebar'
 import { cn } from '@/lib/utils'
 import NextTopLoader from 'nextjs-toploader'
 import { NotificationProvider } from '@/contexts/notification-context'
+import { UserProvider } from '@/contexts/user-context'
 import PasswordSetupGuard from '@/components/password-setup-guard'
 import { PullToRefresh } from '@/components/pull-to-refresh'
 import { CommandPaletteProvider } from '@/contexts/command-palette-context'
 import GlobalDialogs from '@/components/global-dialogs'
+import SecondarySidebar from '@/components/secondary-sidebar'
+import { createClient } from '@/utils/supabase/server'
+import { prisma } from '@/lib/prisma'
 
 export default async function ProtectedLayout ({
   children
 }: {
   children: React.ReactNode
 }) {
-  const cookieStore = await cookies()
-  const defaultOpen = cookieStore.get('sidebar_state')?.value === 'true'
+  const defaultOpen = true
+  const isTenant = false
+
+
   return (
     <PasswordSetupGuard>
-      <NotificationProvider>
-        <CommandPaletteProvider>
-          <SidebarProvider
-            defaultOpen={defaultOpen}
-            className='md:px-[15] px-0 flex-col'
-          >
+      <UserProvider>
+        <NotificationProvider>
+          <CommandPaletteProvider>
+            <SidebarProvider
+              defaultOpen={defaultOpen}
+              className='md:px-[15] px-0 flex-col'
+            >
             {/* Mobile Header - only visible on small screens */}
             <MobileHeader />
 
@@ -46,12 +53,14 @@ export default async function ProtectedLayout ({
                 <NextTopLoader color='#000' shadow={false} showSpinner={false} height={2} />
                 {children}
               </PullToRefresh>
+              {!isTenant && <SecondarySidebar className='hidden md:flex' />}
             </main>
 
             <GlobalDialogs />
           </SidebarProvider>
         </CommandPaletteProvider>
       </NotificationProvider>
+      </UserProvider>
     </PasswordSetupGuard>
   )
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { isLeaseActive } from '@/utils/lease-status'
 
 export async function GET(
@@ -8,10 +9,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'properties.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id: propertyId } = await params
 
     // Verify property belongs to the organization
@@ -59,9 +64,12 @@ export async function GET(
       )
     }
 
-    // Fetch active lease for this property (Current status in DB)
+    // Check if user has lease access permission
+    const hasLeaseAccess = hasPermission(permissions, 'leases.access')
+    
+    // Fetch active lease for this property (Current status in DB) only if user has permission
     // Only get property-level leases (room_id is null), not room leases
-    const lease = await prisma.leases.findFirst({
+    const lease = hasLeaseAccess ? await prisma.leases.findFirst({
       where: {
         property_id: propertyId,
         room_id: null, // Property-level lease only
@@ -116,10 +124,13 @@ export async function GET(
       orderBy: {
         created_at: 'desc'
       }
-    })
+    }) : null
 
-    // Fetch active contract for this property
-    const contract = await prisma.contracts.findFirst({
+    // Check if user has contract access permission
+    const hasContractAccess = hasPermission(permissions, 'contracts.access')
+    
+    // Fetch active contract for this property only if user has permission
+    const contract = hasContractAccess ? await prisma.contracts.findFirst({
       where: {
         property_id: propertyId
       },
@@ -155,10 +166,13 @@ export async function GET(
       orderBy: {
         created_at: 'desc'
       }
-    })
+    }) : null
 
-    // Fetch active booking for this property
-    const booking = await prisma.bookings.findFirst({
+    // Check if user has booking access permission
+    const hasBookingAccess = hasPermission(permissions, 'bookings.access')
+    
+    // Fetch active booking for this property only if user has permission
+    const booking = hasBookingAccess ? await prisma.bookings.findFirst({
       where: {
         property_id: propertyId,
         status: 'Current'
@@ -199,7 +213,7 @@ export async function GET(
       orderBy: {
         created_at: 'desc'
       }
-    })
+    }) : null
 
     // Fetch scheduled rental change for lease (if any)
     let scheduledChange = null
@@ -268,7 +282,7 @@ export async function GET(
       }
     }
 
-    // Transform lease data
+     // Transform lease data
     let leaseData = null
     if (lease) {
       const tenantName = lease.tenants.individual_tenants
@@ -287,6 +301,18 @@ export async function GET(
           const tax = charge.is_taxed ? chargeAmount * 0.08 : 0
           return sum + chargeAmount + tax
         }, 0)
+      }
+
+      // If no pending payment, calculate next due date from payment_day
+      if (!dueDate && lease.payment_day) {
+        const today = new Date()
+        const currentYear = today.getFullYear()
+        const currentMonth = today.getMonth()
+        let calculatedDueDate = new Date(currentYear, currentMonth, lease.payment_day)
+        if (calculatedDueDate < today) {
+          calculatedDueDate = new Date(currentYear, currentMonth + 1, lease.payment_day)
+        }
+        dueDate = calculatedDueDate.toISOString()
       }
 
       leaseData = {
@@ -452,15 +478,21 @@ export async function GET(
       displayStatus = 'Vacant'
     }
 
+    // Check if user has permission to create leases
+    const canCreateLeases = hasPermission(permissions, 'leases.create')
+
     // Check if property can have a new lease added
     // Property can have a lease if:
     // 1. Property status is Ready (vacant)
     // 2. No active property-level lease
     // 3. ALL rooms must be Ready (vacant) with no active leases
-    let canAddLease = true
+    let canAddLease = canCreateLeases
     let leaseBlockedReason: string | null = null
 
-    if (lease) {
+    if (!canCreateLeases) {
+      canAddLease = false
+      leaseBlockedReason = 'You do not have permission to create leases'
+    } else if (lease) {
       canAddLease = false
       leaseBlockedReason = 'Property already has an active lease'
     } else if (property.status !== 'Ready') {
@@ -486,14 +518,21 @@ export async function GET(
       }
     }
 
+    // Check if user has permission to create bookings
+    const canCreateBookings = hasPermission(permissions, 'bookings.create')
+
     // Check if property can have a new booking added
     // Property can have a booking if:
-    // 1. No current property-level booking already exists
-    // 2. No room under this property has a current booking (mutual exclusivity)
-    let canAddBooking = true
+    // 1. User has permission to create bookings
+    // 2. No current property-level booking already exists
+    // 3. No room under this property has a current booking (mutual exclusivity)
+    let canAddBooking = canCreateBookings
     let bookingBlockedReason: string | null = null
 
-    if (!booking) {
+    if (!canCreateBookings) {
+      canAddBooking = false
+      bookingBlockedReason = 'You do not have permission to create bookings'
+    } else if (!booking) {
       // Only need to check mutual exclusivity when there's no existing booking shown
       const roomWithCurrentBooking = await prisma.bookings.findFirst({
         where: {
@@ -518,6 +557,8 @@ export async function GET(
         }
       : null
 
+    const canCreateContracts = hasPermission(permissions, 'contracts.create')
+
     return NextResponse.json({
       propertyCode: property.code,
       propertyStatus: displayStatus,
@@ -528,9 +569,17 @@ export async function GET(
       canAddLease,
       leaseBlockedReason,
       canAddBooking,
-      bookingBlockedReason
+      bookingBlockedReason,
+      permissions: {
+        canViewLeases: hasLeaseAccess,
+        canViewContracts: hasContractAccess,
+        canViewBookings: hasBookingAccess,
+        canCreateLease: canCreateLeases,
+        canCreateContract: canCreateContracts,
+        canCreateBooking: canCreateBookings
+      }
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching property overview:', error)
     return NextResponse.json(
       { error: 'Failed to fetch property overview' },

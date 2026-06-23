@@ -4,6 +4,7 @@ import Input from './costume-ui/input'
 import InputGroup from './costume-ui/input-group'
 import { FeedbackToasts } from './costume-ui/feedback-toast'
 import { useRouter } from 'next/navigation'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type Props = {
   onSuccess?: () => void
@@ -12,12 +13,22 @@ type Props = {
 
 const AddAgent = ({ onSuccess, onLoadingChange }: Props) => {
   const router = useRouter()
+  const { can } = usePermissions()
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
   const [firstName, setFirstName] = useState<string>('')
   const [lastName, setLastName] = useState<string | null>(null)
   const [phoneNo, setPhoneNo] = useState<string>('')
   const [email, setEmail] = useState<string | null>(null)
+
+  // Early return if user doesn't have permission to create agents
+  if (!can('agents.create')) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        You don't have permission to create agents.
+      </div>
+    )
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

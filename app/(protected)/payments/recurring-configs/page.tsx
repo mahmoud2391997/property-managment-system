@@ -6,6 +6,7 @@ import Breadcrumb from '@/components/costume-ui/breadcrumb'
 import RecurringPaymentConfigsSection from '@/components/sections/recurring-payment-configs-section'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
 import { RecurringPaymentConfigItem } from '@/app/api/payments/recurring-configs/route'
+import { PermissionGuard } from '@/components/permission-guard'
 
 export default function RecurringPaymentConfigsPage() {
   const [data, setData] = useState<RecurringPaymentConfigItem[]>([])
@@ -37,23 +38,25 @@ export default function RecurringPaymentConfigsPage() {
   }
 
   return (
-    <div className={cn('flex flex-col gap-2.5', 'h-full')}>
-      <div>
-        <Breadcrumb
-          items={[
-            { label: 'Payments', href: '/payments' },
-            { label: 'Recurring Configs' }
-          ]}
-        />
-        <div className='flex items-baseline gap-2 mt-1'>
-          <h2>Recurring Configs</h2>
+    <PermissionGuard permission="payments.access">
+      <div className={cn('flex flex-col gap-2.5', 'h-full')}>
+        <div>
+          <Breadcrumb
+            items={[
+              { label: 'Payments', href: '/payments' },
+              { label: 'Recurring Configs' }
+            ]}
+          />
+          <div className='flex items-baseline gap-2 mt-1'>
+            <h2>Recurring Configs</h2>
+          </div>
         </div>
+        <RecurringPaymentConfigsSection
+          initialData={data}
+          initialTotal={total}
+          onRefresh={fetchConfigs}
+        />
       </div>
-      <RecurringPaymentConfigsSection
-        initialData={data}
-        initialTotal={total}
-        onRefresh={fetchConfigs}
-      />
-    </div>
+    </PermissionGuard>
   )
 }

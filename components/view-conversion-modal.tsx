@@ -83,9 +83,11 @@ const ViewConversionModal = ({
       }
     }
 
-    if (propertyId || roomId) {
+    const isValidId = (propertyId && propertyId !== 'undefined') || (roomId && roomId !== 'undefined')
+    if (isValidId) {
       fetchViews()
     }
+    // Only run when IDs change; skip initial render with undefined
   }, [propertyId, roomId])
 
   // Show modal when views are loaded, there are undecided views, and parent says we can show

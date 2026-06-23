@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
@@ -29,11 +30,29 @@ const tenantSelect = {
 }
 
 export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV === 'development') {
+    const { devTenants } = await import('@/lib/dev-data')
+    const { searchParams } = new URL(request.url)
+    const paginate = searchParams.get('paginate') === 'true'
+    if (paginate) {
+      const page = parseInt(searchParams.get('page') || '1')
+      const limit = parseInt(searchParams.get('limit') || '10')
+      const startIndex = (page - 1) * limit
+      const endIndex = startIndex + limit
+      const data = devTenants.slice(startIndex, endIndex)
+      return NextResponse.json({ success: true, data, total: devTenants.length, page, pageSize: limit })
+    }
+    return NextResponse.json(devTenants)
+  }
   try {
-    const { staff: currentStaff, error } = await getUserAndStaff()
+    const { staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'tenants.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { searchParams } = new URL(request.url)
 
     // Pagination and search params
@@ -313,10 +332,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: Request) {
   try {
-    const { user, staff: currentStaff, error } = await getUserAndStaff()
+    const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'tenants.create'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const formData = await request.formData()
     const identityType = formData.get('identityType') as string
     const identityNumber = formData.get('identityNumber') as string
@@ -359,6 +382,15 @@ export async function POST(request: Request) {
     if (!email || !email.trim()) {
       return NextResponse.json(
         { error: 'Email is required' },
+        { status: 400 }
+      )
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email.trim())) {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
         { status: 400 }
       )
     }
@@ -439,9 +471,25 @@ export async function POST(request: Request) {
         )
       }
 
+      // Check for invalid email format errors
+      if (linkError?.message?.includes('invalid email') || linkError?.message?.includes('email format')) {
+        return NextResponse.json(
+          { error: 'Invalid email format. Please check the email address.' },
+          { status: 400 }
+        )
+      }
+
+      // Check for database errors
+      if (linkError?.message?.includes('Database error')) {
+        return NextResponse.json(
+          { error: 'Authentication system error. Please try again.' },
+          { status: 500 }
+        )
+      }
+
       // Don't expose internal error details to users
       return NextResponse.json(
-        { error: 'Failed to create user account. Please try again.' },
+        { error: 'Failed to create user account. Please check the email and try again.' },
         { status: 500 }
       )
     }
@@ -605,10 +653,14 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const { user, staff: currentStaff, error } = await getUserAndStaff()
+    const { user, staff: currentStaff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'tenants.delete'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { searchParams } = new URL(request.url)
     const tenantId = searchParams.get('id')
 

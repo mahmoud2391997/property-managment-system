@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserAndStaff } from '@/utils/getUserAndStaff'
+import { hasPermission } from '@/lib/has-permission'
 
 export type RecurringConfigPaymentItem = {
   id: string
@@ -21,10 +22,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { staff, error } = await getUserAndStaff()
+    const { staff, permissions, error } = await getUserAndStaff()
 
     if (error) return error
 
+
+    if (!hasPermission(permissions, 'payments.access'))
+
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const { id: configId } = await params
 
     // Verify config belongs to organization

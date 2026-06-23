@@ -3,6 +3,7 @@ import { useState, useRef } from 'react'
 import TenantFormFields, { type TenantFormRef } from './tenant-form-fields'
 import { FeedbackToasts } from './costume-ui/feedback-toast'
 import { useRouter } from 'next/navigation'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type Props = {
   onSuccess?: () => void
@@ -12,9 +13,19 @@ type Props = {
 const AddTenant = ({ onSuccess, onLoadingChange }: Props) => {
   const router = useRouter()
   const formRef = useRef<TenantFormRef>(null)
+  const { can } = usePermissions()
 
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
+
+  // Early return if user doesn't have permission to create tenants
+  if (!can('tenants.create')) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        You don't have permission to create tenants.
+      </div>
+    )
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

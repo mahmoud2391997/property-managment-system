@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
 import TicketDetailsContent from './ticket-details-content'
+import { requirePermission } from '@/lib/server-permissions'
 
 type Props = {
   params: Promise<{ id: string }>
@@ -17,7 +18,12 @@ async function getTicketData(ticketId: string) {
     return null
   }
 
-  const userType = user.user_metadata?.user_type
+  // Determine user type by checking database, not metadata
+  const tenantCheck = await prisma.tenants.findUnique({
+    where: { id: user.id },
+    select: { id: true }
+  })
+  const isTenant = !!tenantCheck
 
   // Fetch ticket with all related data
   const ticket = await prisma.tickets.findUnique({
@@ -81,12 +87,12 @@ async function getTicketData(ticketId: string) {
   }
 
   // Access check for tenants - can only see tickets from their own leases
-  if (userType === 'tenant' && ticket.leases?.tenants?.id !== user.id) {
+  if (isTenant && ticket.leases?.tenant_id !== user.id) {
     return null
   }
 
   // Access check for staff - must be in same organization
-  if (userType !== 'tenant') {
+  if (!isTenant) {
     const staff = await prisma.staff.findUnique({
       where: { id: user.id },
       select: { organization_id: true }
@@ -167,7 +173,7 @@ async function getTicketData(ticketId: string) {
 
   // Get staff list for assignment (only for staff users)
   let staffList: { id: string; label: string; subtitle?: string }[] = []
-  if (userType !== 'tenant') {
+  if (!isTenant) {
     const staffMembers = await prisma.staff.findMany({
       where: { organization_id: ticket.organization_id },
       include: {
@@ -191,7 +197,7 @@ async function getTicketData(ticketId: string) {
   let currentUserName = 'Unknown'
   let currentUserAvatar: string | undefined
 
-  if (userType === 'tenant') {
+  if (isTenant) {
     const tenant = await prisma.tenants.findUnique({
       where: { id: user.id },
       include: { individual_tenants: true, company_tenants: true }
@@ -226,7 +232,7 @@ async function getTicketData(ticketId: string) {
 
   return {
     ticket: serializedTicket,
-    userType: userType as 'staff' | 'tenant',
+    userType: isTenant ? 'tenant' : 'staff',
     staffList,
     currentUserName,
     currentUserAvatar,
@@ -237,6 +243,20 @@ async function getTicketData(ticketId: string) {
 }
 
 export default async function TicketDetailsPage({ params }: Props) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  // Check if user is tenant
+  const tenantCheck = await prisma.tenants.findUnique({
+    where: { id: user?.id || '' },
+    select: { id: true }
+  })
+  const isTenant = !!tenantCheck
+
+  if (!isTenant) {
+    await requirePermission('tickets.access')
+  }
+
   const { id } = await params
   const data = await getTicketData(id)
 
@@ -247,7 +267,7 @@ export default async function TicketDetailsPage({ params }: Props) {
   return (
     <TicketDetailsContent
       ticket={data.ticket}
-      userType={data.userType}
+      userType={data.userType as 'staff' | 'tenant'}
       staffList={data.staffList}
       currentUserName={data.currentUserName}
       currentUserAvatar={data.currentUserAvatar}

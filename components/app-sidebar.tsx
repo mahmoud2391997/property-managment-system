@@ -46,14 +46,16 @@ import { UserAvatar } from './costume-ui/name-avatar'
 import ConfirmationDialog from './costume-ui/confirmation-dialog'
 import { CommandPalette, CommandPaletteTrigger } from './command-palette'
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
+import { usePermissions } from '@/hooks/use-permissions'
 
 export default function AppSidebar () {
+  const { can } = usePermissions()
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
   const [sidebarHovered, setSidebarHovered] = useState<boolean>(false)
   const [userType, setUserType] = useState<'staff' | 'tenant' | null>(null)
   const [userInfo, setUserInfo] = useState<{
     firstName: string
-    lastName: string
+    lastName: string | null
     profileThumb: string | null
     role: string
   } | null>(null)
@@ -109,9 +111,11 @@ export default function AppSidebar () {
     label: string
     width?: string
     href?: string
+    permission?: string
     subMenu?: {
       label: string
       href?: string
+      permission: string
     }[]
   }
 
@@ -121,21 +125,23 @@ export default function AppSidebar () {
       icon: GaugeIcon,
       label: 'Dashboard',
       width: 'w-6!',
-      href: '/dashboard'
+      href: '/dashboard',
+      permission: 'dashboard.access'
     },
     {
       icon: ProjectIcon,
       label: 'Projects',
       width: 'w-6!',
-      href: '/projects'
+      href: '/projects',
+      permission: 'projects.access'
     },
     {
       icon: HouseIcon,
       label: 'Properties',
       width: 'w-5.5!',
       subMenu: [
-        { label: 'Properties', href: '/properties' },
-        { label: 'Rooms', href: '/rooms' }
+        { label: 'Properties', href: '/properties', permission: 'properties.access' },
+        { label: 'Rooms', href: '/rooms', permission: 'rooms.access' }
       ]
     },
     {
@@ -143,8 +149,8 @@ export default function AppSidebar () {
       label: 'Transactions',
       width: 'w-6! -mr-0.5',
       subMenu: [
-        { label: 'Payments', href: '/payments' },
-        { label: 'Expenses', href: '/expenses' }
+        { label: 'Payments', href: '/payments', permission: 'payments.access' },
+        { label: 'Expenses', href: '/expenses', permission: 'expenses.access' }
       ]
     },
     {
@@ -152,45 +158,50 @@ export default function AppSidebar () {
       label: 'People',
       width: 'w-6!',
       subMenu: [
-        { label: 'Tenants', href: '/tenants' },
-        { label: 'Owners', href: '/owners' },
-        { label: 'Agents', href: '/agents' },
-        { label: 'Vendors', href: '/vendors' },
-        { label: 'Staff', href: '/staff' }
+        { label: 'Tenants', href: '/tenants', permission: 'tenants.access' },
+        { label: 'Owners', href: '/owners', permission: 'owners.access' },
+        { label: 'Agents', href: '/agents', permission: 'agents.access' },
+        { label: 'Vendors', href: '/vendors', permission: 'vendors.access' },
+        { label: 'Staff', href: '/staff', permission: 'staff.access' }
       ]
     },
+  
     {
       icon: ScreeningIcon,
       label: 'Tenant Screening',
       width: 'w-5!',
-      href: '/tenant-screening'
+      href: '/tenant-screening',
+      permission: 'tenant_screening.access'
     },
     {
       icon: ClipboardIcon,
       label: 'Work Operations',
       width: 'w-5! ml-[1px]! mr-1!',
       subMenu: [
-        { label: 'Tickets', href: '/tickets' },
-        { label: 'Tasks', href: '/tasks' }
+        { label: 'Tickets', href: '/tickets', permission: 'tickets.access' },
+        { label: 'Tasks', href: '/tasks', permission: 'tasks.access' }
       ]
     },
     {
       icon: NoticesIcon,
       label: 'Notices',
       width: 'w-5!',
-      href: '/notices'
+      href: '/notices',
+      permission: 'notices.access'
     },
     {
       icon: NotificationIcon,
       label: 'Notifications',
       width: 'w-4.5!',
-      href: '/notifications'
+      href: '/notifications',
+      permission: 'notifications.access'
     },
     {
       icon: ReportsIcon,
       label: 'Reports',
       width: 'w-5!',
-      href: '/reports'
+      href: '/reports',
+      permission: 'reports.access'
     }
   ]
 
@@ -199,7 +210,8 @@ export default function AppSidebar () {
       icon: HouseIcon,
       label: 'Rentals',
       width: 'w-5.5!',
-      href: '/rentals'
+      href: '/rentals',
+      permission: 'leases.access'
     },
     {
       icon: TransactionsIcon,
@@ -222,12 +234,23 @@ export default function AppSidebar () {
   ]
 
   // Don't render menu items until userType is loaded
-  const menuItemContent =
+  const baseMenuItems =
     userType === null
       ? []
       : userType === 'tenant'
       ? tenantMenuItems
       : staffMenuItems
+
+  // Apply permission filtering to staff menu items only
+  // Tenants get their full menu without permission checks
+  const menuItemContent = userType === 'staff' 
+    ? baseMenuItems
+        .map(item => item.subMenu
+          ? { ...item, subMenu: item.subMenu.filter(s => can(s.permission)) }
+          : item
+        )
+        .filter(item => item.subMenu ? item.subMenu.length > 0 : can(item.permission || ''))
+    : baseMenuItems // For tenants, show all their menu items without permission filtering
 
   // const helpItemContent: menuItemContentType[] = [
   //   {
@@ -563,7 +586,7 @@ export default function AppSidebar () {
               !effectiveSidebarOpen && 'hidden'
             )}>
               <UserAvatar
-                name={`${userInfo.firstName} ${userInfo.lastName}`.trim()}
+                name={`${userInfo.firstName}${userInfo.lastName ? ` ${userInfo.lastName}` : ''}`.trim()}
                 imgSrc={userInfo.profileThumb || undefined}
                 size={30}
                 className='shrink-0 text-sm'

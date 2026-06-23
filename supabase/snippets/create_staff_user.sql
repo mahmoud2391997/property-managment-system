@@ -19,7 +19,7 @@
 DO $$
 DECLARE
   -- ============ EDIT THESE ============
-  v_email             text := 'newstaff@example.com';
+  v_email             text := 'staffuser' || (SELECT COUNT(*)::text FROM auth.users WHERE email LIKE 'staffuser%') || '@example.com';
   v_password          text := 'ChangeMe123!';          -- minimum 6 chars; tell the user to change after first login
   v_first_name        text := 'Jane';
   v_last_name         text := 'Doe';                    -- optional, can be NULL
@@ -31,7 +31,7 @@ DECLARE
   v_organization_title text := 'EzyFusion';             -- will be created if it doesn't exist
   v_organization_type  public.organization_type := 'Property Manager';  -- valid values: 'Owner', 'Property Manager'
 
-  v_role_title         text := 'Admin';                 -- will be created if it doesn't exist for this org
+  v_role_title         text := 'Owner';                 -- will be created if it doesn't exist for this org
   -- ====================================
 
   v_user_id        uuid := gen_random_uuid();

@@ -1,5 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react'
+import { usePermissions } from '@/hooks/use-permissions'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
@@ -23,6 +24,7 @@ import { toast } from 'sonner'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import { buildWhatsAppLink, buildEmailLink } from '@/utils/functions'
 import EditTenantDialog from '@/components/dialogs/edit-tenant-dialog'
+import { PermissionGate } from '@/components/permission-gate'
 
 type TenantBasicInfo = {
   id: string
@@ -54,20 +56,25 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   const lastSegment = segments[segments.length - 1]
   const routes = ['overview', 'leases']
 
+  const { can } = usePermissions()
+
+  const allTabs = [
+    { label: 'Overview', route: routes[0], permission: 'tenants.access' },
+    { label: 'Leases', route: routes[1], permission: 'leases.access' }
+  ]
+
+  const visibleTabs = allTabs.filter(t => can(t.permission))
+
   const {
     options: tabs,
     selectByIndex,
     selectedIndex
-  } = useSingleSelectOption([
-    {
-      label: 'Overview',
-      isSelected: lastSegment === routes[0] || lastSegment === tenantId
-    },
-    {
-      label: 'Leases',
-      isSelected: lastSegment === routes[1]
-    }
-  ])
+  } = useSingleSelectOption(
+    visibleTabs.map(t => ({
+      label: t.label,
+      isSelected: lastSegment === t.route || (lastSegment === tenantId && t.route === 'overview')
+    }))
+  )
 
   const fetchTenantInfo = async () => {
     setIsLoading(true)
@@ -95,7 +102,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
   }
 
   const handleTabClick = (index: number) => {
-    const route = routes[index]
+    const route = visibleTabs[index]?.route
     if (route) {
       router.push(`/tenants/${tenantId}/${route}`)
     }
@@ -200,18 +207,20 @@ const WithHeadSectionLayout = ({ children }: Props) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              {tenantInfo && (
-                <EditTenantDialog
-                  tenantId={tenantId}
-                  initialData={tenantInfo}
-                  trigger={
-                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                      Edit Tenant
-                    </DropdownMenuItem>
-                  }
-                  onSuccess={handleEditSuccess}
-                />
-              )}
+              <PermissionGate permission='tenants.update'>
+                {tenantInfo && (
+                  <EditTenantDialog
+                    tenantId={tenantId}
+                    initialData={tenantInfo}
+                    trigger={
+                      <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                        Edit Tenant
+                      </DropdownMenuItem>
+                    }
+                    onSuccess={handleEditSuccess}
+                  />
+                )}
+              </PermissionGate>
               <DropdownMenuSeparator />
               {tenantInfo?.phone_number && (
                 <DropdownMenuItem
@@ -261,24 +270,26 @@ const WithHeadSectionLayout = ({ children }: Props) => {
                 </>
               )}
               <DropdownMenuSeparator />
-              <ConfirmationDialog
-                openDialogButton={
-                  <button type='button' className='delete-dropdown-button'>
-                    Delete Tenant
-                  </button>
-                }
-                title='Delete Tenant'
-                description={
-                  <>
-                    Are you sure you want to delete{' '}
-                    <strong>{displayName}</strong>? This action cannot be
-                    undone. All associated data will be permanently removed.
-                  </>
-                }
-                onConfirm={handleDeleteTenant}
-                confirmButtonLabel='Delete'
-                confirmButtonLoadingLabel='Deleting...'
-              />
+              <PermissionGate permission='tenants.delete'>
+                <ConfirmationDialog
+                  openDialogButton={
+                    <button type='button' className='delete-dropdown-button'>
+                      Delete Tenant
+                    </button>
+                  }
+                  title='Delete Tenant'
+                  description={
+                    <>
+                      Are you sure you want to delete{' '}
+                      <strong>{displayName}</strong>? This action cannot be
+                      undone. All associated data will be permanently removed.
+                    </>
+                  }
+                  onConfirm={handleDeleteTenant}
+                  confirmButtonLabel='Delete'
+                  confirmButtonLoadingLabel='Deleting...'
+                />
+              </PermissionGate>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

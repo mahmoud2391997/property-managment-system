@@ -10,13 +10,24 @@ import Link from 'next/link'
 import { PaymentWithDetails } from '@/lib/payments-utils'
 import { usePaginatedSearch } from '@/hooks/use-paginated-search'
 import { Tab, TabGroup } from '../costume-ui/tab'
-import { useEffect, useCallback, useMemo } from 'react'
+import { useEffect, useCallback, useMemo, useState } from 'react'
 import TableFilter, { type FilterAttribute, type FilterValue } from '../costume-ui/table-filter'
+import { usePermissions } from '@/hooks/use-permissions'
+import { PermissionGate } from '@/components/permission-gate'
+import { NoAccessCard } from '@/components/no-access-card'
 
-// Define filterable attributes for payments
-const PAYMENT_FILTER_ATTRIBUTES: FilterAttribute[] = [
-  { key: 'payment_id', label: 'Payment ID', type: 'text' },
-  { key: 'lease_id', label: 'Lease ID', type: 'text' },
+// Define filterable attributes for payments (lease ID filter is conditional)
+const getPaymentFilterAttributes = (can: (permission: string) => boolean): FilterAttribute[] => {
+  const baseAttributes: FilterAttribute[] = [
+    { key: 'payment_id', label: 'Payment ID', type: 'text' },
+  ]
+  
+  // Only add lease ID filter if user has lease access permission
+  if (can('leases.access')) {
+    baseAttributes.push({ key: 'lease_id', label: 'Lease ID', type: 'text' })
+  }
+  
+  baseAttributes.push(
   {
     key: 'type',
     label: 'Type',
@@ -25,7 +36,7 @@ const PAYMENT_FILTER_ATTRIBUTES: FilterAttribute[] = [
       // Booking
       { value: 'Booking', label: 'Booking' },
       // Core rent
-      { value: 'Rental', label: 'Rental' },
+      { value: 'Rental', label: 'Rent' },
       { value: 'Rental_Adjustment', label: 'Rental Adjustment' },
       { value: 'Lease_Initial_Charges', label: 'Lease Initial Charges' },
       // Utilities
@@ -52,8 +63,16 @@ const PAYMENT_FILTER_ATTRIBUTES: FilterAttribute[] = [
     ]
   },
   { key: 'property', label: 'Property', type: 'text' },
-  { key: 'tenant_name', label: 'Tenant', type: 'text' }
-]
+  { key: 'tenant_name', label: 'Tenant', type: 'text' },
+  { key: 'due_month', label: 'Due Month', type: 'month' },
+  { key: 'due_date', label: 'Due Date', type: 'date' },
+  { key: 'due_date_range', label: 'Due Date Range', type: 'dateRange' },
+  { key: 'dueDateFrom', label: 'Due From', type: 'date' },
+  { key: 'dueDateTo', label: 'Due To', type: 'date' }
+  )
+  
+  return baseAttributes
+}
 
 interface PaymentsSectionProps {
   initialData: PaymentWithDetails[]
@@ -66,6 +85,8 @@ export default function PaymentsSection ({
   initialTotal,
   userType
 }: PaymentsSectionProps) {
+  const { can } = usePermissions()
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
   const {
     data,
     isLoading,
@@ -93,15 +114,25 @@ export default function PaymentsSection ({
       type: '',
       recurring_pattern: '',
       property: '',
-      tenant_name: ''
+      tenant_name: '',
+      due_month: '',
+      due_date: '',
+      dueDateFrom: '',
+      dueDateTo: ''
     },
     // Map filter keys to actual data property names
     filterKeyMapping: {
       payment_id: 'id',
-      lease_id: 'lease_reference_id'
+      lease_id: 'lease_reference_id',
+      due_month: 'due_date',
+      due_date: 'due_date',
+      dueDateFrom: 'due_date',
+      dueDateTo: 'due_date'
     },
     // Text filters use partial/case-insensitive matching
-    textFilterKeys: ['payment_id', 'lease_id', 'property', 'tenant_name']
+    textFilterKeys: ['payment_id', 'lease_id', 'property', 'tenant_name'],
+    monthFilterKeys: ['due_month'],
+    dateFilterKeys: ['due_date', 'dueDateFrom', 'dueDateTo']
   })
 
   const statusOptions = ['all', 'Paid', 'Paid Late', 'Partially Paid', 'Overdue', 'Pending', 'Cancelled']
@@ -116,9 +147,23 @@ export default function PaymentsSection ({
 
   // Convert activeFilters (Record) to FilterValue[] for TableFilter component
   const advancedFilters = useMemo((): FilterValue[] => {
-    return Object.entries(activeFilters)
-      .filter(([key, value]) => value && key !== 'status') // Exclude status (handled by tabs)
-      .map(([key, value]) => ({ id: key, attribute: key, value }))
+    const filters: FilterValue[] = []
+    const from = activeFilters.dueDateFrom
+    const to = activeFilters.dueDateTo
+    
+    // Combine dueDateFrom/dueDateTo into single due_date_range filter for display
+    if (from || to) {
+      filters.push({ id: 'due_date_range', attribute: 'due_date_range', value: `${from || ''},${to || ''}` })
+    }
+    
+    // Add all other filters
+    Object.entries(activeFilters)
+      .filter(([key, value]) => value && key !== 'status' && key !== 'dueDateFrom' && key !== 'dueDateTo')
+      .forEach(([key, value]) => {
+        filters.push({ id: key, attribute: key, value })
+      })
+    
+    return filters
   }, [activeFilters])
 
   // Handle advanced filters change - convert FilterValue[] to Record and update
@@ -128,19 +173,64 @@ export default function PaymentsSection ({
     // Set values for active filters
     newFilters.forEach(f => {
       if (f.attribute && f.value) {
-        filterObj[f.attribute] = f.value
+        if (f.attribute === 'due_date_range') {
+          const parts = f.value.split(',')
+          if (parts[0]) filterObj.dueDateFrom = parts[0].trim()
+          if (parts[1]) filterObj.dueDateTo = parts[1].trim()
+          // Clear other date filters
+          filterObj.due_date = ''
+          filterObj.due_month = ''
+        } else if (f.attribute === 'due_date') {
+          filterObj.due_date = f.value
+          // Clear other date filters
+          filterObj.dueDateFrom = ''
+          filterObj.dueDateTo = ''
+          filterObj.due_month = ''
+        } else if (f.attribute === 'due_month') {
+          filterObj.due_month = f.value
+          // Clear other date filters
+          filterObj.due_date = ''
+          filterObj.dueDateFrom = ''
+          filterObj.dueDateTo = ''
+        } else {
+          filterObj[f.attribute] = f.value
+        }
       }
     })
 
     // Clear filters that were removed
-    PAYMENT_FILTER_ATTRIBUTES.forEach(attr => {
+    getPaymentFilterAttributes(can).forEach(attr => {
       if (!filterObj[attr.key]) {
         filterObj[attr.key] = ''
       }
     })
+    // Also clear expanded date range filters
+    if (!filterObj.dueDateFrom) filterObj.dueDateFrom = ''
+    if (!filterObj.dueDateTo) filterObj.dueDateTo = ''
 
     updateFilters(filterObj)
-  }, [updateFilters])
+  }, [updateFilters, can])
+
+  const handleRemoveFilter = useCallback((id: string) => {
+    const filterToRemove = advancedFilters.find(f => f.id === id)
+    if (filterToRemove) {
+      if (filterToRemove.attribute === 'due_date_range') {
+        updateFilters({ dueDateFrom: '', dueDateTo: '' })
+      } else {
+        updateFilters({ [filterToRemove.attribute]: '' })
+      }
+    }
+  }, [advancedFilters, updateFilters])
+
+  const handleClearAllFilters = useCallback(() => {
+    const filterObj: Record<string, string> = {}
+    getPaymentFilterAttributes(can).forEach(attr => {
+      filterObj[attr.key] = ''
+    })
+    filterObj.dueDateFrom = ''
+    filterObj.dueDateTo = ''
+    updateFilters(filterObj)
+  }, [updateFilters, can])
 
   // Listen for payment updates from the payment gateway return flow
   useEffect(() => {
@@ -167,21 +257,25 @@ export default function PaymentsSection ({
           'w-full'
         )}
       >
-        <div className='flex items-center gap-2'>
-          <TableFilter
-            attributes={PAYMENT_FILTER_ATTRIBUTES}
-            filters={advancedFilters}
-            onFiltersChange={handleFiltersChange}
-          />
-          <SearchInput
-            placeholder='Search payments'
-            value={searchTerm}
-            onChange={e => handleSearchChange(e.target.value)}
-          />
+        <div className='flex flex-col gap-2 w-full sm:w-auto flex-1 max-w-md'>
+          <div className='flex items-center gap-2'>
+            <TableFilter
+              attributes={getPaymentFilterAttributes(can)}
+              filters={advancedFilters}
+              onFiltersChange={handleFiltersChange}
+              open={isFilterOpen}
+              onOpenChange={setIsFilterOpen}
+            />
+            <SearchInput
+              placeholder='Search payments'
+              value={searchTerm}
+              onChange={e => handleSearchChange(e.target.value)}
+            />
+          </div>
         </div>
         {/* Buttons */}
-        {userType === 'staff' && (
-          <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
+        <div className={cn('flex items-center gap-2.5', 'sm:py-5 py-2')}>
+          <PermissionGate permission="recurring.access" fallback={null}>
             <Link href='/payments/recurring-configs' className='flex-1 sm:flex-none'>
               <Button
                 variant='secondary'
@@ -190,6 +284,8 @@ export default function PaymentsSection ({
                 className='w-full'
               />
             </Link>
+          </PermissionGate>
+          <PermissionGate permission="payments.create" fallback={null}>
             <Link href='/payments/add-payment' className='flex-1 sm:flex-none'>
               <Button
                 icon={<AddButtonIcon className='text-neutral-300' />}
@@ -197,8 +293,8 @@ export default function PaymentsSection ({
                 className='w-full'
               />
             </Link>
-          </div>
-        )}
+          </PermissionGate>
+        </div>
       </div>
 
       {/* Status Tabs */}
@@ -220,6 +316,7 @@ export default function PaymentsSection ({
           data={data}
           userType={userType}
           isLoading={isLoading}
+          hasServerPagination={true}
           currentPage={currentPage}
           totalItems={total}
           pageSize={pageSize}
@@ -227,6 +324,7 @@ export default function PaymentsSection ({
           canGoPrevious={canGoPrevious}
           onNextPage={goToNextPage}
           onPreviousPage={goToPreviousPage}
+          refreshingPaymentId={null}
         />
       </div>
     </>

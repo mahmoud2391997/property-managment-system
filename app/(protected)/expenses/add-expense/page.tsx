@@ -43,6 +43,7 @@ import {
 import { useState, useEffect, useMemo } from 'react'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { formatDateForAPI } from '@/utils/formatTime'
+import { PermissionGuard } from '@/components/permission-guard'
 
 const CATEGORY_MAP = [
   'Property_Related',
@@ -1051,7 +1052,8 @@ const AddExpense = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
+    <PermissionGuard permission="expenses.create">
+      <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
       <AddPageHead
         crumb_items={[
           { label: 'Expenses', href: '/expenses' },
@@ -2090,7 +2092,8 @@ const AddExpense = () => {
         message={alertMessage}
         type={alertType}
       />
-    </form>
+      </form>
+    </PermissionGuard>
   )
 }
 
