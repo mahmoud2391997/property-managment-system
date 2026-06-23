@@ -12,13 +12,14 @@ export default function PasswordSetupGuard({
   const router = useRouter()
   const pathname = usePathname()
   const [isChecking, setIsChecking] = useState(true)
+  const [shouldShowChildren, setShouldShowChildren] = useState(false)
 
   useEffect(() => {
     let isMounted = true
 
     const checkUserStatus = async () => {
       // Skip check if already on setup-password page
-      if (pathname === '/setup-password') {
+      if (pathname?.includes('setup-password')) {
         if (isMounted) setIsChecking(false)
         return
       }
@@ -31,6 +32,7 @@ export default function PasswordSetupGuard({
 
         if (!user) {
           setIsChecking(false)
+          router.replace('/login')
           return
         }
 
@@ -44,10 +46,18 @@ export default function PasswordSetupGuard({
         // Check password_set in app_metadata
         const passwordSet = user.app_metadata?.password_set === true
 
-        if (!passwordSet && isMounted) {
+        if (!passwordSet) {
           // Password not set - redirect to setup
-          router.push('/setup-password')
-        } else if (isMounted) {
+          if (isMounted) {
+            setIsChecking(false)
+          }
+          router.replace('/setup-password')
+          return
+        }
+
+        // All checks passed
+        if (isMounted) {
+          setShouldShowChildren(true)
           setIsChecking(false)
         }
       } catch (error) {
@@ -69,6 +79,10 @@ export default function PasswordSetupGuard({
         <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     )
+  }
+
+  if (!shouldShowChildren) {
+    return null
   }
 
   return <>{children}</>

@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { cn } from '@/lib/utils'
 import TicketsSection from '@/components/tickets-section'
 import { devTickets } from '@/lib/dev-data'
@@ -8,11 +9,13 @@ export default function TicketsPage() {
       <div>
         <h1>Tickets</h1>
       </div>
-      <TicketsSection
-        initialData={devTickets}
-        initialTotal={devTickets.length}
-        userType="staff"
-      />
+      <Suspense fallback={<div className="flex items-center justify-center p-8">Loading...</div>}>
+        <TicketsSection
+          initialData={devTickets}
+          initialTotal={devTickets.length}
+          userType="staff"
+        />
+      </Suspense>
     </div>
   )
 }
