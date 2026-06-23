@@ -25,7 +25,6 @@ import { formatDate } from '@/utils/formatTime'
 import { formatPaymentTypeLabel, buildWhatsAppLink } from '@/utils/functions'
 import { cn } from '@/lib/utils'
 import Swal from 'sweetalert2'
-import type { PaymentDetailsData } from './page'
 import { usePermissions } from '@/hooks/use-permissions'
 import {
   MoreHorizontal,
@@ -54,7 +53,7 @@ import {
 } from 'lucide-react'
 
 type Props = {
-  payment: PaymentDetailsData
+  payment: any
   userType: 'staff' | 'tenant'
 }
 

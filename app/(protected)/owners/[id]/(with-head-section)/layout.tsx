@@ -55,14 +55,14 @@ const WithHeadSectionLayout = ({ children }: Props) => {
     { label: 'Contracts', route: routes[1], permission: 'contracts.access' }
   ]
 
-  const visibleTabs = allTabs.filter(t => can(t.permission))
+  const visibleTabs = allTabs.filter((t: any) => can(t.permission))
 
   const {
     options: tabs,
     selectByIndex,
     selectedIndex
   } = useSingleSelectOption(
-    visibleTabs.map(t => ({
+    visibleTabs.map((t: any) => ({
       label: t.label,
       isSelected: lastSegment === t.route || (lastSegment === ownerId && t.route === 'overview')
     }))

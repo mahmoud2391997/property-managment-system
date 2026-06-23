@@ -268,8 +268,8 @@ export default function ContractsContent({ ownerId }: Props) {
     return <EmptyState />
   }
 
-  const currentContracts = contracts.filter(c => c.status === 'Current')
-  const pastContracts = contracts.filter(c => c.status !== 'Current')
+  const currentContracts = contracts.filter((c: any) => c.status === 'Current')
+  const pastContracts = contracts.filter((c: any) => c.status !== 'Current')
 
   return (
     <div className='flex flex-col gap-6'>

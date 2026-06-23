@@ -100,7 +100,7 @@ function calculateOverlappingEvents(events: FullEvent[]): PositionedEvent[] {
     }
   }
 
-  return sorted.map(e => positionedEvents.get(e.id)!)
+  return sorted.map((e: any) => positionedEvents.get(e.id)!)
 }
 
 export default function HourGrid({ selectedDate, onEventClick, initialEvents, dataVersion }: HourGridProps) {
@@ -201,8 +201,8 @@ export default function HourGrid({ selectedDate, onEventClick, initialEvents, da
             </div>
 
             {/* Event Columns */}
-            {Array.from({ length: Math.max(1, events.length > 0 ? Math.max(...events.map(e => e.totalColumns)) : 1) }).map((_, colIndex) => {
-              const colEvents = events.filter(e => e.column === colIndex).sort((a, b) => (a.startHour * 60 + a.startMinute) - (b.startHour * 60 + b.startMinute))
+            {Array.from({ length: Math.max(1, events.length > 0 ? Math.max(...events.map((e: any) => e.totalColumns)) : 1) }).map((_, colIndex) => {
+              const colEvents = events.filter((e: any) => e.column === colIndex).sort((a, b) => (a.startHour * 60 + a.startMinute) - (b.startHour * 60 + b.startMinute))
               let lastEndMinutes = 0
 
               return (

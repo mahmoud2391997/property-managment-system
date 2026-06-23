@@ -398,13 +398,13 @@ const EditRoom = ({ params }: PageProps) => {
           defaultConfig={{
             monthlyRent: leaseConfig?.default_monthly_rent?.toString() || '',
             paymentDay: leaseConfig?.default_payment_day || 1,
-            initialCharges: existingInitialCharges.map(c => ({
+            initialCharges: existingInitialCharges.map((c: any) => ({
               type: c.type,
               amount: c.amount,
               is_taxed: c.is_taxed,
               is_refundable: c.is_refundable
             })),
-            lateCharges: existingLateCharges.map(c => ({
+            lateCharges: existingLateCharges.map((c: any) => ({
               days_after_due: c.days_after_due,
               amount: c.amount
             }))

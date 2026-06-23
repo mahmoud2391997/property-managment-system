@@ -178,7 +178,7 @@ async function getTicketData(ticketId: string) {
         }
       }
     })
-    staffList = staffMembers.map(s => {
+    staffList = staffMembers.map((s: any) => {
       const isCurrentUser = s.id === user.id
       const name = `${s.first_name} ${s.last_name || ''}`.trim()
       return {

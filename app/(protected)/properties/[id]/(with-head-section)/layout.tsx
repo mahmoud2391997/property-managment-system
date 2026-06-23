@@ -61,7 +61,7 @@ const WithHeadSectionLayout = ({ children }: Props) => {
     { label: 'Contracts', href: `/properties/${id}/contracts`, permission: 'contracts.access' },
   ]
 
-  const filteredTabs = TABS.filter(t => can(t.permission))
+  const filteredTabs = TABS.filter((t: any) => can(t.permission))
 
   const {
     options: tabOptions,

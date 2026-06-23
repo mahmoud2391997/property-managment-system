@@ -39,7 +39,6 @@ import {
 import { useState, useEffect, useMemo } from 'react'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { useRouter } from 'next/navigation'
-import type { EditExpenseData } from './page'
 
 const CATEGORY_MAP = [
   'Property_Related',
@@ -91,7 +90,7 @@ type Deduction = { title: string; amount: string }
 type Allowance = { title: string; amount: string }
 
 type Props = {
-  expense: EditExpenseData
+  expense: any
 }
 
 export default function EditExpenseContent ({ expense }: Props) {
@@ -132,11 +131,11 @@ export default function EditExpenseContent ({ expense }: Props) {
       }
       // Non-refund: show all except Refund
       return allTypes
-        .filter(t => t.type !== 'Refund')
-        .map(t => ({ label: formatPaymentTypeLabel(t.type), value: t.type }))
+        .filter((t: any) => t.type !== 'Refund')
+        .map((t: any) => ({ label: formatPaymentTypeLabel(t.type), value: t.type }))
     }
 
-    return allTypes.map(t => ({
+    return allTypes.map((t: any) => ({
       label: formatPaymentTypeLabel(t.type),
       value: t.type
     }))
@@ -203,16 +202,16 @@ export default function EditExpenseContent ({ expense }: Props) {
     expense.staff_expense?.tax?.toString() || ''
   )
   const [deductions, setDeductions] = useState<Deduction[]>(
-    expense.deduction_charges.map(d => ({
+    expense.deduction_charges?.map((d: any) => ({
       title: d.title,
       amount: d.amount.toString()
-    }))
+    })) || []
   )
   const [allowances, setAllowances] = useState<Allowance[]>(
     // For staff expenses (Salary or Allowances type), charges are the allowances
     expense.category === 'Staff_Related' &&
       (currentType === 'Allowances' || currentType === 'Salary')
-      ? expense.charges.map(c => ({
+      ? expense.charges.map((c: any) => ({
           title: c.title,
           amount: c.amount.toString()
         }))
@@ -420,7 +419,7 @@ export default function EditExpenseContent ({ expense }: Props) {
   // Default charges for ChargesSection
   const defaultCharges: DefaultCharge[] | undefined =
     !isStaffSalary && !isStaffAllowances && expense.charges.length > 0
-      ? expense.charges.map(c => ({
+      ? expense.charges.map((c: any) => ({
           type: c.title,
           amount: c.amount,
           is_taxed: c.is_taxed,
@@ -603,8 +602,8 @@ export default function EditExpenseContent ({ expense }: Props) {
       let chargesPayload: any[] = []
       if (isStaffSalary || isStaffAllowances) {
         chargesPayload = allowances
-          .filter(a => a.title && (parseFloat(a.amount) || 0) > 0)
-          .map(a => ({
+          .filter((a: any) => a.title && (parseFloat(a.amount) || 0) > 0)
+          .map((a: any) => ({
             type: a.title,
             amount: a.amount,
             isTaxableChecked: false,
@@ -1194,7 +1193,7 @@ export default function EditExpenseContent ({ expense }: Props) {
                       </div>
                     )}
                     {deductions
-                      .filter(d => parseFloat(d.amount) > 0)
+                      .filter((d: any) => parseFloat(d.amount) > 0)
                       .map((d, i) => (
                         <div
                           key={i}

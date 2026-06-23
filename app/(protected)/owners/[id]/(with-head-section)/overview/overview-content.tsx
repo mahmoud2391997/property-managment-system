@@ -488,7 +488,7 @@ export default function OverviewContent({ ownerId }: Props) {
     )
   }
 
-  const currentContracts = data.contracts.filter(c => c.status === 'Current')
+  const currentContracts = data.contracts.filter((c: any) => c.status === 'Current')
 
   return (
     <div className='flex flex-col gap-5'>

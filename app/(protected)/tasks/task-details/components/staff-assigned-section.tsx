@@ -45,7 +45,7 @@ export default function StaffAssignedSection({
   const [cancelReason, setCancelReason] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const staffItems = staffList.map(s => ({
+  const staffItems = staffList.map((s: any) => ({
     id: s.id,
     label: s.name,
     subtitle: s.role
