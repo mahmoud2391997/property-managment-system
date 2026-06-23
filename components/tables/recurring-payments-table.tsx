@@ -28,7 +28,6 @@ import { cn } from '@/lib/utils'
 import { formatDate } from '@/utils/formatTime'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { Table } from '../costume-ui/table'
-import { RecurringConfigWithDetails } from '@/app/api/properties/[id]/recurring-configs/route'
 import RecurringPaymentsNestedTable from './recurring-payments-nested-table'
 
 type Props = {

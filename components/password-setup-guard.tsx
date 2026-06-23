@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import { createClient } from '@/utils/supabase/client'
+import { useRouter } from 'next/navigation'
+import { mockGetCurrentUser } from '@/lib/mock-auth'
 
 export default function PasswordSetupGuard({
   children
@@ -10,79 +10,36 @@ export default function PasswordSetupGuard({
   children: React.ReactNode
 }) {
   const router = useRouter()
-  const pathname = usePathname()
-  const [isChecking, setIsChecking] = useState(true)
-  const [shouldShowChildren, setShouldShowChildren] = useState(false)
+  const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
     let isMounted = true
 
-    const checkUserStatus = async () => {
-      // Skip check if already on setup-password page
-      if (pathname?.includes('setup-password')) {
-        if (isMounted) setIsChecking(false)
-        return
-      }
-
-      try {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-
-        if (!isMounted) return
-
-        if (!user) {
-          setIsChecking(false)
-          router.replace('/login')
-          return
-        }
-
-        // Check if user was invited
-        const wasInvited = !!user.invited_at
-        if (!wasInvited) {
-          setIsChecking(false)
-          return
-        }
-
-        // Check password_set in app_metadata
-        const passwordSet = user.app_metadata?.password_set === true
-
-        if (!passwordSet) {
-          // Password not set - redirect to setup
-          if (isMounted) {
-            setIsChecking(false)
-          }
-          router.replace('/setup-password')
-          return
-        }
-
-        // All checks passed
+    const checkAuth = () => {
+      const user = mockGetCurrentUser()
+      
+      if (!user) {
+        router.replace('/login')
+      } else {
         if (isMounted) {
-          setShouldShowChildren(true)
-          setIsChecking(false)
+          setIsReady(true)
         }
-      } catch (error) {
-        console.error('Error checking user status:', error)
-        if (isMounted) setIsChecking(false)
       }
     }
 
-    checkUserStatus()
+    checkAuth()
 
     return () => {
       isMounted = false
     }
-  }, [pathname, router])
+  }, [router])
 
-  if (isChecking) {
+  if (!isReady) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     )
-  }
-
-  if (!shouldShowChildren) {
-    return null
   }
 
   return <>{children}</>

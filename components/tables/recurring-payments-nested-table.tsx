@@ -3,7 +3,6 @@
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/utils/formatTime'
 import { formatCurrency } from '@/utils/formatCurrency'
-import { RecurringPaymentDetails } from '@/app/api/properties/[id]/recurring-configs/route'
 import { AlertCircle, Edit } from 'lucide-react'
 import { formatPaymentTypeLabel } from '@/utils/functions'
 import { Button } from '@/components/ui/button'

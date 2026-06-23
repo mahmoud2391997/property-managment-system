@@ -2,15 +2,12 @@
 
 import { cache } from 'react'
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
 import { getCached, setCached } from '@/lib/permissions-cache'
 
 type StaffInfo = { id: string; organization_id: string }
 
 type Success = {
   user: NonNullable<
-    Awaited<ReturnType<typeof createClient>>['auth']['getUser']
   > extends any
     ? any
     : never
@@ -39,7 +36,6 @@ async function getUserAndStaffInternal(): Promise<Success | Failure> {
     } as any
   }
 
-  const supabase = await createClient()
   const {
     data: { user }
   } = await supabase.auth.getUser()

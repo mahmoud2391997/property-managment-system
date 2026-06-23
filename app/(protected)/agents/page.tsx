@@ -1,12 +1,8 @@
 import { cn } from '@/lib/utils'
 import AgentsSection from '@/components/sections/agents-section'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
-import { requirePermission } from '@/lib/server-permissions'
 
 async function getAgents() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = 
 
   if (!user) {
     return []

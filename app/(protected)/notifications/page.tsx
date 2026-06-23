@@ -1,10 +1,7 @@
-import { createClient } from '@/utils/supabase/server'
-import { requirePermission } from '@/lib/server-permissions'
 import NotificationsSection from '@/components/notifications-section'
 
 const Notifications = async () => {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = 
   const userType = user?.user_metadata?.user_type
 
   if (userType !== 'tenant') {

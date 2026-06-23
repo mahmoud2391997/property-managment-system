@@ -1,4 +1,3 @@
-import { prisma } from '@/lib/prisma'
 import { computeLeaseStatus } from '@/utils/lease-status'
 import type { LeaseDetailsData } from '@/app/(protected)/properties/[id]/(without-head-section)/leases/[leaseId]/details/page'
 

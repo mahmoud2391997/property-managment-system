@@ -1,7 +1,6 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
-import { createClient } from '@/utils/supabase/client'
 
 type NotificationContextType = {
   hasUnreadNotifications: boolean
@@ -37,7 +36,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   // Subscribe to real-time notifications for current user
   useEffect(() => {
-    const supabase = createClient()
     let channel: ReturnType<typeof supabase.channel> | null = null
 
     const setupSubscription = async () => {

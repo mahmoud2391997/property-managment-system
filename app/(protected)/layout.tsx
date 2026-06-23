@@ -1,17 +1,16 @@
-import { cookies } from 'next/headers'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import Sidebar, { MobileHeader } from '@/components/app-sidebar'
 import { cn } from '@/lib/utils'
 import NextTopLoader from 'nextjs-toploader'
 import { NotificationProvider } from '@/contexts/notification-context'
 import { UserProvider } from '@/contexts/user-context'
+import PasswordSetupGuard from '@/components/password-setup-guard'
 import { PullToRefresh } from '@/components/pull-to-refresh'
 import { CommandPaletteProvider } from '@/contexts/command-palette-context'
 import GlobalDialogs from '@/components/global-dialogs'
 import SecondarySidebar from '@/components/secondary-sidebar'
-import { createClient } from '@/utils/supabase/server'
 
-export default async function ProtectedLayout ({
+export default function ProtectedLayout ({
   children
 }: {
   children: React.ReactNode
@@ -21,7 +20,8 @@ export default async function ProtectedLayout ({
 
 
   return (
-    <UserProvider>
+    <PasswordSetupGuard>
+      <UserProvider>
       <NotificationProvider>
         <CommandPaletteProvider>
           <SidebarProvider
@@ -57,6 +57,7 @@ export default async function ProtectedLayout ({
         </SidebarProvider>
       </CommandPaletteProvider>
     </NotificationProvider>
-    </UserProvider>
+      </UserProvider>
+    </PasswordSetupGuard>
   )
 }

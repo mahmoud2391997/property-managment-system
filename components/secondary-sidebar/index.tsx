@@ -6,8 +6,9 @@ import { cn } from '@/lib/utils'
 import { UserAvatar } from '@/components/costume-ui/name-avatar'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { useState, useEffect } from 'react'
-import { logout } from '@/app/(auth)/logout/actions'
+import { mockLogout } from '@/lib/mock-auth'
 import { formatDistanceToNow } from 'date-fns'
+import { useUser } from '@/contexts/user-context'
 
 export default function SecondarySidebar({ className }: { className?: string }) {
   const [userInfo, setUserInfo] = useState<{
@@ -117,7 +118,8 @@ export default function SecondarySidebar({ className }: { className?: string }) 
               onClick={async () => {
                 setIsLoggingOut(true)
                 setPopoverOpen(false)
-                await logout('/login')
+                mockLogout()
+                window.location.href = '/login'
               }}
               disabled={isLoggingOut}
               className="w-full flex items-center justify-center gap-2 h-9 px-3.5 rounded-md border border-red-200 bg-(--background-primary) text-red-600 texts-body-small-medium hover:bg-red-50 transition-colors disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"

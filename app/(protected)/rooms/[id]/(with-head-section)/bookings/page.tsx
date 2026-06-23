@@ -1,5 +1,4 @@
 import BookingsSection from '@/components/sections/bookings-section'
-import { requirePermission } from '@/lib/server-permissions'
 
 type Props = {
   params: Promise<{ id: string }>

@@ -1,10 +1,7 @@
 export const dynamic = 'force-dynamic'
 
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
 import TasksSection from '@/components/sections/tasks-section'
 import { Task } from '@/types'
-import { requirePermission } from '@/lib/server-permissions'
 
 const PAGE_SIZE = 10
 
@@ -63,7 +60,6 @@ const taskSelect = {
 
 async function getTasks(): Promise<{ data: Task[]; total: number }> {
   try {
-    const supabase = await createClient()
     const {
       data: { user }
     } = await supabase.auth.getUser()

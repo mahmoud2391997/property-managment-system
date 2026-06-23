@@ -1,4 +1,3 @@
-import { requirePermission } from '@/lib/server-permissions'
 import RolesManagementContent from './roles-management-content'
 
 type Props = {

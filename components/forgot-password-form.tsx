@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { createClient } from '@/utils/supabase/client'
 import { Loader2Icon, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,7 +31,6 @@ export default function ForgotPasswordForm() {
     setErrorMessage('')
 
     try {
-      const supabase = createClient()
 
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}/api/auth/setup-password`,

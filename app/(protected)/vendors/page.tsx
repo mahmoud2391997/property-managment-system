@@ -1,11 +1,7 @@
 import { cn } from '@/lib/utils'
 import VendorsSection from '@/components/sections/vendors-section'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
-import { requirePermission } from '@/lib/server-permissions'
 
 async function getVendors() {
-  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {

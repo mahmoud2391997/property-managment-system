@@ -3,7 +3,6 @@
 import { useState, useMemo } from 'react'
 import SearchInput from '@/components/costume-ui/search-input'
 import RecurringExpensesTable from '@/components/tables/recurring-expenses-table'
-import { RecurringExpenseConfigWithProperty } from '@/app/api/expenses/recurring-configs/route'
 import { Tab, TabGroup } from '../costume-ui/tab'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PermissionGate } from '@/components/permission-gate'

@@ -2,7 +2,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle2, XCircle } from 'lucide-react'
-import { createClient } from '@/utils/supabase/client'
 
 export default function ConfirmPageContent() {
   const router = useRouter()
@@ -36,7 +35,6 @@ export default function ConfirmPageContent() {
 
     if (accessToken && type === 'signup') {
       hasProcessed.current = true
-      const supabase = createClient()
       supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken || ''

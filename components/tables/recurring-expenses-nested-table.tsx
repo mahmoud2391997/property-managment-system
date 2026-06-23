@@ -3,7 +3,6 @@
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/utils/formatTime'
 import { formatCurrency } from '@/utils/formatCurrency'
-import { RecurringExpenseDetails } from '@/app/api/properties/[id]/recurring-configs/route'
 import { formatPaymentTypeLabel } from '@/utils/functions'
 
 type Props = {

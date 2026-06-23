@@ -1,22 +1,22 @@
 'use client'
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { mockGetCurrentUser, mockLogout, type MockUser } from '@/lib/mock-auth'
 
 type UserData = {
-  user: { id: string; email: string } | null
-  staff: { id: string; organization_id: string } | null
+  user: MockUser | null
   role: string | null
   permissions: string[]
 }
 
 type UserContextValue = {
   user: UserData['user']
-  staff: UserData['staff']
   role: UserData['role']
   permissions: Set<string>
   can: (perm: string) => boolean
   canAny: (...perms: string[]) => boolean
   isLoading: boolean
+  logout: () => void
 }
 
 const UserContext = createContext<UserContextValue | null>(null)
@@ -26,13 +26,26 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    let cancelled = false
-    fetch('/api/me', { credentials: 'include' })
-      .then(res => (res.ok ? res.json() : null))
-      .then(json => { if (!cancelled) setData(json) })
-      .catch(() => { if (!cancelled) setData(null) })
-      .finally(() => { if (!cancelled) setIsLoading(false) })
-    return () => { cancelled = true }
+    // Get current user from mock auth storage
+    const mockUser = mockGetCurrentUser()
+    
+    if (mockUser) {
+      const permissions = mockUser.user_type === 'admin' 
+        ? ['read', 'write', 'delete', 'manage_users']
+        : mockUser.user_type === 'staff'
+        ? ['read', 'write']
+        : ['read']
+
+      setData({
+        user: mockUser,
+        role: mockUser.user_type,
+        permissions,
+      })
+    } else {
+      setData(null)
+    }
+    
+    setIsLoading(false)
   }, [])
 
   const permissions = useMemo(
@@ -40,14 +53,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     [data]
   )
 
+  const handleLogout = () => {
+    mockLogout()
+    setData(null)
+  }
+
   const value: UserContextValue = useMemo(() => ({
     user: data?.user ?? null,
-    staff: data?.staff ?? null,
     role: data?.role ?? null,
     permissions,
     can: (perm: string) => permissions.has(perm),
     canAny: (...perms: string[]) => perms.some(p => permissions.has(p)),
-    isLoading
+    isLoading,
+    logout: handleLogout
   }), [data, permissions, isLoading])
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>

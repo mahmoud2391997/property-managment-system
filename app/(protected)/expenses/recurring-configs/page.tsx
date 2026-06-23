@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils'
 import Breadcrumb from '@/components/costume-ui/breadcrumb'
 import RecurringExpensesConfigsSection from '@/components/sections/recurring-expenses-configs-section'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
-import { RecurringExpenseConfigWithProperty } from '@/app/api/expenses/recurring-configs/route'
 import { PermissionGuard } from '@/components/permission-guard'
 
 export default function RecurringExpenseConfigsPage() {

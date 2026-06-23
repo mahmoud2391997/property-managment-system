@@ -7,7 +7,6 @@ import { useSingleSelectOption } from '@/hooks/useSingleSelectOption'
 import TableSectionSkeleton from './loading-ui/table-section-skeleton'
 import RecurringPaymentsTable from './tables/recurring-payments-table'
 import RecurringExpensesTable from './tables/recurring-expenses-table'
-import { RecurringConfigWithDetails } from '@/app/api/properties/[id]/recurring-configs/route'
 import { Repeat, CreditCard, Receipt } from 'lucide-react'
 
 type Props = {

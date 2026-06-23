@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import RecurringPaymentConfigsTable from '@/components/tables/recurring-payment-configs-table'
-import { RecurringPaymentConfigItem } from '@/app/api/payments/recurring-configs/route'
 import { Tab, TabGroup } from '../costume-ui/tab'
 
 const STATUS_OPTIONS = ['all', 'Active', 'Paused']

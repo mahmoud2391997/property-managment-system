@@ -1,11 +1,7 @@
-import { requirePermission } from '@/lib/server-permissions'
 import { hasPermission } from '@/lib/has-permission'
-import { getUserAndStaff } from '@/utils/getUserAndStaff'
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
 import PaymentDetailsContent from './payment-details-content'
 type Props = {
   params: Promise<{ id: string }>
@@ -101,8 +97,7 @@ export type PaymentDetailsData = {
 
 async function getPaymentDetails(referenceId: string): Promise<PaymentDetailsData | null> {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = 
 
     if (!user) return null
 
@@ -413,8 +408,7 @@ late_charge_info: (() => {
 }
 
 async function getUserType(): Promise<'staff' | 'tenant'> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = 
 
   if (!user) return 'staff'
 

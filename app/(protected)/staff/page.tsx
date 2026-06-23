@@ -1,13 +1,8 @@
 import { cn } from '@/lib/utils'
 import StaffSection from '@/components/sections/staff-section'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
-import { createAdminClient } from '@/utils/supabase/admin'
-import { requirePermission } from '@/lib/server-permissions'
 
 async function getStaff() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = 
 
   if (!user) {
     return []
@@ -46,7 +41,7 @@ async function getStaff() {
     }
   })
 
-  const supabaseAdmin = createAdminClient()
+  
   const staffWithStatus = await Promise.all(
     staffList.map(async (staffMember) => {
       try {
@@ -84,8 +79,7 @@ async function getStaff() {
 const Staff = async () => {
   await requirePermission('staff.access')
   
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = 
   const currentUserId = user?.id
 
   const staffList = await getStaff()

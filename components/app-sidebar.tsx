@@ -41,8 +41,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { AppSidebarSkeleton, AppSidebarFooterSkeleton } from './loading-ui/app-sidebar-skeleton'
 import { useNotifications } from '@/contexts/notification-context'
-import { logout } from '@/app/(auth)/logout/actions'
+import { mockLogout } from '@/lib/mock-auth'
 import { UserAvatar } from './costume-ui/name-avatar'
+import { useRouter } from 'next/navigation'
 import ConfirmationDialog from './costume-ui/confirmation-dialog'
 import { CommandPalette, CommandPaletteTrigger } from './command-palette'
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
@@ -623,7 +624,8 @@ export default function AppSidebar () {
               confirmButtonClassName='bg-primary-main! hover:bg-primary-main/90!'
               onConfirm={async () => {
                 setIsLoggingOut(true)
-                await logout('/login')
+                mockLogout()
+                window.location.href = '/login'
               }}
             />
           </div>

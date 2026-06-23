@@ -27,7 +27,6 @@ import { formatDate } from '@/utils/formatTime'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { formatPaymentTypeLabel } from '@/utils/functions'
 import { Table } from '../costume-ui/table'
-import { RecurringPaymentConfigItem } from '@/app/api/payments/recurring-configs/route'
 import RecurringPaymentConfigsNested from './recurring-payment-configs-nested'
 import Link from 'next/link'
 

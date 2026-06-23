@@ -1,17 +1,13 @@
 import { notFound, redirect } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
 import LeaseDetailsContent from '@/components/lease-details/lease-details-content'
 import { getLeaseDetails } from '@/utils/get-lease-details'
-import { requirePermission } from '@/lib/server-permissions'
 
 type Props = {
   params: Promise<{ leaseId: string }>
 }
 
 export default async function RentalLeaseDetailsPage({ params }: Props) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = 
   const userType = user?.user_metadata?.user_type
 
   if (userType !== 'tenant') {

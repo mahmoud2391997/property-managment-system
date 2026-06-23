@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils'
 import Breadcrumb from '@/components/costume-ui/breadcrumb'
 import RecurringPaymentConfigsSection from '@/components/sections/recurring-payment-configs-section'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
-import { RecurringPaymentConfigItem } from '@/app/api/payments/recurring-configs/route'
 import { PermissionGuard } from '@/components/permission-guard'
 
 export default function RecurringPaymentConfigsPage() {

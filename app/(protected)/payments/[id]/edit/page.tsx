@@ -1,9 +1,6 @@
-import { requirePermission } from '@/lib/server-permissions'
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
 import EditPaymentContent from './edit-payment-content'
 
 type Props = {
@@ -34,8 +31,7 @@ export type EditPaymentData = {
 
 async function getPaymentForEdit(referenceId: string): Promise<EditPaymentData | null> {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = 
 
     if (!user) return null
 

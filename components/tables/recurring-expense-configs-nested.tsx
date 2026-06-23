@@ -6,7 +6,6 @@ import { formatDate } from '@/utils/formatTime'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { formatPaymentTypeLabel } from '@/utils/functions'
 import { Skeleton } from '@/components/ui/skeleton'
-import { RecurringConfigExpenseItem } from '@/app/api/expenses/recurring-configs/[id]/expenses/route'
 
 type Props = {
   configId: string

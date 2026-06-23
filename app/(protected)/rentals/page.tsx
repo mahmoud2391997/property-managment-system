@@ -3,14 +3,11 @@ export const dynamic = 'force-dynamic'
 import { cn } from '@/lib/utils'
 import RentalsSection from '@/components/sections/rentals-section'
 import { RentalWithDetails } from '@/components/tables/rentals-table'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
 import { computeLeaseStatus } from '@/utils/lease-status'
 
 async function fetchRentals(): Promise<RentalWithDetails[]> {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = 
 
     if (!user) {
       return []

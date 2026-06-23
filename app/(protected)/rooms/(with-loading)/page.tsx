@@ -1,15 +1,11 @@
 import { cn } from '@/lib/utils'
 import RoomsSection from '@/components/sections/rooms-section'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
 import { transformRoom, RoomWithDetails } from '@/lib/rooms-utils'
-import { requirePermission } from '@/lib/server-permissions'
 
 const PAGE_SIZE = 10
 
 async function getRoomsWithTotal(): Promise<{ rooms: RoomWithDetails[], total: number }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = 
 
   if (!user) {
     return { rooms: [], total: 0 }

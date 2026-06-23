@@ -1,20 +1,15 @@
 export const dynamic = 'force-dynamic'
 import { Suspense } from 'react'
 import { cn } from '@/lib/utils'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
 import ExpensesSection from '@/components/sections/expenses-section'
 import { transformExpense, ExpenseWithDetails } from '@/lib/expenses-utils'
-import { expenseSelect } from '@/app/api/expenses/route'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
-import { requirePermission } from '@/lib/server-permissions'
 
 const PAGE_SIZE = 10
 
 async function getExpenses(): Promise<{ data: ExpenseWithDetails[]; total: number }> {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = 
 
     if (!user) {
       return { data: [], total: 0 }

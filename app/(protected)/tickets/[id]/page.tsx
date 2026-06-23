@@ -1,15 +1,11 @@
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
 import TicketDetailsContent from './ticket-details-content'
-import { requirePermission } from '@/lib/server-permissions'
 
 type Props = {
   params: Promise<{ id: string }>
 }
 
 async function getTicketData(ticketId: string) {
-  const supabase = await createClient()
   const {
     data: { user }
   } = await supabase.auth.getUser()
@@ -243,7 +239,6 @@ async function getTicketData(ticketId: string) {
 }
 
 export default async function TicketDetailsPage({ params }: Props) {
-  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   
   // Check if user is tenant

@@ -2,8 +2,6 @@
 
 import { cache } from 'react'
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
 
 type UserType = 'staff' | 'tenant' | null
 type OrganizationId = string | null
@@ -11,7 +9,6 @@ type TenantId = string | null
 
 type Success = {
   user: NonNullable<
-    Awaited<ReturnType<typeof createClient>>['auth']['getUser']
   > extends any
     ? any
     : never
@@ -30,7 +27,6 @@ type Failure = {
 }
 
 export const getUserType = cache(async (): Promise<Success | Failure> => {
-  const supabase = await createClient()
   const {
     data: { user }
   } = await supabase.auth.getUser()

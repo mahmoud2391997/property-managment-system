@@ -1,17 +1,13 @@
 import { notFound, redirect } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
 import LeaseDetailsContent from '@/components/lease-details/lease-details-content'
 import { getLeaseDetails } from '@/utils/get-lease-details'
-import { requirePermission } from '@/lib/server-permissions'
 
 type Props = {
   params: Promise<{ id: string; leaseId: string }>
 }
 
 async function getUserType(): Promise<{ userType: 'staff' | 'tenant'; organizationId: string | null; tenantId: string | null }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = 
 
   if (!user) {
     return { userType: 'staff', organizationId: null, tenantId: null }

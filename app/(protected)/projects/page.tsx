@@ -1,12 +1,8 @@
 import { cn } from '@/lib/utils'
 import ProjectsSection from '@/components/sections/projects-section'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
-import { requirePermission } from '@/lib/server-permissions'
 
 async function getProjects() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = 
 
   if (!user) {
     return []

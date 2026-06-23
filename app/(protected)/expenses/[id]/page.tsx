@@ -1,10 +1,6 @@
-import { requirePermission } from '@/lib/server-permissions'
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
-import { getUserAndStaff } from '@/utils/getUserAndStaff'
 import { hasPermission } from '@/lib/has-permission'
 import ExpenseDetailsContent from './expense-details-content'
 
