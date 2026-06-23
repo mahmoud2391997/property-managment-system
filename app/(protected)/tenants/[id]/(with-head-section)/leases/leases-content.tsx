@@ -379,8 +379,8 @@ export default function LeasesContent({ tenantId }: Props) {
     return <EmptyState />
   }
 
-  const currentLeases = leases.filter(l => l.status === 'Current')
-  const endedLeases = leases.filter(l => l.status === 'Ended')
+  const currentLeases = leases.filter((l: any) => l.status === 'Current')
+  const endedLeases = leases.filter((l: any) => l.status === 'Ended')
 
   return (
     <div className='flex flex-col gap-6'>

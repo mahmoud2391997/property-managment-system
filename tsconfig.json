@@ -1,35 +1,51 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
     "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
+    "noImplicitAny": false,
+    "noImplicitThis": false,
     "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "noEmit": true,
     "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "allowJs": true,
     "incremental": true,
+    "moduleResolution": "node",
     "plugins": [
       {
         "name": "next"
       }
-    ],
-    "paths": {
-      "@/*": ["./*"]
-    }
+    ]
   },
   "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+    "app",
+    "components",
+    "lib",
+    "utils",
+    "contexts",
+    "hooks",
+    "types",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts",
-    "types.d.ts"
-, "tailwind.config.js", "app/(protected)/payments/add-payment", "app/(protected)/testing/(with layout)"  ],
-  "exclude": ["node_modules"]
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

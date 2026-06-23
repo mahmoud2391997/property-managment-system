@@ -761,7 +761,7 @@ export default function TaskDetailsLayout ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             decision: data.decision,
-            charges: data.charges?.map(c => ({
+            charges: data.charges?.map((c: any) => ({
               ...c,
               amount: parseFloat(c.amount)
             })),

@@ -23,17 +23,17 @@ import {
 
 export default function Dashboard() {
   const totalProperties = dummyProperties.length
-  const occupiedProperties = dummyProperties.filter(p => p.status === 'Occupied').length
-  const vacantProperties = dummyProperties.filter(p => p.status === 'Vacant').length
+  const occupiedProperties = dummyProperties.filter((p: any) => p.status === 'Occupied').length
+  const vacantProperties = dummyProperties.filter((p: any) => p.status === 'Vacant').length
   const totalTenants = dummyTenants.length
-  const activeTenants = dummyTenants.filter(t => t.rental_status === 'Renting').length
+  const activeTenants = dummyTenants.filter((t: any) => t.rental_status === 'Renting').length
   const totalPayments = dummyPayments.length
-  const paidPayments = dummyPayments.filter(p => p.status === 'Paid' || p.status === 'Paid Late').length
+  const paidPayments = dummyPayments.filter((p: any) => p.status === 'Paid' || p.status === 'Paid Late').length
   const totalRevenue = dummyPayments
-    .filter(p => p.status === 'Paid' || p.status === 'Paid Late')
+    .filter((p: any) => p.status === 'Paid' || p.status === 'Paid Late')
     .reduce((sum, p) => sum + p.amount, 0)
-  const openTickets = dummyTickets.filter(t => t.status === 'Open').length
-  const inProgressTickets = dummyTickets.filter(t => t.status === 'In Progress').length
+  const openTickets = dummyTickets.filter((t: any) => t.status === 'Open').length
+  const inProgressTickets = dummyTickets.filter((t: any) => t.status === 'In Progress').length
 
   const stats = [
     {

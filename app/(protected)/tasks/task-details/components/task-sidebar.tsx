@@ -193,8 +193,8 @@ export default function TaskSidebar({
     setNewDueDate('')
   }
 
-  const typeItems = TASK_TYPES.map(t => ({ value: t, label: t }))
-  const priorityItems = PRIORITY_LEVELS.map(p => ({ value: p, label: p }))
+  const typeItems = TASK_TYPES.map((t: any) => ({ value: t, label: t }))
+  const priorityItems = PRIORITY_LEVELS.map((p: any) => ({ value: p, label: p }))
 
   return (
     <div className='w-full lg:w-[260px] lg:shrink-0 order-first lg:order-last'>

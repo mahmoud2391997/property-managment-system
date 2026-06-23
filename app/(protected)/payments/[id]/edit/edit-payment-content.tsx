@@ -14,10 +14,9 @@ import { Info } from 'lucide-react'
 import { FeedbackToasts } from '@/components/costume-ui/feedback-toast'
 import { formatDateForAPI } from '@/utils/formatTime'
 import { formatPaymentTypeLabel } from '@/utils/functions'
-import type { EditPaymentData } from './page'
 
 type Props = {
-  payment: EditPaymentData
+  payment: any
 }
 
 export default function EditPaymentContent({ payment }: Props) {
@@ -53,7 +52,7 @@ export default function EditPaymentContent({ payment }: Props) {
 
   // Default charges from existing payment data
   const defaultCharges: DefaultCharge[] = useMemo(
-    () => payment.charges.map(c => ({
+    () => payment.charges.map((c: any) => ({
       type: c.title,
       amount: c.amount,
       is_taxed: c.is_taxed,

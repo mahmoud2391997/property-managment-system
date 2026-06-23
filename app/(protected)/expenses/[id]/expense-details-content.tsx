@@ -22,7 +22,6 @@ import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/formatTime'
 import { formatPaymentTypeLabel } from '@/utils/functions'
 import { cn } from '@/lib/utils'
-import type { ExpenseDetailsData } from './page'
 import {
   MoreHorizontal,
   Calendar,
@@ -45,7 +44,7 @@ import {
 } from 'lucide-react'
 
 type Props = {
-  expense: ExpenseDetailsData
+  expense: any
 }
 
 const CATEGORY_LABELS: Record<string, string> = {

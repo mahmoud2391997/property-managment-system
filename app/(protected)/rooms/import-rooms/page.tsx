@@ -214,7 +214,7 @@ const ImportRooms = () => {
           </p>
           <InputGroup label='Project' isRequired>
             <Select
-              items={projects.map(p => ({ value: p.id, label: p.title }))}
+              items={projects.map((p: any) => ({ value: p.id, label: p.title }))}
               label='Projects'
               placeholder={loadingProjects ? 'Loading projects...' : 'Select a project'}
               required

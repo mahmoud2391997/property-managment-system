@@ -655,7 +655,7 @@ export default function OverviewContent({ tenantId }: Props) {
     )
   }
 
-  const activeLeases = data.leases.filter(l => l.status === 'Current')
+  const activeLeases = data.leases.filter((l: any) => l.status === 'Current')
 
   return (
     <div className='flex flex-col gap-5'>

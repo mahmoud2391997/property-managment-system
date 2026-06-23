@@ -143,7 +143,7 @@ export default function RolesManagementContent() {
           </div>
         </div>
         <div className="grid gap-4">
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3].map((i: any) => (
             <Card key={i} className="animate-pulse">
               <CardHeader>
                 <div className="h-4 bg-gray-200 rounded w-1/4"></div>

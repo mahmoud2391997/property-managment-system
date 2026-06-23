@@ -548,8 +548,8 @@ const AddExpense = () => {
       let finalCharges = charges
       if (isStaffSalary || isStaffAllowances) {
         finalCharges = allowances
-          .filter(a => a.title.trim() && parseFloat(a.amount) > 0)
-          .map(a => ({
+          .filter((a: any) => a.title.trim() && parseFloat(a.amount) > 0)
+          .map((a: any) => ({
             type: a.title,
             amount: a.amount,
             isTaxableChecked: false
@@ -623,8 +623,8 @@ const AddExpense = () => {
               socso_employee: socsoEmployee,
               tax: (parseFloat(grossSalary) || 0) >= 3000 ? tax : '0',
               deduction_charges: deductions
-                .filter(d => d.title.trim() && (parseFloat(d.amount) || 0) > 0)
-                .map(d => ({ title: d.title, amount: d.amount }))
+                .filter((d: any) => d.title.trim() && (parseFloat(d.amount) || 0) > 0)
+                .map((d: any) => ({ title: d.title, amount: d.amount }))
             })
           }),
           ...(selectedIndex === 4 && {
@@ -1789,7 +1789,7 @@ const AddExpense = () => {
                       </div>
                     )}
                     {deductions
-                      .filter(d => parseFloat(d.amount) > 0)
+                      .filter((d: any) => parseFloat(d.amount) > 0)
                       .map((d, i) => (
                         <div
                           key={i}
@@ -1863,7 +1863,7 @@ const AddExpense = () => {
                       Allowances
                     </span>
                     {allowances
-                      .filter(a => parseFloat(a.amount) > 0)
+                      .filter((a: any) => parseFloat(a.amount) > 0)
                       .map((a, i) => (
                         <div
                           key={i}

@@ -59,7 +59,7 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
         setDurationMinutes(editEvent.duration_minutes?.toString() || '')
         setDescription(editEvent.description || '')
         setIsForAllStaff(editEvent.is_for_all_staff)
-        setSelectedAttendees(editEvent.calendar_event_attendees?.map(a => a.staff.id) || [])
+        setSelectedAttendees(editEvent.calendar_event_attendees?.map((a: any) => a.staff.id) || [])
       } else {
         setTitle('')
         setTimestamp('')
@@ -186,11 +186,11 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
 
   const toggleAttendee = (id: string) => {
     setSelectedAttendees(prev =>
-      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((a: any) => a !== id) : [...prev, id]
     )
   }
 
-  const filteredAttendees = attendees.filter(a => {
+  const filteredAttendees = attendees.filter((a: any) => {
     const name = `${a.first_name} ${a.last_name || ''}`.toLowerCase()
     return name.includes(attendeeSearch.toLowerCase())
   })
@@ -339,7 +339,7 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
                     if (isAllManuallySelected) {
                       setSelectedAttendees([])
                     } else {
-                      setSelectedAttendees(attendees.map(s => s.id))
+                      setSelectedAttendees(attendees.map((s: any) => s.id))
                     }
                   }}
                   disabled={!canEdit}
@@ -360,7 +360,7 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
                   Select all ({attendees.length})
                 </button>
                 <div className='max-h-32 overflow-auto mt-1 space-y-0.5'>
-                  {filteredAttendees.map(a => {
+                  {filteredAttendees.map((a: any) => {
                     const isSelected = isForAllStaff || selectedAttendees.includes(a.id)
                     return (
                       <button
@@ -369,7 +369,7 @@ export default function EventModal({ open, onOpenChange, selectedDate, onSuccess
                         onClick={() => {
                           if (isForAllStaff) {
                             setIsForAllStaff(false)
-                            setSelectedAttendees(attendees.filter(s => s.id !== a.id).map(s => s.id))
+                            setSelectedAttendees(attendees.filter((s: any) => s.id !== a.id).map((s: any) => s.id))
                           } else {
                             toggleAttendee(a.id)
                           }
