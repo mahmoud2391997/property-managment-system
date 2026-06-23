@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import TableSectionSkeleton from './loading-ui/table-section-skeleton'
 import RecurringPaymentsTable from './tables/recurring-payments-table'
 import { Repeat } from 'lucide-react'
+import { RecurringConfigWithDetails } from '@/types'
 
 type Props = {
   roomId: string

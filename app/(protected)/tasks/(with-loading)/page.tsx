@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import TasksSection from '@/components/sections/tasks-section'
 import { Task } from '@/types'
+import { requirePermission } from '@/lib/server-permissions'
 
 const PAGE_SIZE = 10
 

@@ -32,6 +32,7 @@ import { Table } from '../costume-ui/table'
 import RecurringExpensesNestedTable from './recurring-expenses-nested-table'
 import RecurringExpenseConfigsNested from './recurring-expense-configs-nested'
 import Link from 'next/link'
+import { RecurringExpenseConfigWithProperty, RecurringConfigWithDetails } from '@/types'
 
 type Props = {
   data: (RecurringConfigWithDetails | RecurringExpenseConfigWithProperty)[]

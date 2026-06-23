@@ -7,6 +7,7 @@ import { Tab, TabGroup } from '../costume-ui/tab'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PermissionGate } from '@/components/permission-gate'
 import { NoAccessCard } from '@/components/no-access-card'
+import { RecurringExpenseConfigWithProperty } from '@/types'
 
 const STATUS_OPTIONS = ['all', 'Active', 'Paused']
 

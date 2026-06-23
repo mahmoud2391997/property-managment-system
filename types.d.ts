@@ -327,6 +327,143 @@ export type Crumb = {
   href?: string // last item should not have href
 }
 
+export type RecurringExpenseConfigWithProperty = {
+  id: string
+  title: string
+  payment_type: string | null
+  is_active: boolean
+  amount: number | null
+  is_payment_fixed: boolean
+  event_on: string | null
+  next_payment_date: string | null
+  expenses_count: number
+  property_id: string
+  property_name: string
+}
+
+export type LeaseDetailsData = {
+  lease: {
+    id: string
+    reference_id: string
+    status: string
+    db_status: string
+    monthly_rent: number
+    payment_day: number
+    start_date: string
+    end_date: string | null
+    number_of_months: number | null
+    ended_at: string | null
+    created_at: string
+    is_property_lease: boolean
+    tenant: {
+      id: string
+      type: string
+      name: string
+      phone: string | null
+      email: string | null
+      profile_thumb: string | null
+    }
+    property: { id: string; code: string; address: string | null }
+    room: { id: string; title: string } | null
+    transfer: {
+      is_transferred_from: boolean | null
+      is_transferred_to: boolean | null
+      transferred_from_lease: {
+        id: string; reference_id: string; property_id: string; room_id: string | null
+        property_code: string; room_title: string | null
+      } | null
+      transferred_to_lease: {
+        id: string; reference_id: string; property_id: string; room_id: string | null
+        property_code: string; room_title: string | null
+      } | null
+    }
+    reminders: {
+      expiry: { enabled: boolean; days_before?: number | null }
+      rent: { enabled: boolean; days_before?: number | null }
+      overdue: { enabled: boolean; days_after?: number | null }
+    }
+    late_charges: Array<{ id: string; days_after_due: number; amount: number }>
+    scheduled_changes: Array<{
+      id: string; old_rent: number; new_rent: number; effective_from: string
+      status: string; applied_at: string | null; cancelled_at: string | null; created_at: string
+    }>
+    upcoming_change: {
+      id: string; old_rent: number; new_rent: number; effective_from: string
+    } | null
+    scheduled_lease_ends: Array<{
+      id: string; scheduled_date: string; status: string
+      created_at: string; cancelled_at: string | null
+    }>
+    upcoming_lease_end: {
+      id: string; scheduled_date: string; is_lapsed: boolean; days_until_dismissed: number | null
+    } | null
+    created_by: { id: string; name: string } | null
+  }
+  pending_rental: {
+    id: string; reference_id: string; type: string; status: string
+    due_date: string | null; total_amount: number; paid_amount: number; is_fully_paid: boolean
+  } | null
+  recent_payments: Array<{
+    id: string; reference_id: string; type: string; status: string
+    due_date: string | null; total_amount: number; paid_amount: number; is_fully_paid: boolean
+  }>
+  recurring_payments: Array<{
+    id: string; title: string; schedule: string; is_fixed: boolean
+    latest_payment: { reference_id: string; status: string; due_date: string | null; amount: number } | null
+  }>
+}
+
+export type RecurringPaymentConfigItem = {
+  id: string
+  title: string
+  payment_type: string | null
+  is_active: boolean
+  amount: number | null
+  is_payment_fixed: boolean
+  payments_count: number
+  property_name: string | null
+  property_id: string
+  room_name: string | null
+  lease_reference_id: string | null
+  created_at: string
+}
+
+export type RecurringConfigPaymentItem = {
+  id: string
+  reference_id: string
+  type: string
+  status: string
+  due_date: string | null
+  amount: number
+}
+
+export type RecurringConfigExpenseItem = {
+  id: string
+  reference_id: string
+  type: string
+  status: string
+  due_date: string | null
+  amount: number
+}
+
+export type RecurringConfigWithDetails = {
+  id: string
+  title: string
+  payment_type: string | null
+  is_active: boolean
+  amount: number | null
+  is_payment_fixed: boolean
+  event_on: string | null
+  next_payment_date: string | null
+  payments_count: number
+  expenses_count: number
+  every: string | null
+  time_unit: string | null
+  expenses: any[]
+  payments: any[]
+  created_at: string
+}
+
 export type ChargeTypeType = {
   type: string
   taxable: boolean

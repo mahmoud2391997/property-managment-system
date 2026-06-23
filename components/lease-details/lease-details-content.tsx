@@ -19,7 +19,7 @@ import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/formatTime'
 import { buildWhatsAppLink } from '@/utils/functions'
 import { cn } from '@/lib/utils'
-import type { LeaseDetailsData } from '@/app/(protected)/properties/[id]/(without-head-section)/leases/[leaseId]/details/page'
+import type { LeaseDetailsData } from '@/types'
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -6,6 +6,7 @@ import Breadcrumb from '@/components/costume-ui/breadcrumb'
 import RecurringExpensesConfigsSection from '@/components/sections/recurring-expenses-configs-section'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
 import { PermissionGuard } from '@/components/permission-guard'
+import { RecurringExpenseConfigWithProperty } from '@/types'
 
 export default function RecurringExpenseConfigsPage() {
   const [data, setData] = useState<RecurringExpenseConfigWithProperty[]>([])

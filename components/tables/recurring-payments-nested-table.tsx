@@ -7,6 +7,7 @@ import { AlertCircle, Edit } from 'lucide-react'
 import { formatPaymentTypeLabel } from '@/utils/functions'
 import { Button } from '@/components/ui/button'
 import SetChargesDialog from '@/components/dialogs/set-charges-dialog'
+import { RecurringConfigPaymentItem as RecurringPaymentDetails } from '@/types'
 
 type Props = {
   configId: string

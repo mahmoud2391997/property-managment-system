@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import SearchInput from '@/components/costume-ui/search-input'
 import RecurringPaymentConfigsTable from '@/components/tables/recurring-payment-configs-table'
 import { Tab, TabGroup } from '../costume-ui/tab'
+import { RecurringPaymentConfigItem } from '@/types'
 
 const STATUS_OPTIONS = ['all', 'Active', 'Paused']
 

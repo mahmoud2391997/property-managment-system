@@ -7,10 +7,7 @@ import { getCached, setCached } from '@/lib/permissions-cache'
 type StaffInfo = { id: string; organization_id: string }
 
 type Success = {
-  user: NonNullable<
-  > extends any
-    ? any
-    : never
+  user: any
   staff: StaffInfo
   permissions: Set<string>
   role: string | null
