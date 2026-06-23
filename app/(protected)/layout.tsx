@@ -11,7 +11,6 @@ import { CommandPaletteProvider } from '@/contexts/command-palette-context'
 import GlobalDialogs from '@/components/global-dialogs'
 import SecondarySidebar from '@/components/secondary-sidebar'
 import { createClient } from '@/utils/supabase/server'
-import { prisma } from '@/lib/prisma'
 
 export default async function ProtectedLayout ({
   children

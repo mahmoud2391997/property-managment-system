@@ -45,8 +45,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" data-darkreader-mode="disabled" style={{ colorScheme: 'light only' }}>
-      <body className="md:bg-(--background-secondary) h-screen overflow-hidden" suppressHydrationWarning>
+    <html lang="en" data-darkreader-mode="disabled" style={{ colorScheme: 'light only' }} className="bg-background">
+      <body className="h-screen overflow-hidden bg-background" suppressHydrationWarning>
         <NuqsAdapter>{children}</NuqsAdapter>
         <Toaster position="top-right" richColors />
       </body>

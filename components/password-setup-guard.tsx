@@ -12,13 +12,14 @@ export default function PasswordSetupGuard({
   const router = useRouter()
   const pathname = usePathname()
   const [isChecking, setIsChecking] = useState(true)
-  const [needsRedirect, setNeedsRedirect] = useState(false)
 
   useEffect(() => {
+    let isMounted = true
+
     const checkUserStatus = async () => {
       // Skip check if already on setup-password page
       if (pathname === '/setup-password') {
-        setIsChecking(false)
+        if (isMounted) setIsChecking(false)
         return
       }
 
@@ -26,12 +27,12 @@ export default function PasswordSetupGuard({
         const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
 
+        if (!isMounted) return
+
         if (!user) {
           setIsChecking(false)
           return
         }
-
-        const userType = user.user_metadata?.user_type
 
         // Check if user was invited
         const wasInvited = !!user.invited_at
@@ -43,29 +44,26 @@ export default function PasswordSetupGuard({
         // Check password_set in app_metadata
         const passwordSet = user.app_metadata?.password_set === true
 
-        if (!passwordSet) {
+        if (!passwordSet && isMounted) {
           // Password not set - redirect to setup
-          setNeedsRedirect(true)
-          router.replace('/setup-password')
-        } 
-        //else if (userType === 'tenant') {
-        //   // Tenant with password set - redirect to welcome page
-        //   setNeedsRedirect(true)
-        //   router.replace('/tenant-welcome')
-        // } 
-        else {
+          router.push('/setup-password')
+        } else if (isMounted) {
           setIsChecking(false)
         }
       } catch (error) {
         console.error('Error checking user status:', error)
-        setIsChecking(false)
+        if (isMounted) setIsChecking(false)
       }
     }
 
     checkUserStatus()
+
+    return () => {
+      isMounted = false
+    }
   }, [pathname, router])
 
-  if (isChecking || needsRedirect) {
+  if (isChecking) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>

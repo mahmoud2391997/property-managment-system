@@ -1,8 +1,21 @@
 {
-  "git": {
-    "deploymentEnabled": {
-      "main": false,
-      "staging": false
+  "buildCommand": "prisma generate && next build",
+  "framework": "nextjs",
+  "outputDirectory": ".next",
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "redirects": [],
+  "rewrites": [],
+  "headers": [
+    {
+      "source": "/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
     }
-  }
+  ]
 }
