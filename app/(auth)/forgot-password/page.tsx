@@ -1,12 +1,15 @@
 'use client'
 
+import { Suspense } from 'react'
 import ForgotPasswordForm from '@/components/forgot-password-form'
 
 export default function ForgotPasswordPage() {
   return (
     <div className="flex min-h-svh flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <ForgotPasswordForm />
+        <Suspense fallback={null}>
+          <ForgotPasswordForm />
+        </Suspense>
       </div>
     </div>
   )

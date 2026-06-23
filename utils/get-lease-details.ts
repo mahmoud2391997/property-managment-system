@@ -1,5 +1,5 @@
 import { computeLeaseStatus } from '@/utils/lease-status'
-import type { LeaseDetailsData } from '@/app/(protected)/properties/[id]/(without-head-section)/leases/[leaseId]/details/page'
+import type { LeaseDetailsData } from '@/types'
 
 export async function getLeaseDetails(
   leaseId: string,

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import TicketDetailsContent from './ticket-details-content'
+import { requirePermission } from '@/lib/server-permissions'
 
 type Props = {
   params: Promise<{ id: string }>

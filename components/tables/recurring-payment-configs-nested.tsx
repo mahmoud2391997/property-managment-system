@@ -10,6 +10,7 @@ import { AlertCircle, Edit } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import SetChargesDialog from '@/components/dialogs/set-charges-dialog'
+import { RecurringConfigPaymentItem } from '@/types'
 
 type Props = {
   configId: string

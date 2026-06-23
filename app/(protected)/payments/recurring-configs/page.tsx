@@ -6,6 +6,7 @@ import Breadcrumb from '@/components/costume-ui/breadcrumb'
 import RecurringPaymentConfigsSection from '@/components/sections/recurring-payment-configs-section'
 import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
 import { PermissionGuard } from '@/components/permission-guard'
+import { RecurringPaymentConfigItem } from '@/types'
 
 export default function RecurringPaymentConfigsPage() {
   const [data, setData] = useState<RecurringPaymentConfigItem[]>([])

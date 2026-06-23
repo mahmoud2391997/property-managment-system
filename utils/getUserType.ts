@@ -8,10 +8,7 @@ type OrganizationId = string | null
 type TenantId = string | null
 
 type Success = {
-  user: NonNullable<
-  > extends any
-    ? any
-    : never
+  user: any
   userType: UserType
   organizationId: OrganizationId
   tenantId: TenantId

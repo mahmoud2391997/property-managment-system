@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import VendorsSection from '@/components/sections/vendors-section'
+import { requirePermission } from '@/lib/server-permissions'
 
 async function getVendors() {
   const { data: { user } } = await supabase.auth.getUser()

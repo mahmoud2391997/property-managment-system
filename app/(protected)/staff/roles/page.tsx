@@ -1,4 +1,5 @@
 import RolesManagementContent from './roles-management-content'
+import { requirePermission } from '@/lib/server-permissions'
 
 type Props = {
   params: Promise<{}> // No params needed for this page

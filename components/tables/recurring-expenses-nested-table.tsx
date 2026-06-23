@@ -4,9 +4,10 @@ import { cn } from '@/lib/utils'
 import { formatDate } from '@/utils/formatTime'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { formatPaymentTypeLabel } from '@/utils/functions'
+import { RecurringConfigExpenseItem } from '@/types'
 
 type Props = {
-  expenses: RecurringExpenseDetails[]
+  expenses: RecurringConfigExpenseItem[]
 }
 
 export default function RecurringExpensesNestedTable({ expenses }: Props) {

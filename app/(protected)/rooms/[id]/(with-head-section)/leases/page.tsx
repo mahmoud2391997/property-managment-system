@@ -1,4 +1,5 @@
 import LeasesSection from '@/components/sections/leases-section'
+import { requirePermission } from '@/lib/server-permissions'
 
 type Props = {
   params: Promise<{ id: string }>

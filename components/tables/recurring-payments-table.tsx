@@ -1,6 +1,7 @@
 'use client'
 
 import { ColumnDef } from '@tanstack/react-table'
+import { RecurringConfigWithDetails } from '@/types'
 import {
   MoreHorizontal,
   Repeat,
@@ -71,10 +72,9 @@ export default function RecurringPaymentsTable({
       id: 'select',
       header: ({ table }) => (
         <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && 'indeterminate')
-          }
+        checked={
+          table.getIsAllPageRowsSelected() ? true : table.getIsSomePageRowsSelected() ? 'indeterminate' as const : false
+        }
           onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
           aria-label='Select all'
         />
@@ -156,7 +156,7 @@ export default function RecurringPaymentsTable({
       header: () => <div className='text-left'>Pattern</div>,
       cell: ({ row }) => {
         const { every, time_unit, event_on } = row.original
-        const patternDescription = formatRecurringPattern(every, time_unit, event_on)
+        const patternDescription = formatRecurringPattern(every ? Number(every) : null, time_unit, event_on)
 
         return (
           <div className='flex items-center gap-2'>
@@ -307,7 +307,7 @@ export default function RecurringPaymentsTable({
   // Mobile Card Component
   const RecurringCard = ({ config }: { config: RecurringConfigWithDetails }) => {
     const patternDescription = formatRecurringPattern(
-      config.every,
+      config.every ? Number(config.every) : null,
       config.time_unit,
       config.event_on
     )

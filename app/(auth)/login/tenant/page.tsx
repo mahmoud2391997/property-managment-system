@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { mockGetCurrentUser } from '@/lib/mock-auth'
 import TenantLoginForm from '@/components/tenant-login-form'
@@ -23,7 +23,9 @@ export default function TenantLoginPage() {
   return (
     <div className="flex min-h-svh flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <TenantLoginForm />
+        <Suspense fallback={null}>
+          <TenantLoginForm />
+        </Suspense>
       </div>
     </div>
   )

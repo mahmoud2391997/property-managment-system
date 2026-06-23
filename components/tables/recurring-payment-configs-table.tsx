@@ -29,6 +29,7 @@ import { formatPaymentTypeLabel } from '@/utils/functions'
 import { Table } from '../costume-ui/table'
 import RecurringPaymentConfigsNested from './recurring-payment-configs-nested'
 import Link from 'next/link'
+import { RecurringPaymentConfigItem } from '@/types'
 
 type Props = {
   data: RecurringPaymentConfigItem[]

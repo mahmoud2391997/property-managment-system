@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { SidebarProvider } from '@/components/ui/sidebar'
 import Sidebar, { MobileHeader } from '@/components/app-sidebar'
 import { cn } from '@/lib/utils'
