@@ -1,299 +1,201 @@
-export const dynamic = 'force-dynamic'
+'use client'
 
-import { Suspense } from 'react'
-import { cn } from '@/lib/utils'
-import { prisma } from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
-import TicketsSection from '@/components/tickets-section'
-import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
-import { Ticket } from '@/types'
-import { requirePermission } from '@/lib/server-permissions'
+import React from 'react'
+import Link from 'next/link'
+import {
+  Ticket,
+  MapPin,
+  User,
+  Calendar,
+  Filter,
+  CheckCircle,
+  Clock,
+  AlertTriangle
+} from 'lucide-react'
+import { dummyTickets } from '@/lib/dummy-data'
 
-const PAGE_SIZE = 10
-
-// Shared include for ticket queries
-const ticketInclude = {
-  leases: {
-    include: {
-      tenants: {
-        include: {
-          individual_tenants: true,
-          company_tenants: true
-        }
-      },
-      properties: {
-        select: { id: true, code: true, street_address: true }
-      },
-      rooms: {
-        select: { id: true, title: true }
-      }
-    }
-  },
-  ticket_types: {
-    orderBy: { created_at: 'desc' as const },
-    take: 1
-  },
-  ticket_statuses: {
-    orderBy: { created_at: 'desc' as const },
-    take: 1
-  },
-  ticket_assignments: {
-    where: {
-      status: 'Accepted' as const
-    },
-    orderBy: { requested_at: 'desc' as const },
-    take: 1,
-    include: {
-      staff_ticket_assignments_assigned_idTostaff: true,
-      staff_ticket_assignments_assigner_idTostaff: true
+export default function Tickets() {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Open':
+        return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+      case 'In Progress':
+        return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+      case 'Pending Tenant Confirmation':
+        return 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+      case 'Resolved':
+        return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+      case 'Closed':
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300'
+      default:
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300'
     }
   }
-}
 
-// Status mapping from DB enum to display format
-const statusMap: Record<string, string> = {
-  Open: 'Open',
-  In_Progress: 'In Progress',
-  Pending_Tenant: 'Pending Tenant Confirmation',
-  Resolved: 'Resolved',
-  Closed: 'Closed'
-}
-
-// Transform ticket to API response format
-function transformTicket(ticket: any): Ticket {
-  // Get tenant from lease
-  const tenant = ticket.leases?.tenants
-  const tenantName = tenant?.individual_tenants
-    ? `${tenant.individual_tenants.first_name} ${tenant.individual_tenants.last_name || ''}`.trim()
-    : tenant?.company_tenants?.company_name || 'Unknown'
-
-  // Get property and room from lease
-  const property = ticket.leases?.properties?.code || 'N/A'
-  const room = ticket.leases?.rooms?.title || 'Whole unit'
-
-  // Get latest type
-  const type = ticket.ticket_types[0]?.type || 'Other'
-
-  // Get latest status and map to display format
-  const rawStatus = ticket.ticket_statuses[0]?.state || 'Open'
-  const status = statusMap[rawStatus] || rawStatus
-
-  // Get assigned staff (assigned_to)
-  const assignment = ticket.ticket_assignments[0]
-  const assignedStaff = assignment?.staff_ticket_assignments_assigned_idTostaff
-  const staffName = assignedStaff
-    ? `${assignedStaff.first_name} ${assignedStaff.last_name || ''}`.trim()
-    : undefined
-
-  // Get assigner staff (assigned_by)
-  const assignerStaff = assignment?.staff_ticket_assignments_assigner_idTostaff
-  const assignerName = assignerStaff
-    ? `${assignerStaff.first_name} ${assignerStaff.last_name || ''}`.trim()
-    : undefined
-
-  const transformed = {
-    id: ticket.reference_id,
-    ticket_id: ticket.id,
-    type,
-    title: ticket.title,
-    description: ticket.description,
-    property,
-    room,
-    tenant_name: tenantName,
-    tenant_picture: tenant?.profile_pic || '',
-    issue_timestamp: ticket.created_at.toISOString(),
-    staff_name: staffName,
-    staff_picture: assignedStaff?.profile_pic || '',
-    assigner_name: assignerName,
-    assignment_timestamp: assignment?.responded_at?.toISOString() || '',
-    status
-  } as Ticket
-
-  console.log('🎫 Transformed ticket:', {
-    reference_id: ticket.reference_id,
-    title: ticket.title,
-    tenantName,
-    property,
-    status
-  })
-
-  return transformed
-}
-
-async function getTickets(): Promise<{
-  data: Ticket[]
-  total: number
-  userType: 'staff' | 'tenant'
-}> {
-  try {
-    const supabase = await createClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return { data: [], total: 0, userType: 'staff' }
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Open':
+        return <AlertTriangle className="w-4 h-4" />
+      case 'In Progress':
+        return <Clock className="w-4 h-4" />
+      case 'Pending Tenant Confirmation':
+        return <Clock className="w-4 h-4" />
+      case 'Resolved':
+        return <CheckCircle className="w-4 h-4" />
+      case 'Closed':
+        return <CheckCircle className="w-4 h-4" />
+      default:
+        return <Clock className="w-4 h-4" />
     }
-
-    const userMetaType = user.user_metadata?.user_type
-    console.log('🎫 User metadata:', { userId: user.id, userMetaType, allMeta: JSON.stringify(user.user_metadata) })
-    
-    let organizationId: string | null = null
-    let tenantId: string | null = null
-    let userType: 'staff' | 'tenant' = 'staff'
-
-    // Try to determine if user is tenant by checking both metadata and database
-    // First try metadata, then fall back to database lookup
-    const isTenantFromMeta = userMetaType === 'tenant'
-    
-    // Check if user exists as tenant in database
-    const tenantCheck = await prisma.tenants.findUnique({
-      where: { id: user.id },
-      select: { id: true }
-    })
-    
-    const isTenantInDb = !!tenantCheck
-    console.log('🎫 User type detection:', { isTenantFromMeta, isTenantInDb })
-
-    // Get organization based on user type
-    if (isTenantFromMeta || isTenantInDb) {
-      console.log('🎫 User is tenant, fetching tenant data...')
-      const tenant = await prisma.tenants.findUnique({
-        where: { id: user.id },
-        select: {
-          id: true,
-          organizations_tenants: {
-            select: { organization_id: true },
-            take: 1
-          }
-        }
-      })
-
-      console.log('🎫 Tenant lookup result:', { found: !!tenant, tenantId: tenant?.id })
-
-      if (!tenant) {
-        return { data: [], total: 0, userType: 'tenant' }
-      }
-
-      organizationId = tenant.organizations_tenants[0]?.organization_id || null
-      tenantId = tenant.id
-      userType = 'tenant'
-
-      // Fallback: if no organizations_tenants entry, get org from tenant's leases
-      if (!organizationId) {
-        const tenantLease = await prisma.leases.findFirst({
-          where: { tenant_id: tenant.id },
-          select: { organization_id: true },
-          orderBy: { created_at: 'desc' }
-        })
-        if (tenantLease) {
-          organizationId = tenantLease.organization_id
-        }
-      }
-    } else {
-      console.log('🎫 User is staff')
-      const staff = await prisma.staff.findUnique({
-        where: { id: user.id },
-        select: { organization_id: true }
-      })
-
-      if (!staff) {
-        return { data: [], total: 0, userType: 'staff' }
-      }
-
-      organizationId = staff.organization_id
-      userType = 'staff'
-    }
-
-    if (!organizationId) {
-      return { data: [], total: 0, userType }
-    }
-
-    // Build where clause
-    const whereClause: any = {
-      organization_id: organizationId
-    }
-
-    // If tenant, only show tickets from their leases
-    if (userType === 'tenant' && tenantId) {
-      whereClause.leases = {
-        is: {
-          tenant_id: tenantId
-        }
-      }
-    }
-
-    console.log('🎫 Fetching tickets:', {
-      userType,
-      tenantId,
-      organizationId,
-      whereClause: JSON.stringify(whereClause, null, 2)
-    })
-
-    // Fetch first page of tickets and total count in parallel
-    const [tickets, total] = await Promise.all([
-      prisma.tickets.findMany({
-        where: whereClause,
-        include: ticketInclude,
-        orderBy: { created_at: 'desc' },
-        take: PAGE_SIZE
-      }),
-      prisma.tickets.count({ where: whereClause })
-    ])
-
-    console.log('🎫 Tickets result:', { count: tickets.length, total })
-
-    return {
-      data: tickets.map(transformTicket),
-      total,
-      userType
-    }
-  } catch (error) {
-    console.error('❌ Error fetching tickets:', error)
-    if (error instanceof Error) {
-      console.error('Error message:', error.message)
-      console.error('Error stack:', error.stack)
-    }
-    return { data: [], total: 0, userType: 'staff' }
-  }
-}
-
-const Tickets = async () => {
-  console.log('🎫 Tickets page rendering...')
-  
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const userType = user?.user_metadata?.user_type
-
-  console.log('🎫 User info:', { userId: user?.id, userType })
-
-  if (userType !== 'tenant') {
-    await requirePermission('tickets.access')
   }
 
-  const {
-    data: initialData,
-    total: initialTotal,
-    userType: resolvedUserType
-  } = await getTickets()
-  
-  console.log('🎫 Tickets page loaded with data:', { count: initialData.length, total: initialTotal })
-  
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'Maintenance':
+        return 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
+      case 'Complaint':
+        return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+      case 'Billing':
+        return 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+      case 'Aircon Top-Up':
+        return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300'
+      case 'Others':
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300'
+      default:
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300'
+    }
+  }
+
   return (
-    <Suspense fallback={<TablePageSkeleton />}>
-      <div className={cn('flex flex-col gap-2.5', 'h-full')}>
-        {/* Heading */}
-        <div>
-          <h1>Tickets</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+              Tickets
+            </h1>
+            <p className="text-slate-600 dark:text-slate-300">
+              Manage maintenance and support tickets
+            </p>
+          </div>
+          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <Filter className="w-4 h-4" />
+            Filter
+          </button>
         </div>
-        <TicketsSection
-          initialData={initialData}
-          initialTotal={initialTotal}
-          userType={resolvedUserType}
-        />
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-lg">
+            <p className="text-sm text-slate-600 dark:text-slate-300">Total Tickets</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">
+              {dummyTickets.length}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-lg">
+            <p className="text-sm text-slate-600 dark:text-slate-300">Open</p>
+            <p className="text-2xl font-bold text-yellow-600">
+              {dummyTickets.filter(t => t.status === 'Open').length}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-lg">
+            <p className="text-sm text-slate-600 dark:text-slate-300">In Progress</p>
+            <p className="text-2xl font-bold text-blue-600">
+              {dummyTickets.filter(t => t.status === 'In Progress').length}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-lg">
+            <p className="text-sm text-slate-600 dark:text-slate-300">Resolved</p>
+            <p className="text-2xl font-bold text-green-600">
+              {dummyTickets.filter(t => t.status === 'Resolved').length}
+            </p>
+          </div>
+        </div>
+
+        {/* Tickets Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {dummyTickets.map((ticket) => (
+            <div
+              key={ticket.id}
+              className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900 rounded-xl flex items-center justify-center">
+                    <Ticket className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span
+                        className={`px-2 py-0.5 text-xs font-medium rounded-full ${getTypeColor(ticket.type)}`}
+                      >
+                        {ticket.type}
+                      </span>
+                      <span className="text-sm font-medium text-slate-900 dark:text-white">
+                        {ticket.id}
+                      </span>
+                    </div>
+                    <h3 className="font-semibold text-slate-900 dark:text-white">
+                      {ticket.title}
+                    </h3>
+                  </div>
+                </div>
+                <span
+                  className={`flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(ticket.status)}`}
+                >
+                  {getStatusIcon(ticket.status)}
+                  {ticket.status}
+                </span>
+              </div>
+
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                {ticket.description}
+              </p>
+
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                  <MapPin className="w-4 h-4" />
+                  <span>{ticket.property} - {ticket.room}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                  <User className="w-4 h-4" />
+                  <span>{ticket.tenant_name}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                  <Calendar className="w-4 h-4" />
+                  <span>{new Date(ticket.issue_timestamp).toLocaleDateString()}</span>
+                </div>
+              </div>
+
+              {ticket.staff_name && (
+                <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                    <span>Assigned to:</span>
+                    <span className="font-medium text-slate-900 dark:text-white">
+                      {ticket.staff_name}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-700 mt-4">
+                <button className="w-full py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+                  View Details
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Add Ticket Button */}
+        <div className="mt-8 flex justify-center">
+          <button className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg">
+            <Ticket className="w-5 h-5" />
+            Create New Ticket
+          </button>
+        </div>
       </div>
-    </Suspense>
+    </div>
   )
 }
-
-export default Tickets

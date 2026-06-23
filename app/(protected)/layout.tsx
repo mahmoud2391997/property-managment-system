@@ -18,21 +18,9 @@ export default async function ProtectedLayout ({
 }: {
   children: React.ReactNode
 }) {
-  const cookieStore = await cookies()
-  const defaultOpen = cookieStore.get('sidebar_state')?.value === 'true'
+  const defaultOpen = true
+  const isTenant = false
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  // Determine user type by checking database (metadata may not be set)
-  let isTenant = false
-  if (user) {
-    const tenantCheck = await prisma.tenants.findUnique({
-      where: { id: user.id },
-      select: { id: true }
-    })
-    isTenant = !!tenantCheck
-  }
 
   return (
     <PasswordSetupGuard>

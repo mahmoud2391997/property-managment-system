@@ -1,156 +1,164 @@
-import { Suspense } from 'react'
-import { cn } from '@/lib/utils'
-import TenantsSection from '@/components/sections/tenants-section'
-import { prisma } from '@/lib/prisma'
-import { getUserAndStaff } from '@/utils/getUserAndStaff'
-import { createAdminClient } from '@/utils/supabase/admin'
-import { redirect } from 'next/navigation'
-import { transformTenant, TenantWithDetails } from '@/lib/tenants-utils'
-import TablePageSkeleton from '@/components/loading-ui/table-page-skeleton'
-import { requirePermission } from '@/lib/server-permissions'
+'use client'
 
-const PAGE_SIZE = 10
+import React from 'react'
+import Link from 'next/link'
+import {
+  Users,
+  Mail,
+  Phone,
+  CheckCircle,
+  Clock,
+  User,
+  Filter
+} from 'lucide-react'
+import { dummyTenants } from '@/lib/dummy-data'
 
-// Shared select for tenant queries via organizations_tenants junction table
-const tenantSelect = {
-  tenants: {
-    select: {
-      id: true,
-      type: true,
-      profile_pic: true,
-      profile_thumb: true,
-      invite_sent: true,
-      individual_tenants: {
-        select: {
-          identity_type: true,
-          identity_number: true,
-          first_name: true,
-          last_name: true,
-          phone_number: true
-        }
-      }
+export default function Tenants() {
+  const getAccountStatusColor = (status: string) => {
+    switch (status) {
+      case 'Activated':
+        return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+      case 'Pending Activation':
+        return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+      default:
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300'
     }
   }
-}
 
-import { tenant_type } from '@prisma/client'
-
-async function getTenants(organizationId: string): Promise<{ data: TenantWithDetails[]; total: number }> {
-  try {
-    const whereClause = {
-      organization_id: organizationId,
-      tenants: {
-        type: tenant_type.Individual
-      }
+  const getRentalStatusColor = (status: string) => {
+    switch (status) {
+      case 'Renting':
+        return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+      case 'Booking':
+        return 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+      case 'Pending Refund':
+        return 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
+      case 'Not Renting':
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300'
+      default:
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300'
     }
-
-    // Fetch first page of tenants and total count in parallel
-    const [organizationTenants, total] = await Promise.all([
-      prisma.organizations_tenants.findMany({
-        where: whereClause,
-        select: tenantSelect,
-        orderBy: { created_at: 'desc' },
-        take: PAGE_SIZE
-      }),
-      prisma.organizations_tenants.count({ where: whereClause })
-    ])
-
-    // Get tenant IDs for active lease count query
-    const tenantIds = organizationTenants.map(ot => ot.tenants.id)
-
-    // Get active lease counts for all tenants in one query
-    let leaseCountMap = new Map<string, number>()
-
-    if (tenantIds.length > 0) {
-      const activeLeases = await prisma.leases.findMany({
-        where: {
-          tenant_id: { in: tenantIds },
-          organization_id: organizationId,
-          status: 'Current'
-        },
-        select: { tenant_id: true }
-      })
-
-      // Count leases per tenant
-      for (const lease of activeLeases) {
-        const currentCount = leaseCountMap.get(lease.tenant_id) || 0
-        leaseCountMap.set(lease.tenant_id, currentCount + 1)
-      }
-    }
-
-    // Get active booking counts for all tenants in one query
-    let bookingCountMap = new Map<string, number>()
-
-    if (tenantIds.length > 0) {
-      const activeBookings = await prisma.bookings.findMany({
-        where: {
-          tenant_id: { in: tenantIds },
-          properties: {
-            organization_id: organizationId
-          },
-          status: 'Current'
-        },
-        select: { tenant_id: true }
-      })
-
-      for (const booking of activeBookings) {
-        const currentCount = bookingCountMap.get(booking.tenant_id) || 0
-        bookingCountMap.set(booking.tenant_id, currentCount + 1)
-      }
-    }
-
-    // Get account activation status and email from Supabase Auth
-    const supabaseAdmin = createAdminClient()
-    const tenantsWithStatus = await Promise.all(
-      organizationTenants.map(async (ot) => {
-        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(ot.tenants.id)
-
-        const wasInvited = !!authUser?.user?.invited_at
-        const passwordSet = authUser?.user?.app_metadata?.password_set === true
-        const isActivated = wasInvited ? passwordSet : true
-        const email = authUser?.user?.email || ''
-        const accountStatus = isActivated ? 'Activated' as const : 'Pending' as const
-        const activeLeaseCount = leaseCountMap.get(ot.tenants.id) || 0
-        const activeBookingCount = bookingCountMap.get(ot.tenants.id) || 0
-
-        return transformTenant(ot, email, accountStatus, activeLeaseCount, activeBookingCount)
-      })
-    )
-
-    return {
-      data: tenantsWithStatus,
-      total
-    }
-  } catch (error) {
-    console.error('Error fetching tenants:', error)
-    return { data: [], total: 0 }
   }
-}
-
-const Tenants = async () => {
-  await requirePermission('tenants.access')
-  const { staff: currentStaff, error } = await getUserAndStaff()
-
-  if (error) {
-    redirect('/login')
-  }
-
-  const { data: initialData, total: initialTotal } = await getTenants(currentStaff.organization_id)
 
   return (
-    <Suspense fallback={<TablePageSkeleton />}>
-      <div className={cn('flex flex-col gap-2.5', 'h-full')}>
-        {/* Heading */}
-        <div>
-          <h1>Tenants</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+              Tenants
+            </h1>
+            <p className="text-slate-600 dark:text-slate-300">
+              Manage tenant information and rental status
+            </p>
+          </div>
+          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <Filter className="w-4 h-4" />
+            Filter
+          </button>
         </div>
-        <TenantsSection
-          initialData={initialData}
-          initialTotal={initialTotal}
-        />
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-lg">
+            <p className="text-sm text-slate-600 dark:text-slate-300">Total Tenants</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">
+              {dummyTenants.length}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-lg">
+            <p className="text-sm text-slate-600 dark:text-slate-300">Active Renters</p>
+            <p className="text-2xl font-bold text-blue-600">
+              {dummyTenants.filter(t => t.rental_status === 'Renting').length}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-lg">
+            <p className="text-sm text-slate-600 dark:text-slate-300">Bookings</p>
+            <p className="text-2xl font-bold text-purple-600">
+              {dummyTenants.filter(t => t.rental_status === 'Booking').length}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-lg">
+            <p className="text-sm text-slate-600 dark:text-slate-300">Pending Activation</p>
+            <p className="text-2xl font-bold text-yellow-600">
+              {dummyTenants.filter(t => t.account_status === 'Pending Activation').length}
+            </p>
+          </div>
+        </div>
+
+        {/* Tenants Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {dummyTenants.map((tenant) => (
+            <div
+              key={tenant.id}
+              className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow"
+            >
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700">
+                  {tenant.tenant_picture ? (
+                    <img
+                      src={tenant.tenant_picture}
+                      alt={tenant.tenant_name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className="w-8 h-8 text-slate-400" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
+                    {tenant.tenant_name}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    <span
+                      className={`px-2 py-0.5 text-xs font-medium rounded-full ${getAccountStatusColor(tenant.account_status)}`}
+                    >
+                      {tenant.account_status}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 text-xs font-medium rounded-full ${getRentalStatusColor(tenant.rental_status)}`}
+                    >
+                      {tenant.rental_status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                  <Mail className="w-4 h-4" />
+                  <span className="truncate">{tenant.email}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                  <Phone className="w-4 h-4" />
+                  <span>{tenant.phone_no}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                  <User className="w-4 h-4" />
+                  <span className="truncate">{tenant.identity_no}</span>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+                <button className="w-full py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+                  View Details
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Add Tenant Button */}
+        <div className="mt-8 flex justify-center">
+          <button className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg">
+            <Users className="w-5 h-5" />
+            Add New Tenant
+          </button>
+        </div>
       </div>
-    </Suspense>
+    </div>
   )
 }
-
-export default Tenants

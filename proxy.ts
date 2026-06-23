@@ -5,25 +5,20 @@ import { hasPermission } from '@/lib/has-permission'
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Redirect root path to the frontend demo
+  // Redirect root path to dashboard
   if (pathname === '/') {
     const url = request.nextUrl.clone()
-    url.pathname = '/demo'
+    url.pathname = '/dashboard'
     return NextResponse.redirect(url)
   }
 
-  // Bypass all middleware logic and Supabase client initialization for demo routes
-  if (pathname.startsWith('/demo')) {
-    return NextResponse.next({ request })
-  }
-
-  // If Supabase keys are missing, redirect non-public routes to demo and let public routes pass through
+  // If Supabase keys are missing, redirect non-public routes to dashboard and let public routes pass through
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
     const publicPaths = ['/login', '/signup', '/confirm', '/error', '/forgot-password', '/reset-password', '/setup-password', '/migrate']
     const isPublic = publicPaths.some(path => pathname.startsWith(path))
     if (!isPublic) {
       const url = request.nextUrl.clone()
-      url.pathname = '/demo'
+      url.pathname = '/dashboard'
       return NextResponse.redirect(url)
     }
     return NextResponse.next({ request })
