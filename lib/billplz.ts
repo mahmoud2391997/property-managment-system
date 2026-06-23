@@ -6,10 +6,13 @@ const BILLPLZ_API_SECRET_KEY = process.env.BILLPLZ_API_SECRET_KEY
 const BILLPLZ_COLLECTION_ID = process.env.BILLPLZ_COLLECTION_ID
 const BILLPLZ_X_SIGNATURE_KEY = process.env.BILLPLZ_X_SIGNATURE_KEY
 
-// Validate environment variables
-if (!BILLPLZ_API_URL || !BILLPLZ_API_SECRET_KEY || !BILLPLZ_COLLECTION_ID || !BILLPLZ_X_SIGNATURE_KEY) {
-  throw new Error('Missing required Billplz environment variables')
+// Helper function to validate environment variables at invocation time
+function ensureEnvVars() {
+  if (!BILLPLZ_API_URL || !BILLPLZ_API_SECRET_KEY || !BILLPLZ_COLLECTION_ID || !BILLPLZ_X_SIGNATURE_KEY) {
+    throw new Error('Missing required Billplz environment variables')
+  }
 }
+
 
 export interface CreateBillParams {
   collection_id: string
@@ -72,6 +75,7 @@ export interface BillplzWebhookPayload {
  * @returns Bill response from Billplz API
  */
 export async function createBill(params: CreateBillParams): Promise<BillplzBillResponse> {
+  ensureEnvVars()
   try {
     const formData = new URLSearchParams()
     formData.append('collection_id', params.collection_id)
@@ -131,6 +135,7 @@ export async function createBill(params: CreateBillParams): Promise<BillplzBillR
  * @returns true if signature is valid, false otherwise
  */
 export function verifyXSignature(payload: BillplzWebhookPayload): boolean {
+  ensureEnvVars()
   try {
     const receivedSignature = payload.x_signature
 
@@ -217,6 +222,7 @@ export function verifyXSignature(payload: BillplzWebhookPayload): boolean {
  * @returns Bill details from Billplz API
  */
 export async function getBill(billId: string): Promise<BillplzBillResponse> {
+  ensureEnvVars()
   try {
     const response = await fetch(`${BILLPLZ_API_URL}/bills/${billId}`, {
       method: 'GET',
@@ -260,6 +266,7 @@ export interface BillplzTransactionsResponse {
  * @returns Transactions response from Billplz API
  */
 export async function getBillTransactions(billId: string): Promise<BillplzTransactionsResponse> {
+  ensureEnvVars()
   try {
     const response = await fetch(`${BILLPLZ_API_URL}/bills/${billId}/transactions`, {
       method: 'GET',
