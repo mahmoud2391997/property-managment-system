@@ -106,6 +106,20 @@ function transformTicket(ticket: any) {
 }
 
 export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV === 'development') {
+    const { devTickets } = await import('@/lib/dev-data')
+    const { searchParams } = new URL(request.url)
+    const paginate = searchParams.get('paginate') === 'true'
+    if (paginate) {
+      const page = parseInt(searchParams.get('page') || '1')
+      const limit = parseInt(searchParams.get('limit') || '10')
+      const startIndex = (page - 1) * limit
+      const endIndex = startIndex + limit
+      const data = devTickets.slice(startIndex, endIndex)
+      return NextResponse.json({ success: true, data, total: devTickets.length, page, pageSize: limit })
+    }
+    return NextResponse.json(devTickets)
+  }
   try {
     const supabase = await createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()

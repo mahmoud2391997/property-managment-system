@@ -5,6 +5,16 @@ import { hasPermission } from '@/lib/has-permission'
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // Skip auth in development mode — go straight to dashboard
+  if (process.env.NODE_ENV === 'development') {
+    if (pathname === '/') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
+    return NextResponse.next({ request })
+  }
+
   // If Supabase keys are missing, redirect non-public routes to dashboard and let public routes pass through
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
     const publicPaths = ['/login', '/signup', '/confirm', '/error', '/forgot-password', '/reset-password', '/setup-password', '/migrate']

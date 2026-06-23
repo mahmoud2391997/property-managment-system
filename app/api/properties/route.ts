@@ -8,6 +8,20 @@ import { hasPermission } from '@/lib/has-permission'
 import { transformProperty } from '@/lib/properties-utils'
 
 export async function GET (req: Request) {
+  if (process.env.NODE_ENV === 'development') {
+    const { devProperties } = await import('@/lib/dev-data')
+    const url = new URL(req.url)
+    const paginate = url.searchParams.get('paginate') === 'true'
+    if (paginate) {
+      const page = parseInt(url.searchParams.get('page') || '1')
+      const limit = parseInt(url.searchParams.get('limit') || '10')
+      const startIndex = (page - 1) * limit
+      const endIndex = startIndex + limit
+      const data = devProperties.slice(startIndex, endIndex)
+      return NextResponse.json({ success: true, data, total: devProperties.length, page, pageSize: limit })
+    }
+    return NextResponse.json(devProperties)
+  }
   try {
     const { user, staff, permissions, error } = await getUserAndStaff()
 

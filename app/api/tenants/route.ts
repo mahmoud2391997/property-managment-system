@@ -30,6 +30,20 @@ const tenantSelect = {
 }
 
 export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV === 'development') {
+    const { devTenants } = await import('@/lib/dev-data')
+    const { searchParams } = new URL(request.url)
+    const paginate = searchParams.get('paginate') === 'true'
+    if (paginate) {
+      const page = parseInt(searchParams.get('page') || '1')
+      const limit = parseInt(searchParams.get('limit') || '10')
+      const startIndex = (page - 1) * limit
+      const endIndex = startIndex + limit
+      const data = devTenants.slice(startIndex, endIndex)
+      return NextResponse.json({ success: true, data, total: devTenants.length, page, pageSize: limit })
+    }
+    return NextResponse.json(devTenants)
+  }
   try {
     const { staff: currentStaff, permissions, error } = await getUserAndStaff()
 

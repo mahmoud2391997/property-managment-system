@@ -29,6 +29,16 @@ type Failure = {
 }
 
 async function getUserAndStaffInternal(): Promise<Success | Failure> {
+  if (process.env.NODE_ENV === 'development') {
+    return {
+      user: { id: 'dev-user', email: 'dev@example.com', user_metadata: { user_type: 'staff' } },
+      staff: { id: 'dev-staff', organization_id: 'dev-org' },
+      permissions: new Set(['*']),
+      role: 'admin',
+      error: null
+    } as any
+  }
+
   const supabase = await createClient()
   const {
     data: { user }
