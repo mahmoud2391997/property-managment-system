@@ -1,13 +1,9 @@
-'use client'
-
-import { useRouter } from 'next/navigation'
+import { Suspense } from 'react'
+import TenantLoginForm from '@/components/tenant-login-form'
 import EnvBadge from '@/components/env-badge'
 import Image from 'next/image'
-import { Button } from '@/components/ui/button'
 
-const LoginRoleSelector = () => {
-  const router = useRouter()
-
+const TenantLogin = async () => {
   return (
     <div className='flex min-h-svh'>
       <EnvBadge />
@@ -55,33 +51,14 @@ const LoginRoleSelector = () => {
           <span className='text-[18px] font-semibold text-[#1a1a1a]'>TenancyPilot</span>
         </div>
 
-        <div className='w-full max-w-[400px] space-y-6'>
-          <div className='space-y-2'>
-            <h1 className='text-2xl font-bold text-[#1a1a1a]'>Select Your Role</h1>
-            <p className='text-sm text-gray-600'>Choose how you want to access TenancyPilot</p>
-          </div>
-
-          <div className='space-y-3'>
-            <Button
-              onClick={() => router.push('/login/tenant')}
-              className='w-full h-12 text-base font-semibold'
-              variant='default'
-            >
-              Tenant Login
-            </Button>
-
-            <Button
-              onClick={() => router.push('/login/staff')}
-              className='w-full h-12 text-base font-semibold'
-              variant='outline'
-            >
-              Staff Login
-            </Button>
-          </div>
+        <div className='w-full max-w-[400px]'>
+          <Suspense fallback={<div className="h-72" />}>
+            <TenantLoginForm />
+          </Suspense>
         </div>
       </div>
     </div>
   )
 }
 
-export default LoginRoleSelector
+export default TenantLogin
