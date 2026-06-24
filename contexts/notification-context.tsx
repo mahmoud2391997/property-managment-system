@@ -1,7 +1,6 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
-import { createClient } from '@/utils/supabase/client'
 
 type NotificationContextType = {
   hasUnreadNotifications: boolean
@@ -36,59 +35,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [fetchUnreadCount])
 
   // Subscribe to real-time notifications for current user
+  // Disabled in demo mode - Supabase credentials not available
   useEffect(() => {
-    const supabase = createClient()
-    let channel: ReturnType<typeof supabase.channel> | null = null
-
-    const setupSubscription = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      channel = supabase
-        .channel('notifications-unread')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`
-          },
-          (payload) => {
-            // New notification inserted for this user - check if it's unread
-            const newRecord = payload.new as { is_read?: boolean }
-            if (newRecord.is_read === false) {
-              setHasUnreadNotifications(true)
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`
-          },
-          (payload) => {
-            // Notification updated - check if marked as read
-            const newRecord = payload.new as { is_read?: boolean }
-            if (newRecord.is_read === true) {
-              // Refetch to check if any unread remain
-              fetchUnreadCount()
-            }
-          }
-        )
-        .subscribe()
-    }
-
-    setupSubscription()
-
-    return () => {
-      if (channel) {
-        supabase.removeChannel(channel)
-      }
-    }
+    // Demo mode: skip real-time subscription
+    return () => {}
   }, [fetchUnreadCount])
 
   return (
