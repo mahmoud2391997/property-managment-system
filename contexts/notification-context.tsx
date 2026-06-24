@@ -15,11 +15,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const fetchUnreadCount = useCallback(async () => {
     try {
-      const response = await fetch('/api/notifications/unread-count')
-      if (response.ok) {
-        const data = await response.json()
-        setHasUnreadNotifications(data.count > 0)
-      }
+      // Dummy data - simulate unread notifications
+      const hasUnread = Math.random() > 0.3 // 70% chance of having unread
+      setHasUnreadNotifications(hasUnread)
     } catch (error) {
       console.error('Error fetching unread notifications:', error)
     }

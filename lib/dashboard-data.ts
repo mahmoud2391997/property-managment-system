@@ -1,15 +1,9 @@
-import { prisma } from '@/lib/prisma'
-import { payment_status, lease_status_new, property_status_new, task_state, payment_record_status } from '@prisma/client'
+import { dummyLeases, dummyPayments, dummyTasks, dummyNotices } from '@/lib/dummy-data'
 import { startOfMonth, endOfMonth, subMonths, format, addDays } from 'date-fns'
-// Dev cache: prevents re-fetching on every hot reload (30s TTL)
-const devCache = new Map<string, { data: unknown; expires: number }>()
+
+// Dummy data returns (frontend only - no backend)
 async function cachedQuery<T>(key: string, fn: () => Promise<T>): Promise<T> {
-  if (process.env.NODE_ENV !== 'development') return fn()
-  const cached = devCache.get(key)
-  if (cached && Date.now() < cached.expires) return cached.data as T
-  const data = await fn()
-  devCache.set(key, { data, expires: Date.now() + 30_000 })
-  return data
+  return fn()
 }
 
 export interface DashboardMetrics {
@@ -108,7 +102,7 @@ export interface RecentPayment {
   propertyCode: string
   roomTitle: string | null
   amount: number
-  status: payment_status
+  status: string
   dueDate: Date | null
   paidAt: Date | null
 }
@@ -160,847 +154,204 @@ const PROPERTY_STATUS_COLORS: Record<string, string> = {
 
 export async function getDashboardMetrics(organizationId: string): Promise<DashboardMetrics> {
   return cachedQuery(`dashboard-metrics-${organizationId}`, async () => {
-  const now = new Date()
-  const startOfCurrentMonth = startOfMonth(now)
-  const endOfCurrentMonth = endOfMonth(now)
-  const startOfLastMonth = startOfMonth(subMonths(now, 1))
-  const endOfLastMonth = endOfMonth(subMonths(now, 1))
-
-  const [
-    totalProperties,
-    totalRooms,
-    activeLeases,
-    totalTenants,
-    paidPayments,
-    pendingPayments,
-    readyProperties,
-    readyRooms,
-    overduePaymentsCount,
-    // Additional queries
-    propertiesByStatus,
-    occupiedRooms,
-    maintenanceProperties,
-    expiringLeasesCount,
-    individualTenants,
-    companyTenants,
-    previousMonthPayments,
-    pendingPaymentsAmount
-  ] = await Promise.all([
-    // Total properties
-    prisma.properties.count({
-      where: { organization_id: organizationId }
-    }),
-    // Total rooms
-    prisma.rooms.count({
-      where: { properties: { organization_id: organizationId } }
-    }),
-    // Active leases (Current status)
-    prisma.leases.count({
-      where: {
-        organization_id: organizationId,
-        status: lease_status_new.Current
-      }
-    }),
-    // Total tenants
-    prisma.organizations_tenants.count({
-      where: { organization_id: organizationId }
-    }),
-    // Monthly revenue (paid this month)
-    prisma.payment_history.aggregate({
-      where: {
-        payments: {
-          organization_id: organizationId,
-        },
-        paid_at: {
-          gte: startOfCurrentMonth,
-          lte: endOfCurrentMonth
-        },
-        status: payment_record_status.Success
+    // Return dummy metrics
+    return {
+      totalProperties: 6,
+      totalRooms: 18,
+      activeLeases: dummyLeases.filter(l => l.status === 'Current').length,
+      totalTenants: 5,
+      monthlyRevenue: 15150,
+      outstandingPayments: 4,
+      occupancyRate: 78,
+      overduePayments: 2,
+      propertyBreakdown: {
+        ready: 4,
+        occupied: 2,
+        maintenance: 0
       },
-      _sum: { amount: true }
-    }),
-    // Outstanding payments (Pending)
-    prisma.payments.aggregate({
-      where: {
-        organization_id: organizationId,
-        status: payment_status.Pending
+      roomOccupancyRate: 72,
+      expiringLeasesThisMonth: 2,
+      tenantBreakdown: {
+        individual: 4,
+        company: 1
       },
-      _count: true
-    }),
-    // Ready properties
-    prisma.properties.count({
-      where: {
-        organization_id: organizationId,
-        status: property_status_new.Ready
-      }
-    }),
-    // Ready rooms
-    prisma.rooms.count({
-      where: {
-        properties: { organization_id: organizationId },
-        status: property_status_new.Ready
-      }
-    }),
-    // Overdue payments count
-    prisma.payments.count({
-      where: {
-        organization_id: organizationId,
-        status: payment_status.Pending,
-        due_payment_timestamp: { lt: now }
-      }
-    }),
-    // Properties grouped by status
-    prisma.properties.groupBy({
-      by: ['status'],
-      where: { organization_id: organizationId },
-      _count: true
-    }),
-    // Occupied rooms (rooms with active leases)
-    prisma.rooms.count({
-      where: {
-        properties: { organization_id: organizationId },
-        leases: {
-          some: { status: lease_status_new.Current }
-        }
-      }
-    }),
-    // Maintenance properties
-    prisma.properties.count({
-      where: {
-        organization_id: organizationId,
-        status: property_status_new.Under_Preparation
-      }
-    }),
-    // Expiring leases this month
-    prisma.leases.count({
-      where: {
-        organization_id: organizationId,
-        status: lease_status_new.Current,
-        // Will calculate in code since end_date is computed
-      }
-    }),
-    // Individual tenants
-    prisma.organizations_tenants.count({
-      where: {
-        organization_id: organizationId,
-        tenants: { type: 'Individual' }
-      }
-    }),
-    // Company tenants
-    prisma.organizations_tenants.count({
-      where: {
-        organization_id: organizationId,
-        tenants: { type: 'Company' }
-      }
-    }),
-    // Previous month revenue
-    prisma.payment_history.aggregate({
-      where: {
-        payments: {
-          organization_id: organizationId,
-        },
-        paid_at: {
-          gte: startOfLastMonth,
-          lte: endOfLastMonth
-        },
-        status: payment_record_status.Success
-      },
-      _sum: { amount: true }
-    }),
-    // Pending payments total amount
-    prisma.charges.aggregate({
-      where: {
-        payments: {
-          organization_id: organizationId,
-          status: payment_status.Pending
-        }
-      },
-      _sum: { amount: true }
-    })
-  ])
-
-  // Calculate occupancy rate
-  const totalUnits = totalProperties + totalRooms
-  const occupancyRate = totalUnits > 0 ? (activeLeases / totalUnits) * 100 : 0
-
-  // Calculate room occupancy rate
-  const roomOccupancyRate = totalRooms > 0 ? (occupiedRooms / totalRooms) * 100 : 0
-
-  // Calculate property breakdown
-  const occupiedProperties = propertiesByStatus.find(p => p.status === property_status_new.Ready)?._count || 0
-
-  return {
-    totalProperties,
-    totalRooms,
-    activeLeases,
-    totalTenants,
-    monthlyRevenue: Number(paidPayments._sum?.amount) || 0,
-    outstandingPayments: pendingPayments._count || 0,
-    occupancyRate: Math.round(occupancyRate),
-    overduePayments: overduePaymentsCount,
-    // Additional metrics
-    propertyBreakdown: {
-      ready: readyProperties,
-      occupied: totalProperties - readyProperties - maintenanceProperties,
-      maintenance: maintenanceProperties
-    },
-    roomOccupancyRate: Math.round(roomOccupancyRate),
-    expiringLeasesThisMonth: 0, // Will calculate separately if needed
-    tenantBreakdown: {
-      individual: individualTenants,
-      company: companyTenants
-    },
-    previousMonthRevenue: Number(previousMonthPayments._sum?.amount) || 0,
-    pendingPaymentsAmount: Number(pendingPaymentsAmount._sum?.amount) || 0
-  }
+      previousMonthRevenue: 14200,
+      pendingPaymentsAmount: 9350
+    }
   })
 }
 
 export async function getMonthlyRevenue(organizationId: string, months: number = 6): Promise<MonthlyRevenue[]> {
   return cachedQuery(`monthly-revenue-${organizationId}-${months}`, async () => {
-  const now = new Date()
-  const results: MonthlyRevenue[] = []
+    const now = new Date()
+    const results: MonthlyRevenue[] = []
+    const baseRevenue = 14000
 
-  for (let i = months - 1; i >= 0; i--) {
-    const date = subMonths(now, i)
-    const start = startOfMonth(date)
-    const end = endOfMonth(date)
+    for (let i = months - 1; i >= 0; i--) {
+      const date = subMonths(now, i)
+      results.push({
+        month: format(date, 'MMM'),
+        revenue: baseRevenue + Math.floor(Math.random() * 2000)
+      })
+    }
 
-    const revenue = await prisma.payment_history.aggregate({
-      where: {
-        payments: {
-          organization_id: organizationId,
-        },
-        paid_at: {
-          gte: start,
-          lte: end
-        },
-        status: payment_record_status.Success
-      },
-      _sum: { amount: true }
-    })
-
-    results.push({
-      month: format(date, 'MMM'),
-      revenue: Number(revenue._sum?.amount) || 0
-    })
-  }
-
-  return results
+    return results
   })
 }
 
 export async function getPaymentStatusDistribution(organizationId: string): Promise<PaymentStatusDistribution[]> {
   return cachedQuery(`payment-status-${organizationId}`, async () => {
-  const payments = await prisma.payments.groupBy({
-    by: ['status'],
-    where: {
-      organization_id: organizationId,
-      status: { not: payment_status.Unset }
-    },
-    _count: true
-  })
-
-  // Get amounts for each status
-  const statusAmounts = await Promise.all(
-    payments.map(async (p) => {
-      const charges = await prisma.charges.aggregate({
-        where: {
-          payments: {
-            organization_id: organizationId,
-            status: p.status
-          }
-        },
-        _sum: { amount: true }
-      })
-      return {
-        status: p.status,
-        amount: Number(charges._sum?.amount) || 0
-      }
-    })
-  )
-
-  return payments.map((p) => ({
-    status: p.status,
-    count: p._count,
-    amount: statusAmounts.find(a => a.status === p.status)?.amount || 0,
-    color: PAYMENT_STATUS_COLORS[p.status] || 'var(--muted)'
-  }))
+    return [
+      { status: 'Paid', count: 42, amount: 105000, color: '#0d9488' },
+      { status: 'Pending', count: 8, amount: 18200, color: '#d97706' },
+      { status: 'Overdue', count: 2, amount: 4500, color: '#dc2626' }
+    ]
   })
 }
 
 export async function getOccupancyData(organizationId: string): Promise<OccupancyData[]> {
   return cachedQuery(`occupancy-${organizationId}`, async () => {
-  const [properties, rooms] = await Promise.all([
-    prisma.properties.groupBy({
-      by: ['status'],
-      where: { organization_id: organizationId },
-      _count: true
-    }),
-    prisma.rooms.groupBy({
-      by: ['status'],
-      where: { properties: { organization_id: organizationId } },
-      _count: true
-    })
-  ])
-
-  // Combine properties and rooms by status
-  const statusMap = new Map<string, number>()
-
-  properties.forEach(p => {
-    const current = statusMap.get(p.status) || 0
-    statusMap.set(p.status, current + p._count)
-  })
-
-  rooms.forEach(r => {
-    const current = statusMap.get(r.status) || 0
-    statusMap.set(r.status, current + r._count)
-  })
-
-  return Array.from(statusMap.entries()).map(([status, count]) => ({
-    status: status.replace(/_/g, ' '),
-    count,
-    color: PROPERTY_STATUS_COLORS[status] || 'var(--muted)'
-  }))
+    return [
+      { status: 'Occupied', count: 14, color: '#0d9488' },
+      { status: 'Vacant', count: 3, color: '#64748b' },
+      { status: 'Under Preparation', count: 1, color: '#0284c7' }
+    ]
   })
 }
 
 export async function getRecentPayments(organizationId: string, limit: number = 5): Promise<RecentPayment[]> {
   return cachedQuery(`recent-payments-${organizationId}-${limit}`, async () => {
-  const payments = await prisma.payments.findMany({
-    where: {
-      organization_id: organizationId,
-      status: { not: payment_status.Unset }
-    },
-    orderBy: { created_at: 'desc' },
-    take: limit,
-    select: {
-      id: true,
-      reference_id: true,
-      status: true,
-      due_payment_timestamp: true,
-      leases: {
-        select: {
-          properties: {
-            select: { code: true }
-          },
-          rooms: {
-            select: { title: true }
-          },
-          tenants: {
-            select: {
-              type: true,
-              individual_tenants: {
-                select: { first_name: true, last_name: true }
-              },
-              company_tenants: {
-                select: { company_name: true }
-              }
-            }
-          }
-        }
+    return [
+      {
+        id: '1',
+        referenceId: 'PAY-001',
+        tenantName: 'Ahmad bin Ali',
+        propertyCode: 'A-101',
+        roomTitle: 'Master Bedroom',
+        amount: 2500,
+        status: 'Paid',
+        dueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        paidAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
       },
-      charges: {
-        select: { amount: true }
+      {
+        id: '2',
+        referenceId: 'PAY-002',
+        tenantName: 'Siti Aminah binti Omar',
+        propertyCode: 'B-201',
+        roomTitle: 'Master Bedroom',
+        amount: 1800,
+        status: 'Paid Late',
+        dueDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        paidAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000)
       },
-      payment_history: {
-        orderBy: { paid_at: 'desc' },
-        take: 1,
-        select: { paid_at: true }
+      {
+        id: '3',
+        referenceId: 'PAY-003',
+        tenantName: 'Raj Kumar',
+        propertyCode: 'A-101',
+        roomTitle: 'Bedroom 2',
+        amount: 2000,
+        status: 'Pending',
+        dueDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        paidAt: null
       }
-    }
-  })
-
-  return payments.map(p => {
-    const tenant = p.leases?.tenants
-    const tenantName = tenant?.type === 'Individual'
-      ? `${tenant.individual_tenants?.first_name || ''} ${tenant.individual_tenants?.last_name || ''}`.trim()
-      : tenant?.company_tenants?.company_name || 'Unknown'
-
-    const totalAmount = p.charges.reduce((sum, c) => sum + Number(c.amount), 0)
-
-    return {
-      id: p.id,
-      referenceId: p.reference_id,
-      tenantName,
-      propertyCode: p.leases?.properties?.code || 'N/A',
-      roomTitle: p.leases?.rooms?.title || null,
-      amount: totalAmount,
-      status: p.status,
-      dueDate: p.due_payment_timestamp,
-      paidAt: p.payment_history[0]?.paid_at || null
-    }
-  })
+    ].slice(0, limit)
   })
 }
 
 export async function getExpiringLeases(organizationId: string, daysAhead: number = 30): Promise<ExpiringLease[]> {
   return cachedQuery(`expiring-leases-${organizationId}-${daysAhead}`, async () => {
-  const now = new Date()
-
-  const leases = await prisma.leases.findMany({
-    where: {
-      organization_id: organizationId,
-      status: lease_status_new.Current,
-      number_of_months: { not: null }
-    },
-    select: {
-      id: true,
-      reference_id: true,
-      start_date: true,
-      number_of_months: true,
-      monthly_rent: true,
-      properties: {
-        select: { code: true }
+    return [
+      {
+        id: '1',
+        referenceId: 'LEASE-001',
+        tenantName: 'Ahmad bin Ali',
+        propertyCode: 'A-101',
+        roomTitle: 'Master Bedroom',
+        endDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
+        monthlyRent: 2500,
+        daysUntilExpiry: 25
       },
-      rooms: {
-        select: { title: true }
-      },
-      tenants: {
-        select: {
-          type: true,
-          individual_tenants: {
-            select: { first_name: true, last_name: true }
-          },
-          company_tenants: {
-            select: { company_name: true }
-          }
-        }
+      {
+        id: '2',
+        referenceId: 'LEASE-002',
+        tenantName: 'Siti Aminah binti Omar',
+        propertyCode: 'B-201',
+        roomTitle: 'Master Bedroom',
+        endDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
+        monthlyRent: 1800,
+        daysUntilExpiry: 45
       }
-    }
-  })
-
-  // Calculate end dates and filter
-  const expiringLeases = leases
-    .map(lease => {
-      const startDate = new Date(lease.start_date)
-      const endDate = new Date(startDate)
-      endDate.setMonth(endDate.getMonth() + (lease.number_of_months || 0))
-
-      const tenant = lease.tenants
-      const tenantName = tenant?.type === 'Individual'
-        ? `${tenant.individual_tenants?.first_name || ''} ${tenant.individual_tenants?.last_name || ''}`.trim()
-        : tenant?.company_tenants?.company_name || 'Unknown'
-
-      const daysUntilExpiry = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-
-      return {
-        id: lease.id,
-        referenceId: lease.reference_id,
-        tenantName,
-        propertyCode: lease.properties?.code || 'N/A',
-        roomTitle: lease.rooms?.title || null,
-        endDate,
-        monthlyRent: Number(lease.monthly_rent),
-        daysUntilExpiry
-      }
-    })
-    .filter(lease => lease.daysUntilExpiry > 0 && lease.daysUntilExpiry <= daysAhead)
-    .sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry)
-    .slice(0, 5)
-
-  return expiringLeases
+    ]
+      .filter(lease => lease.daysUntilExpiry > 0 && lease.daysUntilExpiry <= daysAhead)
+      .sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry)
+      .slice(0, 5)
   })
 }
 
 export async function getOpenTasks(organizationId: string, limit: number = 5): Promise<OpenTask[]> {
   return cachedQuery(`open-tasks-${organizationId}-${limit}`, async () => {
-  const tasks = await prisma.tasks.findMany({
-    where: {
-      organization_id: organizationId,
-      task_statuses: {
-        some: {
-          state: { in: [task_state.Open, task_state.In_Progress] }
-        }
-      }
-    },
-    orderBy: { created_at: 'desc' },
-    take: limit,
-    select: {
-      id: true,
-      reference_id: true,
-      title: true,
-      properties: {
-        select: { code: true }
-      },
-      rooms: {
-        select: { title: true }
-      },
-      task_priorities: {
-        orderBy: { created_at: 'desc' },
-        take: 1,
-        select: { priority: true }
-      },
-      task_due_dates: {
-        orderBy: { created_at: 'desc' },
-        take: 1,
-        select: { due_date: true }
-      },
-      task_statuses: {
-        orderBy: { created_at: 'desc' },
-        take: 1,
-        select: { state: true }
-      },
-      task_assignments: {
-        where: { status: 'Accepted' },
-        take: 1,
-        select: {
-          staff_task_assignments_assigned_idTostaff: {
-            select: { first_name: true, last_name: true }
-          }
-        }
-      }
-    }
-  })
-
-  return tasks.map(task => {
-    const assignedStaff = task.task_assignments[0]?.staff_task_assignments_assigned_idTostaff
-    const assignedTo = assignedStaff
-      ? `${assignedStaff.first_name} ${assignedStaff.last_name || ''}`.trim()
-      : null
-
-    const state = task.task_statuses[0]?.state || 'Unknown'
-
-    return {
-      id: task.id,
-      referenceId: task.reference_id,
-      title: task.title,
-      propertyCode: task.properties?.code || null,
-      roomTitle: task.rooms?.title || null,
-      priority: task.task_priorities[0]?.priority || null,
-      dueDate: task.task_due_dates[0]?.due_date || null,
-      status: state.replace(/_/g, ' '),
-      assignedTo
-    }
-  })
+    return dummyTasks
+      .filter(t => t.status === 'Open' || t.status === 'In Progress')
+      .sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime())
+      .slice(0, limit)
+      .map(t => ({
+        id: t.task_id,
+        referenceId: t.id,
+        title: t.title,
+        propertyCode: t.property,
+        roomTitle: t.room,
+        priority: t.priority,
+        dueDate: new Date(t.due_date),
+        status: t.status,
+        assignedTo: t.staff_name || null
+      }))
   })
 }
 
 export async function getDashboardAlerts(organizationId: string): Promise<DashboardAlert[]> {
   return cachedQuery(`dashboard-alerts-${organizationId}`, async () => {
-  const now = new Date()
-  const alerts: DashboardAlert[] = []
-
-  // Get overdue payments (Pending payments past due date, 7+ days overdue)
-  const overduePayments = await prisma.payments.findMany({
-    where: {
-      organization_id: organizationId,
-      status: payment_status.Pending,
-      due_payment_timestamp: {
-        lt: addDays(now, -7)
-      }
-    },
-    take: 3,
-    select: {
-      id: true,
-      reference_id: true,
-      due_payment_timestamp: true,
-      leases: {
-        select: {
-          tenants: {
-            select: {
-              type: true,
-              individual_tenants: { select: { first_name: true } },
-              company_tenants: { select: { company_name: true } }
-            }
-          }
-        }
-      }
-    }
-  })
-
-  overduePayments.forEach(payment => {
-    const tenant = payment.leases?.tenants
-    const tenantName = tenant?.type === 'Individual'
-      ? tenant.individual_tenants?.first_name || 'Tenant'
-      : tenant?.company_tenants?.company_name || 'Tenant'
-
-    const daysOverdue = Math.ceil((now.getTime() - (payment.due_payment_timestamp?.getTime() || 0)) / (1000 * 60 * 60 * 24))
-
-    alerts.push({
-      id: `overdue-${payment.id}`,
-      type: 'overdue_payment',
-      title: `Payment ${payment.reference_id} overdue`,
-      description: `${tenantName}'s payment is ${daysOverdue} days overdue`,
-      severity: daysOverdue > 30 ? 'high' : 'medium',
-      link: `/payments/${payment.id}`
-    })
-  })
-
-  // Get leases expiring within 7 days
-  const expiringLeases = await getExpiringLeases(organizationId, 7)
-  expiringLeases.forEach(lease => {
-    alerts.push({
-      id: `expiring-${lease.id}`,
-      type: 'expiring_lease',
-      title: `Lease ${lease.referenceId} expiring soon`,
-      description: `${lease.tenantName}'s lease expires in ${lease.daysUntilExpiry} days`,
-      severity: lease.daysUntilExpiry <= 3 ? 'high' : 'medium',
-      link: `/rentals/${lease.id}`
-    })
-  })
-
-  // Get unassigned tasks (Open tasks without accepted assignments)
-  const unassignedTasks = await prisma.tasks.count({
-    where: {
-      organization_id: organizationId,
-      task_statuses: {
-        some: { state: task_state.Open }
+    return [
+      {
+        id: '1',
+        type: 'overdue_payment' as const,
+        title: 'Overdue Payment',
+        description: 'Payment from Raj Kumar for A-101 (Bedroom 2) is 5 days overdue',
+        severity: 'high' as const,
+        link: '/payments'
       },
-      task_assignments: {
-        none: { status: 'Accepted' }
+      {
+        id: '2',
+        type: 'expiring_lease' as const,
+        title: 'Lease Expiring Soon',
+        description: 'Lease for Ahmad bin Ali expires in 25 days',
+        severity: 'medium' as const,
+        link: '/leases'
+      },
+      {
+        id: '3',
+        type: 'unassigned_task' as const,
+        title: 'Unassigned Task',
+        description: 'Cleaning task for A-102 needs assignment',
+        severity: 'medium' as const,
+        link: '/tasks'
       }
-    }
-  })
-
-  if (unassignedTasks > 0) {
-    alerts.push({
-      id: 'unassigned-tasks',
-      type: 'unassigned_task',
-      title: `${unassignedTasks} unassigned task${unassignedTasks > 1 ? 's' : ''}`,
-      description: 'Tasks need to be assigned to staff members',
-      severity: 'medium',
-      link: '/tasks'
-    })
-  }
-
-  // Get open tickets
-  const openTickets = await prisma.tickets.count({
-    where: {
-      organization_id: organizationId,
-      ticket_statuses: {
-        some: { state: 'Open' }
-      }
-    }
-  })
-
-  if (openTickets > 0) {
-    alerts.push({
-      id: 'open-tickets',
-      type: 'pending_ticket',
-      title: `${openTickets} open ticket${openTickets > 1 ? 's' : ''}`,
-      description: 'Support tickets require attention',
-      severity: 'low',
-      link: '/tickets'
-    })
-  }
-
-  // Sort by severity
-  const severityOrder = { high: 0, medium: 1, low: 2 }
-  return alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
+    ]
   })
 }
 
-// ============================================
-// NEW METRIC CARD FUNCTIONS
-// ============================================
-
 export async function getPropertyStatusCounts(organizationId: string): Promise<PropertyStatusCounts> {
-  return cachedQuery(`property-status-${organizationId}`, async () => {
-  const [
-    totalProperties,
-    underPreparation,
-    pendingInspection,
-    propertiesWithActiveLease
-  ] = await Promise.all([
-    // Total properties
-    prisma.properties.count({
-      where: { organization_id: organizationId }
-    }),
-    // Under Preparation
-    prisma.properties.count({
-      where: {
-        organization_id: organizationId,
-        status: property_status_new.Under_Preparation
-      }
-    }),
-    // Pending Inspection
-    prisma.properties.count({
-      where: {
-        organization_id: organizationId,
-        status: property_status_new.Pending_Inspection
-      }
-    }),
-    // Properties with active lease (Occupied)
-    prisma.properties.count({
-      where: {
-        organization_id: organizationId,
-        status: property_status_new.Ready,
-        leases: {
-          some: { status: lease_status_new.Current }
-        }
-      }
-    })
-  ])
-
-  // Ready properties without active lease = Vacant
-  const readyProperties = totalProperties - underPreparation - pendingInspection
-  const vacant = readyProperties - propertiesWithActiveLease
-
-  return {
-    total: totalProperties,
-    vacant: Math.max(0, vacant),
-    occupied: propertiesWithActiveLease,
-    underPreparation,
-    pendingInspection
-  }
-  })
+  return { total: 6, vacant: 1, occupied: 4, underPreparation: 1, pendingInspection: 0 }
 }
 
 export async function getRoomStatusCounts(organizationId: string): Promise<RoomStatusCounts> {
-  return cachedQuery(`room-status-${organizationId}`, async () => {
-  const [
-    totalRooms,
-    underPreparation,
-    pendingInspection,
-    roomsWithActiveLease
-  ] = await Promise.all([
-    // Total rooms
-    prisma.rooms.count({
-      where: { properties: { organization_id: organizationId } }
-    }),
-    // Under Preparation
-    prisma.rooms.count({
-      where: {
-        properties: { organization_id: organizationId },
-        status: property_status_new.Under_Preparation
-      }
-    }),
-    // Pending Inspection
-    prisma.rooms.count({
-      where: {
-        properties: { organization_id: organizationId },
-        status: property_status_new.Pending_Inspection
-      }
-    }),
-    // Rooms with active lease (Occupied)
-    prisma.rooms.count({
-      where: {
-        properties: { organization_id: organizationId },
-        status: property_status_new.Ready,
-        leases: {
-          some: { status: lease_status_new.Current }
-        }
-      }
-    })
-  ])
-
-  // Ready rooms without active lease = Vacant
-  const readyRooms = totalRooms - underPreparation - pendingInspection
-  const vacant = readyRooms - roomsWithActiveLease
-
-  return {
-    total: totalRooms,
-    vacant: Math.max(0, vacant),
-    occupied: roomsWithActiveLease,
-    underPreparation,
-    pendingInspection
-  }
-  })
+  return { total: 18, vacant: 3, occupied: 14, underPreparation: 1, pendingInspection: 0 }
 }
 
 export async function getLeaseStatusCounts(organizationId: string): Promise<LeaseStatusCounts> {
-  return cachedQuery(`lease-status-${organizationId}`, async () => {
-  const now = new Date()
-  const thirtyDaysFromNow = addDays(now, 30)
-
-  // Get all current leases with their dates
-  const currentLeases = await prisma.leases.findMany({
-    where: {
-      organization_id: organizationId,
-      status: lease_status_new.Current
-    },
-    select: {
-      id: true,
-      start_date: true,
-      number_of_months: true
-    }
-  })
-
-  let expiringSoon = 0
-  let expired = 0
-  let active = 0
-
-  currentLeases.forEach(lease => {
-    if (lease.start_date && lease.number_of_months) {
-      const startDate = new Date(lease.start_date)
-      const endDate = new Date(startDate)
-      endDate.setMonth(endDate.getMonth() + lease.number_of_months)
-
-      if (endDate < now) {
-        // Already expired but still Current status
-        expired++
-      } else if (endDate <= thirtyDaysFromNow) {
-        // Expiring within 30 days
-        expiringSoon++
-      } else {
-        // Active and not expiring soon
-        active++
-      }
-    } else {
-      // No end date info, count as active
-      active++
-    }
-  })
-
-  return {
-    total: currentLeases.length,
-    active,
-    expiringSoon,
-    expired
-  }
-  })
+  return { total: 14, active: 12, expiringSoon: 2, expired: 0 }
 }
 
 export async function getContractStatusCounts(organizationId: string): Promise<ContractStatusCounts> {
-  return cachedQuery(`contract-status-${organizationId}`, async () => {
-  const now = new Date()
-  const thirtyDaysFromNow = addDays(now, 30)
-
-  // Get all current contracts with their dates
-  const currentContracts = await prisma.contracts.findMany({
-    where: {
-      organization_id: organizationId,
-      status: 'Current'
-    },
-    select: {
-      id: true,
-      start_date: true,
-      number_of_months: true
-    }
-  })
-
-  let expiringSoon = 0
-  let expired = 0
-  let active = 0
-
-  currentContracts.forEach(contract => {
-    if (contract.start_date && contract.number_of_months) {
-      const startDate = new Date(contract.start_date)
-      const endDate = new Date(startDate)
-      endDate.setMonth(endDate.getMonth() + contract.number_of_months)
-
-      if (endDate < now) {
-        // Already expired but still Current status
-        expired++
-      } else if (endDate <= thirtyDaysFromNow) {
-        // Expiring within 30 days
-        expiringSoon++
-      } else {
-        // Active and not expiring soon
-        active++
-      }
-    } else {
-      // No end date info, count as active
-      active++
-    }
-  })
-
-  return {
-    total: currentContracts.length,
-    active,
-    expiringSoon,
-    expired
-  }
-  })
+  return { total: 8, active: 7, expiringSoon: 1, expired: 0 }
 }
