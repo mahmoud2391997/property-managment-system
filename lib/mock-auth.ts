@@ -55,6 +55,17 @@ export function mockLogin(email: string, password: string): MockUser | null {
   return userData.user
 }
 
+export function mockLoginByRole(userType: 'admin' | 'staff' | 'tenant'): MockUser | null {
+  // Return the appropriate user based on role
+  if (userType === 'admin') {
+    return MOCK_ADMIN_USER
+  }
+  
+  const userEmail = userType === 'staff' ? 'manager@example.com' : 'tenant@example.com'
+  const userData = MOCK_USERS[userEmail]
+  return userData?.user || null
+}
+
 export function mockGetCurrentUser(): MockUser | null {
   if (typeof window === 'undefined') return null
   
