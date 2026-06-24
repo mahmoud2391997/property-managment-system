@@ -184,13 +184,3 @@ export async function getPropertyProfitHeatmapData(
     avgProfit: 2500
   }))
 }
-
-      }
-    })
-    const validMonths = months.filter(m => m.profit !== null)
-    const avgProfit = validMonths.length > 0
-      ? Math.round(validMonths.reduce((s, m) => s + m.profit!, 0) / validMonths.length)
-      : 0
-    return { propertyCode: code, months, avgProfit }
-  })
-}
