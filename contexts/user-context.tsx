@@ -24,7 +24,28 @@ const UserContext = createContext<UserContextValue | null>(null)
 export function UserProvider({ children }: { children: React.ReactNode }) {
   // Auto-load demo admin user for demo purposes
   const [data] = useState<UserData>(() => {
-    const permissions = ['read', 'write', 'delete', 'manage_users']
+    const permissions = [
+      'read', 'write', 'delete', 'manage_users',
+      // Menu permissions for staff
+      'dashboard.access',
+      'projects.access',
+      'properties.access',
+      'rooms.access',
+      'payments.access',
+      'expenses.access',
+      'tenants.access',
+      'owners.access',
+      'agents.access',
+      'vendors.access',
+      'staff.access',
+      'tenant_screening.access',
+      'tickets.access',
+      'tasks.access',
+      'notices.access',
+      'notifications.access',
+      'reports.access',
+      'leases.access'
+    ]
     return {
       user: MOCK_ADMIN_USER,
       role: 'admin',

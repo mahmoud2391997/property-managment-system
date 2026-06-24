@@ -73,38 +73,25 @@ export default function AppSidebar () {
   // On mobile, sidebar is always "open" (expanded) since it's in a sheet
   const effectiveSidebarOpen = isMobile ? true : isSidebarOpen
 
-  // Fetch user info on mount
+  // Get user info from mock auth on mount
   useEffect(() => {
-    const fetchUserInfo = async () => {
-      try {
-        const response = await fetch('/api/user/info')
-
-        if (!response.ok) {
-          console.error(`Failed to fetch user info: HTTP ${response.status}`)
-          setUserType('staff') // Fallback to staff on error
-          return
-        }
-
-        const data = await response.json()
-
-        if (data.userType) {
-          setUserType(data.userType)
-          setUserInfo({
-            firstName: data.firstName,
-            lastName: data.lastName,
-            profileThumb: data.profileThumb,
-            role: data.role
-          })
-        } else {
-          console.error('Failed to fetch user info: No userType in response', data.error || '')
-          setUserType('staff') // Fallback to staff on error
-        }
-      } catch (error) {
-        console.error('Error fetching user info:', error)
-        setUserType('staff') // Fallback to staff on error
-      }
+    const { mockGetCurrentUser } = require('@/lib/mock-auth')
+    const user = mockGetCurrentUser()
+    
+    if (user) {
+      // Determine user type based on current user role
+      const userType = user.role === 'Tenant' ? 'tenant' : 'staff'
+      setUserType(userType)
+      setUserInfo({
+        firstName: user.name?.split(' ')[0] || 'User',
+        lastName: user.name?.split(' ')[1] || null,
+        profileThumb: null,
+        role: user.role || 'Staff'
+      })
+    } else {
+      // Default to staff if no user
+      setUserType('staff')
     }
-    fetchUserInfo()
   }, [])
 
   type menuItemContentType = {
