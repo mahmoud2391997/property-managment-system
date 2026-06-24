@@ -34,59 +34,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     fetchUnreadCount()
   }, [fetchUnreadCount])
 
-  // Subscribe to real-time notifications for current user
+  // Poll for notification updates every 30 seconds
   useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null
+    const interval = setInterval(() => {
+      fetchUnreadCount()
+    }, 30000)
 
-    const setupSubscription = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      channel = supabase
-        .channel('notifications-unread')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`
-          },
-          (payload) => {
-            // New notification inserted for this user - check if it's unread
-            const newRecord = payload.new as { is_read?: boolean }
-            if (newRecord.is_read === false) {
-              setHasUnreadNotifications(true)
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`
-          },
-          (payload) => {
-            // Notification updated - check if marked as read
-            const newRecord = payload.new as { is_read?: boolean }
-            if (newRecord.is_read === true) {
-              // Refetch to check if any unread remain
-              fetchUnreadCount()
-            }
-          }
-        )
-        .subscribe()
-    }
-
-    setupSubscription()
-
-    return () => {
-      if (channel) {
-        supabase.removeChannel(channel)
-      }
-    }
+    return () => clearInterval(interval)
   }, [fetchUnreadCount])
 
   return (
